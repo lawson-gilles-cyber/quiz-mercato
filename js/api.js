@@ -7,8 +7,8 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // À renseigner avec tes clés (projet dédié, pas celui de FHAF)
-const SUPABASE_URL = 'https://jfqxxlllqlynvllfsvdt.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmcXh4bGxscWx5bnZsbGZzdmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjY1NDYsImV4cCI6MjA5NjM0MjU0Nn0.W0BEHCjZfgtLvSs9RoOsYGTOlGmcMhgOskYVwSe5p2I';
+const SUPABASE_URL = 'https://TON_PROJET.supabase.co';
+const SUPABASE_ANON = 'TON_ANON_KEY';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -110,6 +110,37 @@ export async function placeBid(auctionId, amount) {
 }
 export async function openAuction(playerId) {
   return sb.rpc('qm_open_auction', { p_player_id: playerId });
+}
+
+// ---------- ADMIN (RPC réservées, contrôle is_admin côté serveur) ----
+export async function amIAdmin() {
+  const { data } = await sb.rpc('qm_is_admin');
+  return data === true;
+}
+export async function adminUpsertPlayer(p) {
+  // p : { id?, name, position, club, nationality, age, photo_url, value }
+  return sb.rpc('qm_admin_upsert_player', {
+    p_id: p.id ?? null,
+    p_name: p.name,
+    p_position: p.position,
+    p_club: p.club ?? null,
+    p_nationality: p.nationality ?? null,
+    p_age: p.age ?? null,
+    p_photo_url: p.photo_url ?? null,
+    p_value: p.value
+  });
+}
+export async function adminDeletePlayer(id) {
+  return sb.rpc('qm_admin_delete_player', { p_id: id });
+}
+export async function adminOpenAuction(playerId) {
+  return sb.rpc('qm_admin_open_auction', { p_player_id: playerId });
+}
+export async function adminSetPhase(phase) {
+  return sb.rpc('qm_admin_set_phase', { p_phase: phase });
+}
+export async function adminSetBudget(managerId, budget) {
+  return sb.rpc('qm_admin_set_budget', { p_manager_id: managerId, p_budget: budget });
 }
 
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------

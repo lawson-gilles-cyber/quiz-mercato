@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Mercato — Administration</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --pitch:#0c1f17;--pitch-2:#12291d;--line:#1e4230;--chalk:#eef3ea;
+    --muted:#8fa79a;--transfer:#ffd54a;--live:#ff5a4d;--ok:#4ade80;--r:12px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--pitch);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
+    min-height:100vh;line-height:1.45}
+  header{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line)}
+  .logo{font-weight:900;font-size:1.25rem;text-transform:uppercase;letter-spacing:-.5px}
+  .logo b{color:var(--transfer)}
+  .badge{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;font-size:.72rem;
+    background:var(--transfer);color:var(--pitch);padding:3px 10px;border-radius:6px;font-weight:700}
+  #who{margin-left:auto;font-size:.85rem;color:var(--muted)}
+  #who b{color:var(--chalk)}
+  main{max-width:1100px;margin:0 auto;padding:28px 22px 80px}
+  h2{font-family:'Archivo';font-weight:900;font-size:1.4rem;margin:28px 0 14px;letter-spacing:-.4px}
+  h2:first-child{margin-top:0}
+  .card{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:20px}
+
+  /* Formulaires */
+  label{display:block;font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;
+    font-size:.72rem;color:var(--muted);margin-bottom:5px}
+  input,select{width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);
+    padding:9px 11px;border-radius:8px;font-family:inherit;font-size:.9rem}
+  input::placeholder{color:var(--muted)}
+  .row{display:grid;gap:14px;margin-bottom:14px}
+  .row.c2{grid-template-columns:1fr 1fr}
+  .row.c3{grid-template-columns:2fr 1fr 1fr}
+  .row.c4{grid-template-columns:1fr 1fr 1fr 1fr}
+  button{font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;
+    cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-size:.85rem;transition:.15s}
+  .btn-primary{background:var(--transfer);color:var(--pitch)}
+  .btn-primary:hover{background:#fff}
+  .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
+  .btn-ghost:hover{color:var(--chalk)}
+  .btn-danger{background:transparent;color:var(--live);border:1px solid var(--live);padding:6px 10px;font-size:.75rem}
+  .btn-sm{padding:6px 10px;font-size:.75rem}
+
+  /* Auth gate */
+  #gate{max-width:380px;margin:80px auto;text-align:center}
+  #gate .card{text-align:left}
+  #msg{padding:10px 14px;border-radius:8px;margin-bottom:16px;font-size:.85rem;display:none}
+  #msg.err{display:block;background:rgba(255,90,77,.12);border:1px solid var(--live);color:var(--live)}
+  #msg.ok{display:block;background:rgba(74,222,128,.12);border:1px solid var(--ok);color:var(--ok)}
+
+  /* Table joueurs */
+  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  th{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.68rem;
+    color:var(--muted);text-align:left;padding:10px;border-bottom:1px solid var(--line)}
+  td{padding:10px;border-bottom:1px solid var(--line)}
+  tr:hover td{background:var(--pitch)}
+  .pos-tag{font-family:'Space Mono';font-size:.68rem;padding:2px 6px;border:1px solid var(--line);border-radius:4px}
+  .val{font-family:'Space Mono';font-weight:700;color:var(--transfer)}
+  .status{font-size:.72rem;padding:2px 8px;border-radius:20px}
+  .s-free{background:rgba(74,222,128,.12);color:var(--ok)}
+  .s-owned{background:rgba(143,167,154,.15);color:var(--muted)}
+  .s-locked{background:rgba(255,213,74,.12);color:var(--transfer)}
+  .actions{display:flex;gap:6px;justify-content:flex-end}
+  .hidden{display:none!important}
+  .phase-btns{display:flex;gap:10px;flex-wrap:wrap}
+  .phase-current{font-family:'Space Mono';color:var(--transfer)}
+  .hint{color:var(--muted);font-size:.8rem;margin-top:6px}
+  a{color:var(--transfer)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">QUIZ<b>·</b>MERCATO <span class="badge">Admin</span></div>
+  <div id="who"></div>
+</header>
+
+<!-- PORTE D'ENTRÉE : connexion -->
+<div id="gate">
+  <div class="card">
+    <div id="msg"></div>
+    <h2 style="margin-top:0">Connexion admin</h2>
+    <div class="row"><div><label>Email</label><input id="email" type="email" placeholder="admin@exemple.com"></div></div>
+    <div class="row"><div><label>Mot de passe</label><input id="password" type="password" placeholder="••••••••"></div></div>
+    <div style="display:flex;gap:10px;margin-top:6px">
+      <button class="btn-primary" id="btnLogin" style="flex:1">Se connecter</button>
+      <button class="btn-ghost" id="btnSignup">Créer un compte</button>
+    </div>
+    <p class="hint">Première fois ? Crée un compte, puis désigne-toi admin via le script SQL fourni (05_admin.sql).</p>
+  </div>
+</div>
+
+<!-- CONSOLE ADMIN -->
+<main id="console" class="hidden">
+  <div id="msg2"></div>
+
+  <!-- Phase du mercato -->
+  <h2>Phase du mercato</h2>
+  <div class="card">
+    <p style="margin-bottom:12px">État actuel : <span class="phase-current" id="phaseNow">—</span></p>
+    <div class="phase-btns">
+      <button class="btn-ghost" data-phase="closed">Fermer</button>
+      <button class="btn-primary" data-phase="open">Ouvrir le mercato</button>
+      <button class="btn-ghost" data-phase="frozen">Figer les effectifs</button>
+    </div>
+  </div>
+
+  <!-- Ajouter un joueur -->
+  <h2>Ajouter un joueur</h2>
+  <div class="card">
+    <div class="row c3">
+      <div><label>Nom</label><input id="p_name" placeholder="Kylian Mbappé"></div>
+      <div><label>Poste</label><select id="p_position">
+        <option value="GK">Gardien</option><option value="DEF">Défenseur</option>
+        <option value="MID">Milieu</option><option value="FWD" selected>Attaquant</option>
+      </select></div>
+      <div><label>Âge</label><input id="p_age" type="number" placeholder="27"></div>
+    </div>
+    <div class="row c3">
+      <div><label>Club</label><input id="p_club" placeholder="Real Madrid"></div>
+      <div><label>Nationalité (emoji ou texte)</label><input id="p_nat" placeholder="🇫🇷"></div>
+      <div><label>Valeur (M€)</label><input id="p_value" type="number" placeholder="180"></div>
+    </div>
+    <div class="row"><div><label>URL photo (optionnel)</label><input id="p_photo" placeholder="https://…"></div></div>
+    <button class="btn-primary" id="btnAddPlayer">Ajouter le joueur</button>
+    <p class="hint">La valeur est en millions d'euros. Elle sert de valeur de départ ET de valeur de marché initiale.</p>
+  </div>
+
+  <!-- Liste des joueurs -->
+  <h2>Joueurs en base (<span id="playerCount">0</span>)</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Nom</th><th>Poste</th><th>Club</th><th>Valeur</th><th>Statut</th><th></th></tr></thead>
+      <tbody id="playerRows"></tbody>
+    </table>
+  </div>
+</main>
+
+<script type="module">
+import * as api from './js/api.js';
+import { sb } from './js/api.js';
+
+const $ = id => document.getElementById(id);
+const showMsg = (el, txt, ok=false) => { el.textContent = txt; el.className = ok?'ok':'err'; };
+const M = 1_000_000;
+
+// ---------- Auth ----------
+async function refreshGate(){
+  const mgr = await api.currentManager();
+  if(!mgr){ $('gate').classList.remove('hidden'); $('console').classList.add('hidden'); return; }
+  const isAdmin = await api.amIAdmin();
+  if(!isAdmin){
+    showMsg($('msg'), `Connecté comme ${mgr.display_name}, mais tu n'es pas admin. Exécute le script 05_admin.sql pour te désigner.`);
+    $('gate').classList.remove('hidden'); $('console').classList.add('hidden');
+    return;
+  }
+  $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
+  $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
+  $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
+  loadPhase(); loadPlayers();
+}
+
+$('btnLogin').onclick = async () => {
+  const { error } = await api.signIn($('email').value.trim(), $('password').value);
+  if(error) return showMsg($('msg'), 'Échec : '+error.message);
+  refreshGate();
+};
+$('btnSignup').onclick = async () => {
+  const email = $('email').value.trim();
+  const { error } = await api.signUp(email, $('password').value, email.split('@')[0]);
+  if(error) return showMsg($('msg'), 'Échec : '+error.message);
+  showMsg($('msg'), 'Compte créé. Désigne-toi admin (05_admin.sql), puis connecte-toi.', true);
+};
+
+// ---------- Phase ----------
+async function loadPhase(){
+  const { data } = await sb.from('qm_season_state').select('phase').eq('id',1).single();
+  const labels = {closed:'Fermé',open:'Ouvert',frozen:'Figé'};
+  $('phaseNow').textContent = labels[data?.phase] ?? '—';
+}
+document.querySelectorAll('[data-phase]').forEach(b=>{
+  b.onclick = async () => {
+    const { error } = await api.adminSetPhase(b.dataset.phase);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Phase mise à jour.', true); loadPhase();
+  };
+});
+
+// ---------- Ajouter un joueur ----------
+$('btnAddPlayer').onclick = async () => {
+  const name = $('p_name').value.trim();
+  const valM = parseFloat($('p_value').value);
+  if(!name || isNaN(valM)) return showMsg($('msg2'), 'Nom et valeur sont obligatoires.');
+  const { error } = await api.adminUpsertPlayer({
+    name,
+    position: $('p_position').value,
+    club: $('p_club').value.trim() || null,
+    nationality: $('p_nat').value.trim() || null,
+    age: parseInt($('p_age').value) || null,
+    photo_url: $('p_photo').value.trim() || null,
+    value: Math.round(valM * M)
+  });
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), `${name} ajouté.`, true);
+  ['p_name','p_club','p_nat','p_age','p_value','p_photo'].forEach(id=>$(id).value='');
+  loadPlayers();
+};
+
+// ---------- Liste des joueurs ----------
+const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
+const fmtM = v => (v/M).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
+
+async function loadPlayers(){
+  const players = await api.listPlayers();
+  $('playerCount').textContent = players.length;
+  $('playerRows').innerHTML = players.map(p=>`
+    <tr>
+      <td>${p.nationality?p.nationality+' ':''}${p.name}</td>
+      <td><span class="pos-tag">${POS[p.position]}</span></td>
+      <td>${p.club ?? '—'}</td>
+      <td class="val">${fmtM(p.current_value)}</td>
+      <td><span class="status s-${p.status}">${p.status}</span></td>
+      <td><div class="actions">
+        ${p.status==='free'
+          ? `<button class="btn-primary btn-sm" data-open="${p.id}">Ouvrir enchère</button>
+             <button class="btn-danger" data-del="${p.id}">Suppr.</button>`
+          : `<span class="hint">verrouillé</span>`}
+      </div></td>
+    </tr>`).join('') || `<tr><td colspan="6" class="hint" style="text-align:center;padding:30px">Aucun joueur. Ajoute-en un ci-dessus.</td></tr>`;
+
+  $('playerRows').querySelectorAll('[data-open]').forEach(b=>b.onclick = async ()=>{
+    const { error } = await api.adminOpenAuction(b.dataset.open);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Enchère ouverte (48 h).', true); loadPlayers();
+  });
+  $('playerRows').querySelectorAll('[data-del]').forEach(b=>b.onclick = async ()=>{
+    if(!confirm('Supprimer ce joueur ?')) return;
+    const { error } = await api.adminDeletePlayer(b.dataset.del);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Joueur supprimé.', true); loadPlayers();
+  });
+}
+
+// ---------- Init ----------
+refreshGate();
+</script>
+</body>
+</html>
