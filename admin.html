@@ -224,6 +224,7 @@ async function loadPlayers(){
       <td class="val">${fmtM(p.current_value)}</td>
       <td><span class="status s-${p.status}">${p.status}</span></td>
       <td><div class="actions">
+        <button class="btn-ghost btn-sm" data-attr="${p.id}">Attributs</button>
         ${p.status==='free'
           ? `<button class="btn-primary btn-sm" data-open="${p.id}">Ouvrir enchère</button>
              <button class="btn-danger" data-del="${p.id}">Suppr.</button>`
@@ -241,6 +242,24 @@ async function loadPlayers(){
     const { error } = await api.adminDeletePlayer(b.dataset.del);
     if(error) return showMsg($('msg2'), error.message);
     showMsg($('msg2'), 'Joueur supprimé.', true); loadPlayers();
+  });
+  $('playerRows').querySelectorAll('[data-attr]').forEach(b=>b.onclick = async ()=>{
+    const p = players.find(x=>x.id===b.dataset.attr);
+    const labels = ['Finition','Créativité','Vitesse','Intelligence','Physique','Défense','Régularité'];
+    const keys = ['attr_finition','attr_creativite','attr_vitesse','attr_intelligence','attr_physique','attr_defense','attr_regularite'];
+    const vals = {};
+    for(let i=0;i<labels.length;i++){
+      const cur = p[keys[i]] ?? 50;
+      const input = prompt(`${p.name} — ${labels[i]} (0-100)`, cur);
+      if(input===null) return; // annulation
+      const n = Math.max(0, Math.min(100, parseInt(input,10)||0));
+      vals[keys[i].replace('attr_','')] = n;
+    }
+    const { error } = await api.adminSetAttributes(p.id, vals);
+    if(error) return showMsg($('msg2'), error.message);
+    const note = await api.adminRating(p.id);
+    showMsg($('msg2'), `Attributs mis à jour. Note QM calculée (cachée au public) : ${note}/100`, true);
+    loadPlayers();
   });
 }
 
