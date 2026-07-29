@@ -192,8 +192,27 @@
     <button data-v="team">Mon équipe</button>
     <button data-v="rank">Classement</button>
   </nav>
-  <div class="wallet"><small>BUDGET DISPO</small><span id="wallet">—</span></div>
+  <div class="wallet" id="walletBox"><small>BUDGET DISPO</small><span id="wallet">—</span></div>
+  <button id="authBtn" style="font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;background:var(--transfer);color:var(--pitch);border:none;padding:9px 14px;border-radius:8px;cursor:pointer;margin-left:10px">Connexion</button>
 </header>
+
+<!-- Modale d'authentification manager -->
+<div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
+  <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:26px;width:360px;max-width:92vw">
+    <div id="authMsg" style="display:none;padding:9px 12px;border-radius:8px;margin-bottom:14px;font-size:.85rem"></div>
+    <h3 style="font-weight:900;font-size:1.2rem;margin-bottom:16px" id="authTitle">Connexion manager</h3>
+    <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Email</label>
+    <input id="authEmail" type="email" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 12px;font-family:inherit">
+    <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Mot de passe</label>
+    <input id="authPass" type="password" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 16px;font-family:inherit">
+    <input id="authName" type="text" placeholder="Pseudo (inscription)" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:0 0 16px;font-family:inherit;display:none">
+    <div style="display:flex;gap:10px">
+      <button id="doLogin" style="flex:1;background:var(--transfer);color:var(--pitch);border:none;font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:10px;border-radius:8px;cursor:pointer">Se connecter</button>
+      <button id="toggleSignup" style="background:transparent;color:var(--muted);border:1px solid var(--line);font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:10px 12px;border-radius:8px;cursor:pointer">S'inscrire</button>
+    </div>
+    <button id="closeAuth" style="width:100%;background:none;border:none;color:var(--muted);margin-top:12px;cursor:pointer;font-size:.8rem">Fermer</button>
+  </div>
+</div>
 
 <main>
   <!-- ACCUEIL -->
@@ -273,193 +292,250 @@
 
 <div class="demo-tag">MODE DÉMO · données fictives · branche api.js pour le live</div>
 
-<script>
-// =====================================================================
-// DONNÉES DE DÉMO — remplacées par les appels api.js une fois branché
-// =====================================================================
-const DEMO_PLAYERS = [
-  {name:'Kylian Mbappé', position:'FWD', club:'Real Madrid', nationality:'🇫🇷', age:27, current_value:172e6, status:'owned', owner:'Léo M.'},
-  {name:'Lamine Yamal', position:'FWD', club:'Barcelona', nationality:'🇪🇸', age:19, current_value:165e6, status:'owned', owner:'Sarah T.'},
-  {name:'Erling Haaland', position:'FWD', club:'Man City', nationality:'🇳🇴', age:26, current_value:158e6, status:'free', owner:null},
-  {name:'Jude Bellingham', position:'MID', club:'Real Madrid', nationality:'🏴', age:23, current_value:145e6, status:'free', owner:null},
-  {name:'Vinícius Jr', position:'FWD', club:'Real Madrid', nationality:'🇧🇷', age:26, current_value:150e6, status:'owned', owner:'Karim B.'},
-  {name:'Pedri', position:'MID', club:'Barcelona', nationality:'🇪🇸', age:23, current_value:90e6, status:'free', owner:null},
-  {name:'Florian Wirtz', position:'MID', club:'Liverpool', nationality:'🇩🇪', age:23, current_value:120e6, status:'free', owner:null},
-  {name:'Achraf Hakimi', position:'DEF', club:'PSG', nationality:'🇲🇦', age:27, current_value:65e6, status:'owned', owner:'Léo M.'},
-  {name:'William Saliba', position:'DEF', club:'Arsenal', nationality:'🇫🇷', age:25, current_value:70e6, status:'free', owner:null},
-  {name:'Alisson', position:'GK', club:'Liverpool', nationality:'🇧🇷', age:33, current_value:28e6, status:'free', owner:null},
-  {name:'Gigio Donnarumma', position:'GK', club:'Man City', nationality:'🇮🇹', age:27, current_value:40e6, status:'owned', owner:'Sarah T.'},
-  {name:'Nico Williams', position:'FWD', club:'Barcelona', nationality:'🇪🇸', age:24, current_value:75e6, status:'free', owner:null},
-  {name:'Rafael Leão', position:'FWD', club:'Milan', nationality:'🇵🇹', age:26, current_value:68e6, status:'free', owner:null},
-  {name:'Declan Rice', position:'MID', club:'Arsenal', nationality:'🏴', age:27, current_value:95e6, status:'free', owner:null},
-  {name:'Josko Gvardiol', position:'DEF', club:'Man City', nationality:'🇭🇷', age:24, current_value:75e6, status:'free', owner:null},
-  {name:'Bukayo Saka', position:'FWD', club:'Arsenal', nationality:'🏴', age:24, current_value:130e6, status:'free', owner:null},
-];
-// Enchères organisées par statut, façon Kanban (Scheduled/Live/Ended/Transferred)
-const DEMO_AUCTIONS = {
-  scheduled:[
-    {name:'Vinícius Júnior', nick:'Flash Sale', position:'FWD', price:150e6, date:'31/07 00:00', photo:''},
-  ],
-  live:[
-    {name:'Jude Bellingham', nick:'Midfield Maestro', position:'MID', price:150e6, endsIn:8*3600+2, photo:'', top:'Karim B.'},
-    {name:'Jamal Musiala', nick:'Golden Boy', position:'MID', price:31e6, endsIn:180, photo:'', top:'Léo M.'},
-    {name:'Nico Williams', nick:'Rising Star', position:'FWD', price:77e6, endsIn:31*60, photo:'', top:'—'},
-  ],
-  ended:[
-    {name:'Gavi', nick:'Midfield Engine', position:'MID', price:105e6, date:'12/07 16:00', photo:''},
-  ],
-  transferred:[
-    {name:'Kylian Mbappé', nick:'Summer Window', position:'FWD', price:60e6, date:'12/07 12:00', photo:''},
-    {name:'Bukayo Saka', nick:'Rising Star', position:'FWD', price:85e6, date:'07/07 14:00', photo:''},
-  ],
-};
-const DEMO_RANK = [
-  {name:'Léo M.', pts:284, value:410e6, budget:120e6},
-  {name:'Sarah T.', pts:271, value:388e6, budget:95e6},
-  {name:'Karim B.', pts:255, value:355e6, budget:210e6},
-  {name:'Inès D.', pts:240, value:298e6, budget:180e6},
-];
-const ME = {name:'Karim B.', budget:700e6, locked:220e6, pts:255};
+<script type="module">
+import * as api from './js/api.js';
+import { sb } from './js/api.js';
 
-// ---------- Utilitaires (miroir de api.js) ----------
-function fmtMoney(v){
+// ---------- Utilitaires ----------
+function fmtMoney(v){ v=Number(v);
   if(v>=1e9) return (v/1e9).toFixed(2).replace('.',',')+' Md€';
   if(v>=1e6) return (v/1e6).toFixed(0).replace('.',',')+' M€';
   if(v>=1e3) return Math.round(v/1e3)+' k€';
   return v+' €';
 }
-function rarity(v){
+function rarity(v){ v=Number(v);
   if(v>=100e6) return {key:'legend',s:5}; if(v>=60e6) return {key:'platinum',s:4};
   if(v>=30e6) return {key:'gold',s:3}; if(v>=10e6) return {key:'silver',s:2};
   return {key:'bronze',s:1};
 }
-function minIncrement(v){
+function minIncrement(v){ v=Number(v);
   if(v>150e6) return 15e6; if(v>100e6) return 10e6; if(v>60e6) return 5e6;
   if(v>30e6) return 2e6; if(v>10e6) return 1e6; return 500e3;
 }
 const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
-function stars(n){return '★'.repeat(n)+'☆'.repeat(5-n)}
+const stars = n => '★'.repeat(n)+'☆'.repeat(5-n);
+const $ = id => document.getElementById(id);
+
+let ME = null;         // manager connecté (ou null)
+let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation ----------
-document.getElementById('nav').addEventListener('click', e=>{
+$('nav').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b) return;
   document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('active'));
   b.classList.add('active');
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
-  document.getElementById(b.dataset.v).classList.add('on');
+  $(b.dataset.v).classList.add('on');
+  if(b.dataset.v==='team') renderTeam();
+  if(b.dataset.v==='rank') renderRank();
+  if(b.dataset.v==='auctions') renderAuctions();
 });
 
-// ---------- Rendu grille joueurs ----------
+// ---------- AUTH ----------
+let signupMode = false;
+$('authBtn').onclick = ()=>{
+  if(ME){ // déconnexion
+    sb.auth.signOut().then(()=>location.reload());
+  } else {
+    $('authModal').style.display='flex';
+  }
+};
+$('closeAuth').onclick = ()=> $('authModal').style.display='none';
+$('toggleSignup').onclick = ()=>{
+  signupMode = !signupMode;
+  $('authName').style.display = signupMode?'block':'none';
+  $('authTitle').textContent = signupMode?'Inscription manager':'Connexion manager';
+  $('doLogin').textContent = signupMode?"Créer mon compte":"Se connecter";
+};
+function authMsg(txt, ok=false){
+  const m=$('authMsg'); m.textContent=txt; m.style.display='block';
+  m.style.background = ok?'rgba(74,222,128,.12)':'rgba(255,90,77,.12)';
+  m.style.color = ok?'#4ade80':'#ff5a4d';
+  m.style.border = '1px solid '+(ok?'#4ade80':'#ff5a4d');
+}
+$('doLogin').onclick = async ()=>{
+  const email=$('authEmail').value.trim(), pass=$('authPass').value;
+  if(!email||!pass) return authMsg('Email et mot de passe requis.');
+  if(signupMode){
+    const name=$('authName').value.trim()||email.split('@')[0];
+    const { error } = await api.signUp(email, pass, name);
+    if(error) return authMsg('Échec : '+error.message);
+    authMsg('Compte créé ! Connexion…', true);
+  } else {
+    const { error } = await api.signIn(email, pass);
+    if(error) return authMsg('Échec : '+error.message);
+  }
+  setTimeout(()=>location.reload(), 600);
+};
+
+// ---------- Rendu carte joueur ----------
 function playerCard(p){
   const r=rarity(p.current_value);
-  const owned=p.status==='owned';
+  const owned=p.status!=='free';
+  const ownerName = p.owner?.display_name ?? null;
   return `<div class="card">
     <div class="rail r-${r.key}"></div>
     <div class="body">
       <div class="top">
         <div><div class="name">${p.name}</div>
-          <div class="meta">${p.nationality} ${p.club} · ${p.age} ans</div></div>
+          <div class="meta">${p.nationality??''} ${p.club??''}${p.age?' · '+p.age+' ans':''}</div></div>
         <div class="pos">${POS[p.position]}</div>
       </div>
       <div class="stars">${stars(r.s)}</div>
       <div class="val">${fmtMoney(p.current_value)}<small>VALEUR DE MARCHÉ</small></div>
-      ${owned?`<div class="owner">Recruté par <b>${p.owner}</b></div>
+      ${owned?`<div class="owner">${ownerName?'Recruté par <b>'+ownerName+'</b>':'Indisponible'}</div>
         <button class="bid-btn owned">Indisponible</button>`
        :`<div class="owner">Libre · mise min. +${fmtMoney(minIncrement(p.current_value))}</div>
-        <button class="bid-btn" onclick="alert('Enchère → place_bid() une fois branché sur Supabase')">Faire une offre</button>`}
+        <button class="bid-btn" data-bid="${p.id}">Faire une offre</button>`}
     </div></div>`;
 }
-function renderMarket(){
-  const q=document.getElementById('search').value.toLowerCase();
-  const fp=document.getElementById('fpos').value;
-  const fs=document.getElementById('fstatus').value;
-  const list=DEMO_PLAYERS.filter(p=>
-    (!q||p.name.toLowerCase().includes(q))&&(!fp||p.position===fp)&&(!fs||p.status===fs));
-  const g=document.getElementById('playerGrid');
-  g.innerHTML = list.length? list.map(playerCard).join('')
-    : `<div class="empty" style="grid-column:1/-1">Aucun joueur ne correspond à ta recherche.</div>`;
-}
-['search','fpos','fstatus'].forEach(id=>
-  document.getElementById(id).addEventListener('input',renderMarket));
 
-// ---------- Enchères : Kanban ----------
-function fmtClock(sec){
-  if(sec<=0) return 'terminée';
-  const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60),s=sec%60;
-  return h>0?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m ${String(s).padStart(2,'0')}s`;
+// ---------- Mercato ----------
+async function loadPlayers(){
+  PLAYERS = await api.listPlayers();
 }
-function photoBlock(a){
-  return a.photo
-    ? `<img src="${a.photo}" alt="${a.name}">`
-    : `<span class="ph-icon">🖼</span>`;
+function renderMarket(){
+  const q=$('search').value.toLowerCase();
+  const fp=$('fpos').value, fs=$('fstatus').value;
+  const list=PLAYERS.filter(p=>
+    (!q||p.name.toLowerCase().includes(q))&&(!fp||p.position===fp)&&(!fs||p.status===fs));
+  $('playerGrid').innerHTML = list.length? list.map(playerCard).join('')
+    : `<div class="empty" style="grid-column:1/-1">Aucun joueur pour l'instant. L'administrateur doit en ajouter.</div>`;
+  // brancher les boutons "Faire une offre"
+  $('playerGrid').querySelectorAll('[data-bid]').forEach(b=>b.onclick=()=>startBid(b.dataset.bid));
 }
-function acard(a,status,i){
-  const tagLabel={scheduled:'Programmée',live:'En direct',ended:'Terminée',transferred:'Transféré'}[status];
-  let bottom='';
+['search','fpos','fstatus'].forEach(id=>$(id).addEventListener('input',renderMarket));
+
+// ---------- Enchère : placer une offre ----------
+async function startBid(playerId){
+  if(!ME){ $('authModal').style.display='flex'; return; }
+  // Trouver l'enchère ouverte de ce joueur
+  const auctions = await api.listOpenAuctions();
+  const auc = auctions.find(a=>a.player_id===playerId);
+  if(!auc){ alert("Aucune enchère ouverte sur ce joueur pour le moment."); return; }
+  const next = Number(auc.current_price)+minIncrement(auc.current_price);
+  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}\n\nTon offre (en euros) :`, next);
+  if(input===null) return;
+  const amount = parseInt(input,10);
+  if(isNaN(amount)) return alert("Montant invalide.");
+  const { error } = await api.placeBid(auc.id, amount);
+  if(error) return alert("Échec : "+error.message);
+  alert("Offre placée !");
+  renderAuctions();
+}
+
+// ---------- Kanban enchères ----------
+function fmtClock(ms){
+  if(ms<=0) return 'terminée';
+  const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60;
+  return h>0?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m ${String(sec).padStart(2,'0')}s`;
+}
+function acard(a, status){
+  const tag={scheduled:'Programmée',live:'En direct',ended:'Terminée',transferred:'Transféré'}[status];
+  const p = a.player || {};
+  const photo = p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}">` : `<span class="ph-icon">🖼</span>`;
+  let bottom;
   if(status==='live'){
-    const hot=a.endsIn<600;
-    bottom=`<div class="line"><span class="price">${fmtMoney(a.price)}</span></div>
-      <div class="clock ${hot?'hot':'safe'}" data-k="${status}-${i}">⏱ ${fmtClock(a.endsIn)} · ${a.top}</div>`;
-  }else{
-    bottom=`<div class="line"><span class="price">${fmtMoney(a.price)}</span><span class="date">${a.date}</span></div>`;
+    const left = new Date(a.ends_at) - new Date();
+    const hot = left < 600000;
+    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span></div>
+      <div class="clock ${hot?'hot':'safe'}" data-ends="${a.ends_at}">⏱ ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>`;
+  } else {
+    const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
   }
   return `<div class="acard">
-    <div class="photo">${photoBlock(a)}<span class="tag t-${status}">${tagLabel}</span></div>
+    <div class="photo">${photo}<span class="tag t-${status}">${tag}</span></div>
     <div class="info">
-      <div class="title">${a.name}</div>
-      <div class="nick">${a.nick} · ${POS[a.position]}</div>
+      <div class="title">${p.name??'—'}</div>
+      <div class="nick">${POS[p.position]??''}</div>
       ${bottom}
     </div></div>`;
 }
-function renderAuctions(){
-  ['scheduled','live','ended','transferred'].forEach(status=>{
-    const list=DEMO_AUCTIONS[status];
-    document.getElementById('c-'+status).textContent=list.length;
-    document.getElementById('k-'+status).innerHTML =
-      list.length? list.map((a,i)=>acard(a,status,i)).join('')
+async function renderAuctions(){
+  const open = await api.listOpenAuctions();
+  // Répartition simple : tout ce qui est ouvert et non expiré = live
+  const now = new Date();
+  const live = open.filter(a=> new Date(a.ends_at) > now);
+  const buckets = {scheduled:[], live, ended:[], transferred:[]};
+  // Transferts récents = colonne "transferred"
+  const { data: transfers } = await sb.from('qm_transfers')
+    .select('*, player:qm_players(*)').order('created_at',{ascending:false}).limit(10);
+  buckets.transferred = (transfers??[]).map(t=>({player:t.player, current_price:t.price, created_at:t.created_at}));
+
+  for(const status of ['scheduled','live','ended','transferred']){
+    const list=buckets[status];
+    $('c-'+status).textContent=list.length;
+    $('k-'+status).innerHTML = list.length? list.map(a=>acard(a,status)).join('')
       : `<div class="col-empty">Aucune</div>`;
-  });
+  }
 }
-// compte à rebours live (démo)
+// compte à rebours live (recalcule depuis ends_at)
 setInterval(()=>{
-  DEMO_AUCTIONS.live.forEach((a,i)=>{
-    if(a.endsIn>0)a.endsIn--;
-    const c=document.querySelector(`.clock[data-k="live-${i}"]`);
-    if(c){c.textContent='⏱ '+fmtClock(a.endsIn)+' · '+a.top;c.classList.toggle('safe',a.endsIn>=600);c.classList.toggle('hot',a.endsIn<600);}
+  document.querySelectorAll('.clock[data-ends]').forEach(c=>{
+    const left=new Date(c.dataset.ends)-new Date();
+    const name=c.textContent.split('·')[1]??'';
+    c.textContent='⏱ '+fmtClock(left)+' ·'+name;
+    c.classList.toggle('safe',left>=600000); c.classList.toggle('hot',left<600000);
   });
 },1000);
 
 // ---------- Mon équipe ----------
-function renderTeam(){
-  const mine=DEMO_PLAYERS.filter(p=>p.owner===ME.name);
-  const tv=mine.reduce((s,p)=>s+p.current_value,0);
-  document.getElementById('teamCount').innerHTML=`${mine.length} <b>/ 24</b>`;
-  document.getElementById('teamValue').innerHTML=`<b>${fmtMoney(tv)}</b>`;
-  document.getElementById('teamPts').innerHTML=`<b>${ME.pts}</b>`;
-  const g=document.getElementById('teamGrid');
-  g.innerHTML = mine.length? mine.map(playerCard).join('')
+async function renderTeam(){
+  if(!ME){
+    $('teamGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">Connecte-toi pour voir ton équipe.</div>`;
+    $('teamCount').innerHTML='0 <b>/ 24</b>'; $('teamValue').innerHTML='<b>—</b>'; $('teamPts').innerHTML='<b>0</b>';
+    return;
+  }
+  const mine = await api.myTeam(ME.id);
+  const tv = mine.reduce((s,p)=>s+Number(p.current_value),0);
+  $('teamCount').innerHTML=`${mine.length} <b>/ 24</b>`;
+  $('teamValue').innerHTML=`<b>${fmtMoney(tv)}</b>`;
+  $('teamPts').innerHTML=`<b>${ME.season_points}</b>`;
+  $('teamGrid').innerHTML = mine.length? mine.map(playerCard).join('')
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
 }
 
 // ---------- Classement ----------
-function renderRank(){
-  document.getElementById('rankBody').innerHTML = DEMO_RANK.map((m,i)=>
+async function renderRank(){
+  const managers = await api.leaderboard();
+  // valeur d'effectif par manager
+  const rows = await Promise.all(managers.map(async m=>{
+    const team = await api.myTeam(m.id);
+    const val = team.reduce((s,p)=>s+Number(p.current_value),0);
+    return {...m, teamValue:val};
+  }));
+  $('rankBody').innerHTML = rows.map((m,i)=>
     `<tr><td class="rank ${i===0?'podium-1':''}">${i+1}</td>
-      <td><b>${m.name}</b></td><td class="pts">${m.pts}</td>
-      <td>${fmtMoney(m.value)}</td><td>${fmtMoney(m.budget)}</td></tr>`).join('');
+      <td><b>${m.display_name}</b></td><td class="pts">${m.season_points}</td>
+      <td>${fmtMoney(m.teamValue)}</td><td>${fmtMoney(Number(m.budget)-Number(m.budget_locked))}</td></tr>`).join('')
+    || `<tr><td colspan="5" class="empty">Aucun manager inscrit.</td></tr>`;
 }
 
-// ---------- Compte à rebours accueil ----------
+// ---------- Compte à rebours accueil (fin du mercato : lit season_state si dispo) ----------
 let hs=47*3600+59*60+12;
 setInterval(()=>{
-  hs--; const h=Math.floor(hs/3600),m=Math.floor(hs%3600/60),s=hs%60;
-  document.getElementById('cd').textContent=
-    `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  hs--; if(hs<0) hs=0;
+  const h=Math.floor(hs/3600),m=Math.floor(hs%3600/60),s=hs%60;
+  const cd=$('cd'); if(cd) cd.textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 },1000);
 
 // ---------- Init ----------
-document.getElementById('wallet').textContent=fmtMoney(ME.budget-ME.locked);
-renderMarket(); renderAuctions(); renderTeam(); renderRank();
+async function init(){
+  ME = await api.currentManager();
+  if(ME){
+    $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
+    $('authBtn').textContent = 'Déconnexion';
+    $('walletBox').style.display='block';
+  } else {
+    $('wallet').textContent = '—';
+    $('walletBox').style.display='none';
+  }
+  await loadPlayers();
+  renderMarket();
+  renderAuctions();
+}
+init();
 </script>
 </body>
 </html>
