@@ -137,6 +137,36 @@
       <tbody id="playerRows"></tbody>
     </table>
   </div>
+
+  <!-- Saisie des performances (joueurs détenus uniquement) -->
+  <h2>Saisie des performances</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Après chaque journée de championnat, saisis les perfs des joueurs <b>détenus par un manager</b>. Les points sont calculés automatiquement (barème) et attribués au propriétaire.</p>
+    <div class="row c3">
+      <div><label>Joueur détenu</label><select id="perf_player"><option value="">— choisir —</option></select></div>
+      <div><label>Journée n°</label><input id="perf_md" type="number" value="1" min="1"></div>
+      <div><label>Minutes jouées</label><input id="perf_min" type="number" value="90" min="0" max="120"></div>
+    </div>
+    <div class="row c4">
+      <div><label>Buts</label><input id="perf_goals" type="number" value="0" min="0"></div>
+      <div><label>Passes déc.</label><input id="perf_assists" type="number" value="0" min="0"></div>
+      <div><label>Cartons jaunes</label><input id="perf_yellow" type="number" value="0" min="0" max="2"></div>
+      <div><label>Buts c.c. / pén. ratés</label><input id="perf_neg" type="number" value="0" min="0"></div>
+    </div>
+    <div class="row c4">
+      <div><label>Arrêts pénalty (GK)</label><input id="perf_pensave" type="number" value="0" min="0"></div>
+      <div><label>Résultat équipe</label><select id="perf_result">
+        <option value="none">—</option><option value="win">Victoire</option>
+        <option value="draw">Nul</option><option value="loss">Défaite</option>
+      </select></div>
+      <div style="display:flex;align-items:flex-end;gap:6px"><input id="perf_clean" type="checkbox" style="width:auto"><label style="margin:0">Clean sheet</label></div>
+      <div style="display:flex;align-items:flex-end;gap:12px">
+        <span style="display:flex;align-items:center;gap:6px"><input id="perf_red" type="checkbox" style="width:auto"><label style="margin:0">Rouge</label></span>
+        <span style="display:flex;align-items:center;gap:6px"><input id="perf_motm" type="checkbox" style="width:auto"><label style="margin:0">Homme du match</label></span>
+      </div>
+    </div>
+    <button class="btn-primary" id="btnRecordPerf">Enregistrer la performance</button>
+  </div>
 </main>
 
 <script type="module">
@@ -160,7 +190,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers();
+  loadPhase(); loadPlayers(); loadOwnedForPerf();
 }
 
 $('btnLogin').onclick = async () => {
@@ -262,6 +292,42 @@ async function loadPlayers(){
     loadPlayers();
   });
 }
+
+// ---------- Saisie des performances ----------
+async function loadOwnedForPerf(){
+  const owned = await api.ownedPlayers();
+  const sel = $('perf_player');
+  sel.innerHTML = '<option value="">— choisir —</option>' + owned.map(p=>
+    `<option value="${p.id}">${p.name} (${POS[p.pos]}) — ${p.owner}</option>`).join('');
+  if(owned.length===0){
+    sel.innerHTML = '<option value="">Aucun joueur détenu pour l\'instant</option>';
+  }
+}
+$('btnRecordPerf').onclick = async ()=>{
+  const pid = $('perf_player').value;
+  if(!pid) return showMsg($('msg2'), 'Choisis un joueur détenu.');
+  const perf = {
+    player_id: pid,
+    matchday: parseInt($('perf_md').value)||1,
+    minutes: parseInt($('perf_min').value)||0,
+    goals: parseInt($('perf_goals').value)||0,
+    assists: parseInt($('perf_assists').value)||0,
+    clean_sheet: $('perf_clean').checked,
+    penalty_saved: parseInt($('perf_pensave').value)||0,
+    yellow: parseInt($('perf_yellow').value)||0,
+    red: $('perf_red').checked,
+    own_goals: parseInt($('perf_neg').value)||0,
+    penalty_missed: 0,
+    motm: $('perf_motm').checked,
+    team_result: $('perf_result').value
+  };
+  const { data, error } = await api.adminRecordPerformance(perf);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), `Performance enregistrée : ${data.points} points attribués au propriétaire.`, true);
+  // reset des champs numériques
+  ['perf_goals','perf_assists','perf_yellow','perf_neg','perf_pensave'].forEach(id=>$(id).value=0);
+  ['perf_clean','perf_red','perf_motm'].forEach(id=>$(id).checked=false);
+};
 
 // ---------- Init ----------
 refreshGate();
