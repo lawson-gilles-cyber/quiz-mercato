@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // QUIZ MERCATO — Couche API (Supabase, Vanilla JS)
 // =====================================================================
 // Aucune écriture directe : tout passe par les RPC côté DB.
@@ -8,7 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // À renseigner avec tes clés (projet dédié, pas celui de FHAF)
 const SUPABASE_URL = 'https://jfqxxlllqlynvllfsvdt.supabase.co';
-const SUPABASE_ANON = 'TON_ANON_KEY';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmcXh4bGxscWx5bnZsbGZzdmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjY1NDYsImV4cCI6MjA5NjM0MjU0Nn0.W0BEHCjZfgtLvSs9RoOsYGTOlGmcMhgOskYVwSe5p2I';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
