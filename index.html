@@ -566,10 +566,23 @@ async function renderTradeList(){
       </div>
       <div class="ti-body">${iSent?'Tu offres':'On t\'offre'} : <b>${offer}</b>${iSent?cashTxt:''}<br>
         ${iSent?'Contre':'Contre tes'} : <b>${ask}</b>
-        ${t.message?`<br><i style="color:var(--muted)">« ${t.message} »</i>`:''}</div>
+        ${t.message?`<br><i style="color:var(--muted)">« ${t.message} »</i>`:''}
+        <div class="ti-comm" data-comm="${t.id}" style="color:var(--transfer);font-size:.78rem;margin-top:6px"></div></div>
       <div class="ti-actions">${actions}</div>
     </div>`;
   }).join('');
+
+  // Charger les commissions estimées pour les propositions en attente
+  for(const t of trades.filter(x=>x.status==='pending')){
+    const c = await api.estimateTradeCommissions(t.id);
+    const iSent = t.from_manager===ME.id;
+    const myPay = iSent ? Number(c.from_pays) : Number(c.to_pays);
+    const myGet = iSent ? Number(c.from_gets) : Number(c.to_gets);
+    const el = document.querySelector(`.ti-comm[data-comm="${t.id}"]`);
+    if(el && (myPay>0 || myGet>0)){
+      el.innerHTML = `Commission : tu paies ${fmtMoney(myPay)}${myGet>0?` · tu reçois ${fmtMoney(myGet)}`:''}`;
+    }
+  }
 
   $('tradeList').querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.acceptTrade(b.dataset.accept);
