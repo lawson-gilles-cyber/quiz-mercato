@@ -1,4 +1,4 @@
-// =====================================================================
+﻿// =====================================================================
 // QUIZ MERCATO — Couche API (Supabase, Vanilla JS)
 // =====================================================================
 // Aucune écriture directe : tout passe par les RPC côté DB.
@@ -141,6 +141,74 @@ export async function adminSetPhase(phase) {
 }
 export async function adminSetBudget(managerId, budget) {
   return sb.rpc('qm_admin_set_budget', { p_manager_id: managerId, p_budget: budget });
+}
+export async function adminSetAttributes(id, a) {
+  return sb.rpc('qm_admin_set_attributes', {
+    p_id: id,
+    p_finition: a.finition, p_creativite: a.creativite, p_vitesse: a.vitesse,
+    p_intelligence: a.intelligence, p_physique: a.physique, p_defense: a.defense,
+    p_regularite: a.regularite
+  });
+}
+export async function adminRating(id) {
+  const { data } = await sb.rpc('qm_admin_rating', { p_id: id });
+  return data;
+}
+
+// ---------- PERFORMANCES / POINTS (admin) ---------------------------
+export async function ownedPlayers() {
+  const { data } = await sb.rpc('qm_owned_players');
+  return data ?? [];
+}
+export async function adminRecordPerformance(perf) {
+  return sb.rpc('qm_admin_record_performance', {
+    p_player_id: perf.player_id, p_matchday: perf.matchday, p_minutes: perf.minutes,
+    p_goals: perf.goals, p_assists: perf.assists, p_clean_sheet: perf.clean_sheet,
+    p_penalty_saved: perf.penalty_saved, p_yellow: perf.yellow, p_red: perf.red,
+    p_own_goals: perf.own_goals, p_penalty_missed: perf.penalty_missed,
+    p_motm: perf.motm, p_team_result: perf.team_result
+  });
+}
+
+// ---------- ÉCHANGES ENTRE MANAGERS ---------------------------------
+export async function listManagers() {
+  const { data } = await sb.from('qm_managers').select('id, display_name').order('display_name');
+  return data ?? [];
+}
+export async function proposeTrade(t) {
+  return sb.rpc('qm_trade_propose', {
+    p_to_manager: t.to_manager,
+    p_offer_players: t.offer_players,
+    p_ask_players: t.ask_players,
+    p_cash_from_to: t.cash_from_to,
+    p_message: t.message ?? null
+  });
+}
+export async function myTrades() {
+  const { data } = await sb.rpc('qm_my_trades');
+  return data ?? [];
+}
+export async function acceptTrade(id){ return sb.rpc('qm_trade_accept', { p_trade_id: id }); }
+export async function refuseTrade(id){ return sb.rpc('qm_trade_refuse', { p_trade_id: id }); }
+export async function cancelTrade(id){ return sb.rpc('qm_trade_cancel', { p_trade_id: id }); }
+
+// ---------- COMMISSIONS / MARCHÉ ------------------------------------
+export async function estimateCommission(managerId, playerId) {
+  const { data } = await sb.rpc('qm_estimate_commission', {
+    p_manager_id: managerId, p_player_id: playerId
+  });
+  return data ?? 0;
+}
+export async function marketIsOpen() {
+  const { data } = await sb.rpc('qm_market_is_open');
+  return data === true;
+}
+export async function adminSetMarketOpen(isoDate) {
+  return sb.rpc('qm_admin_set_market_open', { p_opens_at: isoDate });
+}
+export async function estimateTradeCommissions(tradeId) {
+  const { data } = await sb.rpc('qm_estimate_trade_commissions', { p_trade_id: tradeId });
+  return (data && data[0]) ? data[0] : { from_pays:0, to_pays:0, from_gets:0, to_gets:0 };
 }
 
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------
