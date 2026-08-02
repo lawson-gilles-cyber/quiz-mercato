@@ -106,6 +106,14 @@
       <button class="btn-primary" data-phase="open">Ouvrir le mercato</button>
       <button class="btn-ghost" data-phase="frozen">Figer les effectifs</button>
     </div>
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+      <label>Ouverture du marché des transferts (avant cette date, aucune enchère possible)</label>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:6px">
+        <input id="marketOpen" type="datetime-local" style="flex:1">
+        <button class="btn-primary btn-sm" id="btnSetMarket">Enregistrer</button>
+      </div>
+      <p class="hint" id="marketNow">—</p>
+    </div>
   </div>
 
   <!-- Ajouter un joueur -->
@@ -207,10 +215,32 @@ $('btnSignup').onclick = async () => {
 
 // ---------- Phase ----------
 async function loadPhase(){
-  const { data } = await sb.from('qm_season_state').select('phase').eq('id',1).single();
+  const { data } = await sb.from('qm_season_state').select('phase, market_opens_at').eq('id',1).single();
   const labels = {closed:'Fermé',open:'Ouvert',frozen:'Figé'};
   $('phaseNow').textContent = labels[data?.phase] ?? '—';
+  // Date d'ouverture du marché
+  if(data?.market_opens_at){
+    const d = new Date(data.market_opens_at);
+    // format datetime-local (YYYY-MM-DDTHH:mm)
+    const pad=n=>String(n).padStart(2,'0');
+    $('marketOpen').value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    const open = new Date() >= d;
+    $('marketNow').textContent = open
+      ? `Marché OUVERT (depuis le ${d.toLocaleString('fr-FR')})`
+      : `Marché FERMÉ jusqu'au ${d.toLocaleString('fr-FR')}`;
+  } else {
+    $('marketNow').textContent = 'Aucune date fixée : marché ouvert en permanence.';
+  }
 }
+$('btnSetMarket').onclick = async () => {
+  const val = $('marketOpen').value;
+  if(!val) return showMsg($('msg2'), 'Choisis une date.');
+  const iso = new Date(val).toISOString();
+  const { error } = await api.adminSetMarketOpen(iso);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), 'Date d\'ouverture du marché enregistrée.', true);
+  loadPhase();
+};
 document.querySelectorAll('[data-phase]').forEach(b=>{
   b.onclick = async () => {
     const { error } = await api.adminSetPhase(b.dataset.phase);

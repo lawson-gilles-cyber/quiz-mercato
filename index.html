@@ -122,6 +122,28 @@
   .attr-bar{height:5px;background:var(--pitch);border-radius:3px;overflow:hidden}
   .attr-bar>span{display:block;height:100%;border-radius:3px;transition:width .4s}
   .attr-v{font-family:'Space Mono';font-weight:700;font-size:.72rem;text-align:right}
+  /* Espace d'échange */
+  .trade-compose{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  .trade-col,.trade-mid{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .trade-head,.trade-l{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;font-size:.72rem;color:var(--muted);display:block;margin-bottom:10px}
+  .trade-players{display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto}
+  .trade-pick{display:flex;align-items:center;gap:9px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;cursor:pointer;transition:.12s}
+  .trade-pick:hover{border-color:var(--transfer)}
+  .trade-pick.sel{background:rgba(255,213,74,.12);border-color:var(--transfer)}
+  .trade-pick input{width:auto}
+  .trade-pick .tp-name{font-weight:700;font-size:.9rem}
+  .trade-pick .tp-meta{color:var(--muted);font-size:.74rem;margin-left:auto;font-family:'Space Mono'}
+  .trade-item{background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+  .trade-item .ti-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .trade-item .ti-status{font-family:'Space Mono';font-size:.7rem;padding:3px 9px;border-radius:20px}
+  .st-pending{background:rgba(255,213,74,.12);color:var(--transfer)}
+  .st-accepted{background:rgba(74,222,128,.12);color:#4ade80}
+  .st-refused,.st-cancelled{background:rgba(143,167,154,.15);color:var(--muted)}
+  .trade-item .ti-body{font-size:.85rem;color:var(--chalk);line-height:1.6}
+  .trade-item .ti-actions{display:flex;gap:8px;margin-top:12px}
+  .btn-accept{background:#4ade80;color:var(--pitch);border:none;padding:8px 14px;border-radius:8px;font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;cursor:pointer}
+  .btn-refuse{background:transparent;color:var(--live);border:1px solid var(--live);padding:8px 14px;border-radius:8px;font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;cursor:pointer}
+  @media(max-width:760px){.trade-compose{grid-template-columns:1fr}}
   .val{font-family:'Space Mono';font-weight:700;font-size:1.25rem;margin-top:8px}
   .val small{color:var(--muted);font-weight:400;font-size:.68rem;display:block;letter-spacing:1px}
   .owner{margin-top:10px;font-size:.75rem;color:var(--muted)}
@@ -194,8 +216,8 @@
   <div class="logo"><span>QUIZ<b>·</b>MERCATO</span></div>
   <nav id="nav">
     <button data-v="home" class="active">Accueil</button>
-    <button data-v="market">Mercato</button>
     <button data-v="auctions">Enchères</button>
+    <button data-v="market">Mercato</button>
     <button data-v="team">Mon équipe</button>
     <button data-v="rank">Classement</button>
   </nav>
@@ -245,21 +267,32 @@
 
   <!-- MERCATO -->
   <section class="view" id="market">
-    <div class="eyebrow">Marché des transferts</div>
-    <h1>Tous les <em>joueurs</em></h1>
-    <div class="toolbar">
-      <input id="search" placeholder="Rechercher un joueur…">
-      <select id="fpos">
-        <option value="">Tous postes</option>
-        <option value="GK">Gardien</option><option value="DEF">Défenseur</option>
-        <option value="MID">Milieu</option><option value="FWD">Attaquant</option>
-      </select>
-      <select id="fstatus">
-        <option value="">Tous statuts</option>
-        <option value="free">Libre</option><option value="owned">Recruté</option>
-      </select>
+    <div class="eyebrow">Marché des échanges · entre managers</div>
+    <h1>Proposer un <em>échange</em></h1>
+    <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour proposer et recevoir des échanges.</div>
+
+    <div id="tradeUI" style="display:none">
+      <!-- Composer un échange -->
+      <div class="trade-compose">
+        <div class="trade-col">
+          <div class="trade-head">Tu proposes</div>
+          <div id="myPlayers" class="trade-players"></div>
+        </div>
+        <div class="trade-mid">
+          <label class="trade-l">Échanger avec</label>
+          <select id="tradeTarget"><option value="">— choisir un manager —</option></select>
+          <div id="theirPlayers" class="trade-players" style="margin-top:12px"></div>
+          <label class="trade-l" style="margin-top:12px">Complément en cash (M€, optionnel)</label>
+          <input id="tradeCash" type="number" placeholder="ex. 20 = tu paies · -20 = tu reçois" style="width:100%">
+          <input id="tradeMsg" type="text" placeholder="Message (optionnel)" style="width:100%;margin-top:8px">
+          <button id="btnPropose" class="bid-btn" style="margin-top:14px">Envoyer la proposition</button>
+        </div>
+      </div>
+
+      <!-- Propositions -->
+      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">Mes propositions</h2>
+      <div id="tradeList"></div>
     </div>
-    <div class="grid" id="playerGrid"></div>
   </section>
 
   <!-- ENCHÈRES : Kanban -->
@@ -334,6 +367,7 @@ $('nav').addEventListener('click', e=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   $(b.dataset.v).classList.add('on');
   if(b.dataset.v==='team') renderTeam();
+  if(b.dataset.v==='market') renderMarket();
   if(b.dataset.v==='rank') renderRank();
   if(b.dataset.v==='auctions') renderAuctions();
 });
@@ -427,17 +461,133 @@ function scoutSheet(p){
 async function loadPlayers(){
   PLAYERS = await api.listPlayers();
 }
-function renderMarket(){
-  const q=$('search').value.toLowerCase();
-  const fp=$('fpos').value, fs=$('fstatus').value;
-  const list=PLAYERS.filter(p=>
-    (!q||p.name.toLowerCase().includes(q))&&(!fp||p.position===fp)&&(!fs||p.status===fs));
-  $('playerGrid').innerHTML = list.length? list.map(playerCard).join('')
-    : `<div class="empty" style="grid-column:1/-1">Aucun joueur pour l'instant. L'administrateur doit en ajouter.</div>`;
-  // brancher les boutons "Faire une offre"
-  $('playerGrid').querySelectorAll('[data-bid]').forEach(b=>b.onclick=()=>startBid(b.dataset.bid));
+// ---------- ESPACE D'ÉCHANGE (onglet Mercato) ----------
+let TRADE_MINE = [];   // mes joueurs sélectionnables
+let TRADE_THEIRS = []; // joueurs du manager cible
+const selOffer = new Set();  // ids que je propose
+const selAsk = new Set();    // ids que je demande
+
+async function renderMarket(){
+  if(!ME){
+    $('tradeGate').style.display='block'; $('tradeUI').style.display='none'; return;
+  }
+  $('tradeGate').style.display='none'; $('tradeUI').style.display='block';
+
+  // Liste des autres managers
+  const managers = (await api.listManagers()).filter(m=>m.id!==ME.id);
+  $('tradeTarget').innerHTML = '<option value="">— choisir un manager —</option>' +
+    managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+
+  // Mes joueurs (que je peux offrir)
+  TRADE_MINE = (await api.myTeam(ME.id)).filter(p=>p.status==='owned');
+  selOffer.clear(); selAsk.clear();
+  $('myPlayers').innerHTML = TRADE_MINE.length
+    ? TRADE_MINE.map(p=>tradePick(p,'offer')).join('')
+    : `<div class="empty">Tu ne possèdes aucun joueur à échanger.</div>`;
+  bindPicks('myPlayers', selOffer);
+  $('theirPlayers').innerHTML = `<div class="empty">Choisis un manager pour voir son effectif.</div>`;
+
+  renderTradeList();
 }
-['search','fpos','fstatus'].forEach(id=>$(id).addEventListener('input',renderMarket));
+
+function tradePick(p, kind){
+  return `<label class="trade-pick" data-id="${p.id}">
+    <input type="checkbox">
+    <span class="tp-name">${p.name}</span>
+    <span class="tp-meta">${POS[p.position]} · ${fmtMoney(p.current_value)}</span>
+  </label>`;
+}
+function bindPicks(containerId, set){
+  $(containerId).querySelectorAll('.trade-pick').forEach(el=>{
+    el.onclick = e=>{
+      if(e.target.tagName!=='INPUT'){ const cb=el.querySelector('input'); cb.checked=!cb.checked; }
+      const id=el.dataset.id;
+      if(el.querySelector('input').checked){ set.add(id); el.classList.add('sel'); }
+      else { set.delete(id); el.classList.remove('sel'); }
+    };
+  });
+}
+
+// Charger l'effectif du manager cible
+$('tradeTarget').onchange = async ()=>{
+  const tid = $('tradeTarget').value;
+  selAsk.clear();
+  if(!tid){ $('theirPlayers').innerHTML=`<div class="empty">Choisis un manager.</div>`; return; }
+  TRADE_THEIRS = await api.myTeam(tid);
+  $('theirPlayers').innerHTML = TRADE_THEIRS.length
+    ? TRADE_THEIRS.map(p=>tradePick(p,'ask')).join('')
+    : `<div class="empty">Ce manager n'a aucun joueur.</div>`;
+  bindPicks('theirPlayers', selAsk);
+};
+
+// Envoyer la proposition
+$('btnPropose').onclick = async ()=>{
+  const tid = $('tradeTarget').value;
+  if(!tid) return alert('Choisis un manager.');
+  if(selOffer.size===0 && selAsk.size===0) return alert('Sélectionne au moins un joueur.');
+  const cashM = parseFloat($('tradeCash').value)||0;
+  const { error } = await api.proposeTrade({
+    to_manager: tid,
+    offer_players: [...selOffer],
+    ask_players: [...selAsk],
+    cash_from_to: Math.round(cashM*1e6),
+    message: $('tradeMsg').value.trim()||null
+  });
+  if(error) return alert('Échec : '+error.message);
+  alert('Proposition envoyée !');
+  $('tradeCash').value=''; $('tradeMsg').value='';
+  renderMarket();
+};
+
+// Affichage des propositions reçues/envoyées
+async function renderTradeList(){
+  const trades = await api.myTrades();
+  const nameOf = id => {
+    const all=[...TRADE_MINE,...TRADE_THEIRS];
+    const p=all.find(x=>x.id===id); return p?p.name:'joueur';
+  };
+  if(trades.length===0){ $('tradeList').innerHTML=`<div class="empty">Aucune proposition.</div>`; return; }
+  $('tradeList').innerHTML = trades.map(t=>{
+    const iSent = t.from_manager===ME.id;
+    const cash = Number(t.cash_from_to);
+    const cashTxt = cash>0 ? ` + ${fmtMoney(cash)}` : cash<0 ? ` (reçoit ${fmtMoney(-cash)})` : '';
+    const offer = (t.offer_players||[]).map(nameOf).join(', ')||'—';
+    const ask = (t.ask_players||[]).map(nameOf).join(', ')||'—';
+    let actions='';
+    if(t.status==='pending'){
+      if(iSent) actions=`<button class="btn-refuse" data-cancel="${t.id}">Annuler</button>`;
+      else actions=`<button class="btn-accept" data-accept="${t.id}">Accepter</button>
+                    <button class="btn-refuse" data-refuse="${t.id}">Refuser</button>`;
+    }
+    return `<div class="trade-item">
+      <div class="ti-head">
+        <b>${iSent?'Proposition envoyée':'Proposition reçue'}</b>
+        <span class="ti-status st-${t.status}">${t.status}</span>
+      </div>
+      <div class="ti-body">${iSent?'Tu offres':'On t\'offre'} : <b>${offer}</b>${iSent?cashTxt:''}<br>
+        ${iSent?'Contre':'Contre tes'} : <b>${ask}</b>
+        ${t.message?`<br><i style="color:var(--muted)">« ${t.message} »</i>`:''}</div>
+      <div class="ti-actions">${actions}</div>
+    </div>`;
+  }).join('');
+
+  $('tradeList').querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.acceptTrade(b.dataset.accept);
+    if(error) return alert('Échec : '+error.message);
+    alert('Échange conclu !'); renderMarket();
+  });
+  $('tradeList').querySelectorAll('[data-refuse]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.refuseTrade(b.dataset.refuse);
+    if(error) return alert('Échec : '+error.message);
+    renderMarket();
+  });
+  $('tradeList').querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.cancelTrade(b.dataset.cancel);
+    if(error) return alert('Échec : '+error.message);
+    renderMarket();
+  });
+}
+
 
 // ---------- Enchère : placer une offre ----------
 async function startBid(playerId){
@@ -447,7 +597,12 @@ async function startBid(playerId){
   const auc = auctions.find(a=>a.player_id===playerId);
   if(!auc){ alert("Aucune enchère ouverte sur ce joueur pour le moment."); return; }
   const next = Number(auc.current_price)+minIncrement(auc.current_price);
-  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}\n\nTon offre (en euros) :`, next);
+  // Commission estimée (base + surtaxe même club)
+  const commission = await api.estimateCommission(ME.id, playerId);
+  const commTxt = commission>0
+    ? `\nCommission d'achat : ${fmtMoney(commission)} (prélevée en plus si tu gagnes)`
+    : '';
+  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}${commTxt}\n\nTon offre (en euros) :`, next);
   if(input===null) return;
   const amount = parseInt(input,10);
   if(isNaN(amount)) return alert("Montant invalide.");
