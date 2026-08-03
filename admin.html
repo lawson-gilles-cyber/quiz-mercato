@@ -132,7 +132,19 @@
       <div><label>Nationalité (emoji ou texte)</label><input id="p_nat" placeholder="🇫🇷"></div>
       <div><label>Valeur (M€)</label><input id="p_value" type="number" placeholder="180"></div>
     </div>
-    <div class="row"><div><label>URL photo (optionnel)</label><input id="p_photo" placeholder="https://…"></div></div>
+    <div class="row"><div><label>URL photo (optionnel)</label><input id="p_photo" placeholder="https://…"></div>
+      <div><label>Championnat</label><select id="p_champ">
+        <option value="Premier League">Premier League</option>
+        <option value="Liga">Liga</option>
+        <option value="Ligue 1">Ligue 1</option>
+        <option value="Bundesliga">Bundesliga</option>
+        <option value="Serie A">Serie A</option>
+        <option value="Primeira Liga">Primeira Liga</option>
+        <option value="Saudi Pro League">Saudi Pro League</option>
+        <option value="Süper Lig">Süper Lig</option>
+        <option value="Autre">Autre</option>
+      </select></div>
+    </div>
     <button class="btn-primary" id="btnAddPlayer">Ajouter le joueur</button>
     <p class="hint">La valeur est en millions d'euros. Elle sert de valeur de départ ET de valeur de marché initiale.</p>
   </div>
@@ -143,6 +155,16 @@
     <table>
       <thead><tr><th>Nom</th><th>Poste</th><th>Club</th><th>Valeur</th><th>Statut</th><th></th></tr></thead>
       <tbody id="playerRows"></tbody>
+    </table>
+  </div>
+
+  <!-- Historique des transactions -->
+  <h2>Historique des transactions</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Toutes les transactions (achats aux enchères et échanges) — traçabilité complète.</p>
+    <table>
+      <thead><tr><th>Date</th><th>Joueur</th><th>De</th><th>Vers</th><th>Prix</th></tr></thead>
+      <tbody id="txRows"><tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucune transaction.</td></tr></tbody>
     </table>
   </div>
 
@@ -208,7 +230,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions();
 }
 
 $('btnLogin').onclick = async () => {
@@ -271,7 +293,8 @@ $('btnAddPlayer').onclick = async () => {
     nationality: $('p_nat').value.trim() || null,
     age: parseInt($('p_age').value) || null,
     photo_url: $('p_photo').value.trim() || null,
-    value: Math.round(valM * M)
+    value: Math.round(valM * M),
+    championship: $('p_champ').value
   });
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'), `${name} ajouté.`, true);
@@ -334,6 +357,26 @@ async function loadPlayers(){
 }
 
 // ---------- Propositions de joueurs (dénichage) ----------
+async function loadTransactions(){
+  const tx = await api.adminTransactions();
+  const tbody = $('txRows');
+  if(!tbody) return;
+  if(tx.length===0){
+    tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucune transaction.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = tx.map(t=>{
+    const d = new Date(t.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td class="hint">${d}</td>
+      <td><b>${t.player_name}</b></td>
+      <td>${t.from_manager ?? '<span class="hint">marché</span>'}</td>
+      <td>${t.to_manager ?? '—'}</td>
+      <td class="val">${t.price>0?fmtM(t.price):'échange'}</td>
+    </tr>`;
+  }).join('');
+}
+
 async function loadProposals(){
   const props = await api.adminPendingProposals();
   const tbody = $('proposalRows');

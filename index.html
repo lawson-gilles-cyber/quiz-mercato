@@ -284,12 +284,16 @@
       <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px">
         <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:6px">Dénicher un joueur</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Propose un joueur à mettre aux enchères. Si l'admin valide et qu'un <b>autre</b> manager le remporte, tu gagnes un bonus de budget. (Max 3 propositions en attente.)</p>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
           <div><label class="trade-l">Nom du joueur</label><input id="scoutName" placeholder="ex. Rodrygo" style="width:100%"></div>
           <div><label class="trade-l">Poste</label><select id="scoutPos" style="width:100%">
             <option value="FWD">Attaquant</option><option value="MID">Milieu</option>
             <option value="DEF">Défenseur</option><option value="GK">Gardien</option></select></div>
           <div><label class="trade-l">Club</label><input id="scoutClub" placeholder="ex. Real" style="width:100%"></div>
+          <div><label class="trade-l">Championnat</label><select id="scoutChamp" style="width:100%">
+            <option value="Premier League">Premier L.</option><option value="Liga">Liga</option>
+            <option value="Ligue 1">Ligue 1</option><option value="Bundesliga">Bundesliga</option>
+            <option value="Serie A">Serie A</option><option value="Autre">Autre</option></select></div>
           <div><label class="trade-l">Valeur (M€)</label><input id="scoutValue" type="number" placeholder="80" style="width:100%"></div>
           <button id="btnScout" class="bid-btn" style="margin:0">Proposer</button>
         </div>
@@ -591,7 +595,8 @@ if($('btnScout')) $('btnScout').onclick = async ()=>{
     new_name: name,
     new_position: $('scoutPos').value,
     new_club: $('scoutClub').value.trim() || null,
-    new_value: Math.round(valM * 1e6)
+    new_value: Math.round(valM * 1e6),
+    new_championship: $('scoutChamp').value
   });
   if(error) return alert('Échec : '+error.message);
   alert('Joueur proposé ! En attente de validation par l\'admin.');

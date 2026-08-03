@@ -118,7 +118,7 @@ export async function amIAdmin() {
   return data === true;
 }
 export async function adminUpsertPlayer(p) {
-  // p : { id?, name, position, club, nationality, age, photo_url, value }
+  // p : { id?, name, position, club, nationality, age, photo_url, value, championship }
   return sb.rpc('qm_admin_upsert_player', {
     p_id: p.id ?? null,
     p_name: p.name,
@@ -127,7 +127,8 @@ export async function adminUpsertPlayer(p) {
     p_nationality: p.nationality ?? null,
     p_age: p.age ?? null,
     p_photo_url: p.photo_url ?? null,
-    p_value: p.value
+    p_value: p.value,
+    p_championship: p.championship ?? null
   });
 }
 export async function adminDeletePlayer(id) {
@@ -217,13 +218,14 @@ export async function myPasses(auctionId) {
 
 // ---------- DÉNICHAGE DE JOUEURS ------------------------------------
 export async function proposePlayer(p) {
-  // p : { player_id?, new_name?, new_position?, new_club?, new_value? }
+  // p : { player_id?, new_name?, new_position?, new_club?, new_value?, new_championship? }
   return sb.rpc('qm_propose_player', {
     p_player_id: p.player_id ?? null,
     p_new_name: p.new_name ?? null,
     p_new_position: p.new_position ?? null,
     p_new_club: p.new_club ?? null,
-    p_new_value: p.new_value ?? null
+    p_new_value: p.new_value ?? null,
+    p_new_championship: p.new_championship ?? null
   });
 }
 export async function myProposals() {
@@ -239,6 +241,10 @@ export async function adminApproveProposal(id) {
 }
 export async function adminRejectProposal(id) {
   return sb.rpc('qm_admin_reject_proposal', { p_proposal_id: id });
+}
+export async function adminTransactions() {
+  const { data } = await sb.rpc('qm_admin_transactions');
+  return data ?? [];
 }
 
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------
