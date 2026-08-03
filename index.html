@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quiz Mercato</title>
+<title>Ultimate Squad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -208,18 +208,26 @@
     .newsgrid{grid-template-columns:1fr}h1{font-size:1.8rem}
   }
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+  /* Règlement / charte */
+  .rule-block{border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-bottom:16px;background:var(--pitch-2)}
+  .rule-h{font-family:'Archivo';font-weight:800;font-size:1.1rem;color:var(--transfer);margin-bottom:10px}
+  .rule-p{color:var(--chalk);font-size:.92rem;line-height:1.6}
+  .rule-ul{list-style:none;padding:0;margin:0}
+  .rule-ul li{color:var(--chalk);font-size:.92rem;line-height:1.6;padding-left:20px;position:relative;margin-bottom:6px}
+  .rule-ul li::before{content:'▸';color:var(--transfer);position:absolute;left:0}
   :focus-visible{outline:2px solid var(--transfer);outline-offset:2px}
 </style>
 </head>
 <body>
 <header>
-  <div class="logo"><span>QUIZ<b>·</b>MERCATO</span></div>
+  <div class="logo"><span>ULTIMATE<b>·</b>SQUAD</span></div>
   <nav id="nav">
     <button data-v="home" class="active">Accueil</button>
     <button data-v="auctions">Enchères</button>
     <button data-v="market">Mercato</button>
     <button data-v="team">Mon équipe</button>
     <button data-v="rank">Classement</button>
+    <button data-v="rules">Règlement</button>
   </nav>
   <div class="wallet" id="walletBox"><small>BUDGET DISPO</small><span id="wallet">—</span></div>
   <button id="authBtn" style="font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;background:var(--transfer);color:var(--pitch);border:none;padding:9px 14px;border-radius:8px;cursor:pointer;margin-left:10px">Connexion</button>
@@ -344,6 +352,56 @@
       <thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Valeur effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankBody"></tbody>
     </table>
+  </section>
+
+  <!-- RÈGLEMENT / CHARTE -->
+  <section class="view" id="rules">
+    <div class="eyebrow">Charte des transferts</div>
+    <h1>Le <em>règlement</em></h1>
+    <div style="max-width:760px">
+      <div class="rule-block">
+        <h3 class="rule-h">1. Le principe</h3>
+        <p class="rule-p">Chaque manager démarre avec un budget de <b>700 M€</b> et constitue une équipe de <b>24 joueurs maximum</b> en achetant de vrais joueurs aux enchères. Les points se gagnent quand tes joueurs performent dans la réalité.</p>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">2. Composition de l'effectif</h3>
+        <ul class="rule-ul">
+          <li>24 joueurs maximum.</li>
+          <li>3 gardiens maximum.</li>
+          <li>3 joueurs maximum d'un même club (ex. max 3 du Real Madrid).</li>
+          <li>6 joueurs maximum d'un même championnat (Premier League, Liga, Ligue 1…).</li>
+          <li>2 cracks maximum (note élevée) par poste.</li>
+        </ul>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">3. Les enchères</h3>
+        <ul class="rule-ul">
+          <li>Une enchère dure <b>48 heures</b>. Le dernier enchérisseur remporte le joueur.</li>
+          <li><b>Anti-snipe</b> : une offre dans les 10 dernières minutes prolonge l'enchère de 10 min.</li>
+          <li><b>PASS limités</b> : chaque manager ne peut faire que <b>3 offres maximum</b> par joueur. Réfléchis avant de miser.</li>
+        </ul>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">4. Les commissions</h3>
+        <ul class="rule-ul">
+          <li>Chaque achat est taxé selon la valeur du joueur : de 1 M€ (moins de 30 M€) à 10 M€ (100 M€ et plus).</li>
+          <li><b>Surtaxe même club</b> : +50 % par joueur déjà détenu du même club.</li>
+          <li>Sur un échange, le receveur paie la commission ; le cédant en touche les 2/3.</li>
+        </ul>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">5. Dénicher un joueur</h3>
+        <p class="rule-p">Tu peux proposer un joueur à mettre aux enchères. Si l'admin le valide et qu'un <b>autre</b> manager le remporte, tu gagnes un <b>bonus de budget</b>. À toi de faire le travail de recherche !</p>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">6. Les échanges</h3>
+        <p class="rule-p">Tu peux troquer des joueurs (± du cash) avec un autre manager. L'échange doit respecter toutes les règles d'effectif des deux côtés. L'autre manager accepte ou refuse.</p>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">7. Fair-play</h3>
+        <p class="rule-p">Le jeu récompense le travail de recherche et la stratégie. Attendre passivement que les autres dénichent les pépites pour surenchérir n'est pas dans l'esprit du jeu — les PASS et les bonus de dénichage sont là pour encourager chacun à s'investir.</p>
+      </div>
+    </div>
   </section>
 </main>
 
