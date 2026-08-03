@@ -158,8 +158,34 @@
     </table>
   </div>
 
-  <!-- Historique des transactions -->
-  <h2>Historique des transactions</h2>
+  <!-- Bonus (SuperAdmin) -->
+  <h2>Bonus & Quiz</h2>
+  <div class="card">
+    <div class="row c2" style="margin-bottom:16px">
+      <div><label>Bonus journée complète (M€)</label><input id="bs_fullday" type="number" placeholder="5"></div>
+      <div><label>Valeur d'un point de quiz (M€)</label><input id="bs_quizrate" type="number" step="0.1" placeholder="0.5"></div>
+    </div>
+    <button class="btn-ghost btn-sm" id="btnBonusSettings">Enregistrer les réglages</button>
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
+      <label>Créditer des points de quiz à un manager</label>
+      <div class="row c3" style="margin-top:6px">
+        <div><select id="quiz_manager"><option value="">— manager —</option></select></div>
+        <div><input id="quiz_points" type="number" placeholder="Nombre de points"></div>
+        <div><button class="btn-primary" id="btnAwardQuiz" style="width:100%">Convertir en budget</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trace des bonus -->
+  <h2>Trace des bonus attribués</h2>
+  <div class="card">
+    <table>
+      <thead><tr><th>Date</th><th>Manager</th><th>Type</th><th>Détail</th><th>Montant</th></tr></thead>
+      <tbody id="bonusTrace"><tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus attribué.</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Historique des transactions -->  <h2>Historique des transactions</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:14px">Toutes les transactions (achats aux enchères et échanges) — traçabilité complète.</p>
     <table>
@@ -230,7 +256,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace();
 }
 
 $('btnLogin').onclick = async () => {
@@ -373,6 +399,59 @@ async function loadTransactions(){
       <td>${t.from_manager ?? '<span class="hint">marché</span>'}</td>
       <td>${t.to_manager ?? '—'}</td>
       <td class="val">${t.price>0?fmtM(t.price):'échange'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------- Bonus & Quiz (SuperAdmin) ----------
+async function loadBonusSettings(){
+  const { data } = await sb.from('qm_season_state')
+    .select('full_day_bonus, quiz_point_value').eq('id',1).single();
+  if(data){
+    $('bs_fullday').value = (Number(data.full_day_bonus)/1e6);
+    $('bs_quizrate').value = (Number(data.quiz_point_value)/1e6);
+  }
+  // Remplir le menu des managers
+  const managers = await api.listManagers();
+  $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
+    managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+}
+$('btnBonusSettings').onclick = async () => {
+  const fd = parseFloat($('bs_fullday').value);
+  const qr = parseFloat($('bs_quizrate').value);
+  if(isNaN(fd) || isNaN(qr)) return showMsg($('msg2'), 'Renseigne les deux valeurs.');
+  const { error } = await api.adminSetBonusSettings(Math.round(fd*1e6), Math.round(qr*1e6));
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), 'Réglages des bonus enregistrés.', true);
+};
+$('btnAwardQuiz').onclick = async () => {
+  const mid = $('quiz_manager').value;
+  const pts = parseInt($('quiz_points').value);
+  if(!mid) return showMsg($('msg2'), 'Choisis un manager.');
+  if(isNaN(pts) || pts<=0) return showMsg($('msg2'), 'Indique un nombre de points positif.');
+  const { error } = await api.adminAwardQuiz(mid, pts);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), 'Points de quiz convertis en budget.', true);
+  $('quiz_points').value='';
+  loadBonusTrace();
+};
+async function loadBonusTrace(){
+  const bonuses = await api.adminAllBonuses();
+  const tbody = $('bonusTrace');
+  if(!tbody) return;
+  if(bonuses.length===0){
+    tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus attribué.</td></tr>';
+    return;
+  }
+  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur'};
+  tbody.innerHTML = bonuses.map(b=>{
+    const d = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td class="hint">${d}</td>
+      <td><b>${b.manager}</b></td>
+      <td>${labels[b.bonus_type]??b.bonus_type}</td>
+      <td class="hint">${b.detail??''}</td>
+      <td class="val">+${fmtM(b.amount)}</td>
     </tr>`;
   }).join('');
 }

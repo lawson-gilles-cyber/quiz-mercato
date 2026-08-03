@@ -226,6 +226,7 @@
     <button data-v="auctions">Enchères</button>
     <button data-v="market">Mercato</button>
     <button data-v="team">Mon équipe</button>
+    <button data-v="bonus">Bonus</button>
     <button data-v="rank">Classement</button>
     <button data-v="rules">Règlement</button>
   </nav>
@@ -358,8 +359,19 @@
     </table>
   </section>
 
-  <!-- RÈGLEMENT / CHARTE -->
-  <section class="view" id="rules">
+  <!-- BONUS -->
+  <section class="view" id="bonus">
+    <div class="eyebrow">Mes bonus de budget</div>
+    <h1>Mes <em>bonus</em></h1>
+    <div class="newsgrid" style="margin-bottom:22px">
+      <div class="news"><div class="k">Total bonus reçus</div><div class="v" id="bonusTotal"><b>—</b></div></div>
+      <div class="news"><div class="k">Nombre de bonus</div><div class="v" id="bonusCount"><b>0</b></div></div>
+    </div>
+    <div id="bonusList"></div>
+    <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les bonus créditent ton budget (pouvoir d'achat), pas ton classement. Sources : journée complète (1 attaquant + 1 milieu + 1 défenseur le même jour) et points de quiz convertis.</p>
+  </section>
+
+  <!-- RÈGLEMENT / CHARTE -->  <section class="view" id="rules">
     <div class="eyebrow">Charte des transferts</div>
     <h1>Le <em>règlement</em></h1>
     <div style="max-width:760px">
@@ -446,6 +458,7 @@ $('nav').addEventListener('click', e=>{
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   $(b.dataset.v).classList.add('on');
   if(b.dataset.v==='team') renderTeam();
+  if(b.dataset.v==='bonus') renderBonus();
   if(b.dataset.v==='market') renderMarket();
   if(b.dataset.v==='rank') renderRank();
   if(b.dataset.v==='auctions') renderAuctions();
@@ -799,6 +812,31 @@ setInterval(()=>{
     c.classList.toggle('safe',left>=600000); c.classList.toggle('hot',left<600000);
   });
 },1000);
+
+// ---------- Mes bonus ----------
+async function renderBonus(){
+  if(!ME){
+    $('bonusList').innerHTML = `<div class="empty">Connecte-toi pour voir tes bonus.</div>`;
+    $('bonusTotal').innerHTML = '<b>—</b>'; $('bonusCount').innerHTML = '<b>0</b>';
+    return;
+  }
+  const bonuses = await api.myBonuses();
+  const total = bonuses.reduce((s,b)=>s+Number(b.amount),0);
+  $('bonusTotal').innerHTML = `<b>${fmtMoney(total)}</b>`;
+  $('bonusCount').innerHTML = `<b>${bonuses.length}</b>`;
+  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur'};
+  const colors = {full_day:'#4ade80',quiz:'var(--transfer)',other:'#5fd0e0'};
+  $('bonusList').innerHTML = bonuses.length
+    ? bonuses.map(b=>{
+        const d = new Date(b.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--pitch-2)">
+          <div><span style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:${colors[b.bonus_type]}">${labels[b.bonus_type]}</span>
+            <div style="font-size:.85rem;color:var(--muted);margin-top:2px">${b.detail??''} · ${d}</div></div>
+          <div style="font-family:'Space Mono';font-weight:700;color:#4ade80">+${fmtMoney(b.amount)}</div>
+        </div>`;
+      }).join('')
+    : `<div class="empty">Aucun bonus pour l'instant. Achète un joueur dans chaque compartiment le même jour, ou participe aux quiz !</div>`;
+}
 
 // ---------- Mon équipe ----------
 async function renderTeam(){

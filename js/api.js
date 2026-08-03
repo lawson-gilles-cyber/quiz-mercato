@@ -247,6 +247,22 @@ export async function adminTransactions() {
   return data ?? [];
 }
 
+// ---------- BONUS -----------------------------------------------------
+export async function myBonuses() {
+  const { data } = await sb.rpc('qm_my_bonuses');
+  return data ?? [];
+}
+export async function adminAllBonuses() {
+  const { data } = await sb.rpc('qm_admin_all_bonuses');
+  return data ?? [];
+}
+export async function adminAwardQuiz(managerId, points) {
+  return sb.rpc('qm_admin_award_quiz', { p_manager_id: managerId, p_points: points });
+}
+export async function adminSetBonusSettings(fullDay, quizRate) {
+  return sb.rpc('qm_admin_set_bonus_settings', { p_full_day: fullDay, p_quiz_rate: quizRate });
+}
+
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------
 export function subscribeAuction(auctionId, onChange) {
   return sb.channel(`auction:${auctionId}`)
