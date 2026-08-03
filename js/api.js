@@ -215,6 +215,32 @@ export async function myPasses(auctionId) {
   return data ?? 0;
 }
 
+// ---------- DÉNICHAGE DE JOUEURS ------------------------------------
+export async function proposePlayer(p) {
+  // p : { player_id?, new_name?, new_position?, new_club?, new_value? }
+  return sb.rpc('qm_propose_player', {
+    p_player_id: p.player_id ?? null,
+    p_new_name: p.new_name ?? null,
+    p_new_position: p.new_position ?? null,
+    p_new_club: p.new_club ?? null,
+    p_new_value: p.new_value ?? null
+  });
+}
+export async function myProposals() {
+  const { data } = await sb.rpc('qm_my_proposals');
+  return data ?? [];
+}
+export async function adminPendingProposals() {
+  const { data } = await sb.rpc('qm_admin_pending_proposals');
+  return data ?? [];
+}
+export async function adminApproveProposal(id) {
+  return sb.rpc('qm_admin_approve_proposal', { p_proposal_id: id });
+}
+export async function adminRejectProposal(id) {
+  return sb.rpc('qm_admin_reject_proposal', { p_proposal_id: id });
+}
+
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------
 export function subscribeAuction(auctionId, onChange) {
   return sb.channel(`auction:${auctionId}`)

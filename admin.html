@@ -146,6 +146,16 @@
     </table>
   </div>
 
+  <!-- Propositions de joueurs à valider -->
+  <h2>Propositions de joueurs (dénichage)</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Joueurs proposés par les managers. En validant, tu ouvres une enchère (48h) et le proposeur touchera un bonus si un <b>autre</b> manager remporte le joueur.</p>
+    <table>
+      <thead><tr><th>Proposé par</th><th>Joueur</th><th>Poste</th><th>Club</th><th>Valeur</th><th></th></tr></thead>
+      <tbody id="proposalRows"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition en attente.</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Saisie des performances (joueurs détenus uniquement) -->
   <h2>Saisie des performances</h2>
   <div class="card">
@@ -198,7 +208,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals();
 }
 
 $('btnLogin').onclick = async () => {
@@ -320,6 +330,39 @@ async function loadPlayers(){
     const note = await api.adminRating(p.id);
     showMsg($('msg2'), `Attributs mis à jour. Note QM calculée (cachée au public) : ${note}/100`, true);
     loadPlayers();
+  });
+}
+
+// ---------- Propositions de joueurs (dénichage) ----------
+async function loadProposals(){
+  const props = await api.adminPendingProposals();
+  const tbody = $('proposalRows');
+  if(props.length===0){
+    tbody.innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition en attente.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = props.map(p=>`
+    <tr>
+      <td><b>${p.proposer}</b></td>
+      <td>${p.player_name}${p.existing?' <span class="hint">(existant)</span>':''}</td>
+      <td><span class="pos-tag">${POS[p.pos]??'—'}</span></td>
+      <td>${p.club ?? '—'}</td>
+      <td class="val">${p.value?fmtM(p.value):'—'}</td>
+      <td><div class="actions">
+        <button class="btn-primary btn-sm" data-approve="${p.id}">Valider</button>
+        <button class="btn-danger" data-reject="${p.id}">Refuser</button>
+      </div></td>
+    </tr>`).join('');
+  tbody.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminApproveProposal(b.dataset.approve);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Proposition validée : enchère ouverte (48h).', true);
+    loadProposals(); loadPlayers();
+  });
+  tbody.querySelectorAll('[data-reject]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminRejectProposal(b.dataset.reject);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Proposition refusée.', true); loadProposals();
   });
 }
 

@@ -267,12 +267,29 @@
 
   <!-- MERCATO -->
   <section class="view" id="market">
-    <div class="eyebrow">Marché des échanges · entre managers</div>
-    <h1>Proposer un <em>échange</em></h1>
-    <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour proposer et recevoir des échanges.</div>
+    <div class="eyebrow">Marché · dénicher & échanger</div>
+    <h1>Le <em>marché</em></h1>
+    <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour dénicher des joueurs et proposer des échanges.</div>
 
     <div id="tradeUI" style="display:none">
+      <!-- Dénicher un joueur -->
+      <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px">
+        <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:6px">Dénicher un joueur</h2>
+        <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Propose un joueur à mettre aux enchères. Si l'admin valide et qu'un <b>autre</b> manager le remporte, tu gagnes un bonus de budget. (Max 3 propositions en attente.)</p>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+          <div><label class="trade-l">Nom du joueur</label><input id="scoutName" placeholder="ex. Rodrygo" style="width:100%"></div>
+          <div><label class="trade-l">Poste</label><select id="scoutPos" style="width:100%">
+            <option value="FWD">Attaquant</option><option value="MID">Milieu</option>
+            <option value="DEF">Défenseur</option><option value="GK">Gardien</option></select></div>
+          <div><label class="trade-l">Club</label><input id="scoutClub" placeholder="ex. Real" style="width:100%"></div>
+          <div><label class="trade-l">Valeur (M€)</label><input id="scoutValue" type="number" placeholder="80" style="width:100%"></div>
+          <button id="btnScout" class="bid-btn" style="margin:0">Proposer</button>
+        </div>
+        <div id="scoutList" style="margin-top:16px"></div>
+      </div>
+
       <!-- Composer un échange -->
+      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:12px">Proposer un échange</h2>
       <div class="trade-compose">
         <div class="trade-col">
           <div class="trade-head">Tu proposes</div>
@@ -290,7 +307,7 @@
       </div>
 
       <!-- Propositions -->
-      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">Mes propositions</h2>
+      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">Mes propositions d'échange</h2>
       <div id="tradeList"></div>
     </div>
   </section>
@@ -488,7 +505,41 @@ async function renderMarket(){
   $('theirPlayers').innerHTML = `<div class="empty">Choisis un manager pour voir son effectif.</div>`;
 
   renderTradeList();
+  renderScoutList();
 }
+
+// ---------- Dénichage de joueurs ----------
+async function renderScoutList(){
+  const props = await api.myProposals();
+  const labels = {pending:'En attente',approved:'Validé → aux enchères',rejected:'Refusé'};
+  const colors = {pending:'var(--transfer)',approved:'#4ade80',rejected:'var(--muted)'};
+  const el = $('scoutList');
+  if(!el) return;
+  if(props.length===0){ el.innerHTML=''; return; }
+  el.innerHTML = '<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">Mes propositions de joueurs :</div>' +
+    props.map(p=>{
+      const name = p.new_name || 'joueur existant';
+      return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line);font-size:.85rem">
+        <span>${name}${p.new_value?` · ${fmtMoney(p.new_value)}`:''}</span>
+        <span style="color:${colors[p.status]};font-family:'Space Mono';font-size:.72rem">${labels[p.status]}</span>
+      </div>`;
+    }).join('');
+}
+if($('btnScout')) $('btnScout').onclick = async ()=>{
+  const name = $('scoutName').value.trim();
+  const valM = parseFloat($('scoutValue').value);
+  if(!name || isNaN(valM)) return alert('Indique au moins le nom et la valeur du joueur.');
+  const { error } = await api.proposePlayer({
+    new_name: name,
+    new_position: $('scoutPos').value,
+    new_club: $('scoutClub').value.trim() || null,
+    new_value: Math.round(valM * 1e6)
+  });
+  if(error) return alert('Échec : '+error.message);
+  alert('Joueur proposé ! En attente de validation par l\'admin.');
+  $('scoutName').value=''; $('scoutClub').value=''; $('scoutValue').value='';
+  renderScoutList();
+};
 
 function tradePick(p, kind){
   return `<label class="trade-pick" data-id="${p.id}">
