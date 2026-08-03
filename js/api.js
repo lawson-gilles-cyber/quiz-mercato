@@ -1,4 +1,4 @@
-﻿// =====================================================================
+// =====================================================================
 // QUIZ MERCATO — Couche API (Supabase, Vanilla JS)
 // =====================================================================
 // Aucune écriture directe : tout passe par les RPC côté DB.
@@ -209,6 +209,10 @@ export async function adminSetMarketOpen(isoDate) {
 export async function estimateTradeCommissions(tradeId) {
   const { data } = await sb.rpc('qm_estimate_trade_commissions', { p_trade_id: tradeId });
   return (data && data[0]) ? data[0] : { from_pays:0, to_pays:0, from_gets:0, to_gets:0 };
+}
+export async function myPasses(auctionId) {
+  const { data } = await sb.rpc('qm_my_passes', { p_auction_id: auctionId });
+  return data ?? 0;
 }
 
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------

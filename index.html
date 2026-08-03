@@ -610,12 +610,17 @@ async function startBid(playerId){
   const auc = auctions.find(a=>a.player_id===playerId);
   if(!auc){ alert("Aucune enchère ouverte sur ce joueur pour le moment."); return; }
   const next = Number(auc.current_price)+minIncrement(auc.current_price);
-  // Commission estimée (base + surtaxe même club)
+  // PASS restants + commission estimée
+  const passes = await api.myPasses(auc.id);
+  if(passes <= 0){
+    alert(`Tu n'as plus de PASS sur ${auc.player.name}. Chaque manager a un nombre limité d'offres par joueur — réfléchis bien avant de miser.`);
+    return;
+  }
   const commission = await api.estimateCommission(ME.id, playerId);
   const commTxt = commission>0
     ? `\nCommission d'achat : ${fmtMoney(commission)} (prélevée en plus si tu gagnes)`
     : '';
-  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}${commTxt}\n\nTon offre (en euros) :`, next);
+  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}${commTxt}\n\n⚠️ Il te reste ${passes} PASS (offre${passes>1?'s':''}) sur ce joueur.\n\nTon offre (en euros) :`, next);
   if(input===null) return;
   const amount = parseInt(input,10);
   if(isNaN(amount)) return alert("Montant invalide.");
