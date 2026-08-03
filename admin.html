@@ -158,6 +158,22 @@
     </table>
   </div>
 
+  <!-- Apparence (thème) -->
+  <h2>Apparence du site</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Personnalise les 3 couleurs clés du site. Elles s'appliquent à tous les managers.</p>
+    <div class="row c3">
+      <div><label>Couleur d'accent (boutons, prix)</label><input id="th_accent" type="color" value="#ffd54a" style="width:100%;height:44px"></div>
+      <div><label>Fond principal</label><input id="th_bg" type="color" value="#0c1f17" style="width:100%;height:44px"></div>
+      <div><label>Couleur du texte clair</label><input id="th_title" type="color" value="#eef3ea" style="width:100%;height:44px"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px">
+      <button class="btn-primary" id="btnSetTheme">Appliquer les couleurs</button>
+      <button class="btn-ghost btn-sm" id="btnResetTheme">Réinitialiser (défaut)</button>
+    </div>
+    <p class="hint" style="margin-top:10px">Astuce : évite un fond et un texte trop proches, sinon le site devient illisible. En cas de souci, clique « Réinitialiser ».</p>
+  </div>
+
   <!-- Bonus (SuperAdmin) -->
   <h2>Bonus & Quiz</h2>
   <div class="card">
@@ -256,7 +272,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme();
 }
 
 $('btnLogin').onclick = async () => {
@@ -402,6 +418,28 @@ async function loadTransactions(){
     </tr>`;
   }).join('');
 }
+
+// ---------- Apparence (thème) ----------
+async function loadTheme(){
+  const th = await api.getTheme();
+  if(th.accent) $('th_accent').value = th.accent;
+  if(th.bg) $('th_bg').value = th.bg;
+  if(th.title) $('th_title').value = th.title;
+  // Applique aussi le thème à la console admin elle-même
+  api.applyTheme(th);
+}
+$('btnSetTheme').onclick = async () => {
+  const { error } = await api.adminSetTheme($('th_accent').value, $('th_bg').value, $('th_title').value);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), 'Couleurs appliquées. Les managers les verront à leur prochaine visite.', true);
+  api.applyTheme({ accent:$('th_accent').value, bg:$('th_bg').value, title:$('th_title').value });
+};
+$('btnResetTheme').onclick = async () => {
+  const { error } = await api.adminSetTheme(null, null, null);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), 'Couleurs réinitialisées. Recharge la page pour voir le thème par défaut.', true);
+  $('th_accent').value='#ffd54a'; $('th_bg').value='#0c1f17'; $('th_title').value='#eef3ea';
+};
 
 // ---------- Bonus & Quiz (SuperAdmin) ----------
 async function loadBonusSettings(){

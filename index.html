@@ -880,6 +880,8 @@ setInterval(()=>{
 
 // ---------- Init ----------
 async function init(){
+  // Thème personnalisé (couleurs admin) — appliqué en premier
+  try { api.applyTheme(await api.getTheme()); } catch(e){ /* thème par défaut */ }
   ME = await api.currentManager();
   if(ME){
     $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));

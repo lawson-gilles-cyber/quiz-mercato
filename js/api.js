@@ -8,7 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // À renseigner avec tes clés (projet dédié, pas celui de FHAF)
 const SUPABASE_URL = 'https://jfqxxlllqlynvllfsvdt.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmcXh4bGxscWx5bnZsbGZzdmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjY1NDYsImV4cCI6MjA5NjM0MjU0Nn0.W0BEHCjZfgtLvSs9RoOsYGTOlGmcMhgOskYVwSe5p2I';
+const SUPABASE_ANON = 'TON_ANON_KEY';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -261,6 +261,31 @@ export async function adminAwardQuiz(managerId, points) {
 }
 export async function adminSetBonusSettings(fullDay, quizRate) {
   return sb.rpc('qm_admin_set_bonus_settings', { p_full_day: fullDay, p_quiz_rate: quizRate });
+}
+
+// ---------- THÈME (couleurs personnalisables) -----------------------
+export async function getTheme() {
+  const { data } = await sb.rpc('qm_get_theme');
+  return (data && data[0]) ? data[0] : { accent:null, bg:null, title:null };
+}
+export async function adminSetTheme(accent, bg, title) {
+  return sb.rpc('qm_admin_set_theme', {
+    p_accent: accent || null, p_bg: bg || null, p_title: title || null
+  });
+}
+// Applique un thème en surchargeant les variables CSS (appelé au chargement)
+export function applyTheme(theme) {
+  const root = document.documentElement;
+  if(theme.accent){
+    root.style.setProperty('--transfer', theme.accent);
+    root.style.setProperty('--transfer-deep', theme.accent);
+  }
+  if(theme.bg){
+    root.style.setProperty('--pitch', theme.bg);
+  }
+  if(theme.title){
+    root.style.setProperty('--chalk', theme.title);
+  }
 }
 
 // ---------- TEMPS RÉEL (Realtime) ------------------------------------
