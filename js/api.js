@@ -8,7 +8,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // À renseigner avec tes clés (projet dédié, pas celui de FHAF)
 const SUPABASE_URL = 'https://jfqxxlllqlynvllfsvdt.supabase.co';
-const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmcXh4bGxscWx5bnZsbGZzdmR0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NjY1NDYsImV4cCI6MjA5NjM0MjU0Nn0.W0BEHCjZfgtLvSs9RoOsYGTOlGmcMhgOskYVwSe5p2I';
+const SUPABASE_ANON = 'TON_ANON_KEY';
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
@@ -275,6 +275,21 @@ export async function salaryOf(playerId) {
 }
 export async function adminSetSalaryCap(cap) {
   return sb.rpc('qm_admin_set_salary_cap', { p_cap: cap });
+}
+
+// ---------- RÈGLES DE RYTHME DU MERCATO -----------------------------
+export async function proposalsReminder() {
+  const { data } = await sb.rpc('qm_proposals_reminder');
+  return (data && data[0]) ? data[0] : { made:0, target:2, remaining:2 };
+}
+export async function activeAuctionsCount() {
+  const { data } = await sb.rpc('qm_active_auctions_count');
+  return data ?? 0;
+}
+export async function adminSetMercatoRules(maxAuctions, maxDaily, proposalsTarget) {
+  return sb.rpc('qm_admin_set_mercato_rules', {
+    p_max_auctions: maxAuctions, p_max_daily: maxDaily, p_proposals_target: proposalsTarget
+  });
 }
 
 export async function getTheme() {

@@ -285,6 +285,7 @@
       <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px">
         <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:6px">Dénicher un joueur</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Propose un joueur à mettre aux enchères. Si l'admin valide et qu'un <b>autre</b> manager le remporte, tu gagnes un bonus de budget. (Max 3 propositions en attente.)</p>
+        <div id="proposalReminder" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:10px;font-size:.85rem"></div>
         <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
           <div><label class="trade-l">Nom du joueur</label><input id="scoutName" placeholder="ex. Rodrygo" style="width:100%"></div>
           <div><label class="trade-l">Poste</label><select id="scoutPos" style="width:100%">
@@ -590,6 +591,22 @@ async function renderMarket(){
 
 // ---------- Dénichage de joueurs ----------
 async function renderScoutList(){
+  // Rappel visuel des propositions du jour
+  const rem = await api.proposalsReminder();
+  const remEl = $('proposalReminder');
+  if(remEl){
+    if(rem.remaining > 0){
+      remEl.style.display = 'block';
+      remEl.style.background = 'rgba(255,213,74,.12)';
+      remEl.style.color = 'var(--transfer)';
+      remEl.innerHTML = `📋 Il te reste <b>${rem.remaining}</b> proposition${rem.remaining>1?'s':''} à faire aujourd'hui (${rem.made}/${rem.target}). Déniche des joueurs pour animer le marché !`;
+    } else {
+      remEl.style.display = 'block';
+      remEl.style.background = 'rgba(74,222,128,.12)';
+      remEl.style.color = '#4ade80';
+      remEl.innerHTML = `✓ Objectif du jour atteint : ${rem.made} proposition${rem.made>1?'s':''} faite${rem.made>1?'s':''}. Bravo !`;
+    }
+  }
   const props = await api.myProposals();
   const labels = {pending:'En attente',approved:'Validé → aux enchères',rejected:'Refusé'};
   const colors = {pending:'var(--transfer)',approved:'#4ade80',rejected:'var(--muted)'};

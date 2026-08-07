@@ -184,6 +184,11 @@
     <div class="row" style="margin-bottom:16px">
       <div><label>Plafond de masse salariale (M€/saison)</label><input id="bs_salarycap" type="number" placeholder="120"></div>
     </div>
+    <div class="row c3" style="margin-bottom:16px">
+      <div><label>Enchères actives max</label><input id="bs_maxauc" type="number" placeholder="6"></div>
+      <div><label>Achats max / jour</label><input id="bs_maxdaily" type="number" placeholder="3"></div>
+      <div><label>Propositions / jour (objectif)</label><input id="bs_proptarget" type="number" placeholder="2"></div>
+    </div>
     <button class="btn-ghost btn-sm" id="btnBonusSettings">Enregistrer les réglages</button>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
       <label>Créditer des points de quiz à un manager</label>
@@ -447,11 +452,14 @@ $('btnResetTheme').onclick = async () => {
 // ---------- Bonus & Quiz (SuperAdmin) ----------
 async function loadBonusSettings(){
   const { data } = await sb.from('qm_season_state')
-    .select('full_day_bonus, quiz_point_value, salary_cap').eq('id',1).single();
+    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target').eq('id',1).single();
   if(data){
     $('bs_fullday').value = (Number(data.full_day_bonus)/1e6);
     $('bs_quizrate').value = (Number(data.quiz_point_value)/1e6);
     if($('bs_salarycap')) $('bs_salarycap').value = (Number(data.salary_cap)/1e6);
+    if($('bs_maxauc')) $('bs_maxauc').value = data.max_active_auctions;
+    if($('bs_maxdaily')) $('bs_maxdaily').value = data.max_daily_purchases;
+    if($('bs_proptarget')) $('bs_proptarget').value = data.daily_proposals_target;
   }
   const managers = await api.listManagers();
   $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
@@ -463,11 +471,16 @@ $('btnBonusSettings').onclick = async () => {
   if(isNaN(fd) || isNaN(qr)) return showMsg($('msg2'), 'Renseigne les deux valeurs.');
   const { error } = await api.adminSetBonusSettings(Math.round(fd*1e6), Math.round(qr*1e6));
   if(error) return showMsg($('msg2'), error.message);
-  // Plafond salarial
   const cap = parseFloat($('bs_salarycap').value);
   if(!isNaN(cap)){
     const r = await api.adminSetSalaryCap(Math.round(cap*1e6));
     if(r.error) return showMsg($('msg2'), r.error.message);
+  }
+  // Règles de rythme
+  const ma = parseInt($('bs_maxauc').value), md = parseInt($('bs_maxdaily').value), pt = parseInt($('bs_proptarget').value);
+  if(!isNaN(ma) && !isNaN(md) && !isNaN(pt)){
+    const r2 = await api.adminSetMercatoRules(ma, md, pt);
+    if(r2.error) return showMsg($('msg2'), r2.error.message);
   }
   showMsg($('msg2'), 'Réglages enregistrés.', true);
 };
