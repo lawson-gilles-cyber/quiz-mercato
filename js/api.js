@@ -291,6 +291,13 @@ export async function adminSetMercatoRules(maxAuctions, maxDaily, proposalsTarge
     p_max_auctions: maxAuctions, p_max_daily: maxDaily, p_proposals_target: proposalsTarget
   });
 }
+export async function myEntryTax(auctionId) {
+  const { data } = await sb.rpc('qm_my_entry_tax', { p_auction_id: auctionId });
+  return data ?? 0;
+}
+export async function adminSetEntryTax(tax) {
+  return sb.rpc('qm_admin_set_entry_tax', { p_tax: tax });
+}
 
 export async function getTheme() {
   const { data } = await sb.rpc('qm_get_theme');

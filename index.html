@@ -769,7 +769,12 @@ async function startBid(playerId){
   const commTxt = commission>0
     ? `\nCommission d'achat : ${fmtMoney(commission)} (prélevée en plus si tu gagnes)`
     : '';
-  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}${commTxt}\n\n⚠️ Il te reste ${passes} PASS (offre${passes>1?'s':''}) sur ce joueur.\n\nTon offre (en euros) :`, next);
+  // Taxe d'entrée (3M si tu n'as pas dénické ce joueur et pas encore payé)
+  const entryTax = await api.myEntryTax(auc.id);
+  const taxTxt = entryTax>0
+    ? `\n💸 Taxe d'entrée : ${fmtMoney(entryTax)} (prélevée maintenant, une seule fois — tu n'as pas déniché ce joueur)`
+    : '';
+  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}${commTxt}${taxTxt}\n\n⚠️ Il te reste ${passes} PASS (offre${passes>1?'s':''}) sur ce joueur.\n\nTon offre (en euros) :`, next);
   if(input===null) return;
   const amount = parseInt(input,10);
   if(isNaN(amount)) return alert("Montant invalide.");
