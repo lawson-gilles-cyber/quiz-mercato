@@ -341,10 +341,15 @@
   <section class="view" id="team">
     <div class="eyebrow">Mon effectif</div>
     <h1>Mon <em>équipe</em></h1>
+    <div class="newsgrid" style="margin-bottom:14px">
+      <div class="news"><div class="k">Budget transfert restant</div><div class="v" id="dashBudget"><b>—</b></div></div>
+      <div class="news"><div class="k">Masse salariale</div><div class="v" id="dashSalary"><b>—</b></div></div>
+      <div class="news"><div class="k">Effectif</div><div class="v" id="teamCount">0 <b>/ 24</b></div></div>
+    </div>
     <div class="newsgrid" style="margin-bottom:22px">
-      <div class="news"><div class="k">Joueurs</div><div class="v" id="teamCount">0 <b>/ 24</b></div></div>
       <div class="news"><div class="k">Valeur totale</div><div class="v" id="teamValue"><b>—</b></div></div>
       <div class="news"><div class="k">Points saison</div><div class="v" id="teamPts"><b>0</b></div></div>
+      <div class="news"><div class="k">Budget engagé (enchères)</div><div class="v" id="dashLocked"><b>—</b></div></div>
     </div>
     <div class="grid" id="teamGrid"></div>
   </section>
@@ -843,7 +848,17 @@ async function renderTeam(){
   if(!ME){
     $('teamGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">Connecte-toi pour voir ton équipe.</div>`;
     $('teamCount').innerHTML='0 <b>/ 24</b>'; $('teamValue').innerHTML='<b>—</b>'; $('teamPts').innerHTML='<b>0</b>';
+    $('dashBudget').innerHTML='<b>—</b>'; $('dashSalary').innerHTML='<b>—</b>'; $('dashLocked').innerHTML='<b>—</b>';
     return;
+  }
+  // Tableau de bord : double budget + masse salariale
+  const dash = await api.myDashboard();
+  if(dash){
+    $('dashBudget').innerHTML = `<b>${fmtMoney(dash.budget_available)}</b>`;
+    const salPct = Math.round(Number(dash.salary_used)/Number(dash.salary_cap)*100);
+    const salColor = salPct>=90 ? 'var(--live)' : salPct>=70 ? 'var(--transfer)' : '#4ade80';
+    $('dashSalary').innerHTML = `<b style="color:${salColor}">${fmtMoney(dash.salary_used)}</b> / ${fmtMoney(dash.salary_cap)}`;
+    $('dashLocked').innerHTML = `<b>${fmtMoney(dash.budget_locked)}</b>`;
   }
   const mine = await api.myTeam(ME.id);
   const tv = mine.reduce((s,p)=>s+Number(p.current_value),0);
