@@ -765,10 +765,7 @@ async function startBid(playerId){
     alert(`Tu n'as plus de PASS sur ${auc.player.name}. Chaque manager a un nombre limité d'offres par joueur — réfléchis bien avant de miser.`);
     return;
   }
-  const commission = await api.estimateCommission(ME.id, playerId);
-  const commTxt = commission>0
-    ? `\nCommission d'achat : ${fmtMoney(commission)} (prélevée en plus si tu gagnes)`
-    : '';
+  const commTxt = '';
   // Taxe d'entrée (3M si tu n'as pas dénické ce joueur et pas encore payé)
   const entryTax = await api.myEntryTax(auc.id);
   const taxTxt = entryTax>0
