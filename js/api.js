@@ -299,6 +299,20 @@ export async function adminSetEntryTax(tax) {
   return sb.rpc('qm_admin_set_entry_tax', { p_tax: tax });
 }
 
+// ---------- NOTE À 7 CRITÈRES ---------------------------------------
+export async function adminSetCriteria(id, c) {
+  // c : { valeur, performance, regularite, tempsjeu, age, championnat, international }
+  return sb.rpc('qm_admin_set_criteria', {
+    p_id: id,
+    p_valeur: c.valeur, p_performance: c.performance, p_regularite: c.regularite,
+    p_tempsjeu: c.tempsjeu, p_age: c.age, p_championnat: c.championnat, p_international: c.international
+  });
+}
+export async function adminCriteria(id) {
+  const { data } = await sb.rpc('qm_admin_criteria', { p_id: id });
+  return (data && data[0]) ? data[0] : null;
+}
+
 export async function getTheme() {
   const { data } = await sb.rpc('qm_get_theme');
   return (data && data[0]) ? data[0] : { accent:null, bg:null, title:null };
