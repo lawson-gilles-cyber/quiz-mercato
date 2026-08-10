@@ -232,6 +232,15 @@
     </table>
   </div>
 
+  <!-- Libérations / pénalités -->  <h2>Libérations & pénalités</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Toutes les libérations de joueurs, avec remboursement et pénalité perdue.</p>
+    <table>
+      <thead><tr><th>Date</th><th>Manager</th><th>Joueur</th><th>Détention</th><th>Prix achat</th><th>Remboursé</th><th>Pénalité</th></tr></thead>
+      <tbody id="relRows"><tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune libération.</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Propositions de joueurs à valider -->
   <h2>Propositions de joueurs (dénichage)</h2>
   <div class="card">
@@ -294,7 +303,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases();
 }
 
 $('btnLogin').onclick = async () => {
@@ -445,6 +454,29 @@ async function loadTransactions(){
       <td>${t.from_manager ?? '<span class="hint">marché</span>'}</td>
       <td>${t.to_manager ?? '—'}</td>
       <td class="val">${t.price>0?fmtM(t.price):'échange'}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---------- Libérations & pénalités ----------
+async function loadReleases(){
+  const rels = await api.adminReleases();
+  const tbody = $('relRows');
+  if(!tbody) return;
+  if(rels.length===0){
+    tbody.innerHTML = '<tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune libération.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rels.map(r=>{
+    const d = new Date(r.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<tr>
+      <td class="hint">${d}</td>
+      <td>${r.manager_name}</td>
+      <td><b>${r.player_name}</b></td>
+      <td class="hint">${r.held_hours}h</td>
+      <td class="val">${fmtM(r.purchase_price)}</td>
+      <td class="val" style="color:#4ade80">${fmtM(r.refund)}</td>
+      <td class="val" style="color:#e0574a">−${fmtM(r.penalty)} (${r.penalty_pct}%)</td>
     </tr>`;
   }).join('');
 }

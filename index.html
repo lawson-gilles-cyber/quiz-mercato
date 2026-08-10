@@ -233,6 +233,7 @@
     <button data-v="market">Mercato</button>
     <button data-v="team">Mon équipe</button>
     <button data-v="bonus">Bonus</button>
+    <button data-v="penalty">Pénalités</button>
     <button data-v="rank">Classement</button>
     <button data-v="rules">Règlement</button>
   </nav>
@@ -383,6 +384,18 @@
     <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les bonus créditent ton budget (pouvoir d'achat), pas ton classement. Sources : journée complète (1 attaquant + 1 milieu + 1 défenseur le même jour) et points de quiz convertis.</p>
   </section>
 
+  <!-- PÉNALITÉS (libérations) -->
+  <section class="view" id="penalty">
+    <div class="eyebrow">Mes libérations</div>
+    <h1>Mes <em>pénalités</em></h1>
+    <div class="newsgrid" style="margin-bottom:22px">
+      <div class="news"><div class="k">Libérations (7 derniers jours)</div><div class="v" id="relCount7"><b>0</b> <b>/ 2</b></div></div>
+      <div class="news"><div class="k">Total pénalités perdues</div><div class="v" id="relPenaltyTotal"><b>—</b></div></div>
+    </div>
+    <div id="releaseList"></div>
+    <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Libérer un joueur (depuis « Mon équipe ») le remet sur le marché et te rembourse une partie de son prix d'achat. Pénalité progressive : 15% (24-48h), 10% (48h-7j), 5% (+7j). Détention minimale 24h. Maximum 2 libérations par 7 jours.</p>
+  </section>
+
   <!-- RÈGLEMENT / CHARTE -->  <section class="view" id="rules">
     <div class="eyebrow">Charte des transferts</div>
     <h1>Le <em>règlement</em></h1>
@@ -471,6 +484,7 @@ $('nav').addEventListener('click', e=>{
   $(b.dataset.v).classList.add('on');
   if(b.dataset.v==='team') renderTeam();
   if(b.dataset.v==='bonus') renderBonus();
+  if(b.dataset.v==='penalty') renderPenalty();
   if(b.dataset.v==='market') renderMarket();
   if(b.dataset.v==='rank') renderRank();
   if(b.dataset.v==='auctions') renderAuctions();
@@ -529,10 +543,14 @@ function playerCard(p){
       <div class="stars">${stars(r.s)}</div>
       <div class="val">${fmtMoney(p.current_value)}<small>VALEUR DE MARCHÉ</small></div>
       ${scoutSheet(p)}
-      ${owned?`<div class="owner">${ownerName?'Recruté par <b>'+ownerName+'</b>':'Indisponible'}</div>
-        <button class="bid-btn owned">Indisponible</button>`
-       :`<div class="owner">Libre · mise min. +${fmtMoney(minIncrement(p.current_value))}</div>
-        <button class="bid-btn" data-bid="${p.id}">Faire une offre</button>`}
+      ${(ME && p.owner_id===ME.id)
+        ? `<div class="owner">Ton joueur</div>
+           <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e">Libérer</button>`
+        : owned
+          ? `<div class="owner">${ownerName?'Recruté par <b>'+ownerName+'</b>':'Indisponible'}</div>
+             <button class="bid-btn owned">Indisponible</button>`
+          : `<div class="owner">Libre · mise min. +${fmtMoney(minIncrement(p.current_value))}</div>
+             <button class="bid-btn" data-bid="${p.id}">Faire une offre</button>`}
     </div></div>`;
 }
 
@@ -868,6 +886,34 @@ async function renderBonus(){
     : `<div class="empty">Aucun bonus pour l'instant. Achète un joueur dans chaque compartiment le même jour, ou participe aux quiz !</div>`;
 }
 
+// ---------- Pénalités (libérations) ----------
+async function renderPenalty(){
+  if(!ME){
+    $('releaseList').innerHTML = `<div class="empty">Connecte-toi pour voir tes libérations.</div>`;
+    $('relCount7').innerHTML = '<b>0</b> <b>/ 2</b>'; $('relPenaltyTotal').innerHTML = '<b>—</b>';
+    return;
+  }
+  const rels = await api.myReleases();
+  const now = Date.now();
+  const last7 = rels.filter(r => (now - new Date(r.created_at).getTime()) < 7*24*3600*1000).length;
+  const penaltyTotal = rels.reduce((s,r)=>s+Number(r.penalty),0);
+  $('relCount7').innerHTML = `<b>${last7}</b> <b>/ 2</b>`;
+  $('relPenaltyTotal').innerHTML = `<b>${fmtMoney(penaltyTotal)}</b>`;
+  $('releaseList').innerHTML = rels.length
+    ? rels.map(r=>{
+        const d = new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--pitch-2)">
+          <div><span style="font-weight:700">${r.player_name}</span>
+            <div style="font-size:.85rem;color:var(--muted);margin-top:2px">Détenu ${r.held_hours}h · pénalité ${r.penalty_pct}% · ${d}</div></div>
+          <div style="text-align:right">
+            <div style="font-family:'Space Mono';font-weight:700;color:#4ade80">+${fmtMoney(r.refund)}</div>
+            <div style="font-family:'Space Mono';font-size:.75rem;color:#e0574a">−${fmtMoney(r.penalty)}</div>
+          </div>
+        </div>`;
+      }).join('')
+    : `<div class="empty">Aucune libération. Libère un joueur depuis « Mon équipe » si tu t'es trompé de recrutement.</div>`;
+}
+
 // ---------- Mon équipe ----------
 async function renderTeam(){
   if(!ME){
@@ -894,6 +940,25 @@ async function renderTeam(){
   $('teamPts').innerHTML=`<b>${ME.season_points}</b>`;
   $('teamGrid').innerHTML = mine.length? mine.map(playerCard).join('')
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
+  // Boutons "Libérer"
+  $('teamGrid').querySelectorAll('[data-release]').forEach(btn => btn.onclick = async () => {
+    const pid = btn.dataset.release;
+    const prev = await api.releasePreview(pid);
+    if(!prev || !prev.can_release){
+      return alert(prev ? prev.reason : "Libération impossible pour le moment.");
+    }
+    const ok = confirm(
+      `Libérer ce joueur ?\n\n` +
+      `Détenu depuis ${prev.held_hours}h → pénalité de ${prev.penalty_pct}%.\n` +
+      `Tu récupères ${fmtMoney(prev.refund)} (pénalité perdue : ${fmtMoney(prev.penalty)}).\n\n` +
+      `Le joueur retournera sur le marché. Cette action est définitive.`
+    );
+    if(!ok) return;
+    const { error } = await api.releasePlayer(pid);
+    if(error) return alert("Échec : " + error.message);
+    alert("Joueur libéré. Budget crédité du remboursement.");
+    renderTeam();
+  });
 }
 
 // ---------- Classement ----------

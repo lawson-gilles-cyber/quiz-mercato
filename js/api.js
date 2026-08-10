@@ -333,6 +333,23 @@ export async function adminSetBidWindows(cooldown, noFirst, final) {
   });
 }
 
+// ---------- LIBÉRATION DE JOUEUR ------------------------------------
+export async function releasePreview(playerId) {
+  const { data } = await sb.rpc('qm_release_preview', { p_player_id: playerId });
+  return (data && data[0]) ? data[0] : null;
+}
+export async function releasePlayer(playerId) {
+  return sb.rpc('qm_release_player', { p_player_id: playerId });
+}
+export async function myReleases() {
+  const { data } = await sb.rpc('qm_my_releases');
+  return data ?? [];
+}
+export async function adminReleases() {
+  const { data } = await sb.rpc('qm_admin_releases');
+  return data ?? [];
+}
+
 export async function getTheme() {
   const { data } = await sb.rpc('qm_get_theme');
   return (data && data[0]) ? data[0] : { accent:null, bg:null, title:null };
