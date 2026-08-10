@@ -128,6 +128,28 @@
   .note-jauge-l{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:.8px;font-size:.68rem;color:var(--muted)}
   .note-jauge-v{font-family:'Space Mono';font-weight:700;font-size:.9rem}
   .note-jauge-hint{font-size:.62rem;color:var(--muted);font-style:italic;margin-top:2px}
+  /* Vue terrain (Mon équipe) */
+  .team-toggle{display:inline-flex;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:3px;margin-bottom:18px;gap:3px}
+  .tt-btn{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.78rem;font-weight:700;color:var(--muted);background:transparent;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;transition:.2s}
+  .tt-btn.on{background:var(--transfer);color:var(--pitch)}
+  .pitch{background:linear-gradient(160deg,#1b5e3a,#0e3d24);border:1px solid var(--line);border-radius:18px;padding:24px 16px;position:relative;overflow:hidden}
+  .pitch::before{content:'';position:absolute;top:50%;left:0;right:0;height:1px;background:rgba(255,255,255,.15)}
+  .pitch::after{content:'';position:absolute;top:calc(50% - 46px);left:50%;transform:translateX(-50%);width:92px;height:92px;border:1px solid rgba(255,255,255,.15);border-radius:50%}
+  .pitch-line{position:relative;z-index:1;display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin-bottom:22px}
+  .pitch-line:last-child{margin-bottom:0}
+  .pitch-line-label{position:absolute;left:8px;top:-2px;font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.6rem;color:rgba(255,255,255,.45);z-index:2}
+  .jersey{width:88px;background:rgba(255,255,255,.96);border-radius:10px;padding:8px 6px;text-align:center;box-shadow:0 3px 8px rgba(0,0,0,.25)}
+  .jersey-ic{font-size:1.5rem;line-height:1;margin-bottom:4px}
+  .jersey-nm{font-family:'Archivo';font-weight:800;font-size:.72rem;color:#12241a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .jersey-cl{font-size:.6rem;color:#5a6b62;margin:1px 0 4px}
+  .jersey-bar{height:5px;background:#e4e9e5;border-radius:3px;overflow:hidden}
+  .jersey-bar>span{display:block;height:100%;border-radius:3px}
+  .jersey-note{font-family:'Space Mono';font-weight:700;font-size:.62rem;margin-top:2px}
+  .jersey.empty{background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.3);min-height:78px;display:flex;align-items:center;justify-content:center}
+  .jersey.empty span{font-size:1.5rem;color:rgba(255,255,255,.4)}
+  .jersey.rel{cursor:pointer}
+  .jersey.rel:hover{outline:2px solid var(--live)}
+  .pitch-count{position:relative;z-index:1;text-align:center;font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.66rem;color:rgba(255,255,255,.6);margin-bottom:8px}
   /* Espace d'échange */
   .trade-compose{display:grid;grid-template-columns:1fr 1fr;gap:20px}
   .trade-col,.trade-mid{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:18px}
@@ -359,7 +381,12 @@
       <div class="news"><div class="k">Points saison</div><div class="v" id="teamPts"><b>0</b></div></div>
       <div class="news"><div class="k">Budget engagé (enchères)</div><div class="v" id="dashLocked"><b>—</b></div></div>
     </div>
-    <div class="grid" id="teamGrid"></div>
+    <div class="team-toggle">
+      <button id="ttPitch" class="tt-btn on">Terrain</button>
+      <button id="ttList" class="tt-btn">Liste</button>
+    </div>
+    <div id="teamPitch"></div>
+    <div class="grid" id="teamGrid" style="display:none"></div>
   </section>
 
   <!-- CLASSEMENT -->
@@ -518,6 +545,16 @@ $('nav').addEventListener('click', e=>{
   if(b.dataset.v==='rank') renderRank();
   if(b.dataset.v==='auctions') renderAuctions();
 });
+
+// Bascule Terrain / Liste dans "Mon équipe"
+if($('ttPitch')) $('ttPitch').onclick = ()=>{
+  $('ttPitch').classList.add('on'); $('ttList').classList.remove('on');
+  $('teamPitch').style.display=''; $('teamGrid').style.display='none';
+};
+if($('ttList')) $('ttList').onclick = ()=>{
+  $('ttList').classList.add('on'); $('ttPitch').classList.remove('on');
+  $('teamPitch').style.display='none'; $('teamGrid').style.display='';
+};
 
 // ---------- AUTH ----------
 let signupMode = false;
@@ -947,6 +984,7 @@ async function renderPenalty(){
 async function renderTeam(){
   if(!ME){
     $('teamGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">Connecte-toi pour voir ton équipe.</div>`;
+    $('teamPitch').innerHTML='';
     $('teamCount').innerHTML='0 <b>/ 24</b>'; $('teamValue').innerHTML='<b>—</b>'; $('teamPts').innerHTML='<b>0</b>';
     $('dashBudget').innerHTML='<b>—</b>'; $('dashSalary').innerHTML='<b>—</b>'; $('dashLocked').innerHTML='<b>—</b>';
     return;
@@ -969,8 +1007,10 @@ async function renderTeam(){
   $('teamPts').innerHTML=`<b>${ME.season_points}</b>`;
   $('teamGrid').innerHTML = mine.length? mine.map(playerCard).join('')
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
-  // Boutons "Libérer"
-  $('teamGrid').querySelectorAll('[data-release]').forEach(btn => btn.onclick = async () => {
+  // Vue terrain
+  $('teamPitch').innerHTML = buildPitch(mine);
+  // Boutons "Libérer" (liste ET terrain, via délégation sur data-release)
+  document.querySelectorAll('#team [data-release]').forEach(btn => btn.onclick = async () => {
     const pid = btn.dataset.release;
     const prev = await api.releasePreview(pid);
     if(!prev || !prev.can_release){
@@ -989,6 +1029,41 @@ async function renderTeam(){
     renderTeam();
   });
 }
+
+// Construit la vue terrain par compartiment (GK / DEF / MID / FWD)
+const PITCH_LINES = [
+  { pos:'GK',  label:'Gardiens',   max:3, ic:'🧤' },
+  { pos:'DEF', label:'Défenseurs', max:8, ic:'🛡️' },
+  { pos:'MID', label:'Milieux',    max:8, ic:'⚙️' },
+  { pos:'FWD', label:'Attaquants', max:5, ic:'⚽' }
+];
+function jerseyCard(p){
+  const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
+  const revealed = (p.note != null);
+  const barW = color ? (revealed ? p.note : color.fill) : 0;
+  const barC = color ? color.c : '#ccc';
+  const noteTxt = revealed ? `${p.note}/100` : (color ? color.label : '—');
+  return `<div class="jersey rel" data-release="${p.id}" title="Clique pour libérer">
+    <div class="jersey-ic">👕</div>
+    <div class="jersey-nm">${p.name}</div>
+    <div class="jersey-cl">${p.club||''}</div>
+    <div class="jersey-bar"><span style="width:${barW}%;background:${barC}"></span></div>
+    <div class="jersey-note" style="color:${barC}">${noteTxt}</div>
+  </div>`;
+}
+function buildPitch(mine){
+  const lines = PITCH_LINES.map(line=>{
+    const players = mine.filter(p=>p.position===line.pos);
+    const jerseys = players.map(jerseyCard).join('');
+    // cases vides pour visualiser ce qu'il reste (jusqu'au quota)
+    const emptyCount = Math.max(0, line.max - players.length);
+    const empties = Array.from({length:emptyCount}).map(()=>`<div class="jersey empty"><span>+</span></div>`).join('');
+    return `<div class="pitch-count">${line.ic} ${line.label} · ${players.length}/${line.max}</div>
+      <div class="pitch-line">${jerseys}${empties}</div>`;
+  }).join('');
+  return `<div class="pitch">${lines}</div>`;
+}
+
 
 // ---------- Classement ----------
 async function renderRank(){
