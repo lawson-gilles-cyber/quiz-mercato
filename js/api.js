@@ -65,13 +65,17 @@ export async function currentManager() {
 
 // ---------- LECTURES --------------------------------------------------
 export async function listPlayers(filters = {}) {
-  let q = sb.from('qm_players').select('*, owner:qm_managers(display_name)');
-  if (filters.position) q = q.eq('position', filters.position);
-  if (filters.status)   q = q.eq('status', filters.status);
-  if (filters.search)   q = q.ilike('name', `%${filters.search}%`);
-  q = q.order('current_value', { ascending: false });
-  const { data } = await q;
-  return data ?? [];
+  // Utilise la vue qui renvoie note_color (toujours) et note (si possédé)
+  const { data, error } = await sb.rpc('qm_players_view');
+  let rows = (error || !data) ? [] : data.map(p => ({
+    ...p,
+    position: p.pos,
+    owner: p.owner_name ? { display_name: p.owner_name } : null
+  }));
+  if (filters.position) rows = rows.filter(p => p.position === filters.position);
+  if (filters.status)   rows = rows.filter(p => p.status === filters.status);
+  if (filters.search)   rows = rows.filter(p => p.name.toLowerCase().includes(filters.search.toLowerCase()));
+  return rows;
 }
 
 export async function listOpenAuctions() {
@@ -311,6 +315,22 @@ export async function adminSetCriteria(id, c) {
 export async function adminCriteria(id) {
   const { data } = await sb.rpc('qm_admin_criteria', { p_id: id });
   return (data && data[0]) ? data[0] : null;
+}
+// ---------- PRIX DÉRIVÉ DE LA NOTE ----------------------------------
+export async function adminPreviewPrices() {
+  const { data } = await sb.rpc('qm_admin_preview_prices');
+  return data ?? [];
+}
+export async function adminApplyNotePrices() {
+  return sb.rpc('qm_admin_apply_note_prices');
+}
+export async function adminApplyNotePriceOne(id) {
+  return sb.rpc('qm_admin_apply_note_price_one', { p_id: id });
+}
+export async function adminSetBidWindows(cooldown, noFirst, final) {
+  return sb.rpc('qm_admin_set_bid_windows', {
+    p_cooldown: cooldown, p_no_first: noFirst, p_final: final
+  });
 }
 
 export async function getTheme() {

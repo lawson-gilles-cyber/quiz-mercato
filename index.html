@@ -122,6 +122,12 @@
   .attr-bar{height:5px;background:var(--pitch);border-radius:3px;overflow:hidden}
   .attr-bar>span{display:block;height:100%;border-radius:3px;transition:width .4s}
   .attr-v{font-family:'Space Mono';font-weight:700;font-size:.72rem;text-align:right}
+  /* Jauge de note Mercato */
+  .note-jauge{display:flex;flex-direction:column;gap:6px}
+  .note-jauge-head{display:flex;justify-content:space-between;align-items:baseline}
+  .note-jauge-l{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:.8px;font-size:.68rem;color:var(--muted)}
+  .note-jauge-v{font-family:'Space Mono';font-weight:700;font-size:.9rem}
+  .note-jauge-hint{font-size:.62rem;color:var(--muted);font-style:italic;margin-top:2px}
   /* Espace d'échange */
   .trade-compose{display:grid;grid-template-columns:1fr 1fr;gap:20px}
   .trade-col,.trade-mid{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:18px}
@@ -530,30 +536,30 @@ function playerCard(p){
     </div></div>`;
 }
 
-// ---------- Fiche scout : attributs visibles, note globale JAMAIS montrée ----------
-function attrColor(v){
-  if(v>=85) return '#4ade80';      // vert : élite
-  if(v>=70) return '#ffd54a';      // jaune : bon
-  if(v>=55) return '#e0a800';      // orange : correct
-  return '#8fa79a';                // gris : faible
-}
-function attrRow(label, v){
-  return `<div class="attr">
-    <span class="attr-l">${label}</span>
-    <span class="attr-bar"><span style="width:${v}%;background:${attrColor(v)}"></span></span>
-    <span class="attr-v" style="color:${attrColor(v)}">${v}</span>
-  </div>`;
-}
+// ---------- Jauge de note : couleur visible, chiffre caché sauf si possédé ----------
+const NOTE_COLORS = {
+  'rouge':      { c:'#e0574a', label:'Faible',  fill:35 },
+  'jaune':      { c:'#e0a800', label:'Correct', fill:60 },
+  'vert-clair': { c:'#7bc96f', label:'Bon',     fill:80 },
+  'vert-vif':   { c:'#4ade80', label:'Élite',   fill:100 }
+};
 function scoutSheet(p){
-  // Ordre d'affichage des 6 attributs les plus parlants selon le poste
-  const rows = {
-    FWD: [['Finition',p.attr_finition],['Créativité',p.attr_creativite],['Vitesse',p.attr_vitesse],['Intelligence',p.attr_intelligence],['Physique',p.attr_physique],['Régularité',p.attr_regularite]],
-    MID: [['Créativité',p.attr_creativite],['Intelligence',p.attr_intelligence],['Finition',p.attr_finition],['Vitesse',p.attr_vitesse],['Défense',p.attr_defense],['Régularité',p.attr_regularite]],
-    DEF: [['Défense',p.attr_defense],['Physique',p.attr_physique],['Intelligence',p.attr_intelligence],['Vitesse',p.attr_vitesse],['Créativité',p.attr_creativite],['Régularité',p.attr_regularite]],
-    GK:  [['Réflexes',p.attr_defense],['Placement',p.attr_intelligence],['Détente',p.attr_physique],['Jeu au pied',p.attr_finition],['Vitesse',p.attr_vitesse],['Régularité',p.attr_regularite]],
-  }[p.position] || [];
-  if(rows.length===0 || p.attr_finition==null) return '';
-  return `<div class="scout">${rows.map(([l,v])=>attrRow(l,v)).join('')}</div>`;
+  const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
+  if(!color) return '';
+  // Si le joueur est possédé par le manager courant, la note exacte est révélée
+  const revealed = (p.note != null);
+  return `<div class="scout">
+    <div class="note-jauge">
+      <div class="note-jauge-head">
+        <span class="note-jauge-l">Note Mercato</span>
+        <span class="note-jauge-v" style="color:${color.c}">${revealed ? p.note+'/100' : color.label}</span>
+      </div>
+      <div class="attr-bar" style="height:8px">
+        <span style="width:${revealed ? p.note : color.fill}%;background:${color.c}"></span>
+      </div>
+      ${revealed ? '' : `<div class="note-jauge-hint">Note exacte révélée à l'achat</div>`}
+    </div>
+  </div>`;
 }
 // ---------- Mercato ----------
 async function loadPlayers(){
@@ -879,7 +885,9 @@ async function renderTeam(){
     $('dashSalary').innerHTML = `<b style="color:${salColor}">${fmtMoney(dash.salary_used)}</b> / ${fmtMoney(dash.salary_cap)}`;
     $('dashLocked').innerHTML = `<b>${fmtMoney(dash.budget_locked)}</b>`;
   }
-  const mine = await api.myTeam(ME.id);
+  // Charge via la vue pour révéler la note exacte des joueurs possédés
+  const all = await api.listPlayers();
+  const mine = all.filter(p => p.owner_id === ME.id);
   const tv = mine.reduce((s,p)=>s+Number(p.current_value),0);
   $('teamCount').innerHTML=`${mine.length} <b>/ 24</b>`;
   $('teamValue').innerHTML=`<b>${fmtMoney(tv)}</b>`;

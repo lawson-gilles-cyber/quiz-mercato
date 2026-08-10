@@ -151,6 +151,12 @@
 
   <!-- Liste des joueurs -->
   <h2>Joueurs en base (<span id="playerCount">0</span>)</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">Une fois les critères des joueurs réglés, tu peux recalculer les prix de départ à partir de leur note Mercato. Seuls les joueurs <b>libres</b> sont affectés (les prix pilotent aussi les salaires).</p>
+    <button class="btn-ghost btn-sm" id="btnPreviewPrices">Prévisualiser les prix</button>
+    <button class="btn-primary btn-sm" id="btnApplyPrices" style="margin-left:8px">Appliquer les prix note→prix</button>
+    <div id="pricePreview" style="margin-top:12px"></div>
+  </div>
   <div class="card">
     <table>
       <thead><tr><th>Nom</th><th>Poste</th><th>Club</th><th>Valeur</th><th>Statut</th><th></th></tr></thead>
@@ -191,6 +197,11 @@
     </div>
     <div class="row" style="margin-bottom:16px">
       <div><label>Taxe d'entrée sur enchère non dénichée (M€)</label><input id="bs_entrytax" type="number" step="0.5" placeholder="3"></div>
+    </div>
+    <div class="row c3" style="margin-bottom:16px">
+      <div><label>Cooldown entre offres (h)</label><input id="bs_cooldown" type="number" placeholder="2"></div>
+      <div><label>Pas de 1re offre dans les derniers... (h)</label><input id="bs_nofirst" type="number" placeholder="6"></div>
+      <div><label>Durée phase finale (h)</label><input id="bs_final" type="number" placeholder="2"></div>
     </div>
     <button class="btn-ghost btn-sm" id="btnBonusSettings">Enregistrer les réglages</button>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
@@ -460,10 +471,31 @@ $('btnResetTheme').onclick = async () => {
   $('th_accent').value='#ffd54a'; $('th_bg').value='#0c1f17'; $('th_title').value='#eef3ea';
 };
 
+// ---------- Prix dérivés de la note ----------
+$('btnPreviewPrices').onclick = async () => {
+  const rows = await api.adminPreviewPrices();
+  if(!rows.length){ $('pricePreview').innerHTML = '<p class="hint">Aucun joueur libre.</p>'; return; }
+  const fmt = v => (Number(v)/1e6).toFixed(0)+' M€';
+  $('pricePreview').innerHTML = `
+    <table style="font-size:.85rem"><thead><tr><th>Joueur</th><th>Note</th><th>Prix actuel</th><th>Prix suggéré</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${r.name}</td><td>${r.note}</td><td>${fmt(r.current_value)}</td>
+      <td style="color:${Number(r.suggested_price)!==Number(r.current_value)?'var(--transfer)':'inherit'}"><b>${fmt(r.suggested_price)}</b></td>
+    </tr>`).join('')}</tbody></table>`;
+};
+$('btnApplyPrices').onclick = async () => {
+  if(!confirm('Appliquer les prix calculés depuis la note à tous les joueurs libres ? Cela mettra aussi à jour leurs salaires.')) return;
+  const { data, error } = await api.adminApplyNotePrices();
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), `Prix appliqués à ${data} joueur(s) libre(s).`, true);
+  $('pricePreview').innerHTML = '';
+  loadPlayers();
+};
+
 // ---------- Bonus & Quiz (SuperAdmin) ----------
 async function loadBonusSettings(){
   const { data } = await sb.from('qm_season_state')
-    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target, entry_tax').eq('id',1).single();
+    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target, entry_tax, bid_cooldown_hours, no_first_bid_hours, final_phase_hours').eq('id',1).single();
   if(data){
     $('bs_fullday').value = (Number(data.full_day_bonus)/1e6);
     $('bs_quizrate').value = (Number(data.quiz_point_value)/1e6);
@@ -472,6 +504,9 @@ async function loadBonusSettings(){
     if($('bs_maxdaily')) $('bs_maxdaily').value = data.max_daily_purchases;
     if($('bs_proptarget')) $('bs_proptarget').value = data.daily_proposals_target;
     if($('bs_entrytax')) $('bs_entrytax').value = (Number(data.entry_tax)/1e6);
+    if($('bs_cooldown')) $('bs_cooldown').value = data.bid_cooldown_hours;
+    if($('bs_nofirst')) $('bs_nofirst').value = data.no_first_bid_hours;
+    if($('bs_final')) $('bs_final').value = data.final_phase_hours;
   }
   const managers = await api.listManagers();
   $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
@@ -499,6 +534,12 @@ $('btnBonusSettings').onclick = async () => {
   if(!isNaN(et)){
     const r3 = await api.adminSetEntryTax(Math.round(et*1e6));
     if(r3.error) return showMsg($('msg2'), r3.error.message);
+  }
+  // Fenêtres d'enchère
+  const cd = parseInt($('bs_cooldown').value), nf = parseInt($('bs_nofirst').value), fn = parseInt($('bs_final').value);
+  if(!isNaN(cd) && !isNaN(nf) && !isNaN(fn)){
+    const r4 = await api.adminSetBidWindows(cd, nf, fn);
+    if(r4.error) return showMsg($('msg2'), r4.error.message);
   }
   showMsg($('msg2'), 'Réglages enregistrés.', true);
 };
