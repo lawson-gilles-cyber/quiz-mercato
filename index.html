@@ -229,8 +229,7 @@
   .pts{font-family:'Space Mono';font-weight:700}
 
   .empty{color:var(--muted);text-align:center;padding:60px 20px;border:1px dashed var(--line);border-radius:var(--r)}
-  .demo-tag{position:fixed;bottom:14px;left:14px;font-family:'Space Mono';font-size:.68rem;
-    color:var(--muted);background:var(--pitch-2);border:1px solid var(--line);padding:6px 10px;border-radius:7px;z-index:30}
+  .demo-tag{display:none}
 
   @media(max-width:820px){
     .hero{grid-template-columns:1fr}.countdown{border-left:none;border-top:1px solid var(--line);padding:18px 0 0}
@@ -502,8 +501,6 @@
     </div>
   </section>
 </main>
-
-<div class="demo-tag">MODE DÉMO · données fictives · branche api.js pour le live</div>
 
 <script type="module">
 import * as api from './js/api.js';
