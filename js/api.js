@@ -138,6 +138,13 @@ export async function adminUpsertPlayer(p) {
 export async function adminDeletePlayer(id) {
   return sb.rpc('qm_admin_delete_player', { p_id: id });
 }
+export async function adminSetValue(id, value) {
+  return sb.rpc('qm_admin_set_value', { p_id: id, p_value: value });
+}
+export async function adminBulkValues(data) {
+  // data : [{name, value}, ...]
+  return sb.rpc('qm_admin_bulk_values', { p_data: data });
+}
 export async function adminOpenAuction(playerId) {
   return sb.rpc('qm_admin_open_auction', { p_player_id: playerId });
 }

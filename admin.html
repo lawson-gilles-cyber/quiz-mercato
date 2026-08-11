@@ -60,6 +60,10 @@
   tr:hover td{background:var(--pitch)}
   .pos-tag{font-family:'Space Mono';font-size:.68rem;padding:2px 6px;border:1px solid var(--line);border-radius:4px}
   .val{font-family:'Space Mono';font-weight:700;color:var(--transfer)}
+  .val-edit{width:120px;font-family:'Space Mono';font-size:.82rem;padding:4px 6px;border:1px solid var(--line);border-radius:6px;background:var(--pitch,#0c1f17);color:var(--transfer,#e0a800)}
+  .val-edit:focus{outline:1px solid var(--transfer);border-color:var(--transfer)}
+  .tm-mini{font-size:.68rem;font-weight:700;color:var(--muted);text-decoration:none;margin-left:4px;white-space:nowrap}
+  .tm-mini:hover{color:var(--transfer,#e0a800)}
   .status{font-size:.72rem;padding:2px 8px;border-radius:20px}
   .s-free{background:rgba(74,222,128,.12);color:var(--ok)}
   .s-owned{background:rgba(143,167,154,.15);color:var(--muted)}
@@ -156,6 +160,12 @@
     <button class="btn-ghost btn-sm" id="btnPreviewPrices">Prévisualiser les prix</button>
     <button class="btn-primary btn-sm" id="btnApplyPrices" style="margin-left:8px">Appliquer les prix note→prix</button>
     <div id="pricePreview" style="margin-top:12px"></div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">📊 <b>Import des valeurs (Transfermarkt)</b> — relève les valeurs sur <a href="https://www.transfermarkt.com/spieler-statistik/wertvollstespieler/marktwertetop" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Transfermarkt</a>, puis colle-les ici, une ligne par joueur : <code>Nom = valeur</code> (en M€ ou en euros). Ex : <code>Mbappé = 180</code> ou <code>Haaland = 180000000</code>. Seuls les joueurs <b>libres</b> sont affectés.</p>
+    <textarea id="bulkValues" rows="6" style="width:100%;font-family:monospace;font-size:.85rem" placeholder="Mbappé = 180&#10;Haaland = 180&#10;Bellingham = 150"></textarea>
+    <button class="btn-primary btn-sm" id="btnBulkValues" style="margin-top:10px">Appliquer les valeurs</button>
+    <div id="bulkResult" style="margin-top:10px"></div>
   </div>
   <div class="card">
     <table>
@@ -392,7 +402,9 @@ async function loadPlayers(){
       <td>${p.nationality?p.nationality+' ':''}${p.name}</td>
       <td><span class="pos-tag">${POS[p.position]}</span></td>
       <td>${p.club ?? '—'}</td>
-      <td class="val">${fmtM(p.current_value)}</td>
+      <td>${p.status==='free'
+        ? `<input class="val-edit" type="number" step="1000000" value="${p.current_value}" data-val="${p.id}" title="Valeur en euros"> <a class="tm-mini" href="https://www.transfermarkt.com/schnellsuche/ergebnis/schnellsuche?query=${encodeURIComponent(p.name)}" target="_blank" rel="noopener noreferrer" title="Chercher sur Transfermarkt">TM↗</a>`
+        : `<span class="val">${fmtM(p.current_value)}</span>`}</td>
       <td><span class="status s-${p.status}">${p.status}</span></td>
       <td><div class="actions">
         <button class="btn-ghost btn-sm" data-attr="${p.id}">Note / Critères</button>
@@ -402,6 +414,15 @@ async function loadPlayers(){
           : `<span class="hint">verrouillé</span>`}
       </div></td>
     </tr>`).join('') || `<tr><td colspan="6" class="hint" style="text-align:center;padding:30px">Aucun joueur. Ajoute-en un ci-dessus.</td></tr>`;
+
+  // Option A : saisie rapide de la valeur (validée à la sortie du champ)
+  $('playerRows').querySelectorAll('[data-val]').forEach(inp=>inp.onchange = async ()=>{
+    const v = parseInt(inp.value,10);
+    if(isNaN(v) || v<0){ showMsg($('msg2'),'Valeur invalide.'); return; }
+    const { error } = await api.adminSetValue(inp.dataset.val, v);
+    if(error){ showMsg($('msg2'), error.message); return; }
+    showMsg($('msg2'),'Valeur mise à jour.',true);
+  });
 
   $('playerRows').querySelectorAll('[data-open]').forEach(b=>b.onclick = async ()=>{
     const { error } = await api.adminOpenAuction(b.dataset.open);
@@ -526,6 +547,34 @@ $('btnApplyPrices').onclick = async () => {
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'), `Prix appliqués à ${data} joueur(s) libre(s).`, true);
   $('pricePreview').innerHTML = '';
+  loadPlayers();
+};
+
+// Option B : import en masse des valeurs (collage "Nom = valeur")
+$('btnBulkValues').onclick = async () => {
+  const raw = $('bulkValues').value.trim();
+  if(!raw){ showMsg($('msg2'),'Colle des valeurs d\'abord.'); return; }
+  // Parse : chaque ligne "Nom = valeur" (ou "Nom : valeur", "Nom  valeur")
+  const rows = [];
+  for(const line of raw.split('\n')){
+    const m = line.match(/^(.+?)\s*[=:\t]\s*([\d.,\s]+)$/);
+    if(!m) continue;
+    const name = m[1].trim();
+    let num = parseFloat(m[2].replace(/[\s,]/g,''));
+    if(isNaN(num)) continue;
+    // Heuristique : si < 10000, l'admin a saisi en millions -> convertir
+    const value = num < 10000 ? Math.round(num * 1e6) : Math.round(num);
+    rows.push({ name, value });
+  }
+  if(rows.length===0){ showMsg($('msg2'),'Aucune ligne valide (format attendu : Nom = valeur).'); return; }
+  const { data, error } = await api.adminBulkValues(rows);
+  if(error){ showMsg($('msg2'), error.message); return; }
+  const res = data && data[0] ? data[0] : { updated:0, not_found:[] };
+  let html = `<p class="hint" style="color:var(--accent)">✓ ${res.updated} joueur(s) mis à jour.</p>`;
+  if(res.not_found && res.not_found.length){
+    html += `<p class="hint" style="color:var(--danger,#e0574a)">Non trouvés (${res.not_found.length}) : ${res.not_found.join(', ')}</p>`;
+  }
+  $('bulkResult').innerHTML = html;
   loadPlayers();
 };
 
