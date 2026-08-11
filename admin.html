@@ -203,6 +203,11 @@
       <div><label>Pas de 1re offre dans les derniers... (h)</label><input id="bs_nofirst" type="number" placeholder="6"></div>
       <div><label>Durée phase finale (h)</label><input id="bs_final" type="number" placeholder="2"></div>
     </div>
+    <div class="row c3" style="margin-bottom:16px">
+      <div><label>Max enchères menées / manager</label><input id="bs_maxlead" type="number" placeholder="6"></div>
+      <div><label>Offres min. du dénicheur (bonus)</label><input id="bs_scoutmin" type="number" placeholder="2"></div>
+      <div><label>Max bonus entre 2 managers (anti-collusion)</label><input id="bs_collusion" type="number" placeholder="2"></div>
+    </div>
     <button class="btn-ghost btn-sm" id="btnBonusSettings">Enregistrer les réglages</button>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
       <label>Créditer des points de quiz à un manager</label>
@@ -527,7 +532,7 @@ $('btnApplyPrices').onclick = async () => {
 // ---------- Bonus & Quiz (SuperAdmin) ----------
 async function loadBonusSettings(){
   const { data } = await sb.from('qm_season_state')
-    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target, entry_tax, bid_cooldown_hours, no_first_bid_hours, final_phase_hours').eq('id',1).single();
+    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target, entry_tax, bid_cooldown_hours, no_first_bid_hours, final_phase_hours, max_leading_auctions, scout_min_bids, collusion_max_pairs').eq('id',1).single();
   if(data){
     $('bs_fullday').value = (Number(data.full_day_bonus)/1e6);
     $('bs_quizrate').value = (Number(data.quiz_point_value)/1e6);
@@ -539,6 +544,9 @@ async function loadBonusSettings(){
     if($('bs_cooldown')) $('bs_cooldown').value = data.bid_cooldown_hours;
     if($('bs_nofirst')) $('bs_nofirst').value = data.no_first_bid_hours;
     if($('bs_final')) $('bs_final').value = data.final_phase_hours;
+    if($('bs_maxlead')) $('bs_maxlead').value = data.max_leading_auctions;
+    if($('bs_scoutmin')) $('bs_scoutmin').value = data.scout_min_bids;
+    if($('bs_collusion')) $('bs_collusion').value = data.collusion_max_pairs;
   }
   const managers = await api.listManagers();
   $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
@@ -572,6 +580,12 @@ $('btnBonusSettings').onclick = async () => {
   if(!isNaN(cd) && !isNaN(nf) && !isNaN(fn)){
     const r4 = await api.adminSetBidWindows(cd, nf, fn);
     if(r4.error) return showMsg($('msg2'), r4.error.message);
+  }
+  // Anti-abus
+  const ml = parseInt($('bs_maxlead').value), sm = parseInt($('bs_scoutmin').value), co = parseInt($('bs_collusion').value);
+  if(!isNaN(ml) && !isNaN(sm) && !isNaN(co)){
+    const r5 = await api.adminSetAntiAbuse(ml, sm, co);
+    if(r5.error) return showMsg($('msg2'), r5.error.message);
   }
   showMsg($('msg2'), 'Réglages enregistrés.', true);
 };

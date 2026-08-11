@@ -349,6 +349,15 @@ export async function adminReleases() {
   const { data } = await sb.rpc('qm_admin_releases');
   return data ?? [];
 }
+export async function adminSetAntiAbuse(maxLeading, scoutMinBids, collusionMax) {
+  return sb.rpc('qm_admin_set_antiabuse', {
+    p_max_leading: maxLeading, p_scout_min_bids: scoutMinBids, p_collusion_max: collusionMax
+  });
+}
+export async function leadingAuctionsCount(managerId) {
+  const { data } = await sb.rpc('qm_leading_auctions_count', { p_manager_id: managerId });
+  return data ?? 0;
+}
 
 export async function getTheme() {
   const { data } = await sb.rpc('qm_get_theme');
