@@ -80,10 +80,14 @@ export async function listPlayers(filters = {}) {
 
 export async function listOpenAuctions() {
   const { data } = await sb.from('qm_auctions')
-    .select('*, player:qm_players(*), top_bidder:qm_managers(display_name)')
+    .select('*, player:qm_players(*), top_bidder:qm_managers(display_name), bids:qm_bids(manager_id)')
     .eq('status', 'open')
     .order('ends_at', { ascending: true });
-  return data ?? [];
+  // Calcule le nombre de managers distincts intéressés
+  return (data ?? []).map(a => {
+    const distinct = new Set((a.bids ?? []).map(x => x.manager_id));
+    return { ...a, interest: distinct.size };
+  });
 }
 
 export async function myTeam(managerId) {
@@ -105,6 +109,18 @@ export async function transferHistory(playerId) {
     .select('*, from:qm_managers!qm_transfers_from_manager_fkey(display_name), to:qm_managers!qm_transfers_to_manager_fkey(display_name)')
     .eq('player_id', playerId)
     .order('created_at', { ascending: false });
+  return data ?? [];
+}
+export async function recentTransfers(limit = 30) {
+  // Fil d'actualité : tous les mouvements récents, avec joueur et managers
+  const { data } = await sb.from('qm_transfers')
+    .select('*, player:qm_players(name, club, position), from:qm_managers!qm_transfers_from_manager_fkey(display_name), to:qm_managers!qm_transfers_to_manager_fkey(display_name)')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+export async function myNotifications() {
+  const { data } = await sb.rpc('qm_my_notifications');
   return data ?? [];
 }
 
@@ -365,6 +381,14 @@ export async function leadingAuctionsCount(managerId) {
   const { data } = await sb.rpc('qm_leading_auctions_count', { p_manager_id: managerId });
   return data ?? 0;
 }
+export async function convertBudgetToPoints(amount) {
+  return sb.rpc('qm_convert_budget_to_points', { p_amount: amount });
+}
+export async function adminSetExtraBonuses(samePos, poker, convertRate) {
+  return sb.rpc('qm_admin_set_extra_bonuses', {
+    p_same_pos: samePos, p_poker: poker, p_convert_rate: convertRate
+  });
+}
 
 export async function getTheme() {
   const { data } = await sb.rpc('qm_get_theme');
@@ -397,4 +421,37 @@ export function subscribeAuction(auctionId, onChange) {
       { event: 'UPDATE', schema: 'public', table: 'qm_auctions', filter: `id=eq.${auctionId}` },
       payload => onChange(payload.new))
     .subscribe();
+}
+
+// ---------- VAGUE 3 : Journées, Coach, Compositions ----------------
+export async function adminCreateMatchday(number, label, deadline) {
+  return sb.rpc('qm_admin_create_matchday', { p_number: number, p_label: label, p_deadline: deadline });
+}
+export async function adminSetMatchdayStatus(matchdayId, status) {
+  return sb.rpc('qm_admin_set_matchday_status', { p_matchday_id: matchdayId, p_status: status });
+}
+export async function listMatchdays() {
+  const { data } = await sb.from('qm_matchdays').select('*').order('number', { ascending: true });
+  return data ?? [];
+}
+export async function adminAssignCoach(coachId, teamId) {
+  return sb.rpc('qm_admin_assign_coach', { p_coach_id: coachId, p_team_id: teamId });
+}
+export async function adminUnassignCoach(coachId) {
+  return sb.rpc('qm_admin_unassign_coach', { p_coach_id: coachId });
+}
+export async function myTeamId() {
+  const { data } = await sb.rpc('qm_my_team_id');
+  return data ?? null;
+}
+export async function setLineup(matchdayId, playerIds) {
+  return sb.rpc('qm_set_lineup', { p_matchday_id: matchdayId, p_player_ids: playerIds });
+}
+export async function myLineup(matchdayId) {
+  const { data } = await sb.rpc('qm_my_lineup', { p_matchday_id: matchdayId });
+  return data ?? null;
+}
+export async function adminCloseMatchday(matchdayId) {
+  // La fonction SQL qm_admin_close_matchday sera créée à l'étape 4
+  return sb.rpc('qm_admin_close_matchday', { p_matchday_id: matchdayId });
 }

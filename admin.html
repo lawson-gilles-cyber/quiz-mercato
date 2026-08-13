@@ -120,6 +120,28 @@
     </div>
   </div>
 
+  <!-- Journées & Compositions (Vague 3) -->
+  <h2>Journées & Compositions</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Crée les journées de championnat, ouvre-les à l'alignement, puis passe-les en notation. À l'ouverture d'une journée, les compos de la précédente sont reconduites automatiquement.</p>
+    <div class="row c3" style="margin-bottom:12px">
+      <div><label>Numéro de journée</label><input id="mdNumber" type="number" placeholder="5"></div>
+      <div><label>Libellé (optionnel)</label><input id="mdLabel" type="text" placeholder="Journée 5"></div>
+      <div><label>Date limite d'alignement</label><input id="mdDeadline" type="datetime-local"></div>
+    </div>
+    <button class="btn-primary btn-sm" id="btnCreateMatchday">Créer la journée</button>
+    <div id="mdList" style="margin-top:16px"></div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px"><b>Associer un Coach à une équipe.</b> Le Coach est un compte séparé qui alignera les 11 titulaires de l'équipe choisie.</p>
+    <div class="row c3" style="margin-bottom:12px">
+      <div><label>Compte Coach</label><select id="coachAccount"></select></div>
+      <div><label>Équipe à coacher</label><select id="coachTeam"></select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn-primary btn-sm" id="btnAssignCoach" style="width:100%">Associer</button></div>
+    </div>
+    <div id="coachList"></div>
+  </div>
+
   <!-- Ajouter un joueur -->
   <h2>Ajouter un joueur</h2>
   <div class="card">
@@ -323,7 +345,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches();
 }
 
 $('btnLogin').onclick = async () => {
@@ -609,6 +631,76 @@ async function loadBonusSettings(){
   $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
     managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
 }
+// ---------- VAGUE 3 : Journées & Coachs ----------
+async function loadMatchdays(){
+  const mds = await api.listMatchdays();
+  if(!$('mdList')) return;
+  $('mdList').innerHTML = mds.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>#</th><th>Libellé</th><th>Statut</th><th>Actions</th></tr></thead><tbody>${
+    mds.map(m=>`<tr><td>${m.number}</td><td>${m.label||''}</td><td><span class="status s-${m.status}">${MD_STATUS[m.status]||m.status}</span></td>
+      <td><div class="actions">
+        ${m.status==='upcoming'?`<button class="btn-primary btn-sm" data-mdopen="${m.id}">Ouvrir</button>`:''}
+        ${m.status==='open'?`<button class="btn-ghost btn-sm" data-mdscore="${m.id}">Passer en notation</button>`:''}
+        ${m.status==='scoring'?`<button class="btn-primary btn-sm" data-mdclose="${m.id}">Clôturer</button>`:''}
+      </div></td></tr>`).join('')
+  }</tbody></table>` : `<p class="hint">Aucune journée créée.</p>`;
+
+  $('mdList').querySelectorAll('[data-mdopen]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminSetMatchdayStatus(b.dataset.mdopen,'open');
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Journée ouverte — compos précédentes reconduites.',true); loadMatchdays();
+  });
+  $('mdList').querySelectorAll('[data-mdscore]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminSetMatchdayStatus(b.dataset.mdscore,'scoring');
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Journée en notation — saisis les notes des joueurs.',true); loadMatchdays();
+  });
+  $('mdList').querySelectorAll('[data-mdclose]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Clôturer cette journée ? Les points seront calculés et ajoutés au classement.')) return;
+    const r = await api.adminCloseMatchday(b.dataset.mdclose);
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Journée clôturée, points attribués.',true); loadMatchdays();
+  });
+}
+const MD_STATUS = {upcoming:'À venir', open:'Ouverte', scoring:'Notation', closed:'Clôturée'};
+
+$('btnCreateMatchday').onclick = async ()=>{
+  const num = parseInt($('mdNumber').value);
+  if(isNaN(num)) return showMsg($('msg2'),'Numéro de journée requis.');
+  const label = $('mdLabel').value || null;
+  const dl = $('mdDeadline').value ? new Date($('mdDeadline').value).toISOString() : null;
+  const r = await api.adminCreateMatchday(num, label, dl);
+  if(r.error) return showMsg($('msg2'),r.error.message);
+  showMsg($('msg2'),'Journée créée.',true);
+  $('mdNumber').value=''; $('mdLabel').value=''; $('mdDeadline').value='';
+  loadMatchdays();
+};
+
+async function loadCoaches(){
+  const managers = await api.listManagers();
+  if(!$('coachAccount')) return;
+  $('coachAccount').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+  $('coachTeam').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+  const coaches = managers.filter(m=>m.is_coach && m.coach_of);
+  $('coachList').innerHTML = coaches.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Coach</th><th>Équipe coachée</th><th></th></tr></thead><tbody>${
+    coaches.map(c=>{
+      const team = managers.find(m=>m.id===c.coach_of);
+      return `<tr><td>${c.display_name}</td><td>${team?team.display_name:'?'}</td><td><button class="btn-danger btn-sm" data-uncoach="${c.id}">Retirer</button></td></tr>`;
+    }).join('')
+  }</tbody></table>` : `<p class="hint" style="margin-top:8px">Aucun coach associé.</p>`;
+  $('coachList').querySelectorAll('[data-uncoach]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminUnassignCoach(b.dataset.uncoach);
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Coach retiré.',true); loadCoaches();
+  });
+}
+$('btnAssignCoach').onclick = async ()=>{
+  const coach = $('coachAccount').value, team = $('coachTeam').value;
+  if(coach===team) return showMsg($('msg2'),'Le coach et l\'équipe doivent être deux comptes différents.');
+  const r = await api.adminAssignCoach(coach, team);
+  if(r.error) return showMsg($('msg2'),r.error.message);
+  showMsg($('msg2'),'Coach associé.',true); loadCoaches();
+};
+
 $('btnBonusSettings').onclick = async () => {
   const fd = parseFloat($('bs_fullday').value);
   const qr = parseFloat($('bs_quizrate').value);
