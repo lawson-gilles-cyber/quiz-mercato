@@ -120,6 +120,19 @@
     </div>
   </div>
 
+  <!-- Fenêtres de mercato (été/hiver) -->
+  <h2>Fenêtres de mercato</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Crée les mercatos d'été et d'hiver, puis active celui qui est en cours. Hors fenêtre active, aucune enchère ni recrutement direct n'est possible. Une seule fenêtre active à la fois.</p>
+    <div class="row c3" style="margin-bottom:12px">
+      <div><label>Type</label><select id="winKind"><option value="summer">Mercato d'été</option><option value="winter">Mercato d'hiver</option></select></div>
+      <div><label>Ouverture</label><input id="winOpens" type="datetime-local"></div>
+      <div><label>Fermeture</label><input id="winCloses" type="datetime-local"></div>
+    </div>
+    <button class="btn-primary btn-sm" id="btnCreateWindow">Créer la fenêtre</button>
+    <div id="winList" style="margin-top:16px"></div>
+  </div>
+
   <!-- Journées & Compositions (Vague 3) -->
   <h2>Journées & Compositions</h2>
   <div class="card" style="margin-bottom:14px">
@@ -357,7 +370,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows();
 }
 
 $('btnLogin').onclick = async () => {
@@ -644,6 +657,33 @@ async function loadBonusSettings(){
     managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
 }
 // ---------- VAGUE 3 : Journées & Coachs ----------
+async function loadWindows(){
+  const wins = await api.listWindows();
+  if(!$('winList')) return;
+  $('winList').innerHTML = wins.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Type</th><th>Libellé</th><th>Période</th><th>État</th><th></th></tr></thead><tbody>${
+    wins.map(w=>{
+      const period = (w.opens_at?new Date(w.opens_at).toLocaleDateString('fr-FR'):'—')+' → '+(w.closes_at?new Date(w.closes_at).toLocaleDateString('fr-FR'):'—');
+      return `<tr><td>${w.kind==='summer'?'☀️ Été':'❄️ Hiver'}</td><td>${w.label||''}</td><td style="font-size:.8rem">${period}</td>
+        <td>${w.is_active?'<span class="status s-open">Active</span>':'<span class="status s-closed">Inactive</span>'}</td>
+        <td><button class="btn-${w.is_active?'ghost':'primary'} btn-sm" data-wintoggle="${w.id}" data-active="${w.is_active}">${w.is_active?'Désactiver':'Activer'}</button></td></tr>`;
+    }).join('')
+  }</tbody></table>` : `<p class="hint">Aucune fenêtre créée.</p>`;
+  $('winList').querySelectorAll('[data-wintoggle]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminSetWindowActive(b.dataset.wintoggle, b.dataset.active!=='true');
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Fenêtre mise à jour.',true); loadWindows();
+  });
+}
+$('btnCreateWindow').onclick = async ()=>{
+  const kind = $('winKind').value;
+  const opens = $('winOpens').value ? new Date($('winOpens').value).toISOString() : null;
+  const closes = $('winCloses').value ? new Date($('winCloses').value).toISOString() : null;
+  const r = await api.adminCreateWindow(kind, null, opens, closes);
+  if(r.error) return showMsg($('msg2'),r.error.message);
+  showMsg($('msg2'),'Fenêtre créée.',true);
+  $('winOpens').value=''; $('winCloses').value=''; loadWindows();
+};
+
 async function loadMatchdays(){
   const mds = await api.listMatchdays();
   if(!$('mdList')) return;

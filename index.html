@@ -341,6 +341,18 @@
       <div id="cmpResult"></div>
     </div>
 
+    <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">Recrutement direct</div>
+      <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Achète un joueur libre à sa valeur, sans enchère. Nécessite un mercato ouvert et le respect de ton budget, tes quotas et ta masse salariale.</p>
+      <div id="directGate" class="empty" style="margin:0">Connecte-toi pour recruter.</div>
+      <div id="directUI" style="display:none">
+        <select id="directSelect" style="width:100%;padding:9px;margin-bottom:10px"><option value="">Choisir un joueur libre…</option></select>
+        <div id="directInfo" style="margin-bottom:10px"></div>
+        <button id="btnDirectRecruit" class="bid-btn" style="width:100%;display:none">Recruter</button>
+        <div id="directResult" style="margin-top:8px"></div>
+      </div>
+    </div>
+
     <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour dénicher des joueurs et proposer des échanges.</div>
 
     <div id="tradeUI" style="display:none">
@@ -782,13 +794,47 @@ function renderComparator(players){
 }
 window.cmpRemove = (id)=>{ CMP_SELECTED = CMP_SELECTED.filter(p=>p.id!==id); renderComparator(); };
 
+// ---------- Recrutement direct ----------
+async function setupDirectRecruit(){
+  if(!ME){ $('directGate').style.display='block'; $('directUI').style.display='none'; return; }
+  $('directGate').style.display='none'; $('directUI').style.display='block';
+
+  const winOpen = await api.windowIsOpen();
+  if(!winOpen){
+    $('directInfo').innerHTML = `<span style="color:var(--live);font-size:.85rem">Aucun mercato n'est ouvert actuellement.</span>`;
+  } else $('directInfo').innerHTML = '';
+
+  const players = await api.listPlayers();
+  const free = players.filter(p=>p.status==='free');
+  free.sort((a,b)=>Number(b.current_value)-Number(a.current_value));
+  $('directSelect').innerHTML = '<option value="">Choisir un joueur libre…</option>' +
+    free.map(p=>`<option value="${p.id}">${p.name} (${p.club||'—'}) — ${fmtMoney(p.current_value)}</option>`).join('');
+
+  $('directSelect').onchange = ()=>{
+    const p = free.find(x=>x.id===$('directSelect').value);
+    if(!p){ $('btnDirectRecruit').style.display='none'; $('directInfo').innerHTML=''; return; }
+    $('directInfo').innerHTML = `<div style="font-size:.9rem">Prix : <b style="font-family:'Saira'">${fmtMoney(p.current_value)}</b></div>`;
+    $('btnDirectRecruit').style.display = winOpen ? 'block' : 'none';
+    $('btnDirectRecruit').onclick = async ()=>{
+      if(!confirm(`Recruter ${p.name} pour ${fmtMoney(p.current_value)} ?`)) return;
+      const { error } = await api.directRecruit(p.id);
+      if(error){ $('directResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
+      $('directResult').innerHTML = `<span style="color:#4ade80">✓ ${p.name} recruté !</span>`;
+      ME = await api.currentManager();
+      if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
+      setupDirectRecruit();
+    };
+  };
+}
+
 async function renderMarket(){
   if(!ME){
     $('tradeGate').style.display='block'; $('tradeUI').style.display='none';
-    setupComparator(); return;
+    setupComparator(); setupDirectRecruit(); return;
   }
   $('tradeGate').style.display='none'; $('tradeUI').style.display='block';
   setupComparator();
+  setupDirectRecruit();
 
   // Liste des autres managers
   const managers = (await api.listManagers()).filter(m=>m.id!==ME.id);

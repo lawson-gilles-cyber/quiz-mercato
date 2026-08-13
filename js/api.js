@@ -478,3 +478,26 @@ export async function matchdayStandings(matchdayId) {
   const { data } = await sb.rpc('qm_matchday_standings', { p_matchday_id: matchdayId });
   return data ?? [];
 }
+
+// ---------- VAGUE 3 temps 1 : Mercatos & recrutement direct -------
+export async function windowIsOpen() {
+  const { data } = await sb.rpc('qm_window_is_open');
+  return data ?? false;
+}
+export async function currentWindow() {
+  const { data } = await sb.rpc('qm_current_window');
+  return data ?? null;
+}
+export async function listWindows() {
+  const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
+  return data ?? [];
+}
+export async function adminCreateWindow(kind, label, opens, closes) {
+  return sb.rpc('qm_admin_create_window', { p_kind: kind, p_label: label, p_opens: opens, p_closes: closes });
+}
+export async function adminSetWindowActive(windowId, active) {
+  return sb.rpc('qm_admin_set_window_active', { p_window_id: windowId, p_active: active });
+}
+export async function directRecruit(playerId) {
+  return sb.rpc('qm_direct_recruit', { p_player_id: playerId });
+}
