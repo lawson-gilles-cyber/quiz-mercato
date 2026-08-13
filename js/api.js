@@ -468,3 +468,13 @@ export async function scoringProgress(matchdayId) {
   const { data } = await sb.rpc('qm_scoring_progress', { p_matchday_id: matchdayId });
   return (data && data[0]) ? data[0] : { total: 0, scored: 0 };
 }
+
+// ---------- VAGUE 3 : Points & classement par journée -------------
+export async function lineupBreakdown(managerId, matchdayId) {
+  const { data } = await sb.rpc('qm_lineup_breakdown', { p_manager: managerId, p_matchday_id: matchdayId });
+  return data ?? [];
+}
+export async function matchdayStandings(matchdayId) {
+  const { data } = await sb.rpc('qm_matchday_standings', { p_matchday_id: matchdayId });
+  return data ?? [];
+}

@@ -450,6 +450,7 @@
       <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
       <div id="lineupResult" style="margin-top:10px"></div>
     </div>
+    <div id="lineupBreakdown" style="margin-top:26px"></div>
   </section>
   <section class="view" id="rank">
     <div class="eyebrow">Classement des managers</div>
@@ -1336,15 +1337,17 @@ async function renderLineup(){
   if(!ME){ $('lineupGate').style.display='block'; $('lineupUI').style.display='none'; return; }
   $('lineupGate').style.display='none'; $('lineupUI').style.display='block';
 
-  // Charger les journées ouvertes
+  // Charger les journées ouvertes (alignement) + clôturées (voir résultat)
   LINEUP_MDS = await api.listMatchdays();
-  const openMds = LINEUP_MDS.filter(m=>m.status==='open');
+  const openMds = LINEUP_MDS.filter(m=>m.status==='open' || m.status==='closed');
   const sel = $('lineupMatchday');
   if(openMds.length===0){
-    $('lineupUI').innerHTML = `<div class="empty">Aucune journée n'est ouverte à l'alignement pour le moment. Reviens quand l'organisateur aura ouvert la prochaine journée.</div>`;
+    $('lineupUI').innerHTML = `<div class="empty">Aucune journée ouverte à l'alignement pour le moment. Reviens quand l'organisateur aura ouvert la prochaine journée.</div>`;
     return;
   }
-  sel.innerHTML = openMds.map(m=>`<option value="${m.id}">${m.label||('Journée '+m.number)}</option>`).join('');
+  // Ouvertes d'abord (à aligner), puis clôturées (résultats)
+  openMds.sort((a,b)=> (a.status==='open'?-1:1) - (b.status==='open'?-1:1) || b.number-a.number);
+  sel.innerHTML = openMds.map(m=>`<option value="${m.id}">${m.label||('Journée '+m.number)}${m.status==='closed'?' (résultat)':''}</option>`).join('');
   sel.onchange = ()=>loadLineupForMatchday(sel.value);
   await loadLineupForMatchday(sel.value);
 }
@@ -1372,6 +1375,28 @@ async function loadLineupForMatchday(mdId){
 
   renderLineupPlayers(mine);
   $('btnSaveLineup').onclick = ()=>saveLineup(mdId);
+
+  // Journée clôturée : lecture seule (pas d'alignement possible)
+  const isClosed = md && md.status==='closed';
+  $('btnSaveLineup').style.display = isClosed ? 'none' : 'block';
+  $('lineupCounter').style.display = isClosed ? 'none' : 'block';
+  if(md && md.status==='closed'){
+    const teamId = await api.myTeamId();
+    const bd = await api.lineupBreakdown(teamId, mdId);
+    if(bd.length){
+      const wLabel = {starter:'Titulaire (100%)', sub:'Entré (50%)', dnp:'Pas joué (0%)'};
+      const total = bd.reduce((s,x)=>s+Number(x.contribution),0);
+      $('lineupBreakdown').innerHTML = `<div class="eyebrow" style="margin-bottom:12px">Résultat de la journée</div>
+        <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer);margin-bottom:14px">${total.toFixed(2)} points</div>
+        <table style="width:100%"><thead><tr><th>Joueur</th><th>Note</th><th>Statut</th><th>Points</th></tr></thead><tbody>${
+          bd.map(x=>`<tr><td><b>${x.name}</b></td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
+            <td style="font-size:.8rem;color:var(--muted)">${wLabel[x.play_status]||x.play_status}</td>
+            <td style="font-family:'Saira';font-weight:700">${Number(x.contribution).toFixed(2)}</td></tr>`).join('')
+        }</tbody></table>`;
+    }
+  } else {
+    $('lineupBreakdown').innerHTML = '';
+  }
 }
 
 function renderLineupPlayers(mine){
