@@ -194,7 +194,7 @@
   <h2>Bonus & Quiz</h2>
   <div class="card">
     <div class="row c2" style="margin-bottom:16px">
-      <div><label>Bonus journée complète (M€)</label><input id="bs_fullday" type="number" placeholder="5"></div>
+      <div><label>Bonus journée complète - 3 postes différents (M€)</label><input id="bs_fullday" type="number" placeholder="10"></div>
       <div><label>Valeur d'un point de quiz (M€)</label><input id="bs_quizrate" type="number" step="0.1" placeholder="0.5"></div>
     </div>
     <div class="row" style="margin-bottom:16px">
@@ -217,6 +217,11 @@
       <div><label>Max enchères menées / manager</label><input id="bs_maxlead" type="number" placeholder="6"></div>
       <div><label>Offres min. du dénicheur (bonus)</label><input id="bs_scoutmin" type="number" placeholder="2"></div>
       <div><label>Max bonus entre 2 managers (anti-collusion)</label><input id="bs_collusion" type="number" placeholder="2"></div>
+    </div>
+    <div class="row c3" style="margin-bottom:16px">
+      <div><label>Bonus 3 joueurs même poste (M€)</label><input id="bs_samepos" type="number" step="0.5" placeholder="5"></div>
+      <div><label>Bonus coup de poker (M€)</label><input id="bs_poker" type="number" step="0.5" placeholder="10"></div>
+      <div><label>Conversion budget→points (M€ = 1 pt)</label><input id="bs_convrate" type="number" step="0.5" placeholder="10"></div>
     </div>
     <button class="btn-ghost btn-sm" id="btnBonusSettings">Enregistrer les réglages</button>
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">
@@ -581,7 +586,7 @@ $('btnBulkValues').onclick = async () => {
 // ---------- Bonus & Quiz (SuperAdmin) ----------
 async function loadBonusSettings(){
   const { data } = await sb.from('qm_season_state')
-    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target, entry_tax, bid_cooldown_hours, no_first_bid_hours, final_phase_hours, max_leading_auctions, scout_min_bids, collusion_max_pairs').eq('id',1).single();
+    .select('full_day_bonus, quiz_point_value, salary_cap, max_active_auctions, max_daily_purchases, daily_proposals_target, entry_tax, bid_cooldown_hours, no_first_bid_hours, final_phase_hours, max_leading_auctions, scout_min_bids, collusion_max_pairs, same_pos_bonus, poker_bonus, budget_to_points_rate').eq('id',1).single();
   if(data){
     $('bs_fullday').value = (Number(data.full_day_bonus)/1e6);
     $('bs_quizrate').value = (Number(data.quiz_point_value)/1e6);
@@ -596,6 +601,9 @@ async function loadBonusSettings(){
     if($('bs_maxlead')) $('bs_maxlead').value = data.max_leading_auctions;
     if($('bs_scoutmin')) $('bs_scoutmin').value = data.scout_min_bids;
     if($('bs_collusion')) $('bs_collusion').value = data.collusion_max_pairs;
+    if($('bs_samepos')) $('bs_samepos').value = (Number(data.same_pos_bonus)/1e6);
+    if($('bs_poker')) $('bs_poker').value = (Number(data.poker_bonus)/1e6);
+    if($('bs_convrate')) $('bs_convrate').value = (Number(data.budget_to_points_rate)/1e6);
   }
   const managers = await api.listManagers();
   $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
@@ -635,6 +643,12 @@ $('btnBonusSettings').onclick = async () => {
   if(!isNaN(ml) && !isNaN(sm) && !isNaN(co)){
     const r5 = await api.adminSetAntiAbuse(ml, sm, co);
     if(r5.error) return showMsg($('msg2'), r5.error.message);
+  }
+  // Nouveaux bonus (paquet A)
+  const sp = parseFloat($('bs_samepos').value), pk = parseFloat($('bs_poker').value), cr = parseFloat($('bs_convrate').value);
+  if(!isNaN(sp) && !isNaN(pk) && !isNaN(cr)){
+    const r6 = await api.adminSetExtraBonuses(Math.round(sp*1e6), Math.round(pk*1e6), Math.round(cr*1e6));
+    if(r6.error) return showMsg($('msg2'), r6.error.message);
   }
   showMsg($('msg2'), 'Réglages enregistrés.', true);
 };

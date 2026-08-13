@@ -218,6 +218,7 @@
   .acard .nick{color:var(--muted);font-size:.76rem;margin-top:2px}
   .acard .line{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
   .acard .price{font-family:'Space Mono';font-weight:700;color:var(--transfer);font-size:1.05rem}
+  .acard .interest{font-family:'Archivo Narrow';font-size:.72rem;color:var(--muted);background:var(--pitch-2);padding:2px 7px;border-radius:10px}
   .acard .date{font-family:'Space Mono';color:var(--muted);font-size:.7rem}
   .acard .clock{font-family:'Space Mono';font-size:.78rem;margin-top:8px}
   .acard .clock.hot{color:var(--live)} .acard .clock.safe{color:var(--muted)}
@@ -264,13 +265,26 @@
     <button data-v="bonus">Bonus</button>
     <button data-v="penalty">Pénalités</button>
     <button data-v="rank">Classement</button>
+    <button data-v="feed">Actu</button>
     <button data-v="rules">Règlement</button>
   </nav>
   <div class="wallet" id="walletBox"><small>BUDGET DISPO</small><span id="wallet">—</span></div>
+  <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
   <button id="authBtn" style="font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;background:var(--transfer);color:var(--pitch);border:none;padding:9px 14px;border-radius:8px;cursor:pointer;margin-left:10px">Connexion</button>
+  <div id="notifPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:12px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
 </header>
 
 <!-- Modale d'authentification manager -->
+<div id="squadModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--pitch);border:1px solid var(--line);border-radius:14px;padding:20px;width:640px;max-width:94vw;max-height:88vh;overflow-y:auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 id="squadModalTitle" style="font-family:'Saira Condensed';text-transform:uppercase;font-weight:800;font-size:1.3rem">Effectif</h3>
+      <button onclick="document.getElementById('squadModal').style.display='none'" style="background:var(--pitch-2);border:1px solid var(--line);color:var(--chalk);border-radius:8px;padding:6px 12px;cursor:pointer">Fermer</button>
+    </div>
+    <div id="squadModalBody"></div>
+  </div>
+</div>
+
 <div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
   <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:26px;width:360px;max-width:92vw">
     <div id="authMsg" style="display:none;padding:9px 12px;border-radius:8px;margin-bottom:14px;font-size:.85rem"></div>
@@ -294,19 +308,24 @@
     <div class="hero">
       <div>
         <div class="status"><span class="dot"></span>
-          <span style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:2px;font-size:.78rem">Mercato ouvert</span></div>
-        <h2>Le marché est <em style="color:var(--transfer)">ouvert</em>.<br>Constitue ton effectif.</h2>
-        <p>Enchéris sur de vrais joueurs, bâtis une équipe de 24, et marque des points grâce à tes performances dans les quiz. Le dernier enchérisseur remporte le joueur.</p>
+          <span id="homeStatus" style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:2px;font-size:.78rem">Mercato</span></div>
+        <h2>Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.</h2>
+        <p>Enchéris sur de vrais joueurs, bâtis une équipe de 24, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.</p>
+        <div id="homeCTA" style="margin-top:18px"></div>
       </div>
       <div class="countdown">
-        <div class="num" id="cd">47:59:12</div>
-        <small>avant fermeture</small>
+        <div class="num" id="homeNextClock">—</div>
+        <small id="homeNextLabel">prochaine clôture</small>
       </div>
     </div>
     <div class="newsgrid">
-      <div class="news"><div class="k">Plus gros transfert</div><div class="v"><b>Mbappé</b> · 172 M€</div></div>
-      <div class="news"><div class="k">Joueur le plus suivi</div><div class="v">Yamal <b>· 14 offres</b></div></div>
-      <div class="news"><div class="k">Managers en lice</div><div class="v">12 <b>/ 20</b></div></div>
+      <div class="news"><div class="k">Enchères en cours</div><div class="v" id="homeActiveAuctions"><b>—</b></div></div>
+      <div class="news"><div class="k">Joueur le plus convoité</div><div class="v" id="homeMostWanted"><b>—</b></div></div>
+      <div class="news"><div class="k">Managers en lice</div><div class="v" id="homeManagers"><b>—</b></div></div>
+    </div>
+    <div style="margin-top:26px">
+      <div class="eyebrow" style="margin-bottom:12px">Derniers mouvements</div>
+      <div id="homeFeed"></div>
     </div>
   </section>
 
@@ -314,6 +333,13 @@
   <section class="view" id="market">
     <div class="eyebrow">Marché · dénicher & échanger</div>
     <h1>Le <em>marché</em></h1>
+    <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">Comparateur de joueurs</div>
+      <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Choisis jusqu'à 3 joueurs pour comparer leur note, valeur et salaire avant d'enchérir.</p>
+      <select id="cmpSelect" style="width:100%;padding:9px;margin-bottom:10px"><option value="">+ Ajouter un joueur à comparer…</option></select>
+      <div id="cmpResult"></div>
+    </div>
+
     <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour dénicher des joueurs et proposer des échanges.</div>
 
     <div id="tradeUI" style="display:none">
@@ -381,13 +407,14 @@
     <div class="newsgrid" style="margin-bottom:14px">
       <div class="news"><div class="k">Budget transfert restant</div><div class="v" id="dashBudget"><b>—</b></div></div>
       <div class="news"><div class="k">Masse salariale</div><div class="v" id="dashSalary"><b>—</b></div></div>
-      <div class="news"><div class="k">Effectif</div><div class="v" id="teamCount">0 <b>/ 24</b></div></div>
+      <div class="news"><div class="k">Effectif</div><div class="v" id="teamCount">0 <b>/ 21</b></div></div>
     </div>
     <div class="newsgrid" style="margin-bottom:22px">
       <div class="news"><div class="k">Valeur totale</div><div class="v" id="teamValue"><b>—</b></div></div>
       <div class="news"><div class="k">Points saison</div><div class="v" id="teamPts"><b>0</b></div></div>
       <div class="news"><div class="k">Budget engagé (enchères)</div><div class="v" id="dashLocked"><b>—</b></div></div>
     </div>
+    <div id="dashAlerts" style="margin-bottom:18px"></div>
     <a class="tm-link" href="https://www.transfermarkt.com/spieler-statistik/wertvollstespieler/marktwertetop" target="_blank" rel="noopener noreferrer">
       <span class="tm-ic">📊</span>
       <span class="tm-txt"><b>Vérifie la valeur réelle des joueurs</b> — les cotes du marché sur Transfermarkt pour affiner tes enchères.</span>
@@ -399,6 +426,10 @@
     </div>
     <div id="teamPitch"></div>
     <div class="grid" id="teamGrid" style="display:none"></div>
+    <div style="margin-top:26px">
+      <div class="eyebrow" style="margin-bottom:12px">Mon activité récente</div>
+      <div id="myActivity"></div>
+    </div>
   </section>
 
   <!-- CLASSEMENT -->
@@ -406,9 +437,17 @@
     <div class="eyebrow">Classement des managers</div>
     <h1>Le <em>classement</em></h1>
     <table>
-      <thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Valeur effectif</th><th>Budget dispo</th></tr></thead>
+      <thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Effectif</th><th>Valeur effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankBody"></tbody>
     </table>
+  </section>
+
+  <!-- FIL D'ACTUALITÉ -->
+  <section class="view" id="feed">
+    <div class="eyebrow">Le marché en direct</div>
+    <h1>L'<em>actu</em> du mercato</h1>
+    <div id="feedList"></div>
+    <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les derniers mouvements de tous les managers : recrutements, échanges, libérations.</p>
   </section>
 
   <!-- BONUS -->
@@ -420,7 +459,16 @@
       <div class="news"><div class="k">Nombre de bonus</div><div class="v" id="bonusCount"><b>0</b></div></div>
     </div>
     <div id="bonusList"></div>
-    <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les bonus créditent ton budget (pouvoir d'achat), pas ton classement. Sources : journée complète (1 attaquant + 1 milieu + 1 défenseur le même jour) et points de quiz convertis.</p>
+    <div class="card" style="margin-top:20px;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:8px">Convertir du budget en points</div>
+      <p class="hint" style="color:var(--muted);font-size:.85rem;margin-bottom:12px">En fin de mercato, transforme ton budget restant en points de classement. Taux : <b>10 M€ = 1 point</b>. Le budget engagé sur des enchères en cours n'est pas convertible. Cette opération est à sens unique.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input id="convertAmount" type="number" step="10" placeholder="Montant en M€" style="flex:1;min-width:140px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--pitch);color:var(--chalk)">
+        <button id="btnConvert" class="bid-btn" style="white-space:nowrap">Convertir</button>
+      </div>
+      <div id="convertResult" style="margin-top:8px"></div>
+    </div>
+    <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les bonus créditent ton budget (pouvoir d'achat), pas ton classement. Sources : journée complète (attaquant + milieu + défenseur le même jour), trois joueurs au même poste le même jour, coup de poker (joueur remporté sans concurrence), dénicheur, et points de quiz convertis.</p>
   </section>
 
   <!-- PÉNALITÉS (libérations) -->
@@ -441,12 +489,12 @@
     <div style="max-width:760px">
       <div class="rule-block">
         <h3 class="rule-h">1. Le principe</h3>
-        <p class="rule-p">Chaque manager démarre avec un <b>budget transfert de 700 M€</b> et constitue une équipe de <b>24 joueurs maximum</b> en achetant de vrais joueurs aux enchères. Les points se gagnent quand tes joueurs performent dans la réalité. Le meilleur recruteur gagne la saison.</p>
+        <p class="rule-p">Chaque manager démarre avec un <b>budget transfert de 1 milliard €</b> et constitue une équipe de <b>21 joueurs maximum</b> en achetant de vrais joueurs aux enchères. Les points se gagnent quand tes joueurs performent dans la réalité. Le meilleur recruteur gagne la saison.</p>
       </div>
       <div class="rule-block">
         <h3 class="rule-h">2. Tes deux budgets</h3>
         <ul class="rule-ul">
-          <li><b>Budget transfert (700 M€)</b> : sert à acheter les joueurs.</li>
+          <li><b>Budget transfert (1 milliard €)</b> : sert à acheter les joueurs.</li>
           <li><b>Masse salariale (120 M€ max)</b> : chaque joueur a un salaire selon son prix (Bronze 1 M€ → Légende 15 M€). La somme des salaires ne peut pas dépasser le plafond.</li>
           <li>Si tu atteins le plafond salarial, tu dois <b>libérer ou échanger un joueur avant d'en acheter un autre</b>.</li>
         </ul>
@@ -454,8 +502,8 @@
       <div class="rule-block">
         <h3 class="rule-h">3. Composition de l'effectif</h3>
         <ul class="rule-ul">
-          <li>24 joueurs maximum.</li>
-          <li>3 gardiens, 8 défenseurs, 8 milieux, 5 attaquants maximum.</li>
+          <li>21 joueurs maximum.</li>
+          <li>2 gardiens, 7 défenseurs, 7 milieux, 5 attaquants maximum.</li>
           <li>3 joueurs maximum d'un même club.</li>
           <li>6 joueurs maximum d'un même championnat.</li>
         </ul>
@@ -558,6 +606,8 @@ $('nav').addEventListener('click', e=>{
   if(b.dataset.v==='penalty') renderPenalty();
   if(b.dataset.v==='market') renderMarket();
   if(b.dataset.v==='rank') renderRank();
+  if(b.dataset.v==='feed') renderFeed();
+  if(b.dataset.v==='home') renderHome();
   if(b.dataset.v==='auctions') renderAuctions();
 });
 
@@ -670,11 +720,55 @@ let TRADE_THEIRS = []; // joueurs du manager cible
 const selOffer = new Set();  // ids que je propose
 const selAsk = new Set();    // ids que je demande
 
+// ---------- Comparateur de joueurs (D) ----------
+let CMP_SELECTED = [];
+async function setupComparator(){
+  if(!$('cmpSelect') || $('cmpSelect').dataset.loaded) { return; }
+  const players = await api.listPlayers();
+  players.sort((a,b)=>Number(b.current_value)-Number(a.current_value));
+  $('cmpSelect').innerHTML = '<option value="">+ Ajouter un joueur à comparer…</option>' +
+    players.map(p=>`<option value="${p.id}">${p.name} (${p.club||'—'})</option>`).join('');
+  $('cmpSelect').dataset.loaded = '1';
+  $('cmpSelect').onchange = ()=>{
+    const id = $('cmpSelect').value;
+    if(!id) return;
+    if(CMP_SELECTED.length>=3){ alert('3 joueurs maximum. Retire-en un d\'abord.'); $('cmpSelect').value=''; return; }
+    const p = players.find(x=>x.id===id);
+    if(p && !CMP_SELECTED.find(x=>x.id===id)) CMP_SELECTED.push(p);
+    $('cmpSelect').value='';
+    renderComparator(players);
+  };
+}
+function renderComparator(players){
+  if(CMP_SELECTED.length===0){ $('cmpResult').innerHTML=''; return; }
+  const salaryOf = (v)=>{ v=Number(v); if(v<20e6)return 1e6; if(v<50e6)return 3e6; if(v<100e6)return 6e6; if(v<180e6)return 10e6; return 15e6; };
+  const cols = CMP_SELECTED.map(p=>{
+    const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
+    const noteTxt = (p.note!=null) ? p.note+'/100' : (color?color.label:'—');
+    const barC = color?color.c:'#ccc';
+    return `<div style="flex:1;min-width:110px;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;position:relative">
+      <button onclick="cmpRemove('${p.id}')" style="position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;border:none;background:var(--live);color:#fff;font-size:.8rem;cursor:pointer;line-height:1">×</button>
+      <div style="font-family:'Archivo';font-weight:800;font-size:.92rem;margin-bottom:2px">${p.name}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">${POS[p.position]} · ${p.club||'—'}</div>
+      <div style="font-size:.7rem;color:var(--muted)">Note</div>
+      <div style="font-family:'Saira';font-weight:700;color:${barC};margin-bottom:6px">${noteTxt}</div>
+      <div style="font-size:.7rem;color:var(--muted)">Valeur</div>
+      <div style="font-family:'Saira';font-weight:700;margin-bottom:6px">${fmtMoney(p.current_value)}</div>
+      <div style="font-size:.7rem;color:var(--muted)">Salaire estimé</div>
+      <div style="font-family:'Saira';font-weight:700;color:var(--transfer)">${fmtMoney(salaryOf(p.current_value))}</div>
+    </div>`;
+  }).join('');
+  $('cmpResult').innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap">${cols}</div>`;
+}
+window.cmpRemove = (id)=>{ CMP_SELECTED = CMP_SELECTED.filter(p=>p.id!==id); renderComparator(); };
+
 async function renderMarket(){
   if(!ME){
-    $('tradeGate').style.display='block'; $('tradeUI').style.display='none'; return;
+    $('tradeGate').style.display='block'; $('tradeUI').style.display='none';
+    setupComparator(); return;
   }
   $('tradeGate').style.display='none'; $('tradeUI').style.display='block';
+  setupComparator();
 
   // Liste des autres managers
   const managers = (await api.listManagers()).filter(m=>m.id!==ME.id);
@@ -884,6 +978,7 @@ async function startBid(playerId){
   if(error) return alert("Échec : "+error.message);
   alert("Offre placée !");
   renderAuctions();
+  if(typeof loadNotifications==='function') loadNotifications();
 }
 
 // ---------- Kanban enchères ----------
@@ -900,7 +995,9 @@ function acard(a, status){
   if(status==='live'){
     const left = new Date(a.ends_at) - new Date();
     const hot = left < 600000;
-    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span></div>
+    const interest = a.interest || 0;
+    const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
+    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span>${interestTag}</div>
       <div class="clock ${hot?'hot':'safe'}" data-ends="${a.ends_at}">⏱ ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
@@ -953,19 +1050,40 @@ async function renderBonus(){
   const total = bonuses.reduce((s,b)=>s+Number(b.amount),0);
   $('bonusTotal').innerHTML = `<b>${fmtMoney(total)}</b>`;
   $('bonusCount').innerHTML = `<b>${bonuses.length}</b>`;
-  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur'};
-  const colors = {full_day:'#4ade80',quiz:'var(--transfer)',other:'#5fd0e0'};
+  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur',same_pos:'Même poste',poker:'Coup de poker',convert:'Conversion en points'};
+  const colors = {full_day:'#4ade80',quiz:'var(--transfer)',other:'#5fd0e0',same_pos:'#b794f6',poker:'#f6ad55',convert:'#8fa79a'};
   $('bonusList').innerHTML = bonuses.length
     ? bonuses.map(b=>{
         const d = new Date(b.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+        const isConvert = b.bonus_type==='convert';
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--pitch-2)">
-          <div><span style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:${colors[b.bonus_type]}">${labels[b.bonus_type]}</span>
+          <div><span style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:${colors[b.bonus_type]||'#8fa79a'}">${labels[b.bonus_type]||b.bonus_type}</span>
             <div style="font-size:.85rem;color:var(--muted);margin-top:2px">${b.detail??''} · ${d}</div></div>
-          <div style="font-family:'Space Mono';font-weight:700;color:#4ade80">+${fmtMoney(b.amount)}</div>
+          <div style="font-family:'Saira','Space Mono';font-weight:700;color:${isConvert?'#8fa79a':'#4ade80'}">${isConvert?'−':'+'}${fmtMoney(b.amount)}</div>
         </div>`;
       }).join('')
     : `<div class="empty">Aucun bonus pour l'instant. Achète un joueur dans chaque compartiment le même jour, ou participe aux quiz !</div>`;
 }
+
+// Conversion budget -> points
+document.addEventListener('click', async (e)=>{
+  if(e.target && e.target.id==='btnConvert'){
+    if(!ME) return alert('Connecte-toi d\'abord.');
+    const mEuros = parseFloat($('convertAmount').value);
+    if(isNaN(mEuros) || mEuros<=0) return alert('Entre un montant valide (en M€).');
+    const amount = Math.round(mEuros*1e6);
+    const pts = Math.floor(amount/1e7);
+    if(pts<1) return alert('Il faut au moins 10 M€ pour convertir 1 point.');
+    if(!confirm(`Convertir ${fmtMoney(amount)} en ${pts} point(s) de classement ?\n\nCette opération est définitive et à sens unique.`)) return;
+    const { error } = await api.convertBudgetToPoints(amount);
+    if(error){ $('convertResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
+    $('convertResult').innerHTML = `<span style="color:#4ade80">✓ ${pts} point(s) ajouté(s) au classement.</span>`;
+    $('convertAmount').value='';
+    ME = await api.currentManager();
+    if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
+    renderBonus();
+  }
+});
 
 // ---------- Pénalités (libérations) ----------
 async function renderPenalty(){
@@ -1000,7 +1118,7 @@ async function renderTeam(){
   if(!ME){
     $('teamGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">Connecte-toi pour voir ton équipe.</div>`;
     $('teamPitch').innerHTML='';
-    $('teamCount').innerHTML='0 <b>/ 24</b>'; $('teamValue').innerHTML='<b>—</b>'; $('teamPts').innerHTML='<b>0</b>';
+    $('teamCount').innerHTML='0 <b>/ 21</b>'; $('teamValue').innerHTML='<b>—</b>'; $('teamPts').innerHTML='<b>0</b>';
     $('dashBudget').innerHTML='<b>—</b>'; $('dashSalary').innerHTML='<b>—</b>'; $('dashLocked').innerHTML='<b>—</b>';
     return;
   }
@@ -1012,18 +1130,29 @@ async function renderTeam(){
     const salColor = salPct>=90 ? 'var(--live)' : salPct>=70 ? 'var(--transfer)' : '#4ade80';
     $('dashSalary').innerHTML = `<b style="color:${salColor}">${fmtMoney(dash.salary_used)}</b> / ${fmtMoney(dash.salary_cap)}`;
     $('dashLocked').innerHTML = `<b>${fmtMoney(dash.budget_locked)}</b>`;
+    // Alertes (E)
+    const alerts = [];
+    if(salPct>=90) alerts.push({c:'var(--live)', txt:`⚠️ Masse salariale à ${salPct}% du plafond — libère ou échange un joueur avant d'en acheter un nouveau.`});
+    else if(salPct>=75) alerts.push({c:'var(--transfer)', txt:`Masse salariale à ${salPct}% — attention, tu approches du plafond.`});
+    const lockedPct = Number(dash.budget_locked) > 0 ? Math.round(Number(dash.budget_locked)/(Number(dash.budget_available)+Number(dash.budget_locked))*100) : 0;
+    if(lockedPct>=60) alerts.push({c:'var(--transfer)', txt:`💰 ${lockedPct}% de ton budget est engagé sur des enchères en cours.`});
+    $('dashAlerts').innerHTML = alerts.map(a=>
+      `<div style="padding:10px 14px;border-radius:8px;margin-bottom:8px;background:var(--pitch-2);border-left:3px solid ${a.c};font-size:.86rem;color:var(--chalk)">${a.txt}</div>`
+    ).join('');
   }
   // Charge via la vue pour révéler la note exacte des joueurs possédés
   const all = await api.listPlayers();
   const mine = all.filter(p => p.owner_id === ME.id);
   const tv = mine.reduce((s,p)=>s+Number(p.current_value),0);
-  $('teamCount').innerHTML=`${mine.length} <b>/ 24</b>`;
+  $('teamCount').innerHTML=`${mine.length} <b>/ 21</b>`;
   $('teamValue').innerHTML=`<b>${fmtMoney(tv)}</b>`;
   $('teamPts').innerHTML=`<b>${ME.season_points}</b>`;
   $('teamGrid').innerHTML = mine.length? mine.map(playerCard).join('')
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
   // Vue terrain
   $('teamPitch').innerHTML = buildPitch(mine);
+  // Mon activité récente (B)
+  renderMyActivity();
   // Boutons "Libérer" (liste ET terrain, via délégation sur data-release)
   document.querySelectorAll('#team [data-release]').forEach(btn => btn.onclick = async () => {
     const pid = btn.dataset.release;
@@ -1047,9 +1176,9 @@ async function renderTeam(){
 
 // Construit la vue terrain par compartiment (GK / DEF / MID / FWD)
 const PITCH_LINES = [
-  { pos:'GK',  label:'Gardiens',   max:3, ic:'🧤' },
-  { pos:'DEF', label:'Défenseurs', max:8, ic:'🛡️' },
-  { pos:'MID', label:'Milieux',    max:8, ic:'⚙️' },
+  { pos:'GK',  label:'Gardiens',   max:2, ic:'🧤' },
+  { pos:'DEF', label:'Défenseurs', max:7, ic:'🛡️' },
+  { pos:'MID', label:'Milieux',    max:7, ic:'⚙️' },
   { pos:'FWD', label:'Attaquants', max:5, ic:'⚽' }
 ];
 // Couleurs des maillots par club : [principale, secondaire (col/manches)]
@@ -1078,14 +1207,15 @@ function kitSvg(club){
     <path d="M40 9 L44 18 L38 22 L36 18 Z" fill="${k.b}" opacity=".85"/>
   </svg>`;
 }
-function jerseyCard(p){
+function jerseyCard(p, readonly){
   const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
   const revealed = (p.note != null);
   const barW = color ? (revealed ? p.note : color.fill) : 0;
   const barC = color ? color.c : '#ccc';
   const noteTxt = revealed ? `${p.note}/100` : (color ? color.label : '—');
+  const xBtn = readonly ? '' : `<button class="jersey-x" data-release="${p.id}" title="Libérer ce joueur">×</button>`;
   return `<div class="jersey" title="${p.name}">
-    <button class="jersey-x" data-release="${p.id}" title="Libérer ce joueur">×</button>
+    ${xBtn}
     <div class="jersey-ic">${kitSvg(p.club)}</div>
     <div class="jersey-nm">${p.name}</div>
     <div class="jersey-cl">${p.club||''}</div>
@@ -1094,10 +1224,10 @@ function jerseyCard(p){
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
   </div>`;
 }
-function buildPitch(mine){
+function buildPitch(mine, readonly){
   const lines = PITCH_LINES.map(line=>{
     const players = mine.filter(p=>p.position===line.pos);
-    const jerseys = players.map(jerseyCard).join('');
+    const jerseys = players.map(p=>jerseyCard(p, readonly)).join('');
     // cases vides pour visualiser ce qu'il reste (jusqu'au quota)
     const emptyCount = Math.max(0, line.max - players.length);
     const empties = Array.from({length:emptyCount}).map(()=>`<div class="jersey empty"><span>+</span></div>`).join('');
@@ -1115,13 +1245,170 @@ async function renderRank(){
   const rows = await Promise.all(managers.map(async m=>{
     const team = await api.myTeam(m.id);
     const val = team.reduce((s,p)=>s+Number(p.current_value),0);
-    return {...m, teamValue:val};
+    return {...m, teamValue:val, teamCount:team.length, team};
   }));
+  RANK_TEAMS = {};
+  rows.forEach(m=>{ RANK_TEAMS[m.id] = {name:m.display_name, team:m.team}; });
   $('rankBody').innerHTML = rows.map((m,i)=>
-    `<tr><td class="rank ${i===0?'podium-1':''}">${i+1}</td>
-      <td><b>${m.display_name}</b></td><td class="pts">${m.season_points}</td>
+    `<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
+      <td class="rank ${i===0?'podium-1':''}">${i+1}</td>
+      <td><b>${m.display_name}</b> <span style="color:var(--muted);font-size:.75rem">▸ voir</span></td><td class="pts">${m.season_points}</td>
+      <td>${m.teamCount} / 21</td>
       <td>${fmtMoney(m.teamValue)}</td><td>${fmtMoney(Number(m.budget)-Number(m.budget_locked))}</td></tr>`).join('')
-    || `<tr><td colspan="5" class="empty">Aucun manager inscrit.</td></tr>`;
+    || `<tr><td colspan="6" class="empty">Aucun manager inscrit.</td></tr>`;
+  // Clic → affiche l'effectif du manager
+  $('rankBody').querySelectorAll('.rank-row').forEach(row=>row.onclick=()=>showManagerSquad(row.dataset.mgr));
+}
+let RANK_TEAMS = {};
+function showManagerSquad(mgrId){
+  const entry = RANK_TEAMS[mgrId];
+  if(!entry) return;
+  const modal = $('squadModal');
+  $('squadModalTitle').textContent = `Effectif de ${entry.name}`;
+  // Réutilise buildPitch (les notes seront cachées car ce ne sont pas mes joueurs)
+  $('squadModalBody').innerHTML = entry.team.length ? buildPitch(entry.team, true)
+    : `<div class="empty">Effectif vide.</div>`;
+  modal.style.display='flex';
+}
+
+// ---------- Mon activité (timeline personnelle) ----------
+async function renderMyActivity(){
+  if(!ME || !$('myActivity')) return;
+  const [moves, bonuses, releases] = await Promise.all([
+    api.recentTransfers(50), api.myBonuses(), api.myReleases()
+  ]);
+  const events = [];
+  // transferts me concernant
+  for(const m of moves){
+    if(m.to?.display_name===ME.display_name && !m.from){
+      events.push({t:m.created_at, ic:'📈', c:'#4ade80', txt:`Recruté <b>${m.player?.name??'?'}</b>${Number(m.price)>0?' pour '+fmtMoney(m.price):''}`});
+    } else if(m.to?.display_name===ME.display_name && m.from){
+      events.push({t:m.created_at, ic:'🔄', c:'#5fd0e0', txt:`Reçu <b>${m.player?.name??'?'}</b> de ${m.from.display_name}`});
+    } else if(m.from?.display_name===ME.display_name && m.to){
+      events.push({t:m.created_at, ic:'🔄', c:'#5fd0e0', txt:`Cédé <b>${m.player?.name??'?'}</b> à ${m.to.display_name}`});
+    }
+  }
+  for(const bn of bonuses){
+    const isConv = bn.bonus_type==='convert';
+    events.push({t:bn.created_at, ic: isConv?'⭐':'💰', c: isConv?'#8fa79a':'#e0a800', txt:`${isConv?'Converti':'Bonus'} ${bn.detail??''}`});
+  }
+  for(const r of releases){
+    events.push({t:r.created_at, ic:'📉', c:'#e0574a', txt:`Libéré <b>${r.player_name}</b> (pénalité ${fmtMoney(r.penalty)})`});
+  }
+  events.sort((a,b)=>new Date(b.t)-new Date(a.t));
+  const top = events.slice(0,10);
+  $('myActivity').innerHTML = top.length
+    ? top.map(e=>{
+        const d = new Date(e.t);
+        const when = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+        return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
+          <span style="flex-shrink:0">${e.ic}</span>
+          <div style="flex:1"><span style="font-size:.88rem;color:var(--chalk)">${e.txt}</span>
+            <span style="font-size:.72rem;color:var(--muted);margin-left:6px">${when}</span></div>
+        </div>`;
+      }).join('')
+    : `<div class="empty">Aucune activité pour l'instant.</div>`;
+}
+
+// ---------- Page d'accueil dynamique ----------
+async function renderHome(){
+  const [auctions, managers, moves] = await Promise.all([
+    api.listOpenAuctions(), api.leaderboard(), api.recentTransfers(5)
+  ]);
+  // Statut marché
+  let marketOpen = true;
+  try { marketOpen = await api.marketIsOpen(); } catch(e){}
+  $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Mercato fermé';
+
+  // Enchères en cours
+  $('homeActiveAuctions').innerHTML = `<b>${auctions.length}</b>`;
+
+  // Joueur le plus convoité (plus d'intéressés, sinon prix le plus haut)
+  if(auctions.length){
+    const top = [...auctions].sort((a,b)=> (b.interest||0)-(a.interest||0) || Number(b.current_price)-Number(a.current_price))[0];
+    const nm = top.player?.name ?? '—';
+    $('homeMostWanted').innerHTML = `${nm} <b>· ${top.interest||0} intéressé${(top.interest||0)>1?'s':''}</b>`;
+  } else {
+    $('homeMostWanted').innerHTML = '<b>Aucune enchère</b>';
+  }
+
+  // Managers en lice
+  $('homeManagers').innerHTML = `<b>${managers.length}</b>`;
+
+  // Prochaine clôture (enchère qui finit le plus tôt)
+  if(auctions.length){
+    const next = [...auctions].sort((a,b)=> new Date(a.ends_at)-new Date(b.ends_at))[0];
+    HOME_NEXT_END = next.ends_at;
+    updateHomeClock();
+  } else {
+    $('homeNextClock').textContent = '—';
+    $('homeNextLabel').textContent = 'aucune enchère en cours';
+    HOME_NEXT_END = null;
+  }
+
+  // CTA selon connexion
+  $('homeCTA').innerHTML = ME
+    ? `<button class="bid-btn" onclick="document.querySelector('[data-v=&quot;auctions&quot;]').click()" style="margin:0">Voir les enchères →</button>`
+    : `<button class="bid-btn" onclick="document.getElementById('authBtn').click()" style="margin:0">Rejoindre le mercato →</button>`;
+
+  // Derniers mouvements (mini fil)
+  $('homeFeed').innerHTML = moves.length
+    ? moves.map(m=>{
+        const pname = m.player?.name ?? 'Un joueur';
+        let ic, txt, c;
+        if(m.to && m.from){ ic='🔄'; c='#5fd0e0'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
+        else if(m.to){ ic='📈'; c='#4ade80'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
+        else if(m.from){ ic='📉'; c='#e0574a'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
+        else { ic='•'; c='var(--muted)'; txt=pname; }
+        return `<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
+          <span>${ic}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
+      }).join('')
+    : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
+}
+let HOME_NEXT_END = null;
+function updateHomeClock(){
+  if(!HOME_NEXT_END || !$('homeNextClock')) return;
+  const left = new Date(HOME_NEXT_END) - new Date();
+  if(left<=0){ $('homeNextClock').textContent='00:00:00'; $('homeNextLabel').textContent='clôture imminente'; return; }
+  $('homeNextClock').textContent = fmtClock(left);
+  $('homeNextLabel').textContent = 'prochaine clôture';
+}
+setInterval(updateHomeClock, 1000);
+
+// ---------- Fil d'actualité du mercato ----------
+async function renderFeed(){
+  const moves = await api.recentTransfers(30);
+  if(!moves.length){
+    $('feedList').innerHTML = `<div class="empty">Aucun mouvement pour l'instant. Le mercato va s'animer !</div>`;
+    return;
+  }
+  $('feedList').innerHTML = moves.map(m=>{
+    const d = new Date(m.created_at);
+    const when = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const pname = m.player?.name ?? 'Un joueur';
+    const pclub = m.player?.club ? ` (${m.player.club})` : '';
+    let icon, txt, color;
+    if(m.to && m.from){
+      // échange entre managers
+      icon = '🔄'; color = '#5fd0e0';
+      txt = `<b>${m.from.display_name}</b> a cédé <b>${pname}</b>${pclub} à <b>${m.to.display_name}</b>`;
+    } else if(m.to && !m.from){
+      // achat aux enchères (from = null = marché)
+      icon = '📈'; color = '#4ade80';
+      txt = `<b>${m.to.display_name}</b> a recruté <b>${pname}</b>${pclub}${Number(m.price)>0?' pour '+fmtMoney(m.price):''}`;
+    } else if(!m.to && m.from){
+      // libération (to = null)
+      icon = '📉'; color = '#e0574a';
+      txt = `<b>${m.from.display_name}</b> a libéré <b>${pname}</b>${pclub}`;
+    } else {
+      icon = '•'; color = 'var(--muted)'; txt = pname;
+    }
+    return `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--pitch-2)">
+      <span style="font-size:1.2rem;flex-shrink:0">${icon}</span>
+      <div style="flex:1"><div style="font-size:.92rem;line-height:1.4;color:var(--chalk)">${txt}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:3px">${when}</div></div>
+    </div>`;
+  }).join('');
 }
 
 // ---------- Compte à rebours accueil (fin du mercato : lit season_state si dispo) ----------
@@ -1141,14 +1428,51 @@ async function init(){
     $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
     $('authBtn').textContent = 'Déconnexion';
     $('walletBox').style.display='block';
+    $('bellBtn').style.display='inline-block';
+    loadNotifications();
   } else {
     $('wallet').textContent = '—';
     $('walletBox').style.display='none';
+    $('bellBtn').style.display='none';
   }
   await loadPlayers();
+  renderHome();
   renderMarket();
   renderAuctions();
 }
+
+// ---------- Notifications (A) ----------
+let NOTIFS = [];
+async function loadNotifications(){
+  if(!ME) return;
+  NOTIFS = await api.myNotifications();
+  // On badge sur les notifs "actionnables" : outbid + trade
+  const actionable = NOTIFS.filter(n=>n.kind==='outbid'||n.kind==='trade').length;
+  const badge = $('bellBadge');
+  if(actionable>0){ badge.textContent = actionable; badge.style.display='block'; }
+  else badge.style.display='none';
+}
+if($('bellBtn')) $('bellBtn').onclick = ()=>{
+  const panel = $('notifPanel');
+  if(panel.style.display==='block'){ panel.style.display='none'; return; }
+  const icons = {outbid:'⚠️', trade:'🔄', winning:'✅'};
+  const colors = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80'};
+  panel.innerHTML = NOTIFS.length
+    ? NOTIFS.map(n=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line)">
+        <span>${icons[n.kind]||'•'}</span>
+        <div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:${colors[n.kind]||'var(--chalk)'}">${n.title}</div>
+          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div></div>
+      </div>`).join('')
+    : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
+  panel.style.display='block';
+};
+// Fermer le panneau si on clique ailleurs
+document.addEventListener('click',(e)=>{
+  const panel=$('notifPanel'), bell=$('bellBtn');
+  if(panel && panel.style.display==='block' && !panel.contains(e.target) && e.target!==bell && !bell.contains(e.target)){
+    panel.style.display='none';
+  }
+});
 init();
 </script>
 </body>
