@@ -467,6 +467,7 @@
   <section class="view" id="rank">
     <div class="eyebrow">Classement des managers</div>
     <h1>Le <em>classement</em></h1>
+    <div id="awardsBanner"></div>
     <table>
       <thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Effectif</th><th>Valeur effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankBody"></tbody>
@@ -498,6 +499,15 @@
         <button id="btnConvert" class="bid-btn" style="white-space:nowrap">Convertir</button>
       </div>
       <div id="convertResult" style="margin-top:8px"></div>
+    </div>
+    <div class="card" style="margin-top:16px;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:8px">Convertir des points en budget <span style="font-size:.7rem;color:var(--muted)">(hiver)</span></div>
+      <p class="hint" style="color:var(--muted);font-size:.85rem;margin-bottom:12px">Pendant le <b>mercato d'hiver</b> uniquement, transforme des points de classement en budget pour te renforcer. Taux : <b>1 point = 10 M€</b>. Plafonné à 200 points au total. Attention : ces points sont retirés de ton classement.</p>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <input id="convertPoints" type="number" step="1" placeholder="Nombre de points" style="flex:1;min-width:140px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--pitch);color:var(--chalk)">
+        <button id="btnConvertPoints" class="bid-btn" style="white-space:nowrap">Convertir</button>
+      </div>
+      <div id="convertPointsResult" style="margin-top:8px"></div>
     </div>
     <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les bonus créditent ton budget (pouvoir d'achat), pas ton classement. Sources : journée complète (attaquant + milieu + défenseur le même jour), trois joueurs au même poste le même jour, coup de poker (joueur remporté sans concurrence), dénicheur, et points de quiz convertis.</p>
   </section>
@@ -1149,6 +1159,21 @@ document.addEventListener('click', async (e)=>{
     if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
     renderBonus();
   }
+  // Conversion points -> budget (hiver)
+  if(e.target && e.target.id==='btnConvertPoints'){
+    if(!ME) return alert('Connecte-toi d\'abord.');
+    const pts = parseInt($('convertPoints').value);
+    if(isNaN(pts) || pts<=0) return alert('Entre un nombre de points valide.');
+    const gain = pts*1e7;
+    if(!confirm(`Convertir ${pts} point(s) en ${fmtMoney(gain)} de budget ?\n\nCes points seront retirés de ton classement. Opération réservée au mercato d'hiver.`)) return;
+    const { error } = await api.convertPointsToBudget(pts);
+    if(error){ $('convertPointsResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
+    $('convertPointsResult').innerHTML = `<span style="color:#4ade80">✓ ${fmtMoney(gain)} ajouté(s) à ton budget.</span>`;
+    $('convertPoints').value='';
+    ME = await api.currentManager();
+    if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
+    renderBonus();
+  }
 });
 
 // ---------- Pénalités (libérations) ----------
@@ -1307,6 +1332,17 @@ function buildPitch(mine, readonly){
 // ---------- Classement ----------
 async function renderRank(){
   const managers = await api.leaderboard();
+  // Récompenses (titres décernés)
+  try {
+    const awards = await api.listAwards();
+    if(awards.length && $('awardsBanner')){
+      $('awardsBanner').innerHTML = `<div style="background:linear-gradient(135deg,rgba(224,168,0,.12),transparent);border:1px solid var(--transfer);border-radius:12px;padding:14px 18px;margin-bottom:20px">
+        ${awards.map(a=>`<div style="display:flex;align-items:center;gap:10px;padding:4px 0">
+          <span style="font-size:1.2rem">🏆</span>
+          <span><b>${a.title}</b> — ${a.manager?.display_name||'—'}${a.detail?` <span style="color:var(--muted);font-size:.82rem">(${a.detail})</span>`:''}</span>
+        </div>`).join('')}</div>`;
+    } else if($('awardsBanner')) $('awardsBanner').innerHTML='';
+  } catch(e){ /* table awards pas encore déployée */ }
   // valeur d'effectif par manager
   const rows = await Promise.all(managers.map(async m=>{
     const team = await api.myTeam(m.id);

@@ -501,3 +501,20 @@ export async function adminSetWindowActive(windowId, active) {
 export async function directRecruit(playerId) {
   return sb.rpc('qm_direct_recruit', { p_player_id: playerId });
 }
+
+// ---------- VAGUE 3 temps 2 : Points->budget & récompenses --------
+export async function convertPointsToBudget(points) {
+  return sb.rpc('qm_convert_points_to_budget', { p_points: points });
+}
+export async function listAwards() {
+  const { data } = await sb.from('qm_awards')
+    .select('*, manager:qm_managers(display_name)')
+    .order('awarded_at', { ascending: false });
+  return data ?? [];
+}
+export async function adminGrantAward(managerId, title, detail) {
+  return sb.rpc('qm_admin_grant_award', { p_manager_id: managerId, p_title: title, p_detail: detail });
+}
+export async function adminCrownChampion() {
+  return sb.rpc('qm_admin_crown_champion');
+}

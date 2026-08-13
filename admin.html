@@ -155,6 +155,20 @@
     <div id="coachList"></div>
   </div>
 
+  <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
+  <h2>Récompenses de fin de saison</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Décerne les titres en fin de saison. « Couronner le champion » attribue automatiquement le titre au meilleur classement.</p>
+    <button class="btn-primary btn-sm" id="btnCrownChampion" style="margin-bottom:14px">🥇 Couronner le champion (auto)</button>
+    <div class="row c3" style="margin-bottom:12px">
+      <div><label>Manager</label><select id="awardManager"></select></div>
+      <div><label>Titre</label><input id="awardTitle" type="text" placeholder="🏟️ Vainqueur du tournoi"></div>
+      <div><label>Détail (optionnel)</label><input id="awardDetail" type="text" placeholder=""></div>
+    </div>
+    <button class="btn-ghost btn-sm" id="btnGrantAward">Décerner ce titre</button>
+    <div id="awardList" style="margin-top:16px"></div>
+  </div>
+
   <!-- Saisie des notes (Vague 3) -->
   <h2>Saisie des notes (par journée)</h2>
   <div class="card" style="margin-bottom:14px">
@@ -370,7 +384,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards();
 }
 
 $('btnLogin').onclick = async () => {
@@ -682,6 +696,31 @@ $('btnCreateWindow').onclick = async ()=>{
   if(r.error) return showMsg($('msg2'),r.error.message);
   showMsg($('msg2'),'Fenêtre créée.',true);
   $('winOpens').value=''; $('winCloses').value=''; loadWindows();
+};
+
+// ---------- VAGUE 3 temps 2 : Récompenses ----------
+async function loadAwards(){
+  if(!$('awardManager')) return;
+  const managers = await api.listManagers();
+  $('awardManager').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+  const awards = await api.listAwards();
+  $('awardList').innerHTML = awards.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Titre</th><th>Manager</th><th>Détail</th></tr></thead><tbody>${
+    awards.map(a=>`<tr><td>${a.title}</td><td>${a.manager?.display_name||'—'}</td><td style="font-size:.82rem;color:var(--muted)">${a.detail||''}</td></tr>`).join('')
+  }</tbody></table>` : `<p class="hint">Aucun titre décerné.</p>`;
+}
+$('btnCrownChampion').onclick = async ()=>{
+  if(!confirm('Couronner automatiquement le manager en tête du classement ?')) return;
+  const r = await api.adminCrownChampion();
+  if(r.error) return showMsg($('msg2'),r.error.message);
+  showMsg($('msg2'),'Champion couronné !',true); loadAwards();
+};
+$('btnGrantAward').onclick = async ()=>{
+  const mgr = $('awardManager').value, title = $('awardTitle').value.trim(), detail = $('awardDetail').value.trim()||null;
+  if(!title) return showMsg($('msg2'),'Renseigne un titre.');
+  const r = await api.adminGrantAward(mgr, title, detail);
+  if(r.error) return showMsg($('msg2'),r.error.message);
+  showMsg($('msg2'),'Titre décerné.',true);
+  $('awardTitle').value=''; $('awardDetail').value=''; loadAwards();
 };
 
 async function loadMatchdays(){
