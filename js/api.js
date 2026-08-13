@@ -455,3 +455,16 @@ export async function adminCloseMatchday(matchdayId) {
   // La fonction SQL qm_admin_close_matchday sera créée à l'étape 4
   return sb.rpc('qm_admin_close_matchday', { p_matchday_id: matchdayId });
 }
+
+// ---------- VAGUE 3 : Saisie des notes ----------------------------
+export async function scoringPlayers(matchdayId) {
+  const { data } = await sb.rpc('qm_scoring_players', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
+export async function adminSetScores(matchdayId, data) {
+  return sb.rpc('qm_admin_set_scores', { p_matchday_id: matchdayId, p_data: data });
+}
+export async function scoringProgress(matchdayId) {
+  const { data } = await sb.rpc('qm_scoring_progress', { p_matchday_id: matchdayId });
+  return (data && data[0]) ? data[0] : { total: 0, scored: 0 };
+}

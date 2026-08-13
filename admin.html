@@ -142,6 +142,18 @@
     <div id="coachList"></div>
   </div>
 
+  <!-- Saisie des notes (Vague 3) -->
+  <h2>Saisie des notes (par journée)</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Sélectionne une journée <b>en notation</b>. Seuls les joueurs réellement alignés apparaissent, chacun une seule fois. Le nombre d'équipes qui alignent chaque joueur est indiqué. Vous pouvez vous répartir la liste entre plusieurs admins.</p>
+    <label>Journée à noter</label>
+    <select id="scoreMatchday" style="width:100%;padding:9px;margin:6px 0 12px"></select>
+    <div id="scoreProgress" style="font-family:'Space Mono';font-size:.9rem;margin-bottom:12px"></div>
+    <div id="scorePlayers"></div>
+    <button class="btn-primary" id="btnSaveScores" style="margin-top:14px;display:none">Enregistrer les notes</button>
+    <div id="scoreResult" style="margin-top:10px"></div>
+  </div>
+
   <!-- Ajouter un joueur -->
   <h2>Ajouter un joueur</h2>
   <div class="card">
@@ -345,7 +357,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays();
 }
 
 $('btnLogin').onclick = async () => {
@@ -652,7 +664,7 @@ async function loadMatchdays(){
   $('mdList').querySelectorAll('[data-mdscore]').forEach(b=>b.onclick=async()=>{
     const r = await api.adminSetMatchdayStatus(b.dataset.mdscore,'scoring');
     if(r.error) return showMsg($('msg2'),r.error.message);
-    showMsg($('msg2'),'Journée en notation — saisis les notes des joueurs.',true); loadMatchdays();
+    showMsg($('msg2'),'Journée en notation — saisis les notes des joueurs.',true); loadMatchdays(); loadScoringMatchdays();
   });
   $('mdList').querySelectorAll('[data-mdclose]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Clôturer cette journée ? Les points seront calculés et ajoutés au classement.')) return;
@@ -700,6 +712,62 @@ $('btnAssignCoach').onclick = async ()=>{
   if(r.error) return showMsg($('msg2'),r.error.message);
   showMsg($('msg2'),'Coach associé.',true); loadCoaches();
 };
+
+// ---------- VAGUE 3 : Saisie des notes ----------
+const POS_LABELS = {GK:'G', DEF:'D', MID:'M', FWD:'A'};
+async function loadScoringMatchdays(){
+  const mds = await api.listMatchdays();
+  if(!$('scoreMatchday')) return;
+  const scoring = mds.filter(m=>m.status==='scoring');
+  if(scoring.length===0){
+    $('scoreMatchday').innerHTML = '<option value="">Aucune journée en notation</option>';
+    $('scorePlayers').innerHTML = '<p class="hint">Passe une journée en « notation » dans la section Journées pour saisir les notes.</p>';
+    $('btnSaveScores').style.display='none';
+    return;
+  }
+  $('scoreMatchday').innerHTML = scoring.map(m=>`<option value="${m.id}">${m.label||('Journée '+m.number)}</option>`).join('');
+  $('scoreMatchday').onchange = ()=>loadScoringPlayers($('scoreMatchday').value);
+  loadScoringPlayers($('scoreMatchday').value);
+}
+
+async function loadScoringPlayers(mdId){
+  if(!mdId) return;
+  const [players, prog] = await Promise.all([api.scoringPlayers(mdId), api.scoringProgress(mdId)]);
+  $('scoreProgress').innerHTML = `Progression : <b style="color:${prog.scored>=prog.total&&prog.total>0?'#2e7d46':'var(--accent)'}">${prog.scored} / ${prog.total}</b> joueurs notés`;
+  if(players.length===0){
+    $('scorePlayers').innerHTML = '<p class="hint">Aucun joueur aligné pour cette journée (les coachs n\'ont pas encore composé, ou aucune compo reconduite).</p>';
+    $('btnSaveScores').style.display='none';
+    return;
+  }
+  const statusOpts = (cur)=>`
+    <option value="starter"${cur==='starter'?' selected':''}>Titulaire</option>
+    <option value="sub"${cur==='sub'?' selected':''}>Entré en jeu</option>
+    <option value="dnp"${cur==='dnp'?' selected':''}>Pas joué</option>`;
+  $('scorePlayers').innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Équipes</th><th>Note /10</th><th>Statut</th></tr></thead><tbody>${
+    players.map(p=>`<tr data-sc="${p.player_id}">
+      <td><span class="pos-tag">${POS_LABELS[p.pos]||p.pos}</span></td>
+      <td><b>${p.name}</b><div style="font-size:.72rem;color:var(--muted)">${p.club||'—'}</div></td>
+      <td style="text-align:center"><span style="font-family:'Space Mono';color:var(--muted)">×${p.lineups_count}</span></td>
+      <td><input class="sc-rating" type="number" step="0.1" min="0" max="10" value="${p.rating!=null?p.rating:''}" placeholder="—" style="width:70px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--pitch,#0c1f17);color:var(--chalk)"></td>
+      <td><select class="sc-status" style="padding:5px">${statusOpts(p.play_status)}</select></td>
+    </tr>`).join('')
+  }</tbody></table>`;
+  $('btnSaveScores').style.display='inline-block';
+  $('btnSaveScores').onclick = ()=>saveScores(mdId);
+}
+
+async function saveScores(mdId){
+  const rows = [];
+  document.querySelectorAll('#scorePlayers [data-sc]').forEach(tr=>{
+    const rating = tr.querySelector('.sc-rating').value;
+    const status = tr.querySelector('.sc-status').value;
+    rows.push({ player_id: tr.dataset.sc, rating: rating===''?null:parseFloat(rating), play_status: status });
+  });
+  const r = await api.adminSetScores(mdId, rows);
+  if(r.error){ $('scoreResult').innerHTML = `<span style="color:var(--danger,#e0574a)">${r.error.message}</span>`; return; }
+  $('scoreResult').innerHTML = `<span style="color:#2e7d46">✓ ${r.data} note(s) enregistrée(s).</span>`;
+  loadScoringPlayers(mdId);
+}
 
 $('btnBonusSettings').onclick = async () => {
   const fd = parseFloat($('bs_fullday').value);
