@@ -1,17 +1,16 @@
 # =====================================================================
-# QUIZ MERCATO — Script de déploiement
+# QUIZ MERCATO — Script de déploiement (v2)
 # =====================================================================
-# Range les fichiers téléchargés dans les bons répertoires du repo,
-# puis commit + push (Cloudflare redéploie automatiquement).
+# 1. Déplace les fichiers téléchargés vers les bons répertoires
+#    -> SAUF api.js (il contient ta clé ; tu le gères à la main)
+# 2. Vérifie la syntaxe des fichiers JS avec `node --check`
+#    (équivalent d'un "build" pour un projet statique Vanilla JS :
+#     rien à compiler, mais on valide que le JS ne casse pas)
+# 3. Commit + push (Cloudflare redéploie automatiquement)
 #
 # UTILISATION :
-#   1. Télécharge les fichiers fournis (ils vont dans C:\Users\gille\Downloads)
-#   2. Ouvre PowerShell dans le dossier du repo :
-#        cd "C:\Users\gille\Downloads\quiz-mercato"
-#   3. Lance :  .\deploy.ps1 -Message "Description du changement"
-#
-# Le script cherche les fichiers dans le dossier Downloads (un niveau
-# au-dessus) et les déplace vers leur destination dans le repo.
+#   cd "C:\Users\gille\Downloads\quiz-mercato"
+#   powershell -ExecutionPolicy Bypass -File .\deploy.ps1 -Message "Ton message"
 # =====================================================================
 
 param(
@@ -20,19 +19,19 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# Racine du repo = dossier courant ; source des téléchargements = Downloads
 $Repo      = Get-Location
 $Downloads = "C:\Users\gille\Downloads"
 
-Write-Host "=== Rangement des fichiers telecharges ===" -ForegroundColor Cyan
+# -------------------------------------------------------------------
+# 1. RANGEMENT (api.js volontairement EXCLU)
+# -------------------------------------------------------------------
+Write-Host "=== 1. Rangement des fichiers telecharges ===" -ForegroundColor Cyan
 
-# Table de correspondance : nom de fichier -> sous-dossier de destination dans le repo
-# (racine = "", sinon "js", "db", "edge")
 $map = @{
   "index.html"              = ""
   "admin.html"              = ""
   "README.md"               = ""
-  "api.js"                  = "js"
+  "deploy.ps1"              = ""
   "01_schema.sql"           = "db"
   "02_rpc_auctions.sql"     = "db"
   "03_rls.sql"              = "db"
@@ -42,10 +41,12 @@ $map = @{
   "07_attributes.sql"       = "db"
   "08_seed_attributes.sql"  = "db"
   "09_squad_rules.sql"      = "db"
+  "10_points_system.sql"    = "db"
+  "11_trades.sql"           = "db"
+  "12_commissions.sql"      = "db"
   "close-auctions.ts"       = "edge"
 }
 
-# S'assure que les sous-dossiers existent
 foreach ($sub in @("js","db","edge")) {
   $path = Join-Path $Repo $sub
   if (-not (Test-Path $path)) { New-Item -ItemType Directory -Path $path | Out-Null }
@@ -56,34 +57,99 @@ foreach ($file in $map.Keys) {
   $src = Join-Path $Downloads $file
   if (Test-Path $src) {
     $destDir = if ($map[$file] -eq "") { $Repo } else { Join-Path $Repo $map[$file] }
-    $dest = Join-Path $destDir $file
-    Move-Item -Path $src -Destination $dest -Force
-    Write-Host "  deplace : $file -> $($map[$file])" -ForegroundColor Green
+    Move-Item -Path $src -Destination (Join-Path $destDir $file) -Force
+    $where = if ($map[$file]) { $map[$file] } else { "racine" }
+    Write-Host "  deplace : $file -> $where" -ForegroundColor Green
     $moved++
   }
 }
 
-if ($moved -eq 0) {
-  Write-Host "Aucun fichier a deplacer trouve dans $Downloads." -ForegroundColor Yellow
-  Write-Host "(Les fichiers ont peut-etre deja ete ranges. On continue vers git.)" -ForegroundColor Yellow
-} else {
-  Write-Host "$moved fichier(s) range(s)." -ForegroundColor Cyan
+if (Test-Path (Join-Path $Downloads "api.js")) {
+  Write-Host "  NOTE : api.js detecte dans Downloads mais NON deplace (a gerer a la main avec ta cle)." -ForegroundColor Yellow
 }
 
-# --- Verification anti-fuite : aucune cle service_role ne doit partir ---
-Write-Host "`n=== Verification securite ===" -ForegroundColor Cyan
-$leak = Select-String -Path "js\api.js" -Pattern "service_role" -ErrorAction SilentlyContinue
-if ($leak) {
-  Write-Host "ARRET : une cle service_role a ete detectee dans js\api.js. Push annule." -ForegroundColor Red
-  exit 1
+if ($moved -eq 0) {
+  Write-Host "  Aucun fichier a deplacer (deja ranges ?). On continue." -ForegroundColor Yellow
+} else {
+  Write-Host "  $moved fichier(s) range(s)." -ForegroundColor Cyan
+}
+
+# -------------------------------------------------------------------
+# 2. VERIFICATION SYNTAXE JS (le "build" d'un projet statique)
+# -------------------------------------------------------------------
+Write-Host "`n=== 2. Verification syntaxe JS (node --check) ===" -ForegroundColor Cyan
+
+$node = Get-Command node -ErrorAction SilentlyContinue
+if (-not $node) {
+  Write-Host "  node introuvable : verification sautee. (Installe Node.js pour activer ce controle.)" -ForegroundColor Yellow
+} else {
+  $jsError = $false
+
+  if (Test-Path "js\api.js") {
+    $tmp = [System.IO.Path]::GetTempFileName() + ".mjs"
+    Copy-Item "js\api.js" $tmp -Force
+    & node --check $tmp 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host "  ERREUR de syntaxe dans js\api.js" -ForegroundColor Red
+      & node --check $tmp
+      $jsError = $true
+    } else {
+      Write-Host "  OK : js\api.js" -ForegroundColor Green
+    }
+    Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+  }
+
+  foreach ($html in @("index.html","admin.html")) {
+    if (Test-Path $html) {
+      $content = Get-Content $html -Raw
+      $m = [regex]::Match($content, '(?s)<script[^>]*>(.*?)</script>')
+      if ($m.Success) {
+        $tmp = [System.IO.Path]::GetTempFileName() + ".mjs"
+        Set-Content -Path $tmp -Value $m.Groups[1].Value -Encoding UTF8
+        & node --check $tmp 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) {
+          Write-Host "  ERREUR de syntaxe dans $html" -ForegroundColor Red
+          & node --check $tmp
+          $jsError = $true
+        } else {
+          Write-Host "  OK : $html" -ForegroundColor Green
+        }
+        Remove-Item $tmp -Force -ErrorAction SilentlyContinue
+      }
+    }
+  }
+
+  if ($jsError) {
+    Write-Host "`nARRET : erreur(s) de syntaxe detectee(s). Rien n'est pousse." -ForegroundColor Red
+    exit 1
+  }
+  Write-Host "  Tous les fichiers JS sont valides." -ForegroundColor Green
+}
+
+# -------------------------------------------------------------------
+# 3. SECURITE : aucune cle service_role ne doit partir
+# -------------------------------------------------------------------
+Write-Host "`n=== 3. Verification securite ===" -ForegroundColor Cyan
+if (Test-Path "js\api.js") {
+  $leak = Select-String -Path "js\api.js" -Pattern "service_role" -ErrorAction SilentlyContinue
+  if ($leak) {
+    Write-Host "  ARRET : cle service_role detectee dans js\api.js. Push annule." -ForegroundColor Red
+    exit 1
+  }
 }
 Write-Host "  OK : pas de cle secrete detectee." -ForegroundColor Green
 
-# --- Commit + push ---
-Write-Host "`n=== Git : commit + push ===" -ForegroundColor Cyan
+# -------------------------------------------------------------------
+# 4. COMMIT + PUSH
+# -------------------------------------------------------------------
+Write-Host "`n=== 4. Git : commit + push ===" -ForegroundColor Cyan
 git add .
-git commit -m $Message
-git push
-
-Write-Host "`nTermine. Cloudflare redeploie sous ~30 secondes." -ForegroundColor Green
-Write-Host "Recharge le site avec Ctrl+F5 pour voir les changements." -ForegroundColor Green
+$status = git status --porcelain
+if ([string]::IsNullOrWhiteSpace($status)) {
+  Write-Host "  Rien a commiter (working tree clean)." -ForegroundColor Yellow
+} else {
+  git commit -m $Message
+  git push
+  Write-Host "`nTermine. Cloudflare redeploie sous ~30 secondes." -ForegroundColor Green
+  Write-Host "Recharge le site avec Ctrl+F5." -ForegroundColor Green
+}

@@ -22,15 +22,17 @@ quiz-mercato/
 │   ├── 01_schema.sql            ✅ tables, types, fonctions (préfixe qm_)
 │   ├── 02_rpc_auctions.sql      ✅ logique d'enchères atomique (anti-race-condition)
 │   ├── 03_rls.sql               ✅ sécurité : lecture publique, écriture via RPC only
-│   └── 04_cron.sql              ✅ clôture automatique des enchères (pg_cron)
+│   ├── 04_cron.sql              ✅ clôture automatique des enchères (pg_cron)
+│   └── 05_admin.sql             ✅ rôle admin + RPC d'administration
 │
 ├── js/
-│   └── api.js                   ✅ couche client Supabase (auth, lectures, RPC, Realtime)
+│   └── api.js                   ✅ couche client Supabase (auth, lectures, RPC, admin, Realtime)
 │
 ├── edge/
 │   └── close-auctions.ts        ✅ Edge Function de clôture (option B, secours)
 │
-└── quiz-mercato.html            ✅ interface complète (mode démo, design Kanban)
+├── admin.html                   ✅ console d'administration (BRANCHÉE en réel sur Supabase)
+└── quiz-mercato.html            ✅ interface publique (mode démo, design Kanban)
 ```
 
 Légende : ✅ fait · 🚧 en cours · ⬜ à faire
@@ -83,13 +85,12 @@ Site statique : aucun build nécessaire.
 
 ## Reste à construire
 
+- ✅ ~~**Tableau d'administration**~~ : fait (`admin.html` + `05_admin.sql`).
+- ⬜ **Branchement réel du HTML public** : remplacer les données démo de
+  `quiz-mercato.html` par les appels `api.js`.
 - ⬜ **Lien quiz → points** : fonction qui convertit les perfs quiz FHAF en
   `season_points` des managers (facilité par la base partagée).
 - ⬜ **Évolution automatique de `current_value`** selon `demand_score`.
-- ⬜ **Tableau d'administration** : ajouter joueurs, ouvrir/fermer le mercato,
-  corriger un budget.
-- ⬜ **Branchement réel du HTML** : remplacer les données démo par les appels
-  `api.js`.
 - ⬜ **Cartes spéciales** : logique d'application (Capitaine, Jeune prodige,
   Mur défensif, Joker mercato).
 

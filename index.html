@@ -5,16 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ultimate Squad</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --pitch:#0c1f17;        /* vert stade profond */
-    --pitch-2:#12291d;
-    --line:#1e4230;         /* lignes de terrain */
+    --pitch:#0a1428;        /* bleu nuit stade profond */
+    --pitch-2:#0f1d38;
+    --line:#1c3358;         /* lignes bleutées */
     --chalk:#eef3ea;        /* blanc craie */
-    --muted:#8fa79a;
-    --transfer:#ffd54a;     /* jaune transfert (accent) */
-    --transfer-deep:#e0a800;
+    --muted:#8095b5;
+    --transfer:#f5c542;     /* or transfert (accent) */
+    --transfer-deep:#d4a017;
+    --gold-bright:#ffd76a;  /* or clair pour reflets */
     --live:#ff5a4d;         /* rouge "en direct" */
     /* rareté */
     --bronze:#b4763e; --silver:#c7cdd4; --gold:#e6b422; --plat:#5fd0e0; --legend:#c77dff;
@@ -23,23 +24,48 @@
   *{box-sizing:border-box;margin:0;padding:0}
   body{
     background:
-      radial-gradient(circle at 20% -10%, #14352400, transparent 60%),
-      repeating-linear-gradient(90deg, var(--pitch) 0 80px, var(--pitch-2) 80px 160px);
+      radial-gradient(ellipse at 50% -5%, rgba(245,197,66,.10), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(120,160,220,.08), transparent 40%),
+      radial-gradient(circle at 10% 40%, rgba(120,160,220,.06), transparent 45%),
+      linear-gradient(180deg, #0a1428 0%, #0c1730 50%, #081020 100%);
+    background-attachment:fixed;
     color:var(--chalk);
     font-family:'Archivo',system-ui,sans-serif;
     min-height:100vh; line-height:1.45;
   }
   ::selection{background:var(--transfer);color:#111}
 
+  /* ---------- Pop-up d'accueil ---------- */
+  .wm-overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,10,22,.88);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;padding:20px;animation:wmFade .3s ease}
+  @keyframes wmFade{from{opacity:0}to{opacity:1}}
+  .wm-box{position:relative;max-width:440px;width:100%;max-height:92vh;display:flex;flex-direction:column;align-items:center;
+    animation:wmPop .35s cubic-bezier(.2,.9,.3,1.3)}
+  @keyframes wmPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
+  .wm-img{width:100%;height:auto;max-height:80vh;object-fit:contain;border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px var(--transfer-deep)}
+  .wm-close{position:absolute;top:-14px;right:-14px;width:38px;height:38px;border-radius:50%;
+    background:var(--transfer);color:#0a1428;border:none;font-size:1.5rem;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:2}
+  .wm-close:hover{background:var(--gold-bright)}
+  .wm-enter{margin-top:16px;font-family:'Anton','Saira Condensed';text-transform:uppercase;letter-spacing:1px;
+    font-size:1.05rem;padding:12px 32px;border:none;border-radius:10px;cursor:pointer;
+    background:linear-gradient(180deg,#ffe89a,#f5c542 50%,#d4a017);color:#0a1428;
+    box-shadow:0 6px 18px rgba(245,197,66,.3);transition:.2s}
+  .wm-enter:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(245,197,66,.45)}
+
   /* ---------- Header ---------- */
   header{
     display:flex;align-items:center;gap:18px;
     padding:16px 22px;border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:20;
-    background:rgba(12,31,23,.9);backdrop-filter:blur(8px);
+    background:rgba(10,20,40,.92);backdrop-filter:blur(8px);
   }
-  .logo{font-family:'Saira Condensed','Archivo',sans-serif;font-weight:900;font-size:1.6rem;letter-spacing:.5px;text-transform:uppercase}
-  .logo b{color:var(--transfer)}
+  .logo{font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:1px;text-transform:uppercase;
+    background:linear-gradient(180deg,#ffe89a 0%,#f5c542 45%,#d4a017 55%,#b8860b 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+  .logo b{-webkit-text-fill-color:transparent}
   .logo span{display:inline-block;transform:skewX(-8deg)}
   nav{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
   nav button{
@@ -65,13 +91,15 @@
 
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
-  h1{font-family:'Saira Condensed','Archivo';font-weight:800;font-size:2.5rem;letter-spacing:0;line-height:1;margin-bottom:22px;text-transform:uppercase}
-  h1 em{font-style:normal;color:var(--transfer)}
+  h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
+    background:linear-gradient(180deg,#ffe89a 0%,#f5c542 50%,#d4a017 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  h1 em{font-style:normal;-webkit-text-fill-color:var(--chalk)}
 
   /* ---------- Accueil : bandeau ---------- */
   .hero{
     border:1px solid var(--line);border-radius:var(--r);padding:26px;margin-bottom:26px;
-    background:linear-gradient(120deg,#0f2419,#0c1f17);
+    background:linear-gradient(120deg,#0f1d38,#0a1428);
     display:grid;grid-template-columns:1.4fr 1fr;gap:24px;
   }
   .hero .status{display:flex;align-items:center;gap:10px;margin-bottom:14px}
@@ -84,6 +112,14 @@
   .countdown small{color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-size:.7rem;margin-top:8px}
 
   .newsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}
+  .pillar{background:linear-gradient(160deg,rgba(245,197,66,.06),rgba(15,29,56,.4));border:1px solid var(--line);border-radius:14px;padding:18px 16px;text-align:center;transition:.2s}
+  .pillar:hover{border-color:var(--transfer-deep);transform:translateY(-2px)}
+  .pillar-ic{width:46px;height:46px;margin:0 auto 10px}
+  .pillar-ic svg{width:100%;height:100%}
+  .pillar-t{font-family:'Anton','Saira Condensed';font-size:1.05rem;text-transform:uppercase;letter-spacing:.5px;color:var(--transfer);margin-bottom:4px}
+  .pillar-d{font-size:.78rem;color:var(--muted);line-height:1.35}
+  @media(max-width:640px){.pillars{grid-template-columns:1fr;gap:10px}.pillar{display:flex;align-items:center;gap:14px;text-align:left;padding:12px 16px}.pillar-ic{margin:0;width:38px;height:38px;flex-shrink:0}}
   .news{border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--pitch-2)}
   .news .k{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-size:.7rem}
   .news .v{font-family:'Saira','Archivo';font-size:1.5rem;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums}
@@ -205,7 +241,7 @@
 
   .acard{background:var(--pitch);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px;transition:.15s}
   .acard:hover{border-color:var(--transfer)}
-  .acard .photo{height:120px;background:linear-gradient(135deg,#183a28,#0c1f17);
+  .acard .photo{height:120px;background:linear-gradient(135deg,#16294a,#0a1428);
     display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
   .acard .photo img{width:100%;height:100%;object-fit:cover;object-position:top}
   .acard .photo .ph-icon{font-size:2rem;opacity:.25}
@@ -255,6 +291,14 @@
 </style>
 </head>
 <body>
+<!-- Pop-up d'accueil (affiche) -->
+<div id="welcomeModal" class="wm-overlay" style="display:none">
+  <div class="wm-box">
+    <button id="wmClose" class="wm-close" aria-label="Fermer">&times;</button>
+    <img src="affiche_bienvenue.jpg" alt="Ultimate Squad — Bienvenue" class="wm-img">
+    <button id="wmEnter" class="wm-enter">Entrer dans le jeu</button>
+  </div>
+</div>
 <header>
   <div class="logo"><span>ULTIMATE<b>·</b>SQUAD</span></div>
   <nav id="nav">
@@ -311,12 +355,29 @@
         <div class="status"><span class="dot"></span>
           <span id="homeStatus" style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:2px;font-size:.78rem">Mercato</span></div>
         <h2>Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.</h2>
-        <p>Enchéris sur de vrais joueurs, bâtis une équipe de 24, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.</p>
+        <p>Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.</p>
         <div id="homeCTA" style="margin-top:18px"></div>
       </div>
       <div class="countdown">
         <div class="num" id="homeNextClock">—</div>
         <small id="homeNextLabel">prochaine clôture</small>
+      </div>
+    </div>
+    <div class="pillars">
+      <div class="pillar">
+        <div class="pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe89a"/><stop offset="1" stop-color="#d4a017"/></linearGradient></defs><path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg></div>
+        <div class="pillar-t">Mercato en direct</div>
+        <div class="pillar-d">Enchères temps réel sur de vrais joueurs</div>
+      </div>
+      <div class="pillar">
+        <div class="pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="7" cy="8" r="1.4" fill="url(#gold)"/><circle cx="17" cy="16" r="1.4" fill="url(#gold)"/><path d="M8 9l8 6" stroke-dasharray="2 2"/></svg></div>
+        <div class="pillar-t">Tactique avancée</div>
+        <div class="pillar-d">Aligne tes 11 titulaires chaque journée</div>
+      </div>
+      <div class="pillar">
+        <div class="pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
+        <div class="pillar-t">Défis exclusifs</div>
+        <div class="pillar-d">Bonus, coups de poker et récompenses</div>
       </div>
     </div>
     <div class="newsgrid">
@@ -530,12 +591,12 @@
     <div style="max-width:760px">
       <div class="rule-block">
         <h3 class="rule-h">1. Le principe</h3>
-        <p class="rule-p">Chaque manager démarre avec un <b>budget transfert de 1 milliard €</b> et constitue une équipe de <b>21 joueurs maximum</b> en achetant de vrais joueurs aux enchères. Les points se gagnent quand tes joueurs performent dans la réalité. Le meilleur recruteur gagne la saison.</p>
+        <p class="rule-p">Chaque équipe est un duo <b>Manager–Coach</b>. Le Manager démarre avec un <b>budget transfert de 800 M€</b> et constitue un effectif de <b>21 joueurs</b> aux enchères. Chaque semaine, le Coach aligne <b>11 titulaires</b> : ce sont leurs performances réelles qui rapportent les points. Recrute, gère, aligne, performe — ton mercato construit l'équipe, le terrain décide du classement.</p>
       </div>
       <div class="rule-block">
         <h3 class="rule-h">2. Tes deux budgets</h3>
         <ul class="rule-ul">
-          <li><b>Budget transfert (1 milliard €)</b> : sert à acheter les joueurs.</li>
+          <li><b>Budget transfert (800 M€ + bonus)</b> : sert à acheter les joueurs.</li>
           <li><b>Masse salariale (120 M€ max)</b> : chaque joueur a un salaire selon son prix (Bronze 1 M€ → Légende 15 M€). La somme des salaires ne peut pas dépasser le plafond.</li>
           <li>Si tu atteins le plafond salarial, tu dois <b>libérer ou échanger un joueur avant d'en acheter un autre</b>.</li>
         </ul>
@@ -601,8 +662,41 @@
         </ul>
       </div>
       <div class="rule-block">
-        <h3 class="rule-h">11. Points & fair-play</h3>
-        <p class="rule-p">Les points de classement viennent <b>uniquement</b> des performances réelles de tes joueurs. Les bonus (dénicheur, journée complète, quiz) donnent du budget, pas des points. Le jeu récompense la recherche et la stratégie : attendre passivement que les autres dénichent les pépites pour surenchérir n'est pas dans l'esprit du jeu. L'organisateur tranche tout litige.</p>
+        <h3 class="rule-h">11. Le duo Manager–Coach</h3>
+        <ul class="rule-ul">
+          <li>Le <b>Manager</b> gère le mercato : enchères, recrutement direct, échanges, libérations.</li>
+          <li>Le <b>Coach</b> aligne les <b>11 titulaires</b> chaque journée, avant la date limite (onglet Compo).</li>
+          <li>Si le Coach n'aligne pas à temps, la <b>composition de la journée précédente est reconduite</b> automatiquement.</li>
+        </ul>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">12. Points & performances</h3>
+        <p class="rule-p">Tes points de classement viennent <b>uniquement des performances réelles</b> de tes 11 titulaires. La note de chaque titulaire (source Sofascore) est pondérée par son temps de jeu : <b>0-19 min → 0 %, 20-39 min → 50 %, 40-59 min → 75 %, 60 min et + → 100 %</b>. La somme des 11 notes pondérées = tes points de la journée. Le classement évolue à chaque journée clôturée.</p>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">13. Les deux mercatos</h3>
+        <ul class="rule-ul">
+          <li><b>Mercato d'été</b> (initial) puis <b>mercato d'hiver</b> (fin janvier). Hors période de mercato ouverte, tu ne peux ni enchérir ni recruter.</li>
+          <li><b>Recrutement direct</b> : pendant un mercato ouvert, tu peux acheter un joueur libre à sa valeur, <b>sans enchère</b> (dans le Mercato). Les règles d'effectif et de masse salariale s'appliquent.</li>
+        </ul>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">14. Convertir budget et points</h3>
+        <ul class="rule-ul">
+          <li><b>Budget → points</b> (fin du mercato d'été) : transforme ton budget restant en points de classement (10 M€ = 1 point), plafonné à 200 M€.</li>
+          <li><b>Points → budget</b> (mercato d'hiver) : transforme des points en budget pour te renforcer (1 point = 10 M€), plafonné à 200 points. Ces points sont retirés de ton classement — c'est un pari stratégique.</li>
+        </ul>
+      </div>
+      <div class="rule-block">
+        <h3 class="rule-h">15. Les bonus (budget)</h3>
+        <p class="rule-p">Les bonus donnent du <b>budget</b>, pas des points. Il en existe quatre familles :</p>
+        <ul class="rule-ul">
+          <li><b>Journée complète</b> : 3 joueurs à des postes différents le même jour (+10 M€) ; 3 joueurs au même poste (+5 M€).</li>
+          <li><b>Scout / Dénicheur</b> : 10 % du prix final si un autre manager remporte un joueur que tu as déniché (max 15 M€).</li>
+          <li><b>Construction</b> : 11 joueurs avant la fin du 5ᵉ jour (+10 M€) ; 15 joueurs avant la fin du 8ᵉ jour (+10 M€) ; 19 joueurs avant la fin du 10ᵉ jour (+15 M€) ; joueurs de 10 clubs différents ou plus (+10 M€, à tout moment). Les jours se comptent depuis l'ouverture du mercato d'été.</li>
+          <li><b>Coup de poker</b> : seul enchérisseur (+10 M€) ; enchère remportée à 5+ managers (+10 M€) ; enchère remportée à +100 M€ (+5 M€). Cumulables.</li>
+        </ul>
+        <p class="rule-p">Le jeu récompense la recherche et la stratégie ; attendre passivement que les autres dénichent les pépites pour surenchérir n'est pas dans l'esprit du jeu. L'organisateur tranche tout litige.</p>
       </div>
     </div>
   </section>
@@ -631,6 +725,23 @@ function minIncrement(v){ v=Number(v);
 const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
 const stars = n => '★'.repeat(n)+'☆'.repeat(5-n);
 const $ = id => document.getElementById(id);
+
+// ---------- Pop-up d'accueil (une fois par session) ----------
+function maybeShowWelcome(){
+  try {
+    if(sessionStorage.getItem('us_welcome_seen')) return;
+  } catch(e){ /* sessionStorage indispo : on affiche quand même */ }
+  const modal = $('welcomeModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  const close = ()=>{
+    modal.style.display = 'none';
+    try { sessionStorage.setItem('us_welcome_seen','1'); } catch(e){}
+  };
+  $('wmClose').onclick = close;
+  $('wmEnter').onclick = close;
+  modal.onclick = (e)=>{ if(e.target===modal) close(); };
+}
 
 let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
@@ -1466,13 +1577,13 @@ async function loadLineupForMatchday(mdId){
     const teamId = await api.myTeamId();
     const bd = await api.lineupBreakdown(teamId, mdId);
     if(bd.length){
-      const wLabel = {starter:'Titulaire (100%)', sub:'Entré (50%)', dnp:'Pas joué (0%)'};
       const total = bd.reduce((s,x)=>s+Number(x.contribution),0);
       $('lineupBreakdown').innerHTML = `<div class="eyebrow" style="margin-bottom:12px">Résultat de la journée</div>
         <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer);margin-bottom:14px">${total.toFixed(2)} points</div>
-        <table style="width:100%"><thead><tr><th>Joueur</th><th>Note</th><th>Statut</th><th>Points</th></tr></thead><tbody>${
+        <table style="width:100%"><thead><tr><th>Joueur</th><th>Note</th><th>Min.</th><th>Poids</th><th>Points</th></tr></thead><tbody>${
           bd.map(x=>`<tr><td><b>${x.name}</b></td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
-            <td style="font-size:.8rem;color:var(--muted)">${wLabel[x.play_status]||x.play_status}</td>
+            <td style="color:var(--muted)">${x.minutes!=null?x.minutes+"'":'—'}</td>
+            <td style="font-size:.8rem;color:var(--muted)">${x.weight_pct!=null?x.weight_pct+'%':'—'}</td>
             <td style="font-family:'Saira';font-weight:700">${Number(x.contribution).toFixed(2)}</td></tr>`).join('')
         }</tbody></table>`;
     }
@@ -1641,6 +1752,7 @@ async function init(){
     $('walletBox').style.display='block';
     $('bellBtn').style.display='inline-block';
     loadNotifications();
+    maybeShowWelcome();
   } else {
     $('wallet').textContent = '—';
     $('walletBox').style.display='none';

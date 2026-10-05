@@ -8,15 +8,27 @@
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --pitch:#0c1f17;--pitch-2:#12291d;--line:#1e4230;--chalk:#eef3ea;
-    --muted:#8fa79a;--transfer:#ffd54a;--live:#ff5a4d;--ok:#4ade80;--r:12px;
+    --pitch:#0a1428;--pitch-2:#0f1d38;--line:#1c3358;--chalk:#eef3ea;
+    --muted:#8095b5;--transfer:#f5c542;--gold-bright:#ffd76a;--live:#ff5a4d;--ok:#4ade80;--r:12px;
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:var(--pitch);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
-    min-height:100vh;line-height:1.45}
+  body{background:linear-gradient(180deg,#0a1428,#0c1730 50%,#081020);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
+    min-height:100vh;line-height:1.45;background-attachment:fixed}
   header{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line)}
   .logo{font-weight:900;font-size:1.25rem;text-transform:uppercase;letter-spacing:-.5px}
   .logo b{color:var(--transfer)}
+  /* Pop-up d'accueil */
+  .wm-overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,10,22,.88);backdrop-filter:blur(6px);
+    display:flex;align-items:center;justify-content:center;padding:20px}
+  .wm-box{position:relative;max-width:440px;width:100%;max-height:92vh;display:flex;flex-direction:column;align-items:center}
+  .wm-img{width:100%;height:auto;max-height:80vh;object-fit:contain;border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6),0 0 0 1px var(--transfer)}
+  .wm-close{position:absolute;top:-14px;right:-14px;width:38px;height:38px;border-radius:50%;
+    background:var(--transfer);color:#0a1428;border:none;font-size:1.5rem;font-weight:700;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);z-index:2}
+  .wm-enter{margin-top:16px;text-transform:uppercase;letter-spacing:1px;font-weight:800;
+    font-size:1rem;padding:12px 32px;border:none;border-radius:10px;cursor:pointer;
+    background:linear-gradient(180deg,#ffe89a,#f5c542 50%,#d4a017);color:#0a1428;box-shadow:0 6px 18px rgba(245,197,66,.3)}
   .badge{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;font-size:.72rem;
     background:var(--transfer);color:var(--pitch);padding:3px 10px;border-radius:6px;font-weight:700}
   #who{margin-left:auto;font-size:.85rem;color:var(--muted)}
@@ -77,6 +89,14 @@
 </style>
 </head>
 <body>
+<!-- Pop-up d'accueil (affiche) -->
+<div id="welcomeModal" class="wm-overlay" style="display:none">
+  <div class="wm-box">
+    <button id="wmClose" class="wm-close" aria-label="Fermer">&times;</button>
+    <img src="affiche_bienvenue.jpg" alt="Ultimate Squad — Bienvenue" class="wm-img">
+    <button id="wmEnter" class="wm-enter">Entrer dans l'administration</button>
+  </div>
+</div>
 <header>
   <div class="logo">ULTIMATE<b>·</b>SQUAD <span class="badge">Admin</span></div>
   <div id="who"></div>
@@ -368,6 +388,18 @@ import * as api from './js/api.js';
 import { sb } from './js/api.js';
 
 const $ = id => document.getElementById(id);
+
+// ---------- Pop-up d'accueil (une fois par session) ----------
+function maybeShowWelcome(){
+  try { if(sessionStorage.getItem('us_welcome_seen_admin')) return; } catch(e){}
+  const modal = $('welcomeModal');
+  if(!modal) return;
+  modal.style.display = 'flex';
+  const close = ()=>{ modal.style.display='none'; try{ sessionStorage.setItem('us_welcome_seen_admin','1'); }catch(e){} };
+  $('wmClose').onclick = close;
+  $('wmEnter').onclick = close;
+  modal.onclick = (e)=>{ if(e.target===modal) close(); };
+}
 const showMsg = (el, txt, ok=false) => { el.textContent = txt; el.className = ok?'ok':'err'; };
 const M = 1_000_000;
 
@@ -384,6 +416,7 @@ async function refreshGate(){
   $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
+  maybeShowWelcome();
   loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards();
 }
 
@@ -818,19 +851,21 @@ async function loadScoringPlayers(mdId){
     $('btnSaveScores').style.display='none';
     return;
   }
-  const statusOpts = (cur)=>`
-    <option value="starter"${cur==='starter'?' selected':''}>Titulaire</option>
-    <option value="sub"${cur==='sub'?' selected':''}>Entré en jeu</option>
-    <option value="dnp"${cur==='dnp'?' selected':''}>Pas joué</option>`;
-  $('scorePlayers').innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Équipes</th><th>Note /10</th><th>Statut</th></tr></thead><tbody>${
+  const minWeight = (m)=>{ m=parseInt(m); if(isNaN(m)) return '—'; if(m<20) return '0%'; if(m<40) return '50%'; if(m<60) return '75%'; return '100%'; };
+  $('scorePlayers').innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Équipes</th><th>Note /10</th><th>Minutes</th><th>Poids</th></tr></thead><tbody>${
     players.map(p=>`<tr data-sc="${p.player_id}">
       <td><span class="pos-tag">${POS_LABELS[p.pos]||p.pos}</span></td>
       <td><b>${p.name}</b><div style="font-size:.72rem;color:var(--muted)">${p.club||'—'}</div></td>
       <td style="text-align:center"><span style="font-family:'Space Mono';color:var(--muted)">×${p.lineups_count}</span></td>
-      <td><input class="sc-rating" type="number" step="0.1" min="0" max="10" value="${p.rating!=null?p.rating:''}" placeholder="—" style="width:70px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--pitch,#0c1f17);color:var(--chalk)"></td>
-      <td><select class="sc-status" style="padding:5px">${statusOpts(p.play_status)}</select></td>
+      <td><input class="sc-rating" type="number" step="0.1" min="0" max="10" value="${p.rating!=null?p.rating:''}" placeholder="—" style="width:65px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--pitch,#0c1f17);color:var(--chalk)"></td>
+      <td><input class="sc-minutes" type="number" step="1" min="0" max="120" value="${p.minutes!=null?p.minutes:''}" placeholder="—" style="width:65px;padding:5px;border:1px solid var(--line);border-radius:6px;background:var(--pitch,#0c1f17);color:var(--chalk)"></td>
+      <td><span class="sc-weight" style="font-family:'Space Mono';font-size:.82rem;color:var(--accent)">${minWeight(p.minutes)}</span></td>
     </tr>`).join('')
   }</tbody></table>`;
+  // Mise à jour en direct du poids affiché quand on change les minutes
+  document.querySelectorAll('#scorePlayers .sc-minutes').forEach(inp=>inp.oninput=()=>{
+    inp.closest('tr').querySelector('.sc-weight').textContent = minWeight(inp.value);
+  });
   $('btnSaveScores').style.display='inline-block';
   $('btnSaveScores').onclick = ()=>saveScores(mdId);
 }
@@ -839,8 +874,8 @@ async function saveScores(mdId){
   const rows = [];
   document.querySelectorAll('#scorePlayers [data-sc]').forEach(tr=>{
     const rating = tr.querySelector('.sc-rating').value;
-    const status = tr.querySelector('.sc-status').value;
-    rows.push({ player_id: tr.dataset.sc, rating: rating===''?null:parseFloat(rating), play_status: status });
+    const minutes = tr.querySelector('.sc-minutes').value;
+    rows.push({ player_id: tr.dataset.sc, rating: rating===''?null:parseFloat(rating), minutes: minutes===''?null:parseInt(minutes) });
   });
   const r = await api.adminSetScores(mdId, rows);
   if(r.error){ $('scoreResult').innerHTML = `<span style="color:var(--danger,#e0574a)">${r.error.message}</span>`; return; }

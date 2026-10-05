@@ -518,3 +518,8 @@ export async function adminGrantAward(managerId, title, detail) {
 export async function adminCrownChampion() {
   return sb.rpc('qm_admin_crown_champion');
 }
+
+// ---------- Bonus Construction ------------------------------------
+export async function adminSetConstructionBonuses(b11, b15, b19, clubs) {
+  return sb.rpc('qm_admin_set_construction_bonuses', { p_b11: b11, p_b15: b15, p_b19: b19, p_clubs: clubs });
+}
