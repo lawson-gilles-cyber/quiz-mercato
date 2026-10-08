@@ -97,6 +97,23 @@
     <button id="wmEnter" class="wm-enter">Entrer dans l'administration</button>
   </div>
 </div>
+
+<!-- Modale photo joueur -->
+<div id="photoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:22px;width:420px;max-width:94vw">
+    <h3 id="photoTitle" style="font-weight:800;font-size:1.1rem;margin-bottom:14px">Photo du joueur</h3>
+    <div id="photoPreview" style="text-align:center;margin-bottom:14px"></div>
+    <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Coller une URL d'image</label>
+    <input id="photoUrl" type="text" placeholder="https://…" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 14px;font-family:inherit">
+    <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">…ou téléverser un fichier</label>
+    <input id="photoFile" type="file" accept="image/*" style="width:100%;margin:5px 0 16px;color:var(--chalk)">
+    <div id="photoMsg" style="margin-bottom:12px;font-size:.85rem"></div>
+    <div style="display:flex;gap:10px">
+      <button id="photoSave" class="btn-primary" style="flex:1">Enregistrer</button>
+      <button id="photoCancel" class="btn-ghost">Fermer</button>
+    </div>
+  </div>
+</div>
 <header>
   <div class="logo">ULTIMATE<b>·</b>SQUAD <span class="badge">Admin</span></div>
   <div id="who"></div>
@@ -493,6 +510,32 @@ $('btnAddPlayer').onclick = async () => {
 const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
 const fmtM = v => (v/M).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
 
+// ---------- Modale photo joueur ----------
+let PHOTO_PLAYER = null;
+function renderPhotoPreview(url){
+  $('photoPreview').innerHTML = url
+    ? `<img src="${url}" alt="" style="max-width:120px;max-height:120px;border-radius:10px;border:1px solid var(--line)">`
+    : `<div style="width:120px;height:120px;margin:0 auto;border:1px dashed var(--line);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:2rem;color:var(--muted)">📷</div>`;
+}
+if($('photoUrl')) $('photoUrl').oninput = ()=>renderPhotoPreview($('photoUrl').value.trim());
+if($('photoCancel')) $('photoCancel').onclick = ()=>{ $('photoModal').style.display='none'; };
+if($('photoSave')) $('photoSave').onclick = async ()=>{
+  if(!PHOTO_PLAYER) return;
+  $('photoMsg').innerHTML = '<span style="color:var(--muted)">Enregistrement…</span>';
+  let url = $('photoUrl').value.trim();
+  const file = $('photoFile').files[0];
+  // Si un fichier est choisi, on l'uploade (prioritaire sur l'URL)
+  if(file){
+    const up = await api.uploadPlayerPhoto(PHOTO_PLAYER, file);
+    if(up.error){ $('photoMsg').innerHTML = `<span style="color:var(--live)">Upload échoué : ${up.error.message}</span>`; return; }
+    url = up.url;
+  }
+  const { error } = await api.setPlayerPhoto(PHOTO_PLAYER, url || null);
+  if(error){ $('photoMsg').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
+  $('photoMsg').innerHTML = `<span style="color:var(--ok)">✓ Photo enregistrée.</span>`;
+  setTimeout(()=>{ $('photoModal').style.display='none'; loadPlayers(); }, 700);
+};
+
 async function loadPlayers(){
   const players = await api.listPlayers();
   $('playerCount').textContent = players.length;
@@ -506,6 +549,7 @@ async function loadPlayers(){
         : `<span class="val">${fmtM(p.current_value)}</span>`}</td>
       <td><span class="status s-${p.status}">${p.status}</span></td>
       <td><div class="actions">
+        <button class="btn-ghost btn-sm" data-photo="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" data-purl="${p.photo_url||''}" title="Photo du joueur">${p.photo_url?'🖼️':'📷'}</button>
         <button class="btn-ghost btn-sm" data-attr="${p.id}">Note / Critères</button>
         ${p.status==='free'
           ? `<button class="btn-primary btn-sm" data-open="${p.id}">Ouvrir enchère</button>
@@ -534,6 +578,17 @@ async function loadPlayers(){
     if(error) return showMsg($('msg2'), error.message);
     showMsg($('msg2'), 'Joueur supprimé.', true); loadPlayers();
   });
+  // Bouton photo : ouvre la modale
+  $('playerRows').querySelectorAll('[data-photo]').forEach(b=>b.onclick = ()=>{
+    PHOTO_PLAYER = b.dataset.photo;
+    $('photoTitle').textContent = 'Photo — ' + (b.dataset.pname||'joueur');
+    $('photoUrl').value = b.dataset.purl || '';
+    $('photoFile').value = '';
+    $('photoMsg').innerHTML = '';
+    renderPhotoPreview(b.dataset.purl || '');
+    $('photoModal').style.display = 'flex';
+  });
+
   $('playerRows').querySelectorAll('[data-attr]').forEach(b=>b.onclick = async ()=>{
     const p = players.find(x=>x.id===b.dataset.attr);
     // Charge les critères actuels

@@ -533,3 +533,18 @@ export async function teamIdentity() {
   const { data } = await sb.rpc('qm_team_identity');
   return (data && data[0]) ? data[0] : null;
 }
+
+// ---------- Photos des joueurs (upload fichier OU URL) ------------
+// Upload un fichier image vers le bucket 'player-photos', renvoie l'URL publique.
+export async function uploadPlayerPhoto(playerId, file) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${playerId}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from('player-photos').upload(path, file, { upsert: true });
+  if (error) return { error };
+  const { data } = sb.storage.from('player-photos').getPublicUrl(path);
+  return { url: data.publicUrl };
+}
+// Enregistre l'URL de la photo sur le joueur (après upload, ou URL collée).
+export async function setPlayerPhoto(playerId, photoUrl) {
+  return sb.rpc('qm_admin_set_player_photo', { p_player_id: playerId, p_photo_url: photoUrl });
+}
