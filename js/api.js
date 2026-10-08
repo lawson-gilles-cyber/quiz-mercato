@@ -45,13 +45,14 @@ export function minIncrement(value) {
 export async function signIn(email, password) {
   return sb.auth.signInWithPassword({ email, password });
 }
-export async function signUp(email, password, displayName) {
+export async function signUp(email, password, displayName, teamName) {
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) return { error };
   // Crée la fiche manager (autorisé par la policy "create own manager")
   const { error: mErr } = await sb.from('qm_managers').insert({
     auth_user_id: data.user.id,
-    display_name: displayName
+    display_name: displayName,
+    team_name: teamName || null
   });
   return { data, error: mErr };
 }
@@ -99,7 +100,7 @@ export async function myTeam(managerId) {
 
 export async function leaderboard() {
   const { data } = await sb.from('qm_managers')
-    .select('id, display_name, season_points, budget, budget_locked')
+    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked')
     .order('season_points', { ascending: false });
   return data ?? [];
 }
@@ -522,4 +523,13 @@ export async function adminCrownChampion() {
 // ---------- Bonus Construction ------------------------------------
 export async function adminSetConstructionBonuses(b11, b15, b19, clubs) {
   return sb.rpc('qm_admin_set_construction_bonuses', { p_b11: b11, p_b15: b15, p_b19: b19, p_clubs: clubs });
+}
+
+// ---------- Identité d'équipe (nom + couleurs) --------------------
+export async function setTeamIdentity(teamName, primary, secondary) {
+  return sb.rpc('qm_set_team_identity', { p_team_name: teamName, p_primary: primary, p_secondary: secondary });
+}
+export async function teamIdentity() {
+  const { data } = await sb.rpc('qm_team_identity');
+  return (data && data[0]) ? data[0] : null;
 }

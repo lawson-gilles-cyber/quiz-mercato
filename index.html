@@ -338,7 +338,8 @@
     <input id="authEmail" type="email" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 12px;font-family:inherit">
     <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Mot de passe</label>
     <input id="authPass" type="password" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 16px;font-family:inherit">
-    <input id="authName" type="text" placeholder="Pseudo (inscription)" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:0 0 16px;font-family:inherit;display:none">
+    <input id="authName" type="text" placeholder="Pseudo (inscription)" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:0 0 10px;font-family:inherit;display:none">
+    <input id="authTeam" type="text" placeholder="Nom de ton équipe (inscription)" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:0 0 16px;font-family:inherit;display:none">
     <div style="display:flex;gap:10px">
       <button id="doLogin" style="flex:1;background:var(--transfer);color:var(--pitch);border:none;font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:10px;border-radius:8px;cursor:pointer">Se connecter</button>
       <button id="toggleSignup" style="background:transparent;color:var(--muted);border:1px solid var(--line);font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:10px 12px;border-radius:8px;cursor:pointer">S'inscrire</button>
@@ -489,6 +490,26 @@
       <div class="news"><div class="k">Budget engagé (enchères)</div><div class="v" id="dashLocked"><b>—</b></div></div>
     </div>
     <div id="dashAlerts" style="margin-bottom:18px"></div>
+    <!-- Identité d'équipe (nom + couleurs), Manager seulement -->
+    <div id="teamIdentityBox" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div id="teamJerseyPreview" style="flex-shrink:0"></div>
+        <div style="flex:1;min-width:160px">
+          <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Nom de l'équipe</label>
+          <input id="tiName" type="text" placeholder="Nom de ton équipe" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:8px 10px;border-radius:8px;margin-top:4px;font-family:inherit">
+        </div>
+        <div>
+          <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted);display:block">Principale</label>
+          <input id="tiPrimary" type="color" value="#1C2C5B" style="width:48px;height:40px;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer;margin-top:4px">
+        </div>
+        <div>
+          <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted);display:block">Secondaire</label>
+          <input id="tiSecondary" type="color" value="#E0A800" style="width:48px;height:40px;border:1px solid var(--line);border-radius:8px;background:none;cursor:pointer;margin-top:4px">
+        </div>
+        <button id="btnSaveIdentity" class="bid-btn" style="margin:0;align-self:flex-end;width:auto;padding:10px 18px">Enregistrer</button>
+      </div>
+      <div id="tiResult" style="margin-top:8px;font-size:.85rem"></div>
+    </div>
     <a class="tm-link" href="https://www.transfermarkt.com/spieler-statistik/wertvollstespieler/marktwertetop" target="_blank" rel="noopener noreferrer">
       <span class="tm-ic">📊</span>
       <span class="tm-txt"><b>Vérifie la valeur réelle des joueurs</b> — les cotes du marché sur Transfermarkt pour affiner tes enchères.</span>
@@ -787,6 +808,7 @@ $('closeAuth').onclick = ()=> $('authModal').style.display='none';
 $('toggleSignup').onclick = ()=>{
   signupMode = !signupMode;
   $('authName').style.display = signupMode?'block':'none';
+  $('authTeam').style.display = signupMode?'block':'none';
   $('authTitle').textContent = signupMode?'Inscription manager':'Connexion manager';
   $('doLogin').textContent = signupMode?"Créer mon compte":"Se connecter";
 };
@@ -801,7 +823,8 @@ $('doLogin').onclick = async ()=>{
   if(!email||!pass) return authMsg('Email et mot de passe requis.');
   if(signupMode){
     const name=$('authName').value.trim()||email.split('@')[0];
-    const { error } = await api.signUp(email, pass, name);
+    const team=$('authTeam').value.trim()||name;
+    const { error } = await api.signUp(email, pass, name, team);
     if(error) return authMsg('Échec : '+error.message);
     authMsg('Compte créé ! Connexion…', true);
   } else {
@@ -1376,6 +1399,41 @@ async function renderTeam(){
   });
 }
 
+// Couleurs de l'équipe du manager courant (maillot uniforme Manager+Coach)
+let MY_TEAM_COLORS = null;  // {primary, secondary} ou null
+async function loadTeamIdentity(){
+  if(!ME) return;
+  const id = await api.teamIdentity();
+  if(!id) return;
+  MY_TEAM_COLORS = { primary: id.color_primary, secondary: id.color_secondary };
+  // L'éditeur n'est visible que pour le Manager (pas le Coach)
+  const amCoach = ME.is_coach && ME.coach_of;
+  const box = $('teamIdentityBox');
+  if(box && !amCoach){
+    box.style.display = 'block';
+    $('tiName').value = id.team_name || '';
+    $('tiPrimary').value = id.color_primary;
+    $('tiSecondary').value = id.color_secondary;
+    updateJerseyPreview();
+    $('tiPrimary').oninput = updateJerseyPreview;
+    $('tiSecondary').oninput = updateJerseyPreview;
+    $('btnSaveIdentity').onclick = saveIdentity;
+  } else if(box){ box.style.display = 'none'; }
+}
+function updateJerseyPreview(){
+  const p = $('tiPrimary').value, s = $('tiSecondary').value;
+  if($('teamJerseyPreview')) $('teamJerseyPreview').innerHTML = kitSvgColors(p, s, 56);
+}
+async function saveIdentity(){
+  const name = $('tiName').value.trim();
+  const p = $('tiPrimary').value, s = $('tiSecondary').value;
+  const { error } = await api.setTeamIdentity(name, p, s);
+  if(error){ $('tiResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
+  $('tiResult').innerHTML = `<span style="color:#4ade80">✓ Équipe enregistrée.</span>`;
+  MY_TEAM_COLORS = { primary: p, secondary: s };
+  renderTeam();  // ré-affiche le terrain avec les nouvelles couleurs
+}
+
 // Construit la vue terrain par compartiment (GK / DEF / MID / FWD)
 const PITCH_LINES = [
   { pos:'GK',  label:'Gardiens',   max:2, ic:'🧤' },
@@ -1399,26 +1457,37 @@ const CLUB_KITS = {
   'Al-Hilal':{a:'#0033A0',b:'#FFFFFF'}, 'Galatasaray':{a:'#A90432',b:'#FBB800'},
   'Porto':{a:'#00428C',b:'#FFFFFF'}, 'Aston Villa':{a:'#95BFE5',b:'#670E36'}
 };
-function kitSvg(club){
-  const k = CLUB_KITS[club] || {a:'#5a6b62',b:'#e0e6e2'}; // gris neutre si club inconnu
-  return `<svg viewBox="0 0 48 44" width="42" height="38" aria-hidden="true">
+// Maillot paramétrable : a = couleur principale, b = secondaire
+function kitSvgColors(a, b, size){
+  const w = size||42, h = Math.round((size||42)*0.9);
+  return `<svg viewBox="0 0 48 44" width="${w}" height="${h}" aria-hidden="true">
     <path d="M16 4 L8 9 L4 18 L10 22 L12 18 L12 40 L36 40 L36 18 L38 22 L44 18 L40 9 L32 4 L28 8 Q24 11 20 8 Z"
-      fill="${k.a}" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
-    <path d="M16 4 L20 8 Q24 11 28 8 L32 4 L28 3 Q24 6 20 3 Z" fill="${k.b}"/>
-    <path d="M8 9 L4 18 L10 22 L12 18 Z" fill="${k.b}" opacity=".85"/>
-    <path d="M40 9 L44 18 L38 22 L36 18 Z" fill="${k.b}" opacity=".85"/>
+      fill="${a}" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+    <path d="M16 4 L20 8 Q24 11 28 8 L32 4 L28 3 Q24 6 20 3 Z" fill="${b}"/>
+    <path d="M8 9 L4 18 L10 22 L12 18 Z" fill="${b}" opacity=".85"/>
+    <path d="M40 9 L44 18 L38 22 L36 18 Z" fill="${b}" opacity=".85"/>
   </svg>`;
 }
-function jerseyCard(p, readonly){
+// Sur MON terrain, le maillot prend les couleurs de MON équipe (uniforme
+// Manager+Coach). Ailleurs (effectif d'un autre manager), on garde les
+// couleurs du club réel du joueur.
+function kitSvg(club){
+  if(MY_TEAM_COLORS) return kitSvgColors(MY_TEAM_COLORS.primary, MY_TEAM_COLORS.secondary);
+  const k = CLUB_KITS[club] || {a:'#5a6b62',b:'#e0e6e2'};
+  return kitSvgColors(k.a, k.b);
+}
+function jerseyCard(p, readonly, colors){
   const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
   const revealed = (p.note != null);
   const barW = color ? (revealed ? p.note : color.fill) : 0;
   const barC = color ? color.c : '#ccc';
   const noteTxt = revealed ? `${p.note}/100` : (color ? color.label : '—');
   const xBtn = readonly ? '' : `<button class="jersey-x" data-release="${p.id}" title="Libérer ce joueur">×</button>`;
+  // Couleurs explicites (équipe affichée) sinon logique par défaut de kitSvg
+  const jersey = colors ? kitSvgColors(colors.primary, colors.secondary) : kitSvg(p.club);
   return `<div class="jersey" title="${p.name}">
     ${xBtn}
-    <div class="jersey-ic">${kitSvg(p.club)}</div>
+    <div class="jersey-ic">${jersey}</div>
     <div class="jersey-nm">${p.name}</div>
     <div class="jersey-cl">${p.club||''}</div>
     <div class="jersey-bar"><span style="width:${barW}%;background:${barC}"></span></div>
@@ -1426,10 +1495,10 @@ function jerseyCard(p, readonly){
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
   </div>`;
 }
-function buildPitch(mine, readonly){
+function buildPitch(mine, readonly, colors){
   const lines = PITCH_LINES.map(line=>{
     const players = mine.filter(p=>p.position===line.pos);
-    const jerseys = players.map(p=>jerseyCard(p, readonly)).join('');
+    const jerseys = players.map(p=>jerseyCard(p, readonly, colors)).join('');
     // cases vides pour visualiser ce qu'il reste (jusqu'au quota)
     const emptyCount = Math.max(0, line.max - players.length);
     const empties = Array.from({length:emptyCount}).map(()=>`<div class="jersey empty"><span>+</span></div>`).join('');
@@ -1461,7 +1530,7 @@ async function renderRank(){
     return {...m, teamValue:val, teamCount:team.length, team};
   }));
   RANK_TEAMS = {};
-  rows.forEach(m=>{ RANK_TEAMS[m.id] = {name:m.display_name, team:m.team}; });
+  rows.forEach(m=>{ RANK_TEAMS[m.id] = {name:m.team_name||m.display_name, team:m.team, colors:(m.color_primary?{primary:m.color_primary,secondary:m.color_secondary}:null)}; });
   $('rankBody').innerHTML = rows.map((m,i)=>
     `<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
       <td class="rank ${i===0?'podium-1':''}">${i+1}</td>
@@ -1479,7 +1548,7 @@ function showManagerSquad(mgrId){
   const modal = $('squadModal');
   $('squadModalTitle').textContent = `Effectif de ${entry.name}`;
   // Réutilise buildPitch (les notes seront cachées car ce ne sont pas mes joueurs)
-  $('squadModalBody').innerHTML = entry.team.length ? buildPitch(entry.team, true)
+  $('squadModalBody').innerHTML = entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
   modal.style.display='flex';
 }
@@ -1752,6 +1821,7 @@ async function init(){
     $('walletBox').style.display='block';
     $('bellBtn').style.display='inline-block';
     loadNotifications();
+    await loadTeamIdentity();
     maybeShowWelcome();
   } else {
     $('wallet').textContent = '—';
