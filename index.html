@@ -852,7 +852,8 @@ function playerCard(p){
       ${scoutSheet(p)}
       ${(ME && p.owner_id===ME.id)
         ? `<div class="owner">Ton joueur</div>
-           <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e">Libérer</button>`
+           <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e">Libérer</button>
+           <button class="bid-btn" data-injury="${p.id}" data-iname="${(p.name||'').replace(/"/g,'&quot;')}" style="background:transparent;border:1px solid var(--line);color:var(--muted);margin-top:6px">Déclarer blessé</button>`
         : owned
           ? `<div class="owner">${ownerName?'Recruté par <b>'+ownerName+'</b>':'Indisponible'}</div>
              <button class="bid-btn owned">Indisponible</button>`
@@ -943,10 +944,17 @@ async function setupDirectRecruit(){
   if(!ME){ $('directGate').style.display='block'; $('directUI').style.display='none'; return; }
   $('directGate').style.display='none'; $('directUI').style.display='block';
 
-  const winOpen = await api.windowIsOpen();
-  if(!winOpen){
-    $('directInfo').innerHTML = `<span style="color:var(--live);font-size:.85rem">Aucun mercato n'est ouvert actuellement.</span>`;
-  } else $('directInfo').innerHTML = '';
+  // Le recrutement direct sert UNIQUEMENT à remplacer un joueur blessé
+  // validé, pendant le mercato d'hiver. Sinon, tout passe par les enchères.
+  const canRecruit = await api.canDirectRecruit();
+  if(!canRecruit){
+    $('directInfo').innerHTML = `<span style="color:var(--muted);font-size:.85rem">Le recrutement direct sert à <b>remplacer un joueur blessé</b>. Il s'active quand une blessure a été validée par l'organisateur <b>et</b> que le mercato d'hiver est ouvert. En dehors de ce cas, tout passe par les enchères.</span>`;
+    $('directSelect').disabled = true;
+    $('btnDirectRecruit').style.display='none';
+    return;
+  }
+  $('directInfo').innerHTML = `<span style="color:#4ade80;font-size:.85rem">✓ Tu peux recruter un remplaçant pour ton joueur blessé (sans enchère).</span>`;
+  $('directSelect').disabled = false;
 
   const players = await api.listPlayers();
   const free = players.filter(p=>p.status==='free');
@@ -958,7 +966,7 @@ async function setupDirectRecruit(){
     const p = free.find(x=>x.id===$('directSelect').value);
     if(!p){ $('btnDirectRecruit').style.display='none'; $('directInfo').innerHTML=''; return; }
     $('directInfo').innerHTML = `<div style="font-size:.9rem">Prix : <b style="font-family:'Saira'">${fmtMoney(p.current_value)}</b></div>`;
-    $('btnDirectRecruit').style.display = winOpen ? 'block' : 'none';
+    $('btnDirectRecruit').style.display = 'block';
     $('btnDirectRecruit').onclick = async ()=>{
       if(!confirm(`Recruter ${p.name} pour ${fmtMoney(p.current_value)} ?`)) return;
       const { error } = await api.directRecruit(p.id);
@@ -1378,6 +1386,15 @@ async function renderTeam(){
   $('teamPitch').innerHTML = buildPitch(mine);
   // Mon activité récente (B)
   renderMyActivity();
+  // Boutons "Déclarer blessé"
+  document.querySelectorAll('#team [data-injury]').forEach(btn => btn.onclick = async () => {
+    const name = btn.dataset.iname || 'ce joueur';
+    if(!confirm(`Déclarer ${name} blessé (longue durée) ?\n\nL'organisateur devra valider. Une fois validé et pendant le mercato d'hiver, tu pourras le remplacer gratuitement par un joueur libre, sans enchère.`)) return;
+    const { error } = await api.declareInjury(btn.dataset.injury);
+    if(error) return alert('Échec : '+error.message);
+    alert('Déclaration envoyée. En attente de validation par l\'organisateur.');
+  });
+
   // Boutons "Libérer" (liste ET terrain, via délégation sur data-release)
   document.querySelectorAll('#team [data-release]').forEach(btn => btn.onclick = async () => {
     const pid = btn.dataset.release;

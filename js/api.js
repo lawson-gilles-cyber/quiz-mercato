@@ -548,3 +548,19 @@ export async function uploadPlayerPhoto(playerId, file) {
 export async function setPlayerPhoto(playerId, photoUrl) {
   return sb.rpc('qm_admin_set_player_photo', { p_player_id: playerId, p_photo_url: photoUrl });
 }
+
+// ---------- Blessures & remplacement ------------------------------
+export async function declareInjury(playerId) {
+  return sb.rpc('qm_declare_injury', { p_player_id: playerId });
+}
+export async function canDirectRecruit() {
+  const { data } = await sb.rpc('qm_can_direct_recruit');
+  return data ?? false;
+}
+export async function adminReviewInjury(injuryId, approve) {
+  return sb.rpc('qm_admin_review_injury', { p_injury_id: injuryId, p_approve: approve });
+}
+export async function adminPendingInjuries() {
+  const { data } = await sb.rpc('qm_admin_pending_injuries');
+  return data ?? [];
+}
