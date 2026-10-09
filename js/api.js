@@ -229,7 +229,7 @@ export async function adminRecordPerformance(perf) {
 
 // ---------- ÉCHANGES ENTRE MANAGERS ---------------------------------
 export async function listManagers() {
-  const { data } = await sb.from('qm_managers').select('id, display_name').order('display_name');
+  const { data } = await sb.from('qm_managers').select('id, display_name, team_name, is_admin, coach_of').order('display_name');
   return data ?? [];
 }
 export async function proposeTrade(t) {

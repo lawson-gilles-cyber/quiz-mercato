@@ -988,10 +988,12 @@ async function renderMarket(){
   setupComparator();
   setupDirectRecruit();
 
-  // Liste des autres managers
-  const managers = (await api.listManagers()).filter(m=>m.id!==ME.id);
-  $('tradeTarget').innerHTML = '<option value="">— choisir un manager —</option>' +
-    managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+  // Liste des autres managers : on exclut soi-même, les admins et les coachs
+  // (un coach n'a pas d'effectif propre, et un admin n'est pas un compétiteur).
+  const managers = (await api.listManagers()).filter(m =>
+    m.id !== ME.id && !m.is_admin && !m.coach_of);
+  $('tradeTarget').innerHTML = '<option value="">— choisir une équipe —</option>' +
+    managers.map(m=>`<option value="${m.id}">${m.team_name || m.display_name}</option>`).join('');
 
   // Mes joueurs (que je peux offrir)
   TRADE_MINE = (await api.myTeam(ME.id)).filter(p=>p.status==='owned');
