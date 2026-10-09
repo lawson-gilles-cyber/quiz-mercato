@@ -1494,21 +1494,15 @@ function kitSvg(club){
   return kitSvgColors(k.a, k.b);
 }
 function jerseyCard(p, readonly, colors){
-  const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
-  const revealed = (p.note != null);
-  const barW = color ? (revealed ? p.note : color.fill) : 0;
-  const barC = color ? color.c : '#ccc';
-  const noteTxt = revealed ? `${p.note}/100` : (color ? color.label : '—');
   const xBtn = readonly ? '' : `<button class="jersey-x" data-release="${p.id}" title="Libérer ce joueur">×</button>`;
   // Couleurs explicites (équipe affichée) sinon logique par défaut de kitSvg
   const jersey = colors ? kitSvgColors(colors.primary, colors.secondary) : kitSvg(p.club);
+  // Barre de note Mercato retirée (réservée à un éventuel tournoi interne)
   return `<div class="jersey" title="${p.name}">
     ${xBtn}
     <div class="jersey-ic">${jersey}</div>
     <div class="jersey-nm">${p.name}</div>
     <div class="jersey-cl">${p.club||''}</div>
-    <div class="jersey-bar"><span style="width:${barW}%;background:${barC}"></span></div>
-    <div class="jersey-note" style="color:${barC}">${noteTxt}</div>
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
   </div>`;
 }
