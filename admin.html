@@ -219,6 +219,13 @@
   </div>
 
   <!-- Ajouter un joueur -->
+  <!-- Blessures à valider -->
+  <h2>Blessures à valider</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Un manager a déclaré un joueur blessé (longue durée). En validant, tu autorises son remplacement gratuit sans enchère pendant le mercato d'hiver.</p>
+    <div id="injuryList"></div>
+  </div>
+
   <h2>Ajouter un joueur</h2>
   <div class="card">
     <div class="row c3">
@@ -434,7 +441,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards();
+  loadPhase(); loadPlayers(); loadOwnedForPerf(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries();
 }
 
 $('btnLogin').onclick = async () => {
@@ -509,6 +516,32 @@ $('btnAddPlayer').onclick = async () => {
 // ---------- Liste des joueurs ----------
 const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
 const fmtM = v => (v/M).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
+
+// ---------- Blessures à valider ----------
+async function loadInjuries(){
+  if(!$('injuryList')) return;
+  const list = await api.adminPendingInjuries();
+  $('injuryList').innerHTML = list.length ? `<table style="width:100%"><thead><tr><th>Joueur</th><th>Manager</th><th>Déclarée</th><th></th></tr></thead><tbody>${
+    list.map(i=>{
+      const d = new Date(i.declared_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      return `<tr><td><b>${i.player_name}</b></td><td>${i.manager_name}</td><td style="font-size:.82rem;color:var(--muted)">${d}</td>
+        <td><div class="actions">
+          <button class="btn-primary btn-sm" data-injok="${i.injury_id}">Valider</button>
+          <button class="btn-danger btn-sm" data-injko="${i.injury_id}">Rejeter</button>
+        </div></td></tr>`;
+    }).join('')
+  }</tbody></table>` : `<p class="hint">Aucune déclaration en attente.</p>`;
+  $('injuryList').querySelectorAll('[data-injok]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminReviewInjury(b.dataset.injok, true);
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Blessure validée.',true); loadInjuries();
+  });
+  $('injuryList').querySelectorAll('[data-injko]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminReviewInjury(b.dataset.injko, false);
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),'Déclaration rejetée.',true); loadInjuries();
+  });
+}
 
 // ---------- Modale photo joueur ----------
 let PHOTO_PLAYER = null;
