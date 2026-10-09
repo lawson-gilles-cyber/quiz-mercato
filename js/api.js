@@ -80,15 +80,43 @@ export async function listPlayers(filters = {}) {
 }
 
 export async function listOpenAuctions() {
-  const { data } = await sb.from('qm_auctions')
-    .select('*, player:qm_players(*), top_bidder:qm_managers(display_name), bids:qm_bids(manager_id)')
+  // Requête principale ROBUSTE : enchères + joueur (jointure sûre) uniquement.
+  // On évite les jointures top_bidder/bids qui peuvent casser toute la requête.
+  const { data, error } = await sb.from('qm_auctions')
+    .select('*, player:qm_players(*)')
     .eq('status', 'open')
     .order('ends_at', { ascending: true });
-  // Calcule le nombre de managers distincts intéressés
-  return (data ?? []).map(a => {
-    const distinct = new Set((a.bids ?? []).map(x => x.manager_id));
-    return { ...a, interest: distinct.size };
-  });
+  if (error) { console.warn('listOpenAuctions:', error.message); return []; }
+  const auctions = data ?? [];
+  if (!auctions.length) return [];
+
+  // Nombre de managers intéressés : récupéré à part, sans bloquer l'affichage.
+  let bidsByAuction = {};
+  try {
+    const ids = auctions.map(a => a.id);
+    const { data: bids } = await sb.from('qm_bids')
+      .select('auction_id, manager_id').in('auction_id', ids);
+    (bids ?? []).forEach(b => {
+      (bidsByAuction[b.auction_id] ||= new Set()).add(b.manager_id);
+    });
+  } catch (e) { /* si ça échoue, interest = 0, les enchères s'affichent quand même */ }
+
+  // Nom du meilleur enchérisseur : à part aussi, facultatif.
+  let nameById = {};
+  try {
+    const bidderIds = [...new Set(auctions.map(a => a.top_bidder_id).filter(Boolean))];
+    if (bidderIds.length) {
+      const { data: mgrs } = await sb.from('qm_managers')
+        .select('id, display_name').in('id', bidderIds);
+      (mgrs ?? []).forEach(m => { nameById[m.id] = m.display_name; });
+    }
+  } catch (e) { /* facultatif */ }
+
+  return auctions.map(a => ({
+    ...a,
+    interest: bidsByAuction[a.id] ? bidsByAuction[a.id].size : 0,
+    top_bidder: a.top_bidder_id ? { display_name: nameById[a.top_bidder_id] || '—' } : null
+  }));
 }
 
 export async function myTeam(managerId) {
