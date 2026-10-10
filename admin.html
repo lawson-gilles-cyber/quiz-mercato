@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ultimate Squad — Administration</title>
+<!-- PWA : installation sur écran d'accueil Android / iPhone -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a1428">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ultimate Squad Admin">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -1056,6 +1065,13 @@ async function loadProposals(){
 
 // ---------- Init ----------
 refreshGate();
+
+// ---------- PWA : enregistrement du service worker ----------
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+  });
+}
 </script>
 </body>
 </html>
