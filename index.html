@@ -1236,7 +1236,8 @@ function acard(a, status){
     const interest = a.interest || 0;
     const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span>${interestTag}</div>
-      <div class="clock ${hot?'hot':'safe'}" data-ends="${a.ends_at}">⏱ ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>`;
+      <div class="clock ${hot?'hot':'safe'}" data-ends="${a.ends_at}">⏱ ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
+      <button class="bid-btn" data-bid="${p.id}" style="width:100%;margin-top:10px">Enchérir</button>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
@@ -1266,6 +1267,9 @@ async function renderAuctions(){
     $('k-'+status).innerHTML = list.length? list.map(a=>acard(a,status)).join('')
       : `<div class="col-empty">Aucune</div>`;
   }
+  // Câble les boutons "Enchérir" des cartes en direct
+  document.querySelectorAll('#k-live [data-bid]').forEach(btn=>
+    btn.onclick = ()=> startBid(btn.dataset.bid));
 }
 // compte à rebours live (recalcule depuis ends_at)
 setInterval(()=>{
