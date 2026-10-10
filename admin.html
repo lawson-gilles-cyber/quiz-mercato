@@ -408,7 +408,12 @@ async function refreshGate(){
     $('gate').classList.remove('hidden'); $('console').classList.add('hidden');
     return;
   }
-  $('who').innerHTML = `Connecté : <b>${mgr.display_name}</b> · <a href="#" id="logout">déconnexion</a>`;
+  const _n = mgr.display_name || 'Admin';
+  const _p = _n.trim().split(/\s+/);
+  const _ini = (_p.length>=2 ? _p[0][0]+_p[1][0] : _n.trim().slice(0,2)).toUpperCase();
+  $('who').innerHTML =
+    `<span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;background:var(--transfer);color:#0a1428;font-weight:800;font-size:.8rem;margin-right:8px;vertical-align:middle" title="${_n}">${_ini}</span>`
+    + `Connecté : <b>${_n}</b> · <a href="#" id="logout">déconnexion</a>`;
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();

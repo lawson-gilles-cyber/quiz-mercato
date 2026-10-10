@@ -315,6 +315,10 @@
   </nav>
   <div class="wallet" id="walletBox"><small>BUDGET DISPO</small><span id="wallet">—</span></div>
   <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
+  <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-left:10px">
+    <span id="userInitials" title="" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--transfer),var(--transfer-deep));color:var(--pitch);font-family:'Anton','Saira Condensed';font-size:.85rem;letter-spacing:.5px"></span>
+    <span id="userName" style="font-family:'Archivo Narrow';font-weight:700;font-size:.8rem;color:var(--chalk);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+  </div>
   <button id="authBtn" style="font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;background:var(--transfer);color:var(--pitch);border:none;padding:9px 14px;border-radius:8px;cursor:pointer;margin-left:10px">Connexion</button>
   <div id="notifPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:12px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
 </header>
@@ -746,6 +750,20 @@ function minIncrement(v){ v=Number(v);
 const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
 const stars = n => '★'.repeat(n)+'☆'.repeat(5-n);
 const $ = id => document.getElementById(id);
+
+// ---------- Badge utilisateur connecté (anti-confusion de compte) ----------
+function showUserBadge(me){
+  const name = me.display_name || 'Utilisateur';
+  // Initiales : 1res lettres des 2 premiers mots, sinon 2 1res lettres
+  const parts = name.trim().split(/\s+/);
+  let ini = parts.length >= 2
+    ? (parts[0][0] + parts[1][0])
+    : name.trim().slice(0,2);
+  $('userInitials').textContent = ini.toUpperCase();
+  $('userInitials').title = name;
+  $('userName').textContent = name;
+  $('userBadge').style.display = 'flex';
+}
 
 // ---------- Pop-up d'accueil (une fois par session) ----------
 function maybeShowWelcome(){
@@ -1833,6 +1851,7 @@ async function init(){
     $('authBtn').textContent = 'Déconnexion';
     $('walletBox').style.display='block';
     $('bellBtn').style.display='inline-block';
+    showUserBadge(ME);
     loadNotifications();
     await loadTeamIdentity();
     maybeShowWelcome();
@@ -1840,6 +1859,7 @@ async function init(){
     $('wallet').textContent = '—';
     $('walletBox').style.display='none';
     $('bellBtn').style.display='none';
+    $('userBadge').style.display='none';
   }
   await loadPlayers();
   renderHome();
