@@ -298,9 +298,59 @@
   .rule-ul li{color:var(--chalk);font-size:.92rem;line-height:1.6;padding-left:20px;position:relative;margin-bottom:6px}
   .rule-ul li::before{content:'▸';color:var(--transfer);position:absolute;left:0}
   :focus-visible{outline:2px solid var(--transfer);outline-offset:2px}
+
+  /* ===== UX : Toasts ===== */
+  #toastWrap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(92vw,420px);pointer-events:none}
+  .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:13px 15px;border-radius:12px;background:var(--pitch-2);border:1px solid var(--line);box-shadow:0 8px 28px rgba(0,0,0,.45);color:var(--chalk);font-size:.9rem;line-height:1.4;animation:toastIn .25s ease;border-left:4px solid var(--muted)}
+  .toast.ok{border-left-color:#4ade80}
+  .toast.err{border-left-color:var(--live)}
+  .toast.info{border-left-color:var(--transfer)}
+  .toast .ti{font-size:1.1rem;flex-shrink:0;line-height:1.3}
+  .toast.out{animation:toastOut .2s ease forwards}
+  @keyframes toastIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes toastOut{to{opacity:0;transform:translateY(8px)}}
+
+  /* ===== UX : Modale générique (confirm + enchère) ===== */
+  .ux-ov{position:fixed;inset:0;background:rgba(4,10,22,.72);backdrop-filter:blur(3px);z-index:9998;display:none;align-items:center;justify-content:center;padding:16px}
+  .ux-ov.show{display:flex;animation:ovIn .2s ease}
+  @keyframes ovIn{from{opacity:0}to{opacity:1}}
+  .ux-modal{width:min(94vw,420px);background:var(--pitch-2);border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 16px 48px rgba(0,0,0,.5);animation:mdIn .22s ease}
+  @keyframes mdIn{from{opacity:0;transform:scale(.96) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+  .ux-modal h3{font-family:'Archivo';font-weight:800;font-size:1.15rem;color:var(--chalk);margin:0 0 6px}
+  .ux-modal p{color:var(--muted);font-size:.9rem;line-height:1.5;margin:0 0 16px}
+  .ux-modal .ux-row{display:flex;justify-content:space-between;font-size:.86rem;padding:5px 0;border-bottom:1px solid var(--line);color:var(--chalk)}
+  .ux-modal .ux-row .l{color:var(--muted)}
+  .ux-bid-input{width:100%;font-size:1.3rem;font-family:'Saira';font-weight:700;text-align:center;padding:12px;margin:14px 0 6px;border:2px solid var(--line);border-radius:12px;background:var(--pitch);color:var(--chalk);font-variant-numeric:tabular-nums}
+  .ux-bid-input:focus{border-color:var(--transfer);outline:none}
+  .ux-quick{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+  .ux-quick button{flex:1;min-width:64px;min-height:40px;padding:8px;border-radius:9px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk);font-size:.82rem;font-weight:600;cursor:pointer}
+  .ux-quick button:active{background:var(--line)}
+  .ux-actions{display:flex;gap:10px;margin-top:6px}
+  .ux-actions button{flex:1;min-height:46px;border-radius:11px;border:none;font-weight:700;font-size:.95rem;cursor:pointer}
+  .ux-cancel{background:transparent;border:1px solid var(--line)!important;color:var(--muted)}
+  .ux-ok{background:var(--transfer);color:#1a1200}
+  .ux-ok.danger{background:var(--live);color:#fff}
+  .ux-ok:disabled{opacity:.5;cursor:not-allowed}
+
+  /* ===== UX : Spinner & boutons en chargement ===== */
+  .spin{display:inline-block;width:15px;height:15px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  button.is-loading{position:relative;color:transparent!important;pointer-events:none}
+  button.is-loading::after{content:'';position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .6s linear infinite}
+
+  /* ===== UX : Confort mobile ===== */
+  @media (max-width:620px){
+    button, .btn, [data-bid]{min-height:44px}
+    .ux-modal{padding:18px}
+  }
 </style>
 </head>
 <body>
+<!-- UX : conteneur des toasts -->
+<div id="toastWrap"></div>
+<!-- UX : modale générique (confirmation + enchère) -->
+<div id="uxOverlay" class="ux-ov"><div class="ux-modal" id="uxModal"></div></div>
+
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
   <div class="wm-box">
@@ -745,6 +795,43 @@
 import * as api from './js/api.js';
 import { sb } from './js/api.js';
 
+// ---------- UX : toasts, confirm, chargement ----------
+function toast(msg, type='info', ms=3200){
+  const wrap = document.getElementById('toastWrap');
+  if(!wrap){ console.log(msg); return; }
+  const ic = type==='ok'?'✅':type==='err'?'⚠️':'ℹ️';
+  const el = document.createElement('div');
+  el.className = 'toast '+type;
+  el.innerHTML = `<span class="ti">${ic}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  const kill = ()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),200); };
+  el.onclick = kill;
+  setTimeout(kill, ms);
+}
+// Remplace confirm() natif par une modale stylée (renvoie une Promise<boolean>).
+function uxConfirm(message, {title='Confirmer', okText='Confirmer', danger=false}={}){
+  return new Promise(resolve=>{
+    const ov = document.getElementById('uxOverlay');
+    const md = document.getElementById('uxModal');
+    md.innerHTML = `<h3>${title}</h3><p>${message}</p>
+      <div class="ux-actions">
+        <button class="ux-cancel" data-no>Annuler</button>
+        <button class="ux-ok ${danger?'danger':''}" data-yes>${okText}</button>
+      </div>`;
+    ov.classList.add('show');
+    const close = (val)=>{ ov.classList.remove('show'); resolve(val); };
+    md.querySelector('[data-no]').onclick = ()=>close(false);
+    md.querySelector('[data-yes]').onclick = ()=>close(true);
+    ov.onclick = (e)=>{ if(e.target===ov) close(false); };
+  });
+}
+// Exécute une action async en gérant l'état de chargement d'un bouton.
+async function withLoading(btn, fn){
+  if(btn){ btn.classList.add('is-loading'); btn.disabled = true; }
+  try { return await fn(); }
+  finally { if(btn){ btn.classList.remove('is-loading'); btn.disabled = false; } }
+}
+
 // ---------- Utilitaires ----------
 function fmtMoney(v){ v=Number(v);
   if(v>=1e9) return (v/1e9).toFixed(2).replace('.',',')+' Md€';
@@ -957,7 +1044,7 @@ async function setupComparator(){
   $('cmpSelect').onchange = ()=>{
     const id = $('cmpSelect').value;
     if(!id) return;
-    if(CMP_SELECTED.length>=3){ alert('3 joueurs maximum. Retire-en un d\'abord.'); $('cmpSelect').value=''; return; }
+    if(CMP_SELECTED.length>=3){ toast('3 joueurs maximum. Retire-en un d\'abord.','err'); $('cmpSelect').value=''; return; }
     const p = players.find(x=>x.id===id);
     if(p && !CMP_SELECTED.find(x=>x.id===id)) CMP_SELECTED.push(p);
     $('cmpSelect').value='';
@@ -1016,7 +1103,7 @@ async function setupDirectRecruit(){
     $('directInfo').innerHTML = `<div style="font-size:.9rem">Prix : <b style="font-family:'Saira'">${fmtMoney(p.current_value)}</b></div>`;
     $('btnDirectRecruit').style.display = 'block';
     $('btnDirectRecruit').onclick = async ()=>{
-      if(!confirm(`Recruter ${p.name} pour ${fmtMoney(p.current_value)} ?`)) return;
+      if(!await uxConfirm(`Recruter <b>${p.name}</b> pour ${fmtMoney(p.current_value)} ?`, {title:'Recrutement direct', okText:'Recruter'})) return;
       const { error } = await api.directRecruit(p.id);
       if(error){ $('directResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
       $('directResult').innerHTML = `<span style="color:#4ade80">✓ ${p.name} recruté !</span>`;
@@ -1100,32 +1187,34 @@ async function renderScoutList(){
     const name = prompt('Nouveau nom du joueur :'); if(name===null) return;
     const valStr = prompt('Nouvelle valeur en M€ (ex. 50) :'); if(valStr===null) return;
     const valM = parseFloat(valStr);
-    if(!name.trim() || isNaN(valM)) return alert('Nom et valeur requis.');
+    if(!name.trim() || isNaN(valM)) return toast('Nom et valeur requis.','err');
     const club = prompt('Club (optionnel) :') || null;
     const { error } = await api.resubmitProposal({
       id, new_name: name.trim(), new_position: 'MID',
       new_club: club, new_value: Math.round(valM*1e6), new_championship: null
     });
-    if(error) return alert('Échec : '+error.message);
-    alert('Proposition corrigée et resoumise !');
+    if(error) return toast('Échec : '+error.message,'err');
+    toast('Proposition corrigée et resoumise !','ok');
     renderScoutList();
   });
 }
-if($('btnScout')) $('btnScout').onclick = async ()=>{
+if($('btnScout')) $('btnScout').onclick = async (ev)=>{
   const name = $('scoutName').value.trim();
   const valM = parseFloat($('scoutValue').value);
-  if(!name || isNaN(valM)) return alert('Indique au moins le nom et la valeur du joueur.');
-  const { error } = await api.proposePlayer({
-    new_name: name,
-    new_position: $('scoutPos').value,
-    new_club: $('scoutClub').value.trim() || null,
-    new_value: Math.round(valM * 1e6),
-    new_championship: $('scoutChamp').value
+  if(!name || isNaN(valM)) return toast('Indique au moins le nom et la valeur du joueur.','err');
+  await withLoading(ev.target, async ()=>{
+    const { error } = await api.proposePlayer({
+      new_name: name,
+      new_position: $('scoutPos').value,
+      new_club: $('scoutClub').value.trim() || null,
+      new_value: Math.round(valM * 1e6),
+      new_championship: $('scoutChamp').value
+    });
+    if(error){ toast('Échec : '+error.message,'err'); return; }
+    toast('Joueur proposé ! En attente de validation par l\'admin.','ok');
+    $('scoutName').value=''; $('scoutClub').value=''; $('scoutValue').value='';
+    renderScoutList();
   });
-  if(error) return alert('Échec : '+error.message);
-  alert('Joueur proposé ! En attente de validation par l\'admin.');
-  $('scoutName').value=''; $('scoutClub').value=''; $('scoutValue').value='';
-  renderScoutList();
 };
 
 function tradePick(p, kind){
@@ -1159,22 +1248,24 @@ $('tradeTarget').onchange = async ()=>{
 };
 
 // Envoyer la proposition
-$('btnPropose').onclick = async ()=>{
+$('btnPropose').onclick = async (ev)=>{
   const tid = $('tradeTarget').value;
-  if(!tid) return alert('Choisis un manager.');
-  if(selOffer.size===0 && selAsk.size===0) return alert('Sélectionne au moins un joueur.');
+  if(!tid) return toast('Choisis un manager.','err');
+  if(selOffer.size===0 && selAsk.size===0) return toast('Sélectionne au moins un joueur.','err');
   const cashM = parseFloat($('tradeCash').value)||0;
-  const { error } = await api.proposeTrade({
-    to_manager: tid,
-    offer_players: [...selOffer],
-    ask_players: [...selAsk],
-    cash_from_to: Math.round(cashM*1e6),
-    message: $('tradeMsg').value.trim()||null
+  await withLoading(ev.target, async ()=>{
+    const { error } = await api.proposeTrade({
+      to_manager: tid,
+      offer_players: [...selOffer],
+      ask_players: [...selAsk],
+      cash_from_to: Math.round(cashM*1e6),
+      message: $('tradeMsg').value.trim()||null
+    });
+    if(error){ toast('Échec : '+error.message,'err'); return; }
+    toast('Proposition envoyée !','ok');
+    $('tradeCash').value=''; $('tradeMsg').value='';
+    renderMarket();
   });
-  if(error) return alert('Échec : '+error.message);
-  alert('Proposition envoyée !');
-  $('tradeCash').value=''; $('tradeMsg').value='';
-  renderMarket();
 };
 
 // Affichage des propositions reçues/envoyées
@@ -1224,55 +1315,81 @@ async function renderTradeList(){
 
   $('tradeList').querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.acceptTrade(b.dataset.accept);
-    if(error) return alert('Échec : '+error.message);
-    alert('Échange conclu !'); renderMarket();
+    if(error) return toast('Échec : '+error.message,'err');
+    toast('Échange conclu !','ok'); renderMarket();
   });
   $('tradeList').querySelectorAll('[data-refuse]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.refuseTrade(b.dataset.refuse);
-    if(error) return alert('Échec : '+error.message);
+    if(error) return toast('Échec : '+error.message,'err');
     renderMarket();
   });
   $('tradeList').querySelectorAll('[data-cancel]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.cancelTrade(b.dataset.cancel);
-    if(error) return alert('Échec : '+error.message);
+    if(error) return toast('Échec : '+error.message,'err');
     renderMarket();
   });
 }
 
 
-// ---------- Enchère : placer une offre ----------
+// ---------- Enchère : placer une offre (modale soignée) ----------
 async function startBid(playerId){
   if(!ME){ $('authModal').style.display='flex'; return; }
-  // Trouver l'enchère ouverte de ce joueur
   const auctions = await api.listOpenAuctions();
   const auc = auctions.find(a=>a.player_id===playerId);
-  if(!auc){ alert("Aucune enchère ouverte sur ce joueur pour le moment."); return; }
+  if(!auc){ toast('Aucune enchère ouverte sur ce joueur pour le moment.','err'); return; }
   const next = Number(auc.current_price)+minIncrement(auc.current_price);
-  // PASS restants + commission estimée
   const passes = await api.myPasses(auc.id);
   if(passes <= 0){
-    alert(`Tu n'as plus de PASS sur ${auc.player.name}. Chaque manager a un nombre limité d'offres par joueur — réfléchis bien avant de miser.`);
+    toast(`Plus de PASS sur ${auc.player.name} : tu as atteint ta limite d'offres sur ce joueur.`,'err',4200);
     return;
   }
-  const commTxt = '';
-  // Taxe d'entrée (3M si tu n'as pas dénické ce joueur et pas encore payé)
   const entryTax = await api.myEntryTax(auc.id);
-  const taxTxt = entryTax>0
-    ? `\n💸 Taxe d'entrée : ${fmtMoney(entryTax)} (prélevée maintenant, une seule fois — tu n'as pas déniché ce joueur)`
-    : '';
-  // Plafond d'enchère = valeur de base du joueur × 1,5
   const cap = auc.player && auc.player.base_value ? bidCap(auc.player.base_value) : null;
-  const capTxt = cap ? `\n🔒 Plafond : ${fmtMoney(cap)} (valeur ×1,5 — offre refusée au-delà)` : '';
-  const input = prompt(`Enchère sur ${auc.player.name}\nPrix actuel : ${fmtMoney(auc.current_price)}\nOffre minimale : ${fmtMoney(next)}${capTxt}${commTxt}${taxTxt}\n\n⚠️ Il te reste ${passes} PASS (offre${passes>1?'s':''}) sur ce joueur.\n\nTon offre (en euros) :`, next);
-  if(input===null) return;
-  const amount = parseInt(input,10);
-  if(isNaN(amount)) return alert("Montant invalide.");
-  if(cap && amount > cap) return alert(`Offre au-dessus du plafond.\nPlafond de ${auc.player.name} : ${fmtMoney(cap)} (valeur ×1,5).`);
-  const { error } = await api.placeBid(auc.id, amount);
-  if(error) return alert("Échec : "+error.message);
-  alert("Offre placée !");
-  renderAuctions();
-  if(typeof loadNotifications==='function') loadNotifications();
+  const step = minIncrement(auc.current_price);
+
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  const taxRow = entryTax>0
+    ? `<div class="ux-row"><span class="l">💸 Taxe d'entrée</span><span>${fmtMoney(entryTax)}</span></div>` : '';
+  const capRow = cap
+    ? `<div class="ux-row"><span class="l">🔒 Plafond</span><span>${fmtMoney(cap)}</span></div>` : '';
+  md.innerHTML = `
+    <h3>Enchère — ${auc.player.name}</h3>
+    <p>Il te reste <b>${passes} PASS</b> (offre${passes>1?'s':''}) sur ce joueur.</p>
+    <div class="ux-row"><span class="l">Prix actuel</span><span>${fmtMoney(auc.current_price)}</span></div>
+    <div class="ux-row"><span class="l">Offre minimale</span><span>${fmtMoney(next)}</span></div>
+    ${capRow}${taxRow}
+    <input class="ux-bid-input" id="uxBid" type="number" inputmode="numeric" value="${next}">
+    <div class="ux-quick">
+      <button data-add="${step}">+${fmtMoney(step)}</button>
+      <button data-add="${step*2}">+${fmtMoney(step*2)}</button>
+      ${cap?`<button data-set="${cap}">Plafond</button>`:''}
+    </div>
+    <div class="ux-actions">
+      <button class="ux-cancel" data-no>Annuler</button>
+      <button class="ux-ok" data-yes>Placer l'offre</button>
+    </div>`;
+  ov.classList.add('show');
+  const inp = md.querySelector('#uxBid');
+  const close = ()=>ov.classList.remove('show');
+  md.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ inp.value = Number(inp.value||auc.current_price)+Number(b.dataset.add); });
+  md.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{ inp.value = b.dataset.set; });
+  md.querySelector('[data-no]').onclick = close;
+  ov.onclick = (e)=>{ if(e.target===ov) close(); };
+  md.querySelector('[data-yes]').onclick = async (e)=>{
+    const amount = parseInt(inp.value,10);
+    if(isNaN(amount)) return toast('Montant invalide.','err');
+    if(amount < next) return toast(`Offre trop basse. Minimum : ${fmtMoney(next)}.`,'err');
+    if(cap && amount > cap) return toast(`Au-dessus du plafond (${fmtMoney(cap)}).`,'err');
+    await withLoading(e.target, async ()=>{
+      const { error } = await api.placeBid(auc.id, amount);
+      if(error){ toast('Échec : '+error.message,'err',4200); return; }
+      close();
+      toast('Offre placée !','ok');
+      renderAuctions();
+      if(typeof loadNotifications==='function') loadNotifications();
+    });
+  };
 }
 
 // ---------- Kanban enchères ----------
@@ -1366,13 +1483,13 @@ async function renderBonus(){
 // Conversion budget -> points
 document.addEventListener('click', async (e)=>{
   if(e.target && e.target.id==='btnConvert'){
-    if(!ME) return alert('Connecte-toi d\'abord.');
+    if(!ME) return toast('Connecte-toi d\'abord.','err');
     const mEuros = parseFloat($('convertAmount').value);
-    if(isNaN(mEuros) || mEuros<=0) return alert('Entre un montant valide (en M€).');
+    if(isNaN(mEuros) || mEuros<=0) return toast('Entre un montant valide (en M€).','err');
     const amount = Math.round(mEuros*1e6);
     const pts = Math.floor(amount/1e7);
-    if(pts<1) return alert('Il faut au moins 10 M€ pour convertir 1 point.');
-    if(!confirm(`Convertir ${fmtMoney(amount)} en ${pts} point(s) de classement ?\n\nCette opération est définitive et à sens unique.`)) return;
+    if(pts<1) return toast('Il faut au moins 10 M€ pour convertir 1 point.','err');
+    if(!await uxConfirm(`Convertir ${fmtMoney(amount)} en <b>${pts} point(s)</b> de classement ?<br><br>Opération définitive et à sens unique.`, {title:'Budget → points', okText:'Convertir'})) return;
     const { error } = await api.convertBudgetToPoints(amount);
     if(error){ $('convertResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
     $('convertResult').innerHTML = `<span style="color:#4ade80">✓ ${pts} point(s) ajouté(s) au classement.</span>`;
@@ -1383,11 +1500,11 @@ document.addEventListener('click', async (e)=>{
   }
   // Conversion points -> budget (hiver)
   if(e.target && e.target.id==='btnConvertPoints'){
-    if(!ME) return alert('Connecte-toi d\'abord.');
+    if(!ME) return toast('Connecte-toi d\'abord.','err');
     const pts = parseInt($('convertPoints').value);
-    if(isNaN(pts) || pts<=0) return alert('Entre un nombre de points valide.');
+    if(isNaN(pts) || pts<=0) return toast('Entre un nombre de points valide.','err');
     const gain = pts*1e7;
-    if(!confirm(`Convertir ${pts} point(s) en ${fmtMoney(gain)} de budget ?\n\nCes points seront retirés de ton classement. Opération réservée au mercato d'hiver.`)) return;
+    if(!await uxConfirm(`Convertir ${pts} point(s) en <b>${fmtMoney(gain)}</b> de budget ?<br><br>Ces points seront retirés de ton classement. Réservé au mercato d'hiver.`, {title:'Points → budget', okText:'Convertir'})) return;
     const { error } = await api.convertPointsToBudget(pts);
     if(error){ $('convertPointsResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
     $('convertPointsResult').innerHTML = `<span style="color:#4ade80">✓ ${fmtMoney(gain)} ajouté(s) à ton budget.</span>`;
@@ -1469,10 +1586,10 @@ async function renderTeam(){
   // Boutons "Déclarer blessé"
   document.querySelectorAll('#team [data-injury]').forEach(btn => btn.onclick = async () => {
     const name = btn.dataset.iname || 'ce joueur';
-    if(!confirm(`Déclarer ${name} blessé (longue durée) ?\n\nL'organisateur devra valider. Une fois validé et pendant le mercato d'hiver, tu pourras le remplacer gratuitement par un joueur libre, sans enchère.`)) return;
+    if(!await uxConfirm(`Déclarer <b>${name}</b> blessé (longue durée) ?<br><br>L'organisateur devra valider. Une fois validé et pendant le mercato d'hiver, tu pourras le remplacer gratuitement par un joueur libre, sans enchère.`, {title:'Déclarer une blessure', okText:'Déclarer'})) return;
     const { error } = await api.declareInjury(btn.dataset.injury);
-    if(error) return alert('Échec : '+error.message);
-    alert('Déclaration envoyée. En attente de validation par l\'organisateur.');
+    if(error) return toast('Échec : '+error.message,'err');
+    toast('Déclaration envoyée. En attente de validation par l\'organisateur.','ok');
   });
 
   // Boutons "Libérer" (liste ET terrain, via délégation sur data-release)
@@ -1480,18 +1597,17 @@ async function renderTeam(){
     const pid = btn.dataset.release;
     const prev = await api.releasePreview(pid);
     if(!prev || !prev.can_release){
-      return alert(prev ? prev.reason : "Libération impossible pour le moment.");
+      return toast(prev ? prev.reason : "Libération impossible pour le moment.",'err');
     }
-    const ok = confirm(
-      `Libérer ce joueur ?\n\n` +
-      `Détenu depuis ${prev.held_hours}h → pénalité de ${prev.penalty_pct}%.\n` +
-      `Tu récupères ${fmtMoney(prev.refund)} (pénalité perdue : ${fmtMoney(prev.penalty)}).\n\n` +
-      `Le joueur retournera sur le marché. Cette action est définitive.`
-    );
+    const ok = await uxConfirm(
+      `Détenu depuis ${prev.held_hours}h → pénalité de <b>${prev.penalty_pct}%</b>.<br>`+
+      `Tu récupères <b>${fmtMoney(prev.refund)}</b> (pénalité perdue : ${fmtMoney(prev.penalty)}).<br><br>`+
+      `Le joueur retournera sur le marché. Action définitive.`,
+      {title:'Libérer ce joueur ?', okText:'Libérer', danger:true});
     if(!ok) return;
     const { error } = await api.releasePlayer(pid);
-    if(error) return alert("Échec : " + error.message);
-    alert("Joueur libéré. Budget crédité du remboursement.");
+    if(error) return toast('Échec : '+error.message,'err');
+    toast('Joueur libéré. Budget crédité du remboursement.','ok');
     renderTeam();
   });
 }
@@ -1772,7 +1888,7 @@ function renderLineupPlayers(mine){
     const id = el.dataset.lp;
     if(LINEUP_SELECTED.has(id)) LINEUP_SELECTED.delete(id);
     else {
-      if(LINEUP_SELECTED.size>=11){ alert('11 titulaires maximum. Retire-en un d\'abord.'); return; }
+      if(LINEUP_SELECTED.size>=11){ toast('11 titulaires maximum. Retire-en un d\'abord.','err'); return; }
       LINEUP_SELECTED.add(id);
     }
     renderLineupPlayers(mine);
@@ -1787,7 +1903,7 @@ function updateLineupCounter(){
   c.style.color = n===11 ? '#4ade80' : (n>11?'var(--live)':'var(--chalk)');
 }
 async function saveLineup(mdId){
-  if(LINEUP_SELECTED.size!==11){ alert('Il faut exactement 11 titulaires.'); return; }
+  if(LINEUP_SELECTED.size!==11){ toast('Il faut exactement 11 titulaires.','err'); return; }
   const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED));
   if(error){ $('lineupResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
   $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée !</span>`;
