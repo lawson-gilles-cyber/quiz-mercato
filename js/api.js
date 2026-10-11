@@ -548,6 +548,17 @@ export async function adminCrownChampion() {
   return sb.rpc('qm_admin_crown_champion');
 }
 
+// ---------- Outils admin : fonds / taxe / bonus dénicheur ---------
+export async function adminCreditBudget(managerId, amount, reason) {
+  return sb.rpc('qm_admin_credit_budget', { p_manager_id: managerId, p_amount: amount, p_reason: reason ?? null });
+}
+export async function adminExemptEntryTax(auctionId, managerId) {
+  return sb.rpc('qm_admin_exempt_entry_tax', { p_auction_id: auctionId, p_manager_id: managerId });
+}
+export async function adminForceScoutBonus(managerId, referencePrice, playerLabel) {
+  return sb.rpc('qm_admin_force_scout_bonus', { p_manager_id: managerId, p_reference_price: referencePrice, p_player_label: playerLabel ?? null });
+}
+
 // ---------- Bonus Construction ------------------------------------
 export async function adminSetConstructionBonuses(b11, b15, b19, clubs) {
   return sb.rpc('qm_admin_set_construction_bonuses', { p_b11: b11, p_b15: b15, p_b19: b19, p_clubs: clubs });

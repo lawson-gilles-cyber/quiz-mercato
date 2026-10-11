@@ -348,6 +348,44 @@
     </div>
   </div>
 
+  <!-- Outils admin : fonds / taxe / bonus dénicheur -->
+  <h2>Interventions manuelles (fonds, taxe, bonus)</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Le bonus dénicheur et l'exemption de taxe sont normalement <strong>automatiques</strong>. Ces outils servent aux cas exceptionnels (dédommagement, correction). Chaque intervention est tracée dans « Trace des bonus ».</p>
+
+    <!-- Créditer du budget -->
+    <label>Créditer du budget à un manager (M€)</label>
+    <div class="row c3" style="margin-top:6px;margin-bottom:18px">
+      <div><select id="cb_manager"><option value="">— manager —</option></select></div>
+      <div><input id="cb_amount" type="number" step="0.5" placeholder="Montant en M€ (ex. 10)"></div>
+      <div><button class="btn-primary" id="btnCreditBudget" style="width:100%">Créditer</button></div>
+    </div>
+    <div style="margin-bottom:18px"><input id="cb_reason" type="text" placeholder="Motif (optionnel, ex. dédommagement bug)" style="width:100%"></div>
+
+    <!-- Exempter de la taxe d'entrée -->
+    <div style="padding-top:16px;border-top:1px solid var(--line)">
+      <label>Exempter un manager de la taxe d'entrée (3 M€) sur une enchère</label>
+      <div class="row c3" style="margin-top:6px;margin-bottom:6px">
+        <div><select id="ex_manager"><option value="">— manager —</option></select></div>
+        <div><select id="ex_auction"><option value="">— enchère ouverte —</option></select></div>
+        <div><button class="btn-primary" id="btnExemptTax" style="width:100%">Exempter</button></div>
+      </div>
+      <p class="hint">Le manager choisi ne paiera pas les 3 M€ sur ce joueur précis.</p>
+    </div>
+
+    <!-- Forcer un bonus dénicheur -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>Forcer un bonus dénicheur (10 % du prix, plafonné à 20 M€)</label>
+      <div class="row c3" style="margin-top:6px;margin-bottom:6px">
+        <div><select id="sb_manager"><option value="">— manager —</option></select></div>
+        <div><input id="sb_price" type="number" step="0.5" placeholder="Prix de réf. en M€ (ex. 100)"></div>
+        <div><button class="btn-primary" id="btnForceScout" style="width:100%">Verser le bonus</button></div>
+      </div>
+      <div style="margin-bottom:6px"><input id="sb_label" type="text" placeholder="Joueur / motif (optionnel)" style="width:100%"></div>
+      <p class="hint">Le système calcule 10 % du prix saisi, plafonné à 20 M€.</p>
+    </div>
+  </div>
+
   <!-- Trace des bonus -->
   <h2>Trace des bonus attribués</h2>
   <div class="card">
@@ -426,7 +464,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools();
 }
 
 $('btnLogin').onclick = async () => {
@@ -776,6 +814,64 @@ async function loadBonusSettings(){
   $('quiz_manager').innerHTML = '<option value="">— manager —</option>' +
     managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
 }
+
+// ---------- Outils admin : fonds / taxe / bonus dénicheur ----------
+async function loadAdminTools(){
+  if(!$('cb_manager')) return;
+  const managers = await api.listManagers();
+  // Managers "compétiteurs" seulement (pas admins, pas coachs) pour le crédit/bonus.
+  const mgrOpts = '<option value="">— manager —</option>' +
+    managers.filter(m=>!m.is_admin && !m.coach_of)
+            .map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+  $('cb_manager').innerHTML = mgrOpts;
+  $('ex_manager').innerHTML = mgrOpts;
+  $('sb_manager').innerHTML = mgrOpts;
+
+  // Enchères ouvertes pour l'exemption de taxe.
+  const aucs = await api.listOpenAuctions();
+  $('ex_auction').innerHTML = '<option value="">— enchère ouverte —</option>' +
+    (aucs||[]).map(a=>{
+      const nm = (a.player && a.player.name) ? a.player.name : (a.player_name || 'Joueur');
+      const px = a.current_price ? ' ('+(Number(a.current_price)/1e6)+' M€)' : '';
+      return `<option value="${a.id}">${nm}${px}</option>`;
+    }).join('');
+}
+
+$('btnCreditBudget').onclick = async ()=>{
+  const mgr = $('cb_manager').value;
+  const m = parseFloat($('cb_amount').value);
+  if(!mgr) return showMsg($('msg2'),'Choisis un manager.');
+  if(isNaN(m) || m===0) return showMsg($('msg2'),'Indique un montant non nul (M€).');
+  const reason = $('cb_reason').value.trim() || null;
+  const r = await api.adminCreditBudget(mgr, Math.round(m*1e6), reason);
+  if(r.error) return showMsg($('msg2'), r.error.message);
+  showMsg($('msg2'), `${m} M€ crédités.`, true);
+  $('cb_amount').value=''; $('cb_reason').value='';
+  loadBonusTrace();
+};
+
+$('btnExemptTax').onclick = async ()=>{
+  const mgr = $('ex_manager').value, auc = $('ex_auction').value;
+  if(!mgr || !auc) return showMsg($('msg2'),'Choisis un manager ET une enchère.');
+  const r = await api.adminExemptEntryTax(auc, mgr);
+  if(r.error) return showMsg($('msg2'), r.error.message);
+  showMsg($('msg2'), 'Manager exempté de la taxe sur cette enchère.', true);
+};
+
+$('btnForceScout').onclick = async ()=>{
+  const mgr = $('sb_manager').value;
+  const p = parseFloat($('sb_price').value);
+  if(!mgr) return showMsg($('msg2'),'Choisis un manager.');
+  if(isNaN(p) || p<=0) return showMsg($('msg2'),'Indique un prix de référence positif (M€).');
+  const label = $('sb_label').value.trim() || null;
+  const r = await api.adminForceScoutBonus(mgr, Math.round(p*1e6), label);
+  if(r.error) return showMsg($('msg2'), r.error.message);
+  const verse = (Number(r.data)/1e6);
+  showMsg($('msg2'), `Bonus dénicheur versé : ${verse} M€.`, true);
+  $('sb_price').value=''; $('sb_label').value='';
+  loadBonusTrace();
+};
+
 // ---------- VAGUE 3 : Journées & Coachs ----------
 async function loadWindows(){
   const wins = await api.listWindows();
