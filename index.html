@@ -76,11 +76,9 @@
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
   .logo b{-webkit-text-fill-color:transparent}
   .logo span{display:inline-block;transform:skewX(-8deg)}
-  /* Barre de menus épurée : une seule ligne, défilement horizontal, onglets discrets */
-  nav{display:flex;gap:2px;margin-left:auto;flex-wrap:nowrap;overflow-x:auto;min-width:0;
-    -webkit-overflow-scrolling:touch;scrollbar-width:none;max-width:100%;
-    -webkit-mask-image:linear-gradient(90deg,#000 94%,transparent);mask-image:linear-gradient(90deg,#000 94%,transparent)}
-  nav::-webkit-scrollbar{display:none}
+  /* Barre de menus épurée : une seule ligne, onglets discrets.
+     overflow visible pour ne pas clipper le menu déroulant "Plus". */
+  nav{display:flex;gap:2px;margin-left:auto;flex-wrap:nowrap;min-width:0;max-width:100%}
   nav button{
     font-family:'Archivo Narrow',sans-serif;font-weight:600;text-transform:uppercase;
     letter-spacing:.3px;font-size:.78rem;white-space:nowrap;flex:0 0 auto;
@@ -95,7 +93,7 @@
     letter-spacing:.3px;font-size:.78rem;white-space:nowrap;background:none;border:none;
     border-bottom:2px solid transparent;color:var(--muted);padding:9px 12px;cursor:pointer;transition:color .15s}
   .more-btn:hover{color:var(--chalk)}
-  .more-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:180px;z-index:40;
+  .more-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:180px;z-index:80;
     background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:6px;
     box-shadow:0 12px 32px rgba(0,0,0,.45);display:none;flex-direction:column;gap:2px}
   .more-menu.open{display:flex;animation:ovIn .15s ease}
@@ -123,11 +121,11 @@
       justify-content:space-around}
     #tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;
       background:none;border:none;color:var(--muted);cursor:pointer;padding:4px 2px;min-height:48px}
-    #tabbar button .ti{font-size:1.25rem;line-height:1;filter:grayscale(.4) opacity(.8)}
+    #tabbar button .ti{line-height:0}
+    #tabbar button .ti svg{width:23px;height:23px;display:block}
     #tabbar button .tl{font-family:'Archivo Narrow',sans-serif;font-size:.6rem;font-weight:600;
       text-transform:uppercase;letter-spacing:.3px}
     #tabbar button.active{color:var(--transfer)}
-    #tabbar button.active .ti{filter:none}
     /* marge basse pour que le contenu ne soit pas caché par la barre */
     main{padding-bottom:76px}
     /* Le menu "Plus" mobile s'ancre en bas à droite au-dessus de la barre */
@@ -396,14 +394,26 @@
 <body>
 <!-- UX : conteneur des toasts -->
 <div id="toastWrap"></div>
-<!-- Barre d'onglets du bas (mobile, style appli) -->
+<!-- Barre d'onglets du bas (mobile, style appli) — icônes SVG maison -->
 <nav id="tabbar" aria-label="Navigation principale">
-  <button data-v="home" class="active"><span class="ti">🏠</span><span class="tl">Accueil</span></button>
-  <button data-v="auctions"><span class="ti">🔨</span><span class="tl">Enchères</span></button>
-  <button data-v="market"><span class="ti">🔄</span><span class="tl">Mercato</span></button>
-  <button data-v="team"><span class="ti">👥</span><span class="tl">Équipe</span></button>
-  <button data-v="lineup"><span class="ti">📋</span><span class="tl">Compo</span></button>
-  <button type="button" id="tabMore"><span class="ti">⋯</span><span class="tl">Plus</span></button>
+  <button data-v="home" class="active">
+    <span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/><path d="M9.5 20v-5.5h5V20"/></svg></span>
+    <span class="tl">Accueil</span></button>
+  <button data-v="auctions">
+    <span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m13.5 8.5-6 6"/><rect x="2.4" y="13.2" width="6.5" height="3.4" rx="1" transform="rotate(45 5.65 14.9)"/><path d="m11 4 6 6"/><path d="m14 3.5 3.5 3.5"/><path d="m18.5 8 3.5 3.5"/><path d="M4 21h9"/></svg></span>
+    <span class="tl">Enchères</span></button>
+  <button data-v="market">
+    <span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h13l-2.5-2.5"/><path d="M20 16H7l2.5 2.5"/></svg></span>
+    <span class="tl">Mercato</span></button>
+  <button data-v="team">
+    <span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19.5a5.5 5.5 0 0 1 11 0"/><path d="M16 5.5a3 3 0 0 1 0 5.6"/><path d="M17 14.3a5.5 5.5 0 0 1 3.5 5.2"/></svg></span>
+    <span class="tl">Équipe</span></button>
+  <button data-v="lineup">
+    <span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 12h16"/><circle cx="12" cy="12" r="2.3"/><path d="M8 3v2.5M16 3v2.5M8 21v-2.5M16 21v-2.5"/></svg></span>
+    <span class="tl">Compo</span></button>
+  <button type="button" id="tabMore">
+    <span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></span>
+    <span class="tl">Plus</span></button>
 </nav>
 <!-- UX : modale générique (confirmation + enchère) -->
 <div id="uxOverlay" class="ux-ov"><div class="ux-modal" id="uxModal"></div></div>
