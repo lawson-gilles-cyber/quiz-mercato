@@ -200,6 +200,7 @@
   .jersey-bar>span{display:block;height:100%;border-radius:3px}
   .jersey-note{font-family:'Saira','Space Mono';font-weight:800;font-size:.72rem;margin-top:2px;font-variant-numeric:tabular-nums}
   .jersey-val{font-family:'Saira','Space Mono';font-weight:600;font-size:.64rem;color:#5a6b62;margin-top:1px;font-variant-numeric:tabular-nums}
+  .jersey-sal{font-family:'Saira','Space Mono';font-weight:700;font-size:.6rem;color:var(--transfer);margin-top:2px;font-variant-numeric:tabular-nums}
   .jersey.empty{background:rgba(255,255,255,.08);border:1px dashed rgba(255,255,255,.3);min-height:92px;display:flex;align-items:center;justify-content:center}
   .jersey.empty span{font-size:1.5rem;color:rgba(255,255,255,.4)}
   .pitch-count{position:relative;z-index:1;text-align:center;font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.66rem;color:rgba(255,255,255,.6);margin-bottom:8px}
@@ -761,6 +762,15 @@ function minIncrement(v){ v=Number(v);
   if(v>=100e6) return 4e6;
   if(v>= 50e6) return 3e6;
   if(v>= 20e6) return 2e6;
+  return 1e6;
+}
+// Salaire annuel d'un joueur selon son prix (grille Audrey, synchronisé avec qm_player_salary) :
+// < 20M ->1M · 20-50M ->3M · 50-100M ->6M · 100-180M ->10M · >=180M ->15M
+function playerSalary(v){ v=Number(v);
+  if(v>=180e6) return 15e6;
+  if(v>=100e6) return 10e6;
+  if(v>= 50e6) return 6e6;
+  if(v>= 20e6) return 3e6;
   return 1e6;
 }
 // Plafond d'enchère d'un joueur = valeur de base × 1,5 (synchronisé avec qm_bid_cap).
@@ -1572,6 +1582,7 @@ function jerseyCard(p, readonly, colors){
     <div class="jersey-nm">${p.name}</div>
     <div class="jersey-cl">${p.club||''}</div>
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
+    <div class="jersey-sal" title="Salaire annuel">💰 ${fmtMoney(playerSalary(p.current_value))}/an</div>
   </div>`;
 }
 function buildPitch(mine, readonly, colors){
