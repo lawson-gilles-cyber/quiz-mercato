@@ -292,11 +292,45 @@ export async function adminPendingProposals() {
   const { data } = await sb.rpc('qm_admin_pending_proposals');
   return data ?? [];
 }
+// ---------- Validation du marché (proposition Audrey) -------------
+export async function adminProposals(status) {
+  const { data } = await sb.rpc('qm_admin_proposals', { p_status: status ?? null });
+  return data ?? [];
+}
+export async function adminProposalCounts() {
+  const { data } = await sb.rpc('qm_admin_proposal_counts');
+  return (data && data[0]) ? data[0] : { pending: 0, approved: 0, needs_changes: 0 };
+}
+export async function proposalDuplicates(id) {
+  const { data } = await sb.rpc('qm_proposal_duplicates', { p_proposal_id: id });
+  return data ?? [];
+}
 export async function adminApproveProposal(id) {
   return sb.rpc('qm_admin_approve_proposal', { p_proposal_id: id });
 }
-export async function adminRejectProposal(id) {
-  return sb.rpc('qm_admin_reject_proposal', { p_proposal_id: id });
+export async function adminPublishProposal(id) {
+  return sb.rpc('qm_admin_publish_proposal', { p_proposal_id: id });
+}
+export async function adminRequestChanges(id, reason) {
+  return sb.rpc('qm_admin_request_changes', { p_proposal_id: id, p_reason: reason });
+}
+export async function adminRejectProposal(id, reason) {
+  return sb.rpc('qm_admin_reject_proposal', { p_proposal_id: id, p_reason: reason ?? null });
+}
+// ---------- Manager : corriger / annuler une proposition ----------
+export async function resubmitProposal(p) {
+  // p : { id, new_name, new_position, new_club, new_value, new_championship }
+  return sb.rpc('qm_resubmit_proposal', {
+    p_proposal_id: p.id,
+    p_new_name: p.new_name ?? null,
+    p_new_position: p.new_position ?? null,
+    p_new_club: p.new_club ?? null,
+    p_new_value: p.new_value ?? null,
+    p_new_championship: p.new_championship ?? null
+  });
+}
+export async function cancelProposal(id) {
+  return sb.rpc('qm_cancel_proposal', { p_proposal_id: id });
 }
 export async function adminTransactions() {
   const { data } = await sb.rpc('qm_admin_transactions');

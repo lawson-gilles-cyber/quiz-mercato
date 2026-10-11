@@ -413,13 +413,31 @@
     </table>
   </div>
 
-  <!-- Propositions de joueurs à valider -->
-  <h2>Propositions de joueurs (dénichage)</h2>
+  <!-- Validation du marché (dénichage -> validation -> publication) -->
+  <h2>Validation du marché</h2>
   <div class="card">
-    <p class="hint" style="margin-bottom:14px">Joueurs proposés par les managers. En validant, tu ouvres une enchère (48h) et le proposeur touchera un bonus si un <b>autre</b> manager remporte le joueur.</p>
+    <p class="hint" style="margin-bottom:14px">
+      <b>Dénicher</b> (manager) → <b>Valider</b> (admin) → <b>Publier</b> (mise aux enchères).
+      Valider reconnaît le joueur ; publier ouvre l'enchère (48 h) — possible seulement si le marché est ouvert.
+      Tu ne peux pas valider/publier ta propre proposition.
+    </p>
+    <div class="row c3" style="margin-bottom:14px;text-align:center">
+      <div style="background:var(--card2,#101d38);border-radius:10px;padding:10px">
+        <div style="font-size:1.6rem;font-weight:800" id="pc_pending">0</div>
+        <div class="hint">En attente</div>
+      </div>
+      <div style="background:var(--card2,#101d38);border-radius:10px;padding:10px">
+        <div style="font-size:1.6rem;font-weight:800;color:var(--transfer)" id="pc_approved">0</div>
+        <div class="hint">Approuvés (à publier)</div>
+      </div>
+      <div style="background:var(--card2,#101d38);border-radius:10px;padding:10px">
+        <div style="font-size:1.6rem;font-weight:800;color:var(--live)" id="pc_changes">0</div>
+        <div class="hint">À corriger</div>
+      </div>
+    </div>
     <table>
-      <thead><tr><th>Proposé par</th><th>Joueur</th><th>Poste</th><th>Club</th><th>Valeur</th><th></th></tr></thead>
-      <tbody id="proposalRows"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition en attente.</td></tr></tbody>
+      <thead><tr><th>Proposé par</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="proposalRows"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr></tbody>
     </table>
   </div>
 
@@ -1127,33 +1145,77 @@ async function loadBonusTrace(){
   }).join('');
 }
 
+const PROP_STATUS = {
+  pending:       {txt:'En attente',  cls:'s-open'},
+  approved:      {txt:'Approuvé',    cls:'s-open'},
+  needs_changes: {txt:'À corriger',  cls:'s-closed'},
+  published:     {txt:'Publié',      cls:'s-open'},
+  rejected:      {txt:'Refusé',      cls:'s-closed'},
+  cancelled:     {txt:'Annulé',      cls:'s-closed'}
+};
+
 async function loadProposals(){
-  const props = await api.adminPendingProposals();
+  // Compteurs d'en-tête
+  const c = await api.adminProposalCounts();
+  if($('pc_pending'))  $('pc_pending').textContent  = c.pending ?? 0;
+  if($('pc_approved')) $('pc_approved').textContent = c.approved ?? 0;
+  if($('pc_changes'))  $('pc_changes').textContent  = c.needs_changes ?? 0;
+
+  const props = await api.adminProposals();
   const tbody = $('proposalRows');
-  if(props.length===0){
-    tbody.innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition en attente.</td></tr>';
+  if(!props.length){
+    tbody.innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr>';
     return;
   }
-  tbody.innerHTML = props.map(p=>`
-    <tr>
-      <td><b>${p.proposer}</b></td>
-      <td>${p.player_name}${p.existing?' <span class="hint">(existant)</span>':''}</td>
-      <td><span class="pos-tag">${POS[p.pos]??'—'}</span></td>
-      <td>${p.club ?? '—'}</td>
+  tbody.innerHTML = props.map(p=>{
+    const st = PROP_STATUS[p.status] || {txt:p.status, cls:'s-closed'};
+    const dup = p.dup_count>0 ? ` <span class="status s-closed" title="Doublons potentiels">⚠ ${p.dup_count} doublon(s)</span>` : '';
+    const own = p.is_own ? ' <span class="hint">(ta proposition)</span>' : '';
+    const reason = p.decision_reason ? `<div class="hint" style="margin-top:4px">Motif : ${p.decision_reason}</div>` : '';
+    // Actions selon le statut
+    let actions = '';
+    if(p.status==='pending' || p.status==='needs_changes'){
+      actions = `
+        <button class="btn-primary btn-sm" data-approve="${p.id}" ${p.is_own?'disabled title="Impossible sur ta propre proposition"':''}>Valider</button>
+        <button class="btn-ghost btn-sm" data-changes="${p.id}">Demander correction</button>
+        <button class="btn-danger" data-reject="${p.id}">Refuser</button>`;
+    } else if(p.status==='approved'){
+      actions = `
+        <button class="btn-primary btn-sm" data-publish="${p.id}" ${p.is_own?'disabled title="Impossible sur ta propre proposition"':''}>Publier (enchère)</button>
+        <button class="btn-danger" data-reject="${p.id}">Refuser</button>`;
+    }
+    return `<tr>
+      <td><b>${p.proposer_name}</b>${own}</td>
+      <td>${p.player_name}${dup}${reason}</td>
+      <td>${p.club ?? '—'}${p.championship?' · '+p.championship:''}</td>
       <td class="val">${p.value?fmtM(p.value):'—'}</td>
-      <td><div class="actions">
-        <button class="btn-primary btn-sm" data-approve="${p.id}">Valider</button>
-        <button class="btn-danger" data-reject="${p.id}">Refuser</button>
-      </div></td>
-    </tr>`).join('');
+      <td><span class="status ${st.cls}">${st.txt}</span></td>
+      <td><div class="actions">${actions}</div></td>
+    </tr>`;
+  }).join('');
+
   tbody.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.adminApproveProposal(b.dataset.approve);
     if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Proposition validée : enchère ouverte (48h).', true);
+    showMsg($('msg2'), 'Proposition validée. Clique « Publier » pour ouvrir l\'enchère.', true);
+    loadProposals();
+  });
+  tbody.querySelectorAll('[data-publish]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminPublishProposal(b.dataset.publish);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Joueur publié : enchère ouverte (48 h).', true);
     loadProposals(); loadPlayers();
   });
+  tbody.querySelectorAll('[data-changes]').forEach(b=>b.onclick=async()=>{
+    const reason = prompt('Motif de la correction demandée (visible par le manager) :');
+    if(reason===null || !reason.trim()) return;
+    const { error } = await api.adminRequestChanges(b.dataset.changes, reason.trim());
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), 'Correction demandée au manager.', true); loadProposals();
+  });
   tbody.querySelectorAll('[data-reject]').forEach(b=>b.onclick=async()=>{
-    const { error } = await api.adminRejectProposal(b.dataset.reject);
+    const reason = prompt('Motif du refus (optionnel, visible par le manager) :') || null;
+    const { error } = await api.adminRejectProposal(b.dataset.reject, reason);
     if(error) return showMsg($('msg2'), error.message);
     showMsg($('msg2'), 'Proposition refusée.', true); loadProposals();
   });
