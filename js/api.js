@@ -128,9 +128,10 @@ export async function myTeam(managerId) {
 
 export async function leaderboard() {
   const { data } = await sb.from('qm_managers')
-    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked')
+    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, coach_of')
     .order('season_points', { ascending: false });
-  return data ?? [];
+  // Seuls les compétiteurs : on exclut les admins et les coachs (pas d'effectif propre).
+  return (data ?? []).filter(m => !m.is_admin && !m.coach_of);
 }
 
 export async function transferHistory(playerId) {

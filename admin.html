@@ -201,6 +201,16 @@
     <div id="coachList"></div>
   </div>
 
+  <!-- Classement des managers -->
+  <h2>Classement des managers</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Classement général, trié par points de saison. Les comptes admin et coach n'y figurent pas.</p>
+    <table>
+      <thead><tr><th>#</th><th>Manager</th><th>Équipe</th><th>Points</th><th>Effectif</th><th>Budget dispo</th></tr></thead>
+      <tbody id="rankAdminBody"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
   <h2>Récompenses de fin de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -482,7 +492,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking();
 }
 
 $('btnLogin').onclick = async () => {
@@ -919,6 +929,30 @@ $('btnCreateWindow').onclick = async ()=>{
 };
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
+async function loadRanking(){
+  if(!$('rankAdminBody')) return;
+  const managers = await api.leaderboard();  // déjà filtré (hors admin/coach)
+  if(!managers.length){
+    $('rankAdminBody').innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucun manager inscrit.</td></tr>';
+    return;
+  }
+  // Effectif de chaque manager (compte + valeur)
+  const rows = await Promise.all(managers.map(async m=>{
+    let count = 0;
+    try { const team = await api.myTeam(m.id); count = team.length; } catch(e){}
+    return {...m, count};
+  }));
+  $('rankAdminBody').innerHTML = rows.map((m,i)=>`
+    <tr>
+      <td style="font-weight:700;${i===0?'color:var(--transfer)':''}">${i+1}</td>
+      <td><b>${m.display_name}</b></td>
+      <td style="color:var(--muted)">${m.team_name||'—'}</td>
+      <td class="val">${m.season_points}</td>
+      <td>${m.count} / 21</td>
+      <td class="val">${fmtM(Number(m.budget)-Number(m.budget_locked))}</td>
+    </tr>`).join('');
+}
+
 async function loadAwards(){
   if(!$('awardManager')) return;
   const managers = await api.listManagers();
