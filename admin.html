@@ -95,9 +95,18 @@
   .phase-current{font-family:'Space Mono';color:var(--transfer)}
   .hint{color:var(--muted);font-size:.8rem;margin-top:6px}
   a{color:var(--transfer)}
+  /* Toasts admin (feedback visible où que soit le scroll) */
+  #toastWrap{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(92vw,460px);pointer-events:none}
+  .toast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;padding:13px 16px;border-radius:12px;background:var(--card,#101d38);border:1px solid var(--line);box-shadow:0 8px 28px rgba(0,0,0,.5);color:var(--chalk);font-size:.9rem;line-height:1.45;border-left:4px solid var(--muted);animation:tin .25s ease}
+  .toast.ok{border-left-color:#4ade80}
+  .toast.err{border-left-color:#ef5350}
+  .toast.info{border-left-color:var(--transfer)}
+  .toast .ti{font-size:1.1rem;flex-shrink:0}
+  @keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 </style>
 </head>
 <body>
+<div id="toastWrap"></div>
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
   <div class="wm-box">
@@ -169,6 +178,13 @@
   <!-- Fenêtres de mercato (été/hiver) -->
   <h2>Fenêtres de mercato</h2>
   <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card2,#101d38);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div>
+        <div style="font-weight:700">🧪 Recrutement direct — mode test</div>
+        <div class="hint" style="margin-top:2px">Quand il est activé, les managers peuvent recruter directement un joueur libre <b>sans condition</b> (ni blessure, ni mercato d'hiver). À remettre sur OFF après tes tests.</div>
+      </div>
+      <button id="btnDirectTest" class="btn-ghost btn-sm" style="white-space:nowrap">—</button>
+    </div>
     <p class="hint" style="margin-bottom:12px">Crée les mercatos d'été et d'hiver, puis active celui qui est en cours. Hors fenêtre active, aucune enchère ni recrutement direct n'est possible. Une seule fenêtre active à la fois.</p>
     <div class="row c3" style="margin-bottom:12px">
       <div><label>Type</label><select id="winKind"><option value="summer">Mercato d'été</option><option value="winter">Mercato d'hiver</option></select></div>
@@ -248,7 +264,8 @@
   <h2>Ajouter un joueur</h2>
   <div class="card">
     <div class="row c3">
-      <div><label>Nom</label><input id="p_name" placeholder="Kylian Mbappé"></div>
+      <div><label>Prénom</label><input id="p_first" placeholder="Kylian"></div>
+      <div><label>Nom de famille</label><input id="p_name" placeholder="Mbappé"></div>
       <div><label>Poste</label><select id="p_position">
         <option value="GK">Gardien</option><option value="DEF">Défenseur</option>
         <option value="MID">Milieu</option><option value="FWD" selected>Attaquant</option>
@@ -471,6 +488,16 @@ function maybeShowWelcome(){
   modal.onclick = (e)=>{ if(e.target===modal) close(); };
 }
 const showMsg = (el, txt, ok=false) => { el.textContent = txt; el.className = ok?'ok':'err'; };
+// Toast visible quel que soit le défilement (pour le feedback des validations).
+function toast(msg, type='info', ms=4000){
+  const wrap = document.getElementById('toastWrap'); if(!wrap){ console.log(msg); return; }
+  const ic = type==='ok'?'✅':type==='err'?'⚠️':'ℹ️';
+  const el = document.createElement('div'); el.className='toast '+type;
+  el.innerHTML = `<span class="ti">${ic}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  const kill=()=>{ el.style.opacity='0'; setTimeout(()=>el.remove(),200); };
+  el.onclick=kill; setTimeout(kill, ms);
+}
 const M = 1_000_000;
 
 // ---------- Auth ----------
@@ -492,7 +519,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest();
 }
 
 $('btnLogin').onclick = async () => {
@@ -545,10 +572,12 @@ document.querySelectorAll('[data-phase]').forEach(b=>{
 
 // ---------- Ajouter un joueur ----------
 $('btnAddPlayer').onclick = async () => {
+  const first = $('p_first').value.trim();
   const name = $('p_name').value.trim();
   const valM = parseFloat($('p_value').value);
-  if(!name || isNaN(valM)) return showMsg($('msg2'), 'Nom et valeur sont obligatoires.');
+  if(!name || isNaN(valM)) return toast('Nom de famille et valeur sont obligatoires.','err');
   const { error } = await api.adminUpsertPlayer({
+    first_name: first || null,
     name,
     position: $('p_position').value,
     club: $('p_club').value.trim() || null,
@@ -558,9 +587,9 @@ $('btnAddPlayer').onclick = async () => {
     value: Math.round(valM * M),
     championship: $('p_champ').value
   });
-  if(error) return showMsg($('msg2'), error.message);
-  showMsg($('msg2'), `${name} ajouté.`, true);
-  ['p_name','p_club','p_nat','p_age','p_value','p_photo'].forEach(id=>$(id).value='');
+  if(error) return toast(error.message,'err',5000);
+  toast(`${(first?first+' ':'')+name} ajouté.`,'ok');
+  ['p_first','p_name','p_club','p_nat','p_age','p_value','p_photo'].forEach(id=>$(id).value='');
   loadPlayers();
 };
 
@@ -901,6 +930,23 @@ $('btnForceScout').onclick = async ()=>{
 };
 
 // ---------- VAGUE 3 : Journées & Coachs ----------
+// Interrupteur "recrutement direct — mode test"
+async function loadDirectTest(){
+  const btn = $('btnDirectTest'); if(!btn) return;
+  const on = await api.directRecruitTestOn();
+  btn.textContent = on ? '✅ Activé (ON)' : '⭕ Désactivé (OFF)';
+  btn.className = on ? 'btn-primary btn-sm' : 'btn-ghost btn-sm';
+  btn.dataset.on = on ? '1' : '0';
+}
+if($('btnDirectTest')) $('btnDirectTest').onclick = async ()=>{
+  const turnOn = $('btnDirectTest').dataset.on !== '1';
+  const r = await api.adminSetDirectRecruitTest(turnOn);
+  if(r.error) return toast(r.error.message,'err',5000);
+  toast(turnOn ? 'Mode test activé : recrutement direct ouvert sans condition.'
+               : 'Mode test désactivé : règle normale rétablie.', 'ok');
+  loadDirectTest();
+};
+
 async function loadWindows(){
   const wins = await api.listWindows();
   if(!$('winList')) return;
@@ -943,14 +989,51 @@ async function loadRanking(){
     return {...m, count};
   }));
   $('rankAdminBody').innerHTML = rows.map((m,i)=>`
-    <tr>
+    <tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
       <td style="font-weight:700;${i===0?'color:var(--transfer)':''}">${i+1}</td>
-      <td><b>${m.display_name}</b></td>
+      <td><b>${m.display_name}</b> <span style="color:var(--muted);font-size:.75rem">▸ effectif</span></td>
       <td style="color:var(--muted)">${m.team_name||'—'}</td>
       <td class="val">${m.season_points}</td>
       <td>${m.count} / 21</td>
       <td class="val">${fmtM(Number(m.budget)-Number(m.budget_locked))}</td>
-    </tr>`).join('');
+    </tr>
+    <tr class="squad-row" data-squad="${m.id}" style="display:none"><td colspan="6" style="padding:0"><div data-squadbox="${m.id}" style="padding:10px 14px"></div></td></tr>`).join('');
+
+  // Clic sur une ligne → déplie/replie l'effectif détaillé
+  $('rankAdminBody').querySelectorAll('.rank-row').forEach(row=>row.onclick=async()=>{
+    const id = row.dataset.mgr;
+    const sq = $('rankAdminBody').querySelector(`[data-squad="${id}"]`);
+    const box = $('rankAdminBody').querySelector(`[data-squadbox="${id}"]`);
+    if(sq.style.display!=='none'){ sq.style.display='none'; return; }
+    sq.style.display='';
+    box.innerHTML = '<span class="hint">Chargement de l\'effectif…</span>';
+    const squad = await api.adminManagerSquad(id);
+    if(!squad.length){ box.innerHTML = '<span class="hint">Aucun joueur dans cet effectif.</span>'; return; }
+    const POSL = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
+    box.innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th></th></tr></thead><tbody>${
+      squad.map(p=>{
+        const full = ((p.first_name||'').trim()? (p.first_name.trim()+' ') : '') + p.name;
+        return `<tr>
+          <td><span class="pos-tag">${POSL[p.pos]||p.pos}</span></td>
+          <td><b>${full}</b></td>
+          <td style="color:var(--muted);font-size:.82rem">${p.club||'—'}${p.championship?' · '+p.championship:''}</td>
+          <td class="val">${fmtM(Number(p.current_value))}</td>
+          <td><button class="btn-danger btn-sm" data-eject="${p.player_id}" data-name="${full.replace(/"/g,'&quot;')}">Éjecter</button></td>
+        </tr>`;
+      }).join('')
+    }</tbody></table>`;
+    // Boutons éjecter
+    box.querySelectorAll('[data-eject]').forEach(b=>b.onclick=async(e)=>{
+      e.stopPropagation();
+      const pname = b.dataset.name;
+      if(!confirm(`Éjecter DÉFINITIVEMENT ${pname} ?\n\nLe joueur sera retiré du jeu (suppression définitive). Cette action est irréversible.`)) return;
+      const reason = prompt('Motif de l\'éjection (traçabilité) :') || null;
+      const { error } = await api.adminDeletePlayer(b.dataset.eject, reason);
+      if(error){ toast(error.message,'err',5000); return; }
+      toast(`${pname} éjecté du jeu.`,'ok');
+      loadRanking(); loadPlayers();
+    });
+  });
 }
 
 async function loadAwards(){
@@ -1230,28 +1313,28 @@ async function loadProposals(){
 
   tbody.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.adminApproveProposal(b.dataset.approve);
-    if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Proposition validée. Clique « Publier » pour ouvrir l\'enchère.', true);
+    if(error){ toast(error.message,'err',5000); loadProposals(); return; }
+    toast('Proposition validée. Clique « Publier » pour ouvrir l\'enchère.','ok');
     loadProposals();
   });
   tbody.querySelectorAll('[data-publish]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.adminPublishProposal(b.dataset.publish);
-    if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Joueur publié : enchère ouverte (48 h).', true);
+    if(error){ toast(error.message,'err',5000); loadProposals(); return; }
+    toast('Joueur publié : enchère ouverte (48 h).','ok');
     loadProposals(); loadPlayers();
   });
   tbody.querySelectorAll('[data-changes]').forEach(b=>b.onclick=async()=>{
     const reason = prompt('Motif de la correction demandée (visible par le manager) :');
     if(reason===null || !reason.trim()) return;
     const { error } = await api.adminRequestChanges(b.dataset.changes, reason.trim());
-    if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Correction demandée au manager.', true); loadProposals();
+    if(error){ toast(error.message,'err',5000); loadProposals(); return; }
+    toast('Correction demandée au manager.','ok'); loadProposals();
   });
   tbody.querySelectorAll('[data-reject]').forEach(b=>b.onclick=async()=>{
     const reason = prompt('Motif du refus (optionnel, visible par le manager) :') || null;
     const { error } = await api.adminRejectProposal(b.dataset.reject, reason);
-    if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Proposition refusée.', true); loadProposals();
+    if(error){ toast(error.message,'err',5000); loadProposals(); return; }
+    toast('Proposition refusée.','ok'); loadProposals();
   });
 }
 

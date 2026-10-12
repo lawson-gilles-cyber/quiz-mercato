@@ -559,8 +559,9 @@
         <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:6px">Dénicher un joueur</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Propose un joueur à mettre aux enchères. Si l'admin valide et qu'un <b>autre</b> manager le remporte, tu gagnes un bonus de budget. (Max 3 propositions en attente.)</p>
         <div id="proposalReminder" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:10px;font-size:.85rem"></div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
-          <div><label class="trade-l">Nom du joueur</label><input id="scoutName" placeholder="ex. Rodrygo" style="width:100%"></div>
+        <div style="display:grid;grid-template-columns:1.3fr 1.6fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+          <div><label class="trade-l">Prénom</label><input id="scoutFirst" placeholder="ex. Thiago" style="width:100%"></div>
+          <div><label class="trade-l">Nom de famille</label><input id="scoutName" placeholder="ex. Silva" style="width:100%"></div>
           <div><label class="trade-l">Poste</label><select id="scoutPos" style="width:100%">
             <option value="FWD">Attaquant</option><option value="MID">Milieu</option>
             <option value="DEF">Défenseur</option><option value="GK">Gardien</option></select></div>
@@ -936,6 +937,12 @@ function playerSalary(v){ v=Number(v);
 }
 // Plafond d'enchère d'un joueur = valeur de base × 1,5 (synchronisé avec qm_bid_cap).
 function bidCap(baseValue){ return Math.round(Number(baseValue) * 1.5); }
+// Nom affiché d'un joueur : "Prénom Nom" si le prénom existe, sinon le nom seul.
+function playerName(p){
+  if(!p) return '';
+  const fn = (p.first_name||'').trim();
+  return fn ? (fn + ' ' + p.name) : p.name;
+}
 const POS = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
 const stars = n => '★'.repeat(n)+'☆'.repeat(5-n);
 const $ = id => document.getElementById(id);
@@ -1277,13 +1284,15 @@ async function renderScoutList(){
   // Bouton corriger : resoumet avec de nouvelles valeurs saisies.
   el.querySelectorAll('[data-fix]').forEach(btn=>btn.onclick=async()=>{
     const id = btn.dataset.fix;
-    const name = prompt('Nouveau nom du joueur :'); if(name===null) return;
+    const first = prompt('Prénom du joueur :'); if(first===null) return;
+    const name = prompt('Nom de famille du joueur :'); if(name===null) return;
     const valStr = prompt('Nouvelle valeur en M€ (ex. 50) :'); if(valStr===null) return;
     const valM = parseFloat(valStr);
+    if(!first.trim()) return toast('Prénom requis.','err');
     if(!name.trim() || isNaN(valM)) return toast('Nom et valeur requis.','err');
     const club = prompt('Club (optionnel) :') || null;
     const { error } = await api.resubmitProposal({
-      id, new_name: name.trim(), new_position: 'MID',
+      id, new_first_name: first.trim(), new_name: name.trim(), new_position: 'MID',
       new_club: club, new_value: Math.round(valM*1e6), new_championship: null
     });
     if(error) return toast('Échec : '+error.message,'err');
@@ -1292,11 +1301,15 @@ async function renderScoutList(){
   });
 }
 if($('btnScout')) $('btnScout').onclick = async (ev)=>{
+  const first = $('scoutFirst').value.trim();
   const name = $('scoutName').value.trim();
   const valM = parseFloat($('scoutValue').value);
-  if(!name || isNaN(valM)) return toast('Indique au moins le nom et la valeur du joueur.','err');
+  if(!first) return toast('Indique le prénom du joueur (pour distinguer les homonymes).','err');
+  if(!name) return toast('Indique le nom de famille du joueur.','err');
+  if(isNaN(valM)) return toast('Indique la valeur du joueur (en M€).','err');
   await withLoading(ev.target, async ()=>{
     const { error } = await api.proposePlayer({
+      new_first_name: first,
       new_name: name,
       new_position: $('scoutPos').value,
       new_club: $('scoutClub').value.trim() || null,
@@ -1305,7 +1318,7 @@ if($('btnScout')) $('btnScout').onclick = async (ev)=>{
     });
     if(error){ toast('Échec : '+error.message,'err'); return; }
     toast('Joueur proposé ! En attente de validation par l\'admin.','ok');
-    $('scoutName').value=''; $('scoutClub').value=''; $('scoutValue').value='';
+    $('scoutFirst').value=''; $('scoutName').value=''; $('scoutClub').value=''; $('scoutValue').value='';
     renderScoutList();
   });
 };
@@ -1434,7 +1447,7 @@ async function startBid(playerId){
   const price = Number(auc.current_price);
   // Déjà au plafond : plus d'enchère possible
   if(cap && price >= cap){
-    toast(`${auc.player.name} a atteint son plafond (${fmtMoney(cap)}). Plus d'enchère possible.`,'err',4200);
+    toast(`${playerName(auc.player)} a atteint son plafond (${fmtMoney(cap)}). Plus d'enchère possible.`,'err',4200);
     return;
   }
   // Offre minimale = min(prix + palier, plafond) — dernière offre ramenée au plafond
@@ -1444,7 +1457,7 @@ async function startBid(playerId){
   if(atCapNext) next = cap;
   const passes = await api.myPasses(auc.id);
   if(passes <= 0){
-    toast(`Plus de PASS sur ${auc.player.name} : tu as atteint ta limite d'offres sur ce joueur.`,'err',4200);
+    toast(`Plus de PASS sur ${playerName(auc.player)} : tu as atteint ta limite d'offres sur ce joueur.`,'err',4200);
     return;
   }
   const entryTax = await api.myEntryTax(auc.id);
@@ -1456,7 +1469,7 @@ async function startBid(playerId){
   const capRow = cap
     ? `<div class="ux-row"><span class="l">🔒 Plafond</span><span>${fmtMoney(cap)}</span></div>` : '';
   md.innerHTML = `
-    <h3>Enchère — ${auc.player.name}</h3>
+    <h3>Enchère — ${playerName(auc.player)}</h3>
     <p>Il te reste <b>${passes} PASS</b> (offre${passes>1?'s':''}) sur ce joueur.</p>
     <div class="ux-row"><span class="l">Prix actuel</span><span>${fmtMoney(auc.current_price)}</span></div>
     <div class="ux-row"><span class="l">Offre minimale</span><span>${fmtMoney(next)}${atCapNext?' <span style="color:var(--transfer);font-size:.78rem">(au plafond)</span>':''}</span></div>
@@ -1521,7 +1534,7 @@ function acard(a, status){
   return `<div class="acard">
     <div class="photo">${photo}<span class="tag t-${status}">${tag}</span></div>
     <div class="info">
-      <div class="title">${p.name??'—'}</div>
+      <div class="title">${playerName(p)||'—'}</div>
       <div class="nick">${POS[p.position]??''}</div>
       ${bottom}
     </div></div>`;
@@ -1800,7 +1813,7 @@ function jerseyCard(p, readonly, colors){
   return `<div class="jersey" title="${p.name}">
     ${xBtn}
     <div class="jersey-ic">${jersey}</div>
-    <div class="jersey-nm">${p.name}</div>
+    <div class="jersey-nm">${playerName(p)}</div>
     <div class="jersey-cl">${p.club||''}</div>
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
     <div class="jersey-sal" title="Salaire annuel">💰 ${fmtMoney(playerSalary(p.current_value))}/an</div>
