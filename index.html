@@ -1430,15 +1430,24 @@ async function startBid(playerId){
   const auctions = await api.listOpenAuctions();
   const auc = auctions.find(a=>a.player_id===playerId);
   if(!auc){ toast('Aucune enchère ouverte sur ce joueur pour le moment.','err'); return; }
-  const next = Number(auc.current_price)+minIncrement(auc.current_price);
+  const cap = auc.player && auc.player.base_value ? bidCap(auc.player.base_value) : null;
+  const price = Number(auc.current_price);
+  // Déjà au plafond : plus d'enchère possible
+  if(cap && price >= cap){
+    toast(`${auc.player.name} a atteint son plafond (${fmtMoney(cap)}). Plus d'enchère possible.`,'err',4200);
+    return;
+  }
+  // Offre minimale = min(prix + palier, plafond) — dernière offre ramenée au plafond
+  const step = minIncrement(price);
+  let next = price + step;
+  const atCapNext = cap && next > cap;   // le palier dépasse le plafond
+  if(atCapNext) next = cap;
   const passes = await api.myPasses(auc.id);
   if(passes <= 0){
     toast(`Plus de PASS sur ${auc.player.name} : tu as atteint ta limite d'offres sur ce joueur.`,'err',4200);
     return;
   }
   const entryTax = await api.myEntryTax(auc.id);
-  const cap = auc.player && auc.player.base_value ? bidCap(auc.player.base_value) : null;
-  const step = minIncrement(auc.current_price);
 
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
@@ -1450,14 +1459,15 @@ async function startBid(playerId){
     <h3>Enchère — ${auc.player.name}</h3>
     <p>Il te reste <b>${passes} PASS</b> (offre${passes>1?'s':''}) sur ce joueur.</p>
     <div class="ux-row"><span class="l">Prix actuel</span><span>${fmtMoney(auc.current_price)}</span></div>
-    <div class="ux-row"><span class="l">Offre minimale</span><span>${fmtMoney(next)}</span></div>
+    <div class="ux-row"><span class="l">Offre minimale</span><span>${fmtMoney(next)}${atCapNext?' <span style="color:var(--transfer);font-size:.78rem">(au plafond)</span>':''}</span></div>
     ${capRow}${taxRow}
-    <input class="ux-bid-input" id="uxBid" type="number" inputmode="numeric" value="${next}">
-    <div class="ux-quick">
+    ${atCapNext?`<p style="color:var(--transfer);font-size:.82rem;margin:10px 0 0">Dernière offre possible : tu ne peux miser qu'au plafond (${fmtMoney(cap)}).</p>`:''}
+    <input class="ux-bid-input" id="uxBid" type="number" inputmode="numeric" value="${next}"${atCapNext?' readonly':''}>
+    ${atCapNext?'':`<div class="ux-quick">
       <button data-add="${step}">+${fmtMoney(step)}</button>
       <button data-add="${step*2}">+${fmtMoney(step*2)}</button>
       ${cap?`<button data-set="${cap}">Plafond</button>`:''}
-    </div>
+    </div>`}
     <div class="ux-actions">
       <button class="ux-cancel" data-no>Annuler</button>
       <button class="ux-ok" data-yes>Placer l'offre</button>
