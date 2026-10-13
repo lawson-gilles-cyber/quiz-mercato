@@ -2167,17 +2167,22 @@ let NOTIFS = [];
 async function loadNotifications(){
   if(!ME) return;
   NOTIFS = await api.myNotifications();
-  // On badge sur les notifs "actionnables" : outbid + trade
-  const actionable = NOTIFS.filter(n=>n.kind==='outbid'||n.kind==='trade').length;
+  // Badge : on compte tout SAUF le rappel "tu mènes" (winning) qui est
+  // purement informatif et serait affiché en permanence.
+  const count = NOTIFS.filter(n=>n.kind!=='winning').length;
   const badge = $('bellBadge');
-  if(actionable>0){ badge.textContent = actionable; badge.style.display='block'; }
+  if(count>0){ badge.textContent = count>99?'99+':count; badge.style.display='block'; }
   else badge.style.display='none';
 }
 if($('bellBtn')) $('bellBtn').onclick = ()=>{
   const panel = $('notifPanel');
   if(panel.style.display==='block'){ panel.style.display='none'; return; }
-  const icons = {outbid:'⚠️', trade:'🔄', winning:'✅'};
-  const colors = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80'};
+  const icons = {outbid:'⚠️', trade:'🔄', winning:'✅',
+    proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
+    auction_won:'🏆', bonus:'💰'};
+  const colors = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
+    proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
+    auction_won:'#4ade80', bonus:'var(--transfer)'};
   panel.innerHTML = NOTIFS.length
     ? NOTIFS.map(n=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line)">
         <span>${icons[n.kind]||'•'}</span>
