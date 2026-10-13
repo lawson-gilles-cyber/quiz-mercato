@@ -1669,7 +1669,9 @@ async function renderTeam(){
     return;
   }
   // Tableau de bord : double budget + masse salariale
-  const dash = await api.myDashboard();
+  let dash = null;
+  try { dash = await api.myDashboard(); }
+  catch(e){ console.error('myDashboard a échoué :', e); toast('Impossible de charger le tableau de bord.','err'); }
   if(dash){
     $('dashBudget').innerHTML = `<b>${fmtMoney(dash.budget_available)}</b>`;
     const salPct = Math.round(Number(dash.salary_used)/Number(dash.salary_cap)*100);

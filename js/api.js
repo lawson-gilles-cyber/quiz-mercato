@@ -364,7 +364,8 @@ export async function adminSetBonusSettings(fullDay, quizRate) {
 // ---------- THÈME (couleurs personnalisables) -----------------------
 // ---------- MASSE SALARIALE / DOUBLE BUDGET -------------------------
 export async function myDashboard() {
-  const { data } = await sb.rpc('qm_my_dashboard');
+  const { data, error } = await sb.rpc('qm_my_dashboard');
+  if (error) { console.error('qm_my_dashboard:', error.message, error); return null; }
   return (data && data[0]) ? data[0] : null;
 }
 export async function salaryOf(playerId) {
