@@ -2183,14 +2183,28 @@ if($('bellBtn')) $('bellBtn').onclick = ()=>{
   const colors = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
     proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
     auction_won:'#4ade80', bonus:'var(--transfer)'};
+  // Vers quel onglet chaque notification renvoie au clic
+  const NOTIF_GOTO = {
+    outbid:'auctions', winning:'auctions', auction_won:'auctions',
+    trade:'market', proposal_published:'market', proposal_changes:'market', proposal_rejected:'market',
+    bonus:'bonus'
+  };
   panel.innerHTML = NOTIFS.length
-    ? NOTIFS.map(n=>`<div style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line)">
+    ? NOTIFS.map(n=>{
+        const go = NOTIF_GOTO[n.kind];
+        return `<div class="notif-item" ${go?`data-goto="${go}"`:''} style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);${go?'cursor:pointer':''}">
         <span>${icons[n.kind]||'•'}</span>
-        <div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:${colors[n.kind]||'var(--chalk)'}">${n.title}</div>
+        <div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:${colors[n.kind]||'var(--chalk)'}">${n.title}${go?' <span style="color:var(--muted);font-weight:400;font-size:.72rem">▸</span>':''}</div>
           <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div></div>
-      </div>`).join('')
+      </div>`;}).join('')
     : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
   panel.style.display='block';
+  // Clic sur une notif → ouvre l'onglet concerné et ferme le panneau
+  panel.querySelectorAll('[data-goto]').forEach(el=>el.onclick=(ev)=>{
+    ev.stopPropagation();
+    if(typeof goView==='function') goView(el.dataset.goto);
+    panel.style.display='none';
+  });
 };
 // Fermer le panneau si on clique ailleurs
 document.addEventListener('click',(e)=>{
