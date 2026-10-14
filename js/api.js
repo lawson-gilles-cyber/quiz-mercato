@@ -162,6 +162,20 @@ export async function openAuction(playerId) {
   return sb.rpc('qm_open_auction', { p_player_id: playerId });
 }
 
+// ---------- Journal des offres + suivi d'enchères (vague 1) ----------
+export async function auctionBids(auctionId) {
+  const { data } = await sb.rpc('qm_auction_bids', { p_auction_id: auctionId });
+  return data ?? [];
+}
+export async function watchToggle(auctionId) {
+  return sb.rpc('qm_watch_toggle', { p_auction_id: auctionId });
+}
+export async function myWatchlist() {
+  const { data } = await sb.rpc('qm_my_watchlist');
+  // renvoie un Set d'IDs d'enchères suivies, pratique pour l'affichage
+  return new Set((data ?? []).map(r => r.auction_id));
+}
+
 // ---------- ADMIN (RPC réservées, contrôle is_admin côté serveur) ----
 export async function amIAdmin() {
   const { data } = await sb.rpc('qm_is_admin');
@@ -311,6 +325,32 @@ export async function myTrades() {
 export async function acceptTrade(id){ return sb.rpc('qm_trade_accept', { p_trade_id: id }); }
 export async function refuseTrade(id){ return sb.rpc('qm_trade_refuse', { p_trade_id: id }); }
 export async function cancelTrade(id){ return sb.rpc('qm_trade_cancel', { p_trade_id: id }); }
+
+// ---------- PRÊTS DE JOUEURS (vague 2) ------------------------------
+export async function proposeLoan(l) {
+  return sb.rpc('qm_loan_propose', {
+    p_player_id: l.player_id, p_borrower_id: l.borrower_id,
+    p_days: l.days, p_fee: l.fee ?? 0, p_message: l.message ?? null
+  });
+}
+export async function acceptLoan(id){ return sb.rpc('qm_loan_accept', { p_loan_id: id }); }
+export async function refuseLoan(id){ return sb.rpc('qm_loan_refuse', { p_loan_id: id }); }
+export async function cancelLoan(id){ return sb.rpc('qm_loan_cancel', { p_loan_id: id }); }
+export async function returnLoan(id){ return sb.rpc('qm_loan_return', { p_loan_id: id }); }
+export async function myLoans() {
+  const { data } = await sb.rpc('qm_my_loans');
+  return data ?? [];
+}
+
+// ---------- COTE DYNAMIQUE (admin, vague 2) -------------------------
+export async function adminRecalcValues(){ return sb.rpc('qm_admin_recalc_values'); }
+export async function adminAdjustValue(playerId, deltaPct){
+  return sb.rpc('qm_admin_adjust_value', { p_player_id: playerId, p_delta_pct: deltaPct });
+}
+export async function adminPreviewDemand(){
+  const { data } = await sb.rpc('qm_admin_preview_demand');
+  return data ?? [];
+}
 
 // ---------- COMMISSIONS / MARCHÉ ------------------------------------
 export async function estimateCommission(managerId, playerId) {

@@ -292,6 +292,13 @@
   }
   .bid-btn:hover{background:#fff}
   .bid-btn.owned{background:transparent;color:var(--muted);border:1px solid var(--line);cursor:default}
+  .bid-btn.ghost{background:transparent;color:var(--transfer);border:1px solid var(--transfer)}
+  .bid-btn.ghost:hover{background:var(--transfer);color:var(--pitch)}
+  /* Les boutons d'enchère placés dans une barre flex ne doivent pas garder la marge pleine largeur */
+  .acard .info > div[style*="flex"] > .bid-btn{margin-top:0}
+  .watch-star{background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;color:var(--muted);padding:0 2px;transition:.15s}
+  .watch-star.on{color:var(--transfer)}
+  .watch-star:hover{transform:scale(1.2)}
 
   /* ---------- Salle des enchères : Kanban (façon Audrey) ---------- */
   .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
@@ -611,6 +618,27 @@
       <!-- Propositions -->
       <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">Mes propositions d'échange</h2>
       <div id="tradeList"></div>
+
+      <!-- Prêts de joueurs -->
+      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">🤝 Prêts de joueurs</h2>
+      <div class="trade-compose">
+        <div class="trade-mid" style="flex:1">
+          <label class="trade-l">Prêter un de mes joueurs</label>
+          <select id="loanPlayer"><option value="">— choisir un joueur —</option></select>
+          <label class="trade-l" style="margin-top:10px">À l'équipe</label>
+          <select id="loanTarget"><option value="">— choisir un manager —</option></select>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <div style="flex:1"><label class="trade-l">Durée (jours)</label>
+              <input id="loanDays" type="number" min="1" max="60" value="14" style="width:100%"></div>
+            <div style="flex:1"><label class="trade-l">Indemnité (M€)</label>
+              <input id="loanFee" type="number" min="0" value="0" style="width:100%"></div>
+          </div>
+          <input id="loanMsg" type="text" placeholder="Message (optionnel)" style="width:100%;margin-top:8px">
+          <button id="btnLoan" class="bid-btn" style="margin-top:14px">Proposer le prêt</button>
+          <p class="hint" style="font-size:.76rem;margin-top:8px">Pendant le prêt, l'emprunteur aligne le joueur et porte son salaire. Le retour est automatique à l'échéance (ou anticipé par l'un des deux managers).</p>
+        </div>
+      </div>
+      <div id="loanList" style="margin-top:16px"></div>
     </div>
   </section>
 
@@ -1291,6 +1319,82 @@ async function renderMarket(){
 
   renderTradeList();
   renderScoutList();
+  renderLoans();
+}
+
+// ---------- Prêts de joueurs ----------
+async function renderLoans(){
+  if(!ME) return;
+  // Remplir le select de mes joueurs prêtables (possédés)
+  const sel = $('loanPlayer');
+  if(sel){
+    sel.innerHTML = '<option value="">— choisir un joueur —</option>' +
+      TRADE_MINE.map(p=>`<option value="${p.id}">${playerName(p)} (${p.club||'—'})</option>`).join('');
+  }
+  // Remplir le select des managers (réutilise la liste du troc déjà chargée dans tradeTarget)
+  const tgt = $('loanTarget');
+  if(tgt && $('tradeTarget')){
+    tgt.innerHTML = $('tradeTarget').innerHTML.replace('— choisir une équipe —','— choisir un manager —');
+  }
+  // Bouton proposer (câblé une seule fois)
+  const btn = $('btnLoan');
+  if(btn && !btn.dataset.bound){
+    btn.dataset.bound = '1';
+    btn.onclick = async (ev)=>{
+      const player_id = $('loanPlayer').value;
+      const borrower_id = $('loanTarget').value;
+      const days = parseInt($('loanDays').value,10);
+      const feeM = parseFloat($('loanFee').value)||0;
+      if(!player_id) return toast('Choisis un joueur à prêter.','err');
+      if(!borrower_id) return toast('Choisis une équipe destinataire.','err');
+      if(isNaN(days) || days<1 || days>60) return toast('Durée entre 1 et 60 jours.','err');
+      await withLoading(ev.target, async ()=>{
+        const { error } = await api.proposeLoan({
+          player_id, borrower_id, days, fee: Math.round(feeM*1e6),
+          message: $('loanMsg').value || null
+        });
+        if(error) return toast('Échec : '+error.message,'err',4200);
+        toast('Proposition de prêt envoyée !','ok');
+        $('loanMsg').value=''; $('loanFee').value='0';
+        renderLoans();
+      });
+    };
+  }
+  // Liste de mes prêts (en cours / en attente)
+  const loans = await api.myLoans();
+  const el = $('loanList');
+  if(!el) return;
+  if(!loans.length){ el.innerHTML = '<div class="hint" style="font-size:.84rem">Aucun prêt en cours ou en attente.</div>'; return; }
+  el.innerHTML = loans.map(l=>{
+    const due = new Date(l.due_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+    const other = l.role==='owner' ? l.borrower_name : l.owner_name;
+    const dir = l.role==='owner' ? `prêté à <b>${other}</b>` : `emprunté à <b>${other}</b>`;
+    const feeTxt = Number(l.fee)>0 ? ` · indemnité ${fmtMoney(l.fee)}` : '';
+    let actions = '';
+    if(l.status==='pending' && l.role==='borrower'){
+      actions = `<button class="bid-btn" data-loan-accept="${l.id}" style="font-size:.74rem;padding:4px 10px">Accepter</button>
+                 <button class="bid-btn ghost" data-loan-refuse="${l.id}" style="font-size:.74rem;padding:4px 10px">Refuser</button>`;
+    } else if(l.status==='pending' && l.role==='owner'){
+      actions = `<span class="hint" style="font-size:.74rem">En attente de réponse</span>
+                 <button class="bid-btn ghost" data-loan-cancel="${l.id}" style="font-size:.74rem;padding:4px 10px">Annuler</button>`;
+    } else if(l.status==='active'){
+      actions = `<button class="bid-btn ghost" data-loan-return="${l.id}" style="font-size:.74rem;padding:4px 10px">Rendre maintenant</button>`;
+    }
+    const statusTxt = l.status==='pending' ? 'En attente' : 'En cours';
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-size:.9rem"><b>${l.player_name}</b> — ${dir}${feeTxt}</span>
+        <span style="font-size:.74rem;color:var(--muted)">${statusTxt} · retour le ${due}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:6px">${actions}</div>
+    </div>`;
+  }).join('');
+  // Câblage des actions
+  const refresh = async (fn, id)=>{ const {error}=await fn(id); if(error){toast(error.message,'err');return;} renderMarket(); if(ME){ME=await api.currentManager(); if(ME)$('wallet').textContent=fmtMoney(Number(ME.budget)-Number(ME.budget_locked));} };
+  el.querySelectorAll('[data-loan-accept]').forEach(b=>b.onclick=()=>refresh(api.acceptLoan,b.dataset.loanAccept));
+  el.querySelectorAll('[data-loan-refuse]').forEach(b=>b.onclick=()=>refresh(api.refuseLoan,b.dataset.loanRefuse));
+  el.querySelectorAll('[data-loan-cancel]').forEach(b=>b.onclick=()=>refresh(api.cancelLoan,b.dataset.loanCancel));
+  el.querySelectorAll('[data-loan-return]').forEach(b=>b.onclick=()=>refresh(api.returnLoan,b.dataset.loanReturn));
 }
 
 // ---------- Dénichage de joueurs ----------
@@ -1531,12 +1635,15 @@ async function startBid(playerId){
       <button data-add="${step*2}">+${fmtMoney(step*2)}</button>
       ${cap?`<button data-set="${cap}">Plafond</button>`:''}
     </div>`}
+    <div style="text-align:center;margin-top:8px"><a href="#" data-journal-link style="color:var(--transfer);font-size:.8rem;text-decoration:none">📜 Voir le journal des offres</a></div>
     <div class="ux-actions">
       <button class="ux-cancel" data-no>Annuler</button>
       <button class="ux-ok" data-yes>Placer l'offre</button>
     </div>`;
   ov.classList.add('show');
   const inp = md.querySelector('#uxBid');
+  const jl = md.querySelector('[data-journal-link]');
+  if(jl) jl.onclick = (e)=>{ e.preventDefault(); showAuctionJournal(auc.id); };
   const close = ()=>ov.classList.remove('show');
   md.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ inp.value = Number(inp.value||auc.current_price)+Number(b.dataset.add); });
   md.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{ inp.value = b.dataset.set; });
@@ -1576,9 +1683,14 @@ function acard(a, status){
     const pre = left<=0?'🏁' : left<HOT?'🔥' : left<FINAL?'⚡' : '⏱';
     const interest = a.interest || 0;
     const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
-    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span>${interestTag}</div>
+    const watched = AUC_WATCH.has(a.id);
+    const star = ME ? `<button class="watch-star${watched?' on':''}" data-watch="${a.id}" title="${watched?'Ne plus suivre':'Suivre cette enchère (alertes sniping)'}">${watched?'★':'☆'}</button>` : '';
+    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span style="display:flex;gap:6px;align-items:center">${interestTag}${star}</span></div>
       <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
-      <button class="bid-btn" data-bid="${p.id}" style="width:100%;margin-top:10px">Enchérir</button>`;
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button class="bid-btn" data-bid="${p.id}" style="flex:1">Enchérir</button>
+        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:0 0 auto;padding:0 12px">📜</button>
+      </div>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
@@ -1593,8 +1705,10 @@ function acard(a, status){
 }
 let AUC_LIVE = [];       // enchères en direct (pour le filtrage)
 let AUC_BUCKETS = {};    // les autres colonnes
+let AUC_WATCH = new Set(); // ids d'enchères suivies par le manager courant
 async function renderAuctions(){
   const open = await api.listOpenAuctions();
+  AUC_WATCH = ME ? await api.myWatchlist().catch(()=>new Set()) : new Set();
   const now = new Date();
   AUC_LIVE = open.filter(a=> new Date(a.ends_at) > now);
   AUC_BUCKETS = {scheduled:[], ended:[], transferred:[]};
@@ -1637,6 +1751,38 @@ function applyAucFilters(){
     : `<div class="col-empty">Aucun joueur ne correspond.</div>`;
   document.querySelectorAll('#k-live [data-bid]').forEach(btn=>
     btn.onclick = ()=> startBid(btn.dataset.bid));
+  document.querySelectorAll('#k-live [data-watch]').forEach(btn=>
+    btn.onclick = async ()=>{
+      const id = btn.dataset.watch;
+      const { data, error } = await api.watchToggle(id);
+      if(error){ toast(error.message,'err'); return; }
+      if(data){ AUC_WATCH.add(id); btn.textContent='★'; btn.classList.add('on'); toast('Enchère suivie — tu seras alerté.','ok'); }
+      else    { AUC_WATCH.delete(id); btn.textContent='☆'; btn.classList.remove('on'); toast('Tu ne suis plus cette enchère.','info'); }
+    });
+  document.querySelectorAll('#k-live [data-journal]').forEach(btn=>
+    btn.onclick = ()=> showAuctionJournal(btn.dataset.journal));
+}
+
+// Journal des offres d'une enchère (modale)
+async function showAuctionJournal(auctionId){
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  md.innerHTML = `<h3>📜 Journal des offres</h3><div class="hint">Chargement…</div>
+    <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
+  ov.classList.add('show');
+  md.querySelector('[data-no]').onclick = ()=>ov.classList.remove('show');
+  ov.onclick = (e)=>{ if(e.target===ov) ov.classList.remove('show'); };
+  const bids = await api.auctionBids(auctionId);
+  const rows = bids.length ? bids.map(b=>{
+    const t = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div class="ux-row"><span class="l">${b.is_mine?'<b style="color:var(--transfer)">Toi</b>':b.bidder}</span>
+      <span>${fmtMoney(b.amount)} <span style="color:var(--muted);font-size:.74rem">· ${t}</span></span></div>`;
+  }).join('') : '<div class="hint">Aucune offre pour l\'instant.</div>';
+  md.innerHTML = `<h3>📜 Journal des offres</h3>
+    <p class="hint" style="margin:0 0 8px">${bids.length} offre${bids.length>1?'s':''} — de la plus récente à la plus ancienne.</p>
+    <div style="max-height:46vh;overflow:auto">${rows}</div>
+    <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
+  md.querySelector('[data-no]').onclick = ()=>ov.classList.remove('show');
 }
 // Câblage des filtres (une seule fois)
 ['aucSearch','aucPos','aucChamp','aucPrice'].forEach(id=>{

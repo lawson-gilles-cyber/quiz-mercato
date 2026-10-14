@@ -330,6 +330,12 @@
     <button class="btn-primary btn-sm" id="btnBulkValues" style="margin-top:10px">Appliquer les valeurs</button>
     <div id="bulkResult" style="margin-top:10px"></div>
   </div>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">📈 <b>Cote dynamique</b> — réévalue la valeur des joueurs <b>libres</b> selon la demande interne (nombre d'offres reçues). Les joueurs très demandés montent (jusqu'à +30 %), ceux que personne ne veut redescendent doucement vers leur valeur de base. Bornes : 50 %–130 % de la valeur de base. Les joueurs possédés ne sont pas touchés. Le recalcul tourne aussi automatiquement chaque lundi.</p>
+    <button class="btn-ghost btn-sm" id="btnPreviewDemand">Prévisualiser</button>
+    <button class="btn-primary btn-sm" id="btnRecalcValues" style="margin-left:8px">Recalculer la cote maintenant</button>
+    <div id="demandPreview" style="margin-top:12px"></div>
+  </div>
   <div class="card">
     <table>
       <thead><tr><th>Nom</th><th>Poste</th><th>Club</th><th>Valeur</th><th>Statut</th><th></th></tr></thead>
@@ -943,6 +949,27 @@ $('btnApplyPrices').onclick = async () => {
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'), `Prix appliqués à ${data} joueur(s) libre(s).`, true);
   $('pricePreview').innerHTML = '';
+  loadPlayers();
+};
+
+// ---------- Cote dynamique (demande) ----------
+if($('btnPreviewDemand')) $('btnPreviewDemand').onclick = async () => {
+  const rows = await api.adminPreviewDemand();
+  if(!rows.length){ $('demandPreview').innerHTML = '<p class="hint">Aucun joueur libre.</p>'; return; }
+  const fmt = v => (Number(v)/1e6).toFixed(0)+' M€';
+  $('demandPreview').innerHTML = `
+    <table style="font-size:.85rem"><thead><tr><th>Joueur</th><th>Demande</th><th>Valeur actuelle</th><th>Nouvelle valeur</th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${r.name}</td><td>${r.demand_score}</td><td>${fmt(r.current_value)}</td>
+      <td style="color:${Number(r.target_value)!==Number(r.current_value)?'var(--transfer)':'inherit'}"><b>${fmt(r.target_value)}</b></td>
+    </tr>`).join('')}</tbody></table>`;
+};
+if($('btnRecalcValues')) $('btnRecalcValues').onclick = async () => {
+  if(!confirm('Recalculer la cote de tous les joueurs libres selon la demande ?')) return;
+  const { data, error } = await api.adminRecalcValues();
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), `Cote recalculée pour ${data} joueur(s) libre(s).`, true);
+  $('demandPreview').innerHTML = '';
   loadPlayers();
 };
 
