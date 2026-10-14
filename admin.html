@@ -498,6 +498,17 @@
     </div>
   </div>
 
+  <!-- Mode saison / archives -->
+  <h2>Saisons & archives</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Clôturer la saison archive le classement final et le palmarès, puis remet le jeu à zéro pour une nouvelle saison (les comptes managers et le catalogue de joueurs sont conservés). <b>Action irréversible</b> — fais un export avant.</p>
+    <div class="row c3" style="margin-bottom:14px;align-items:end">
+      <div><label>Nom de la saison (optionnel)</label><input id="seasonLabel" type="text" placeholder="ex. Saison 2026-2027"></div>
+      <div><button class="btn-danger" id="btnCloseSeason">🏁 Clôturer la saison</button></div>
+    </div>
+    <div id="seasonsList" style="margin-top:8px"></div>
+  </div>
+
 </main>
 
 <script type="module">
@@ -549,7 +560,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadProposalHistory();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadProposalHistory(); loadSeasons();
 }
 
 $('btnLogin').onclick = async () => {
@@ -1516,6 +1527,38 @@ async function withBtn(btn, fn){
   catch(err){ console.error(err); toast('Échec de l\'export.','err',5000); }
   finally { btn.disabled=false; btn.textContent=old; }
 }
+
+// ---------- Saisons & archives ----------
+async function loadSeasons(){
+  const box = $('seasonsList'); if(!box) return;
+  const seasons = await api.seasonsList();
+  if(!seasons.length){ box.innerHTML = '<p class="hint">Aucune saison archivée pour le moment.</p>'; return; }
+  box.innerHTML = `<table style="width:100%"><thead><tr><th>#</th><th>Saison</th><th>Clôturée le</th><th>Champion</th><th></th></tr></thead><tbody>${
+    seasons.map(s=>`<tr>
+      <td>${s.number}</td>
+      <td><b>${s.label||('Saison '+s.number)}</b></td>
+      <td style="font-size:.82rem;color:var(--muted)">${new Date(s.closed_at).toLocaleDateString('fr-FR')}</td>
+      <td>${s.champion?('🥇 '+s.champion):'—'}</td>
+      <td><button class="btn-ghost btn-sm" data-season="${s.id}">Voir le classement</button></td>
+    </tr>`).join('')
+  }</tbody></table><div id="seasonDetail" style="margin-top:12px"></div>`;
+  box.querySelectorAll('[data-season]').forEach(b=>b.onclick=async()=>{
+    const rows = await api.seasonDetail(b.dataset.season);
+    const det = $('seasonDetail');
+    det.innerHTML = rows.length ? `<table style="width:100%;margin-top:6px"><thead><tr><th>Rang</th><th>Manager</th><th>Équipe</th><th>Points</th><th>Valeur</th></tr></thead><tbody>${
+      rows.map(r=>`<tr><td style="font-weight:700;${r.rank===1?'color:var(--transfer)':''}">${r.rank}</td><td>${r.manager_name}</td><td style="color:var(--muted)">${r.team_name||'—'}</td><td class="val">${r.points}</td><td class="val">${fmtM(r.squad_value)}</td></tr>`).join('')
+    }</tbody></table>` : '<p class="hint">Classement vide.</p>';
+  });
+}
+if($('btnCloseSeason')) $('btnCloseSeason').onclick = async ()=>{
+  const label = $('seasonLabel').value.trim() || null;
+  if(!confirm('CLÔTURER LA SAISON ?\n\nLe classement final et le palmarès seront archivés, PUIS le jeu sera remis à zéro (effectifs vidés, budgets et points remis à zéro, enchères/journées effacées).\n\nLes comptes managers et le catalogue de joueurs sont conservés.\n\nCette action est IRRÉVERSIBLE. As-tu fait un export avant ?')) return;
+  if(!confirm('Dernière confirmation : clôturer définitivement la saison ?')) return;
+  const r = await api.adminCloseSeason(label);
+  if(r.error) return toast(r.error.message,'err',6000);
+  toast('Saison clôturée et archivée. Nouvelle saison prête.','ok',5000);
+  loadSeasons(); loadRanking(); loadOverview(); loadPlayers();
+};
 
 // ---------- Init ----------
 refreshGate();

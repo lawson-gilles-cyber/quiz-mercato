@@ -207,6 +207,18 @@ export async function publicSettings() {
   const { data } = await sb.rpc('qm_public_settings');
   return (data && data[0]) ? data[0] : null;
 }
+// Mode saison / archives
+export async function adminCloseSeason(label) {
+  return sb.rpc('qm_admin_close_season', { p_label: label ?? null });
+}
+export async function seasonsList() {
+  const { data } = await sb.rpc('qm_seasons_list');
+  return data ?? [];
+}
+export async function seasonDetail(seasonId) {
+  const { data } = await sb.rpc('qm_season_detail', { p_season_id: seasonId });
+  return data ?? [];
+}
 // Badges (gamification)
 export async function allBadges() {
   const { data } = await sb.rpc('qm_all_badges');
