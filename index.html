@@ -106,12 +106,21 @@
   /* Barre d'onglets du bas (mobile) : masquée par défaut */
   #tabbar{display:none}
 
+  /* Libellés wallet : long par défaut (desktop), court en mobile */
+  .wallet .lbl-short{display:none}
+  .wallet .lbl-long{display:inline}
+
   @media (max-width:760px){
     header{flex-wrap:wrap;gap:10px;padding:12px 14px}
     .logo{font-size:1.4rem}
     /* La nav du haut (onglets qui défilent) est remplacée par la barre du bas */
     nav#nav{display:none}
-    .wallet{margin-left:auto}
+    .wallet{margin-left:0;padding:5px 9px;font-size:.74rem}
+    .wallet small{font-size:.54rem;letter-spacing:.5px}
+    .wallet .lbl-long{display:none}
+    .wallet .lbl-short{display:inline}
+    #walletBox{margin-left:auto}
+    #salaryBox{margin-left:6px}
 
     /* Barre d'onglets fixe en bas, style application */
     #tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
@@ -449,8 +458,8 @@
       </div>
     </div>
   </nav>
-  <div class="wallet" id="walletBox"><small>💰 BUDGET DISPO</small><span id="wallet">—</span></div>
-  <div class="wallet" id="salaryBox" style="display:none"><small>⚖️ MASSE SALARIALE</small><span id="walletSalary">—</span></div>
+  <div class="wallet" id="walletBox"><small><span class="lbl-long">💰 BUDGET DISPO</span><span class="lbl-short">💰 BUDGET</span></small><span id="wallet">—</span></div>
+  <div class="wallet" id="salaryBox" style="display:none"><small><span class="lbl-long">⚖️ MASSE SALARIALE</span><span class="lbl-short">⚖️ SALAIRE</span></small><span id="walletSalary">—</span></div>
   <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
   <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-left:10px">
     <span id="userInitials" title="" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--transfer),var(--transfer-deep));color:var(--pitch);font-family:'Anton','Saira Condensed';font-size:.85rem;letter-spacing:.5px"></span>
@@ -950,6 +959,19 @@ function playerSalary(v){ v=Number(v);
 // Plafond d'enchère d'un joueur = valeur de base × 1,5 (synchronisé avec qm_bid_cap).
 function bidCap(baseValue){ return Math.round(Number(baseValue) * 1.5); }
 
+// Affiche la paire masse salariale : compact sur mobile ("88 / 120"),
+// complet sur grand écran ("88 M€ / 120 M€").
+function renderSalaryPair(used, cap){
+  const compact = window.matchMedia('(max-width:760px)').matches;
+  if(compact){
+    return `${Math.round(Number(used)/1e6)} / ${Math.round(Number(cap)/1e6)}`;
+  }
+  return `${fmtMoney(used)} / ${fmtMoney(cap)}`;
+}
+function salaryColor(used, cap){
+  const pct = cap>0 ? Math.round(Number(used)/Number(cap)*100) : 0;
+  return pct>=90 ? 'var(--live)' : pct>=70 ? 'var(--transfer)' : '#4ade80';
+}
 // Met à jour le bloc "Masse salariale" de l'en-tête (0 → 120 M€).
 async function updateSalaryBox(){
   const box = $('salaryBox'); if(!box) return;
@@ -958,11 +980,9 @@ async function updateSalaryBox(){
   try { dash = await api.myDashboard(); } catch(e){}
   if(!dash){ box.style.display='none'; return; }
   const used = Number(dash.salary_used||0), cap = Number(dash.salary_cap||120e6);
-  const pct = cap>0 ? Math.round(used/cap*100) : 0;
-  const color = pct>=90 ? 'var(--live)' : pct>=70 ? 'var(--transfer)' : '#4ade80';
   const span = $('walletSalary');
-  span.textContent = `${fmtMoney(used)} / ${fmtMoney(cap)}`;
-  span.style.color = color;
+  span.textContent = renderSalaryPair(used, cap);
+  span.style.color = salaryColor(used, cap);
   box.style.display = 'block';
 }
 // Nom affiché d'un joueur : "Prénom Nom" si le prénom existe, sinon le nom seul.
@@ -1752,7 +1772,7 @@ async function renderTeam(){
     $('dashLocked').innerHTML = `<b>${fmtMoney(dash.budget_locked)}</b>`;
     // Bloc masse salariale de l'en-tête (toujours visible)
     if($('salaryBox') && $('walletSalary')){
-      $('walletSalary').textContent = `${fmtMoney(dash.salary_used)} / ${fmtMoney(dash.salary_cap)}`;
+      $('walletSalary').textContent = renderSalaryPair(dash.salary_used, dash.salary_cap);
       $('walletSalary').style.color = salColor;
       $('salaryBox').style.display='block';
     }
