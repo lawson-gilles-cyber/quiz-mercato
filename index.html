@@ -767,6 +767,7 @@
   <!-- RÈGLEMENT / CHARTE -->  <section class="view" id="rules">
     <div class="eyebrow">Charte des transferts · règlement intérieur</div>
     <h1>Le <em>règlement</em></h1>
+    <div id="liveRules" style="max-width:760px;margin-bottom:20px"></div>
     <div style="max-width:760px">
       <div class="rule-block">
         <h3 class="rule-h">1. Le principe</h3>
@@ -1042,7 +1043,8 @@ function goView(v){
   const more = $('moreMenu'); if(more) more.classList.remove('open');
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
-             rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions};
+             rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
+             rules:renderLiveRules};
   if(R[v]) R[v]();
   window.scrollTo({top:0, behavior:'smooth'});
 }
@@ -1662,6 +1664,49 @@ setInterval(()=>{
   });
 },1000);
 
+// ---------- Règles vivantes (barèmes en vigueur, tirés de la base) ----------
+let LIVE_RULES_DONE = false;
+async function renderLiveRules(){
+  const box = $('liveRules'); if(!box) return;
+  const s = await api.publicSettings().catch(()=>null);
+  const m = v => (Math.round(Number(v||0)/1e6)); // en M€ entier
+  // Grilles fixes (identiques au code du jeu)
+  const paliers = [['Bronze','&lt; 20 M€','+1 M€'],['Argent','20–50 M€','+2 M€'],['Or','50–100 M€','+3 M€'],['Élite','100–180 M€','+4 M€'],['Légende','180 M€ +','+5 M€']];
+  const salaires = [['Bronze','&lt; 20 M€','1 M€'],['Argent','20–50 M€','3 M€'],['Or','50–100 M€','6 M€'],['Élite','100–180 M€','10 M€'],['Légende','180 M€ +','15 M€']];
+  const tbl = (head, rows) => `<table style="width:100%;font-size:.84rem;margin-top:6px"><thead><tr>${head.map(h=>`<th style="text-align:left;color:var(--muted);font-weight:600;padding:4px 8px">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(c=>`<td style="padding:4px 8px;border-top:1px solid var(--line)">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  const card = (title, inner) => `<div class="rule-block" style="margin-bottom:12px"><h3 class="rule-h">${title}</h3>${inner}</div>`;
+
+  let bonusInner = '<p class="rule-p">Barèmes des bonus actuellement appliqués par l\'organisation :</p>';
+  if(s){
+    bonusInner += `<ul class="rule-ul">
+      <li><b>Journée complète</b> : 3 postes différents → +${m(s.full_day_bonus)} M€ · 3 même poste → +${m(s.same_pos_bonus)} M€</li>
+      <li><b>Dénicheur</b> : 10 % du prix, plafonné à ${m(s.scout_cap)} M€, max ${s.scout_daily_max}/jour</li>
+      <li><b>Construction</b> : 11 j → +${m(s.build_11_bonus)} M€ · 15 j → +${m(s.build_15_bonus)} M€ · 19 j → +${m(s.build_19_bonus)} M€ · 10 clubs → +${m(s.build_clubs_bonus)} M€</li>
+      <li><b>Coup de poker</b> (seul enchérisseur) : ≥${m(s.poker_s1_threshold)}M → +${m(s.poker_s1_bonus)}M · ≥${m(s.poker_s2_threshold)}M → +${m(s.poker_s2_bonus)}M · ≥${m(s.poker_s3_threshold)}M → +${m(s.poker_s3_bonus)}M · ≥${m(s.poker_s4_threshold)}M → +${m(s.poker_s4_bonus)}M</li>
+      <li>5+ managers → +${m(s.poker_crowd_bonus)} M€ · remportée à ≥${m(s.poker_bigprice_threshold)}M → +${m(s.poker_bigprice_bonus)} M€</li>
+    </ul>`;
+  } else {
+    bonusInner += '<p class="hint">Barèmes indisponibles pour le moment.</p>';
+  }
+
+  const caps = s ? `<ul class="rule-ul">
+    <li><b>Masse salariale max</b> : ${m(s.salary_cap)} M€</li>
+    <li><b>Taxe d'entrée</b> (enchère non dénichée) : ${m(s.entry_tax)} M€</li>
+    <li><b>Conversion budget → points</b> : ${m(s.budget_to_points_rate)} M€ = 1 point · plafond ${m(s.points_convert_cap)} pts</li>
+  </ul>` : '';
+
+  box.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(224,168,0,.1),transparent);border:1px solid var(--transfer);border-radius:12px;padding:16px 18px;margin-bottom:16px">
+      <div style="font-family:'Archivo';font-weight:900;color:var(--transfer);margin-bottom:4px">⚙️ Barèmes en vigueur</div>
+      <p class="hint" style="margin:0">Ces valeurs sont les réglages réellement appliqués aujourd'hui. Elles se mettent à jour automatiquement si l'organisation les modifie.</p>
+    </div>
+    ${card('Pas d\'enchère (mise minimum)', tbl(['Niveau','Prix du joueur','Pas'], paliers))}
+    ${card('Salaire annuel', tbl(['Niveau','Prix du joueur','Salaire'], salaires))}
+    ${card('Bonus', bonusInner)}
+    ${caps?card('Plafonds & conversions', caps):''}`;
+  LIVE_RULES_DONE = true;
+}
+
 // ---------- Mes bonus ----------
 async function renderBonus(){
   if(!ME){
@@ -1953,16 +1998,23 @@ async function renderRank(){
     const val = team.reduce((s,p)=>s+Number(p.current_value),0);
     return {...m, teamValue:val, teamCount:team.length, team};
   }));
+  // Badges de tous les managers (1 seul appel)
+  let badgesByMgr = {};
+  try {
+    const bd = await api.allBadges();
+    bd.forEach(b=>{ (badgesByMgr[b.manager_id] ||= []).push(b.icon); });
+  } catch(e){}
   RANK_TEAMS = {};
   rows.forEach(m=>{ RANK_TEAMS[m.id] = {name:m.team_name||m.display_name, team:m.team, colors:(m.color_primary?{primary:m.color_primary,secondary:m.color_secondary}:null)}; });
-  $('rankBody').innerHTML = rows.map((m,i)=>
-    `<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
+  $('rankBody').innerHTML = rows.map((m,i)=>{
+    const badges = (badgesByMgr[m.id]||[]).join(' ');
+    return `<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
       <td class="rank ${i===0?'podium-1':''}">${i+1}</td>
-      <td><b>${m.display_name}</b> <span style="color:var(--muted);font-size:.75rem">▸ voir</span></td><td class="pts">${m.season_points}</td>
+      <td><b>${m.display_name}</b>${badges?` <span title="Distinctions">${badges}</span>`:''} <span style="color:var(--muted);font-size:.75rem">▸ voir</span></td><td class="pts">${m.season_points}</td>
       <td>${m.teamCount} / 21</td>
-      <td>${fmtMoney(m.teamValue)}</td><td>${fmtMoney(Number(m.budget)-Number(m.budget_locked))}</td></tr>`).join('')
+      <td>${fmtMoney(m.teamValue)}</td><td>${fmtMoney(Number(m.budget)-Number(m.budget_locked))}</td></tr>`;
+  }).join('')
     || `<tr><td colspan="6" class="empty">Aucun manager inscrit.</td></tr>`;
-  // Clic → affiche l'effectif du manager
   $('rankBody').querySelectorAll('.rank-row').forEach(row=>row.onclick=()=>showManagerSquad(row.dataset.mgr));
 }
 let RANK_TEAMS = {};
@@ -1974,11 +2026,20 @@ async function showManagerSquad(mgrId){
   $('squadModalBody').innerHTML = `<div class="empty">Chargement…</div>`;
   modal.style.display='flex';
 
-  // Synthèse + palmarès (en parallèle)
-  const [prof, awards] = await Promise.all([
+  // Synthèse + palmarès + badges (en parallèle)
+  const [prof, awards, badges] = await Promise.all([
     api.managerProfile(mgrId).catch(()=>null),
-    api.managerAwards(mgrId).catch(()=>[])
+    api.managerAwards(mgrId).catch(()=>[]),
+    api.managerBadges(mgrId).catch(()=>[])
   ]);
+
+  // Badges (distinctions automatiques)
+  let badgesHtml = '';
+  if(badges && badges.length){
+    badgesHtml = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+      ${badges.map(b=>`<span style="display:inline-flex;align-items:center;gap:5px;background:var(--pitch-2);border:1px solid var(--transfer);border-radius:20px;padding:4px 12px;font-size:.82rem"><span>${b.icon}</span>${b.label}</span>`).join('')}
+    </div>`;
+  }
 
   // Bande de statistiques
   let statsHtml = '';
@@ -2011,7 +2072,7 @@ async function showManagerSquad(mgrId){
   const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
 
-  $('squadModalBody').innerHTML = statsHtml + awardsHtml + pitchHtml;
+  $('squadModalBody').innerHTML = statsHtml + badgesHtml + awardsHtml + pitchHtml;
 }
 
 // ---------- Mon activité (timeline personnelle) ----------

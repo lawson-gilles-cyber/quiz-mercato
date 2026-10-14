@@ -202,6 +202,20 @@ export async function managerAwards(managerId) {
   const { data } = await sb.rpc('qm_manager_awards', { p_manager_id: managerId });
   return data ?? [];
 }
+// Réglages publics (règles vivantes)
+export async function publicSettings() {
+  const { data } = await sb.rpc('qm_public_settings');
+  return (data && data[0]) ? data[0] : null;
+}
+// Badges (gamification)
+export async function allBadges() {
+  const { data } = await sb.rpc('qm_all_badges');
+  return data ?? [];
+}
+export async function managerBadges(managerId) {
+  const { data } = await sb.rpc('qm_manager_badges', { p_manager_id: managerId });
+  return data ?? [];
+}
 export async function adminSetValue(id, value) {
   return sb.rpc('qm_admin_set_value', { p_id: id, p_value: value });
 }
