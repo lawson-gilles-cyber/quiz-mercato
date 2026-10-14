@@ -738,6 +738,7 @@
     <div class="eyebrow">Classement des managers</div>
     <h1>Le <em>classement</em></h1>
     <div id="awardsBanner"></div>
+    <div id="divTabs" style="display:none;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
     <table>
       <thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Effectif</th><th>Valeur effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankBody"></tbody>
@@ -2127,8 +2128,25 @@ function buildPitch(mine, readonly, colors){
 
 
 // ---------- Classement ----------
+let RANK_DIV_FILTER = null;   // null = classement général ; sinon id de division
+let RANK_DIVISIONS = [];
+async function renderDivTabs(){
+  const tabs = $('divTabs'); if(!tabs) return;
+  try { RANK_DIVISIONS = await api.divisionsList(); } catch(e){ RANK_DIVISIONS = []; }
+  if(!RANK_DIVISIONS.length){ tabs.style.display='none'; return; }
+  tabs.style.display='flex';
+  const mk = (id,label,active)=>`<button class="div-tab${active?' on':''}" data-div="${id==null?'':id}" style="background:${active?'var(--transfer)':'var(--pitch-2)'};color:${active?'var(--pitch)':'var(--chalk)'};border:1px solid var(--line);border-radius:20px;padding:5px 14px;cursor:pointer;font-size:.82rem;font-weight:700">${label}</button>`;
+  tabs.innerHTML = mk(null,'Général',RANK_DIV_FILTER==null) +
+    RANK_DIVISIONS.map(d=>mk(d.id, d.label+' ('+d.managers_count+')', RANK_DIV_FILTER===d.id)).join('');
+  tabs.querySelectorAll('[data-div]').forEach(b=>b.onclick=()=>{
+    RANK_DIV_FILTER = b.dataset.div || null;
+    renderRank();
+  });
+}
 async function renderRank(){
-  const managers = await api.leaderboard();
+  renderDivTabs();
+  let managers = await api.leaderboard();
+  if(RANK_DIV_FILTER) managers = managers.filter(m=>m.division_id===RANK_DIV_FILTER);
   // Récompenses (titres décernés)
   try {
     const awards = await api.listAwards();
@@ -2174,11 +2192,14 @@ async function showManagerSquad(mgrId){
   $('squadModalBody').innerHTML = `<div class="empty">Chargement…</div>`;
   modal.style.display='flex';
 
-  // Synthèse + palmarès + badges (en parallèle)
-  const [prof, awards, badges] = await Promise.all([
+  // Synthèse + palmarès + badges + historique enrichi (en parallèle)
+  const [prof, awards, badges, balance, best, history] = await Promise.all([
     api.managerProfile(mgrId).catch(()=>null),
     api.managerAwards(mgrId).catch(()=>[]),
-    api.managerBadges(mgrId).catch(()=>[])
+    api.managerBadges(mgrId).catch(()=>[]),
+    api.managerBalance(mgrId).catch(()=>null),
+    api.managerBestDeal(mgrId).catch(()=>null),
+    api.managerHistory(mgrId).catch(()=>[])
   ]);
 
   // Badges (distinctions automatiques)
@@ -2216,11 +2237,45 @@ async function showManagerSquad(mgrId){
     </div>`;
   }
 
+  // Bilan financier + meilleur coup
+  let balanceHtml = '';
+  if(balance){
+    const net = Number(balance.net);
+    balanceHtml = `<div style="background:var(--pitch-2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.86rem">
+      <div style="font-weight:800;margin-bottom:6px">💼 Bilan de la saison</div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap">
+        <span>Dépensé : <b>${fmtMoney(balance.spent)}</b></span>
+        <span>Encaissé : <b style="color:#4ade80">${fmtMoney(balance.earned)}</b></span>
+        <span>Solde : <b style="color:${net>=0?'#4ade80':'var(--live,#e0574a)'}">${net>=0?'+':''}${fmtMoney(net)}</b></span>
+        <span>Mouvements : <b>${balance.moves}</b></span>
+      </div>
+      ${best && best.player_name ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
+        🚀 Meilleur coup : <b>${best.player_name}</b> — acheté ${fmtMoney(best.bought)}, vaut ${fmtMoney(best.current_value)}
+        <b style="color:${Number(best.gain)>=0?'#4ade80':'var(--live,#e0574a)'}">(${Number(best.gain)>=0?'+':''}${fmtMoney(best.gain)})</b>
+      </div>`:''}
+    </div>`;
+  }
+
+  // Historique des transferts
+  let historyHtml = '';
+  if(history && history.length){
+    const rows = history.slice(0,20).map(h=>{
+      const d = new Date(h.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+      const dirColor = h.direction.startsWith('Achat')||h.direction.startsWith('Entrée') ? '#4ade80' : 'var(--live,#e0574a)';
+      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px solid var(--line);font-size:.82rem">
+        <span><b>${h.player_name}</b> <span style="color:${dirColor}">· ${h.direction}</span> <span style="color:var(--muted)">(${h.counterpart})</span></span>
+        <span style="white-space:nowrap">${Number(h.price)>0?fmtMoney(h.price):'—'} <span style="color:var(--muted);font-size:.72rem">${d}</span></span>
+      </div>`;
+    }).join('');
+    historyHtml = `<details style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:800;font-size:.9rem">📜 Historique des mouvements (${history.length})</summary>
+      <div style="margin-top:6px">${rows}</div></details>`;
+  }
+
   // Effectif (terrain)
   const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
 
-  $('squadModalBody').innerHTML = statsHtml + badgesHtml + awardsHtml + pitchHtml;
+  $('squadModalBody').innerHTML = statsHtml + badgesHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
 }
 
 // ---------- Mon activité (timeline personnelle) ----------

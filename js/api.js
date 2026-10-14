@@ -127,9 +127,15 @@ export async function myTeam(managerId) {
 }
 
 export async function leaderboard() {
-  const { data } = await sb.from('qm_managers')
-    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, coach_of')
+  // division_id peut ne pas encore exister (script 80 non passé) : on retente sans.
+  let { data, error } = await sb.from('qm_managers')
+    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, coach_of, division_id')
     .order('season_points', { ascending: false });
+  if (error) {
+    ({ data } = await sb.from('qm_managers')
+      .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, coach_of')
+      .order('season_points', { ascending: false }));
+  }
   // Seuls les compétiteurs : on exclut les admins et les coachs (pas d'effectif propre).
   return (data ?? []).filter(m => !m.is_admin && !m.coach_of);
 }
@@ -215,6 +221,41 @@ export async function publicSquad(managerId) {
 export async function managerAwards(managerId) {
   const { data } = await sb.rpc('qm_manager_awards', { p_manager_id: managerId });
   return data ?? [];
+}
+// Historique enrichi (vague 4)
+export async function managerHistory(managerId) {
+  const { data } = await sb.rpc('qm_manager_history', { p_manager_id: managerId });
+  return data ?? [];
+}
+export async function managerBalance(managerId) {
+  const { data } = await sb.rpc('qm_manager_balance', { p_manager_id: managerId });
+  return (data && data[0]) ? data[0] : null;
+}
+export async function managerBestDeal(managerId) {
+  const { data } = await sb.rpc('qm_manager_best_deal', { p_manager_id: managerId });
+  return (data && data[0]) ? data[0] : null;
+}
+// Divisions (vague 4)
+export async function divisionsList() {
+  const { data } = await sb.rpc('qm_divisions_list');
+  return data ?? [];
+}
+export async function divisionStandings(divisionId) {
+  const { data } = await sb.rpc('qm_division_standings', { p_division_id: divisionId });
+  return data ?? [];
+}
+export async function myDivision() {
+  const { data } = await sb.rpc('qm_my_division');
+  return (data && data[0]) ? data[0] : null;
+}
+export async function adminUpsertDivision(level, label, capacity) {
+  return sb.rpc('qm_admin_upsert_division', { p_level: level, p_label: label, p_capacity: capacity });
+}
+export async function adminAssignDivision(managerId, divisionId) {
+  return sb.rpc('qm_admin_assign_division', { p_manager_id: managerId, p_division_id: divisionId });
+}
+export async function adminApplyPromotionRelegation(count = 2) {
+  return sb.rpc('qm_admin_apply_promotion_relegation', { p_count: count });
 }
 // Réglages publics (règles vivantes)
 export async function publicSettings() {
