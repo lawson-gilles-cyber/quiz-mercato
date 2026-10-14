@@ -506,6 +506,8 @@
 </div>
 
 <main>
+  <!-- Bandeau fenêtre de mercato (compte à rebours) -->
+  <div id="mercatoBanner" style="display:none"></div>
   <!-- ACCUEIL -->
   <section class="view on" id="home">
     <div class="hero">
@@ -2369,6 +2371,57 @@ async function saveLineup(mdId){
   $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée !</span>`;
 }
 
+// ---------- Bandeau fenêtre de mercato (compte à rebours) ----------
+let MERCATO_WINDOW = null;      // la fenêtre active (ou null)
+function fmtCountdown(ms){
+  if(ms<=0) return 'maintenant';
+  const s=Math.floor(ms/1000), d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
+  if(d>0) return `${d}j ${h}h`;
+  if(h>0) return `${h}h ${String(m).padStart(2,'0')}m`;
+  return `${m}m`;
+}
+async function loadMercatoWindow(){
+  try { MERCATO_WINDOW = await api.currentWindow(); }
+  catch(e){ MERCATO_WINDOW = null; }
+  renderMercatoBanner();
+}
+function renderMercatoBanner(){
+  const box = $('mercatoBanner'); if(!box) return;
+  const w = MERCATO_WINDOW;
+  if(!w || !w.id){
+    box.style.display='block';
+    box.style.cssText = 'display:block;background:rgba(224,87,74,.12);border:1px solid var(--live,#e0574a);border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:.88rem;color:var(--live,#e0574a);text-align:center';
+    box.innerHTML = '🔒 Aucun mercato ouvert actuellement — les enchères et recrutements sont en pause.';
+    return;
+  }
+  const now = new Date();
+  const closes = w.closes_at ? new Date(w.closes_at) : null;
+  const opens = w.opens_at ? new Date(w.opens_at) : null;
+  let msg;
+  if(opens && now < opens){
+    msg = `🗓️ <b>${w.label}</b> — ouvre dans <b>${fmtCountdown(opens-now)}</b>`;
+  } else if(closes){
+    const left = closes-now;
+    const urgent = left < 24*3600*1000;
+    msg = `${urgent?'🔥':'🟢'} <b>${w.label}</b> — ferme dans <b data-mercato-countdown="${w.closes_at}">${fmtCountdown(left)}</b>`;
+  } else {
+    msg = `🟢 <b>${w.label}</b> — ouvert`;
+  }
+  const urgent = closes && (closes-now) < 24*3600*1000 && now >= (opens||now);
+  box.style.display='block';
+  box.style.cssText = `display:block;background:${urgent?'rgba(224,87,74,.12)':'rgba(74,222,128,.1)'};border:1px solid ${urgent?'var(--live,#e0574a)':'#4ade80'};border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:.88rem;color:${urgent?'var(--live,#e0574a)':'#4ade80'};text-align:center`;
+  box.innerHTML = msg;
+}
+// Rafraîchit le compte à rebours du bandeau chaque minute (texte seul, pas de requête)
+setInterval(()=>{
+  const el = document.querySelector('[data-mercato-countdown]');
+  if(el){
+    const left = new Date(el.dataset.mercatoCountdown) - new Date();
+    el.textContent = fmtCountdown(left);
+    if(left<=0) loadMercatoWindow();  // fenêtre fermée : on recharge l'état
+  }
+}, 60000);
+
 // ---------- Page d'accueil dynamique ----------
 async function renderHome(){
   const [auctions, managers, moves] = await Promise.all([
@@ -2561,6 +2614,7 @@ async function init(){
     $('userBadge').style.display='none';
   }
   await loadPlayers();
+  loadMercatoWindow();
   renderHome();
   renderMarket();
   renderAuctions();

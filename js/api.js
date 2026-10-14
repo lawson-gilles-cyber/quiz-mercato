@@ -451,6 +451,21 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- DASHBOARD FINANCIER (admin, vague 3) --------------------
+export async function adminFinance() {
+  const { data, error } = await sb.rpc('qm_admin_finance');
+  if (error) { console.error('qm_admin_finance:', error.message); return null; }
+  return (data && data[0]) ? data[0] : null;
+}
+export async function adminManagerFinance() {
+  const { data } = await sb.rpc('qm_admin_manager_finance');
+  return data ?? [];
+}
+export async function adminTopPlayers(limit = 10) {
+  const { data } = await sb.rpc('qm_admin_top_players', { p_limit: limit });
+  return data ?? [];
+}
+
 // ---------- BONUS -----------------------------------------------------
 export async function myBonuses() {
   const { data } = await sb.rpc('qm_my_bonuses');

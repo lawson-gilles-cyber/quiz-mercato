@@ -164,6 +164,26 @@
     <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
   </div>
 
+  <!-- Tableau de bord financier -->
+  <h2>💰 Tableau de bord financier</h2>
+  <div id="financeGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px">
+    <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 10px">Par manager</h3>
+    <table style="font-size:.85rem">
+      <thead><tr><th>Équipe</th><th>Budget dispo</th><th>Engagé</th><th>Masse salariale</th><th>Effectif</th><th>Valeur effectif</th></tr></thead>
+      <tbody id="financeManagerRows"><tr><td colspan="6" class="hint">Chargement…</td></tr></tbody>
+    </table>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 10px">Joueurs les plus chers</h3>
+    <table style="font-size:.85rem">
+      <thead><tr><th>Joueur</th><th>Club</th><th>Valeur</th><th>Salaire</th><th>Statut</th><th>Propriétaire</th></tr></thead>
+      <tbody id="financeTopRows"><tr><td colspan="6" class="hint">Chargement…</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Phase du mercato -->
   <h2>Phase du mercato</h2>
   <div class="card">
@@ -580,7 +600,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadProposalHistory(); loadSeasons();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons();
 }
 
 $('btnLogin').onclick = async () => {
@@ -1156,6 +1176,58 @@ async function loadOverview(){
     tile(o.transfers_today, 'Mouvements aujourd\'hui'),
     tile(o.market_open ? '🟢 Ouvert' : '🔴 Fermé', 'Marché des transferts', o.market_open?null:live),
   ].join('');
+}
+
+// Tableau de bord financier
+async function loadFinance(){
+  const grid = $('financeGrid'); if(!grid) return;
+  const f = await api.adminFinance();
+  if(!f){ grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Indisponible.</div>'; return; }
+  const tile = (val, label, accent) => `
+    <div style="background:var(--card2,#101d38);border-radius:12px;padding:14px;border-left:3px solid ${accent||'var(--line)'}">
+      <div style="font-size:1.5rem;font-weight:800;line-height:1.1;${accent?`color:${accent}`:''}">${val}</div>
+      <div class="hint" style="margin-top:4px">${label}</div>
+    </div>`;
+  const act = 'var(--transfer)';
+  grid.innerHTML = [
+    tile(fmtM(f.budget_available), 'Budget disponible (total)', act),
+    tile(fmtM(f.budget_locked), 'Fonds engagés (enchères)'),
+    tile(fmtM(f.salary_total), 'Masse salariale cumulée'),
+    tile(fmtM(f.market_spend_total), 'Dépensé au marché'),
+    tile(f.owned_players, 'Joueurs détenus'),
+    tile(fmtM(f.avg_squad_value), 'Valeur moyenne / effectif'),
+    tile(f.transfers_count, 'Mouvements (total)'),
+    tile(f.managers_count, 'Managers'),
+  ].join('');
+
+  // Détail par manager
+  const mgrs = await api.adminManagerFinance();
+  const mb = $('financeManagerRows');
+  if(mb){
+    mb.innerHTML = mgrs.length ? mgrs.map(m=>`<tr>
+      <td>${m.team}</td>
+      <td class="val">${fmtM(m.budget_available)}</td>
+      <td class="val" style="color:var(--muted)">${fmtM(m.budget_locked)}</td>
+      <td class="val">${fmtM(m.salary_used)}</td>
+      <td style="text-align:center">${m.squad_count}</td>
+      <td class="val">${fmtM(m.squad_value)}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun manager.</td></tr>';
+  }
+
+  // Joueurs les plus chers
+  const top = await api.adminTopPlayers(10);
+  const tb = $('financeTopRows');
+  if(tb){
+    const stLabel = {free:'Libre',owned:'Détenu',locked:'En enchère'};
+    tb.innerHTML = top.length ? top.map(p=>`<tr>
+      <td><b>${p.name}</b></td>
+      <td style="color:var(--muted)">${p.club||'—'}</td>
+      <td class="val">${fmtM(p.current_value)}</td>
+      <td class="val" style="color:var(--transfer)">${fmtM(p.salary)}</td>
+      <td>${stLabel[p.status]||p.status}</td>
+      <td>${p.owner_name||'—'}</td>
+    </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun joueur.</td></tr>';
+  }
 }
 
 async function loadRanking(){
