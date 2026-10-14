@@ -2295,6 +2295,8 @@ async function renderFeed(){
     $('feedList').innerHTML = `<div class="empty">Aucun mouvement pour l'instant. Le mercato va s'animer !</div>`;
     return;
   }
+  const ids = moves.map(m=>m.id).filter(Boolean);
+  const counts = ids.length ? await api.commentCounts(ids) : {};
   $('feedList').innerHTML = moves.map(m=>{
     const d = new Date(m.created_at);
     const when = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
@@ -2318,10 +2320,68 @@ async function renderFeed(){
     }
     return `<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;background:var(--pitch-2)">
       <span style="font-size:1.2rem;flex-shrink:0">${icon}</span>
-      <div style="flex:1"><div style="font-size:.92rem;line-height:1.4;color:var(--chalk)">${txt}</div>
-        <div style="font-size:.75rem;color:var(--muted);margin-top:3px">${when}</div></div>
+      <div style="flex:1">
+        <div style="font-size:.92rem;line-height:1.4;color:var(--chalk)">${txt}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:3px">${when}
+          ${m.id?` · <a href="#" class="cmt-toggle" data-tid="${m.id}" style="color:var(--transfer);text-decoration:none">💬 <span class="cmt-n" data-cn="${m.id}">${counts[m.id]||0}</span></a>`:''}
+        </div>
+        ${m.id?`<div class="cmt-box" data-cbox="${m.id}" style="display:none;margin-top:10px"></div>`:''}
+      </div>
     </div>`;
   }).join('');
+
+  // Câble l'ouverture/fermeture des fils de commentaires
+  $('feedList').querySelectorAll('.cmt-toggle').forEach(a=>a.onclick=async(ev)=>{
+    ev.preventDefault();
+    const tid = a.dataset.tid;
+    const box = $('feedList').querySelector(`[data-cbox="${tid}"]`);
+    if(box.style.display!=='none'){ box.style.display='none'; return; }
+    box.style.display='block';
+    await renderCommentBox(box, tid);
+  });
+}
+
+// Affiche le fil de commentaires + la saisie d'un transfert
+async function renderCommentBox(box, tid){
+  box.innerHTML = '<div class="hint" style="font-size:.78rem">Chargement…</div>';
+  const list = await api.transferComments(tid);
+  const items = list.map(c=>{
+    const t = new Date(c.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const del = c.is_mine ? ` <a href="#" class="cmt-del" data-del="${c.id}" data-tid="${tid}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
+    return `<div style="padding:6px 0;border-top:1px solid var(--line)">
+      <span style="font-weight:700;font-size:.82rem;color:var(--transfer)">${c.author}</span>
+      <span style="font-size:.72rem;color:var(--muted)"> · ${t}${del}</span>
+      <div style="font-size:.86rem;color:var(--chalk);margin-top:2px">${c.body.replace(/</g,'&lt;')}</div>
+    </div>`;
+  }).join('') || '<div class="hint" style="font-size:.78rem">Aucun commentaire. Lance le chambrage !</div>';
+  box.innerHTML = items + (ME ? `
+    <div style="display:flex;gap:6px;margin-top:8px">
+      <input class="cmt-input" data-ci="${tid}" maxlength="280" placeholder="Ton commentaire…" style="flex:1;font-size:.84rem">
+      <button class="bid-btn cmt-send" data-send="${tid}" style="font-size:.78rem;padding:5px 12px">Envoyer</button>
+    </div>` : '<div class="hint" style="font-size:.78rem;margin-top:8px">Connecte-toi pour commenter.</div>');
+
+  // Envoyer
+  const sendBtn = box.querySelector(`[data-send="${tid}"]`);
+  if(sendBtn) sendBtn.onclick = async ()=>{
+    const inp = box.querySelector(`[data-ci="${tid}"]`);
+    const body = (inp.value||'').trim();
+    if(!body) return;
+    const { error } = await api.postComment(tid, body);
+    if(error) return toast(error.message,'err');
+    inp.value='';
+    await renderCommentBox(box, tid);
+    const n = $('feedList').querySelector(`[data-cn="${tid}"]`);
+    if(n) n.textContent = (parseInt(n.textContent)||0)+1;
+  };
+  // Supprimer
+  box.querySelectorAll('.cmt-del').forEach(d=>d.onclick=async(ev)=>{
+    ev.preventDefault();
+    const { error } = await api.deleteComment(d.dataset.del);
+    if(error) return toast(error.message,'err');
+    await renderCommentBox(box, tid);
+    const n = $('feedList').querySelector(`[data-cn="${tid}"]`);
+    if(n) n.textContent = Math.max(0,(parseInt(n.textContent)||1)-1);
+  });
 }
 
 // ---------- Compte à rebours accueil (fin du mercato : lit season_state si dispo) ----------
@@ -2371,8 +2431,53 @@ async function loadNotifications(){
   const badge = $('bellBadge');
   if(count>0){ badge.textContent = count>99?'99+':count; badge.style.display='block'; }
   else badge.style.display='none';
+  maybeSystemNotify(NOTIFS);
 }
+
+// ---------- Notifications système locales (navigateur) ----------
+function notifSeenSet(){
+  try { return new Set(JSON.parse(localStorage.getItem('us_notif_seen')||'[]')); }
+  catch(e){ return new Set(); }
+}
+function notifSeenSave(set){
+  try { localStorage.setItem('us_notif_seen', JSON.stringify([...set].slice(-200))); } catch(e){}
+}
+function maybeSystemNotify(list){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  // Ne pas notifier si l'onglet est au premier plan (l'utilisateur voit déjà).
+  if(document.visibilityState === 'visible') {
+    // On marque quand même comme vus pour ne pas re-notifier plus tard.
+    const seen = notifSeenSet();
+    list.forEach(n=>{ if(n.ref) seen.add(n.kind+':'+n.ref); });
+    notifSeenSave(seen);
+    return;
+  }
+  const seen = notifSeenSet();
+  // Types qui déclenchent une vraie notif (actionnables / importants).
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won'];
+  const fresh = list.filter(n=> PUSH_KINDS.includes(n.kind) && n.ref && !seen.has(n.kind+':'+n.ref));
+  fresh.slice(0,3).forEach(n=>{
+    try {
+      const nn = new Notification('Ultimate Squad — '+n.title, { body: n.detail, icon: 'icon-192.png', tag: n.kind+':'+n.ref });
+      nn.onclick = ()=>{ window.focus(); nn.close(); };
+    } catch(e){}
+  });
+  list.forEach(n=>{ if(n.ref) seen.add(n.kind+':'+n.ref); });
+  notifSeenSave(seen);
+}
+
+// Demande la permission de notification (au clic sur la cloche, 1re fois).
+async function askNotifPermission(){
+  if(!('Notification' in window)) return;
+  if(Notification.permission === 'default'){
+    try { await Notification.requestPermission(); } catch(e){}
+  }
+}
+// Rafraîchit les notifications toutes les 60 s (pour les notifs système
+// même quand l'utilisateur ne fait rien).
+setInterval(()=>{ if(ME) loadNotifications(); }, 60000);
 if($('bellBtn')) $('bellBtn').onclick = ()=>{
+  askNotifPermission();  // propose d'activer les notifications système (1re fois)
   const panel = $('notifPanel');
   if(panel.style.display==='block'){ panel.style.display='none'; return; }
   const icons = {outbid:'⚠️', trade:'🔄', winning:'✅',

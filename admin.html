@@ -302,6 +302,20 @@
     <p class="hint">La valeur est en millions d'euros. Elle sert de valeur de départ ET de valeur de marché initiale.</p>
   </div>
 
+  <!-- Import CSV du catalogue -->
+  <h2>Import CSV (plusieurs joueurs)</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:10px">Colle une liste de joueurs (depuis Excel/Sheets/Transfermarkt). Une ligne par joueur, colonnes séparées par <b>virgule</b> ou <b>point-virgule</b> :</p>
+    <p class="hint" style="margin-bottom:10px;font-family:'Space Mono';color:var(--transfer)">Prénom, Nom, Poste, Club, Championnat, Valeur(M€)</p>
+    <p class="hint" style="margin-bottom:10px">Poste : GK/DEF/MID/FWD ou Gardien/Défenseur/Milieu/Attaquant. Les joueurs déjà en base (même prénom+nom+club) sont ignorés.</p>
+    <textarea id="csvInput" rows="6" style="width:100%;font-family:'Space Mono';font-size:.82rem" placeholder="Kylian, Mbappé, FWD, Real Madrid, Liga, 180&#10;Thiago, Silva, DEF, Fluminense, Autre, 8"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
+      <button class="btn-ghost btn-sm" id="btnCsvPreview">Aperçu</button>
+      <button class="btn-primary btn-sm" id="btnCsvImport" style="display:none">Importer les joueurs</button>
+    </div>
+    <div id="csvPreview" style="margin-top:12px"></div>
+  </div>
+
   <!-- Liste des joueurs -->
   <h2>Joueurs en base (<span id="playerCount">0</span>)</h2>
   <div class="card" style="margin-bottom:14px">
@@ -632,6 +646,80 @@ $('btnAddPlayer').onclick = async () => {
   toast(`${(first?first+' ':'')+name} ajouté.`,'ok');
   ['p_first','p_name','p_club','p_nat','p_age','p_value','p_photo'].forEach(id=>$(id).value='');
   loadPlayers();
+};
+
+// ---------- Import CSV ----------
+const POS_MAP = {
+  gk:'GK',gardien:'GK',goal:'GK',gardiendebut:'GK',
+  def:'DEF','défenseur':'DEF',defenseur:'DEF',defence:'DEF',
+  mid:'MID',milieu:'MID',mil:'MID',
+  fwd:'FWD',attaquant:'FWD',att:'FWD',atta:'FWD',forward:'FWD'
+};
+let CSV_ROWS = [];
+function parseCSV(text){
+  const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const rows = [];
+  for(const line of lines){
+    // sépare par ; ou , (tolère les deux)
+    const parts = line.split(/[;,]/).map(s=>s.trim());
+    if(parts.length < 6) { rows.push({error:'colonnes manquantes', raw:line}); continue; }
+    const [first, name, posRaw, club, champ, valRaw] = parts;
+    const posKey = (posRaw||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s/g,'');
+    const pos = POS_MAP[posKey] || (['GK','DEF','MID','FWD'].includes((posRaw||'').toUpperCase())?posRaw.toUpperCase():null);
+    const val = parseFloat((valRaw||'').replace(',','.'));
+    const err = [];
+    if(!first) err.push('prénom');
+    if(!name) err.push('nom');
+    if(!pos) err.push('poste');
+    if(isNaN(val)) err.push('valeur');
+    rows.push({ first, name, pos, club, champ, val, error: err.length?('manque: '+err.join(', ')):null, raw:line });
+  }
+  return rows;
+}
+// Ignore l'en-tête si la 1re ligne ressemble à des libellés
+function stripHeader(rows){
+  if(rows.length && rows[0].raw && /pr[eé]nom|nom|poste|club|valeur/i.test(rows[0].raw) && rows[0].error){
+    return rows.slice(1);
+  }
+  return rows;
+}
+if($('btnCsvPreview')) $('btnCsvPreview').onclick = ()=>{
+  let rows = parseCSV($('csvInput').value);
+  rows = stripHeader(rows);
+  CSV_ROWS = rows;
+  const ok = rows.filter(r=>!r.error), bad = rows.filter(r=>r.error);
+  if(!rows.length){ $('csvPreview').innerHTML='<p class="hint">Rien à importer.</p>'; $('btnCsvImport').style.display='none'; return; }
+  $('csvPreview').innerHTML = `
+    <p class="hint" style="margin-bottom:8px"><b>${ok.length}</b> joueur(s) valides${bad.length?` · <span style="color:var(--live,#ef5350)">${bad.length} ligne(s) à corriger</span>`:''}</p>
+    <table style="width:100%;font-size:.82rem"><thead><tr><th>Prénom</th><th>Nom</th><th>Poste</th><th>Club</th><th>Champ.</th><th>Valeur</th><th></th></tr></thead><tbody>${
+      rows.map(r=>r.error
+        ? `<tr style="color:var(--live,#ef5350)"><td colspan="6">${r.raw}</td><td>⚠️ ${r.error}</td></tr>`
+        : `<tr><td>${r.first}</td><td>${r.name}</td><td>${r.pos}</td><td>${r.club||'—'}</td><td>${r.champ||'—'}</td><td>${r.val} M€</td><td>✅</td></tr>`
+      ).join('')
+    }</tbody></table>`;
+  $('btnCsvImport').style.display = ok.length?'inline-block':'none';
+};
+if($('btnCsvImport')) $('btnCsvImport').onclick = async (e)=>{
+  const ok = CSV_ROWS.filter(r=>!r.error);
+  if(!ok.length) return;
+  const btn = e.target; btn.disabled=true; const old=btn.textContent; btn.textContent='⏳ Import…';
+  let added=0, skipped=0, failed=0;
+  for(const r of ok){
+    const { error } = await api.adminUpsertPlayer({
+      first_name: r.first || null, name: r.name, position: r.pos,
+      club: r.club || null, championship: r.champ || null,
+      value: Math.round(r.val * M)
+    });
+    if(error){
+      // doublon = ignoré (message anti-doublon), autre = échec
+      if(/existe déjà|doublon|duplicate|unique/i.test(error.message)) skipped++;
+      else failed++;
+    } else added++;
+  }
+  btn.disabled=false; btn.textContent=old;
+  toast(`Import terminé : ${added} ajouté(s)${skipped?`, ${skipped} ignoré(s) (doublons)`:''}${failed?`, ${failed} échec(s)`:''}.`, failed?'err':'ok', 6000);
+  loadPlayers();
+  $('csvInput').value=''; $('csvPreview').innerHTML=''; $('btnCsvImport').style.display='none';
 };
 
 // ---------- Liste des joueurs ----------

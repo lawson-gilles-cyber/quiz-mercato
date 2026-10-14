@@ -207,6 +207,24 @@ export async function publicSettings() {
   const { data } = await sb.rpc('qm_public_settings');
   return (data && data[0]) ? data[0] : null;
 }
+// Commentaires sur les transferts (chambrage)
+export async function postComment(transferId, body) {
+  return sb.rpc('qm_post_comment', { p_transfer_id: transferId, p_body: body });
+}
+export async function deleteComment(commentId) {
+  return sb.rpc('qm_delete_comment', { p_comment_id: commentId });
+}
+export async function transferComments(transferId) {
+  const { data } = await sb.rpc('qm_transfer_comments', { p_transfer_id: transferId });
+  return data ?? [];
+}
+export async function commentCounts(ids) {
+  if (!ids || !ids.length) return {};
+  const { data } = await sb.rpc('qm_comment_counts', { p_ids: ids });
+  const out = {};
+  (data ?? []).forEach(r => { out[r.transfer_id] = r.n; });
+  return out;
+}
 // Mode saison / archives
 export async function adminCloseSeason(label) {
   return sb.rpc('qm_admin_close_season', { p_label: label ?? null });
