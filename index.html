@@ -312,8 +312,12 @@
   .acard .price{font-family:'Space Mono';font-weight:700;color:var(--transfer);font-size:1.05rem}
   .acard .interest{font-family:'Archivo Narrow';font-size:.72rem;color:var(--muted);background:var(--pitch-2);padding:2px 7px;border-radius:10px}
   .acard .date{font-family:'Space Mono';color:var(--muted);font-size:.7rem}
-  .acard .clock{font-family:'Space Mono';font-size:.78rem;margin-top:8px}
-  .acard .clock.hot{color:var(--live)} .acard .clock.safe{color:var(--muted)}
+  .acard .clock{font-family:'Space Mono';font-size:.78rem;margin-top:8px;font-weight:700}
+  .acard .clock.safe{color:var(--muted);font-weight:400}
+  .acard .clock.final{color:var(--transfer)}
+  .acard .clock.hot{color:var(--live);animation:clockPulse 1s ease-in-out infinite}
+  .acard .clock.over{color:var(--muted)}
+  @keyframes clockPulse{0%,100%{opacity:1}50%{opacity:.45}}
   .col-empty{color:var(--muted);font-size:.8rem;text-align:center;padding:20px 6px;font-style:italic}
   @media(max-width:900px){.kanban{grid-template-columns:1fr 1fr}}
   @media(max-width:560px){.kanban{grid-template-columns:1fr}}
@@ -445,7 +449,8 @@
       </div>
     </div>
   </nav>
-  <div class="wallet" id="walletBox"><small>BUDGET DISPO</small><span id="wallet">—</span></div>
+  <div class="wallet" id="walletBox"><small>💰 BUDGET DISPO</small><span id="wallet">—</span></div>
+  <div class="wallet" id="salaryBox" style="display:none"><small>⚖️ MASSE SALARIALE</small><span id="walletSalary">—</span></div>
   <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
   <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-left:10px">
     <span id="userInitials" title="" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--transfer),var(--transfer-deep));color:var(--pitch);font-family:'Anton','Saira Condensed';font-size:.85rem;letter-spacing:.5px"></span>
@@ -604,6 +609,13 @@
   <section class="view" id="auctions">
     <div class="eyebrow">Salle des enchères · en direct</div>
     <h1>Le <em>marché</em> des transferts</h1>
+    <div id="aucFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
+      <input id="aucSearch" type="search" placeholder="🔍 Rechercher un joueur…" style="flex:1;min-width:180px">
+      <select id="aucPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
+      <select id="aucChamp"><option value="">Tous championnats</option><option value="Premier League">Premier League</option><option value="Liga">Liga</option><option value="Ligue 1">Ligue 1</option><option value="Bundesliga">Bundesliga</option><option value="Serie A">Serie A</option><option value="Autre">Autre</option></select>
+      <select id="aucPrice"><option value="">Tout prix</option><option value="0-20">&lt; 20 M€</option><option value="20-50">20–50 M€</option><option value="50-100">50–100 M€</option><option value="100-180">100–180 M€</option><option value="180-99999">180 M€ +</option></select>
+      <button id="aucReset" class="btn-ghost btn-sm" type="button" style="white-space:nowrap">Réinitialiser</button>
+    </div>
     <div class="kanban">
       <div class="col scheduled"><div class="col-head"><h3>Programmées</h3><span class="col-count" id="c-scheduled">0</span></div><div id="k-scheduled"></div></div>
       <div class="col live"><div class="col-head"><h3>En direct</h3><span class="col-count" id="c-live">0</span></div><div id="k-live"></div></div>
@@ -937,6 +949,22 @@ function playerSalary(v){ v=Number(v);
 }
 // Plafond d'enchère d'un joueur = valeur de base × 1,5 (synchronisé avec qm_bid_cap).
 function bidCap(baseValue){ return Math.round(Number(baseValue) * 1.5); }
+
+// Met à jour le bloc "Masse salariale" de l'en-tête (0 → 120 M€).
+async function updateSalaryBox(){
+  const box = $('salaryBox'); if(!box) return;
+  if(!ME){ box.style.display='none'; return; }
+  let dash = null;
+  try { dash = await api.myDashboard(); } catch(e){}
+  if(!dash){ box.style.display='none'; return; }
+  const used = Number(dash.salary_used||0), cap = Number(dash.salary_cap||120e6);
+  const pct = cap>0 ? Math.round(used/cap*100) : 0;
+  const color = pct>=90 ? 'var(--live)' : pct>=70 ? 'var(--transfer)' : '#4ade80';
+  const span = $('walletSalary');
+  span.textContent = `${fmtMoney(used)} / ${fmtMoney(cap)}`;
+  span.style.color = color;
+  box.style.display = 'block';
+}
 // Nom affiché d'un joueur : "Prénom Nom" si le prénom existe, sinon le nom seul.
 function playerName(p){
   if(!p) return '';
@@ -1521,11 +1549,13 @@ function acard(a, status){
   let bottom;
   if(status==='live'){
     const left = new Date(a.ends_at) - new Date();
-    const hot = left < 600000;
+    const FINAL = 2*3600*1000, HOT = 10*60*1000;
+    const cls = left<=0?'over' : left<HOT?'hot' : left<FINAL?'final' : 'safe';
+    const pre = left<=0?'🏁' : left<HOT?'🔥' : left<FINAL?'⚡' : '⏱';
     const interest = a.interest || 0;
     const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span>${interestTag}</div>
-      <div class="clock ${hot?'hot':'safe'}" data-ends="${a.ends_at}">⏱ ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
+      <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
       <button class="bid-btn" data-bid="${p.id}" style="width:100%;margin-top:10px">Enchérir</button>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
@@ -1539,34 +1569,76 @@ function acard(a, status){
       ${bottom}
     </div></div>`;
 }
+let AUC_LIVE = [];       // enchères en direct (pour le filtrage)
+let AUC_BUCKETS = {};    // les autres colonnes
 async function renderAuctions(){
   const open = await api.listOpenAuctions();
-  // Répartition simple : tout ce qui est ouvert et non expiré = live
   const now = new Date();
-  const live = open.filter(a=> new Date(a.ends_at) > now);
-  const buckets = {scheduled:[], live, ended:[], transferred:[]};
-  // Transferts récents = colonne "transferred"
+  AUC_LIVE = open.filter(a=> new Date(a.ends_at) > now);
+  AUC_BUCKETS = {scheduled:[], ended:[], transferred:[]};
   const { data: transfers } = await sb.from('qm_transfers')
     .select('*, player:qm_players(*)').order('created_at',{ascending:false}).limit(10);
-  buckets.transferred = (transfers??[]).map(t=>({player:t.player, current_price:t.price, created_at:t.created_at}));
+  AUC_BUCKETS.transferred = (transfers??[]).map(t=>({player:t.player, current_price:t.price, created_at:t.created_at}));
 
-  for(const status of ['scheduled','live','ended','transferred']){
-    const list=buckets[status];
+  // Colonnes non filtrées
+  for(const status of ['scheduled','ended','transferred']){
+    const list=AUC_BUCKETS[status];
     $('c-'+status).textContent=list.length;
     $('k-'+status).innerHTML = list.length? list.map(a=>acard(a,status)).join('')
       : `<div class="col-empty">Aucune</div>`;
   }
-  // Câble les boutons "Enchérir" des cartes en direct
+  applyAucFilters();  // remplit la colonne "live" selon les filtres
+}
+
+// Applique recherche + filtres à la colonne "En direct"
+function applyAucFilters(){
+  const q = ($('aucSearch')?.value||'').trim().toLowerCase();
+  const pos = $('aucPos')?.value||'';
+  const champ = $('aucChamp')?.value||'';
+  const [pmin,pmax] = ($('aucPrice')?.value||'').split('-').map(Number);
+  let list = AUC_LIVE.filter(a=>{
+    const p = a.player||{};
+    if(q){
+      const full = (((p.first_name||'')+' '+(p.name||'')).toLowerCase());
+      if(!full.includes(q) && !((p.club||'').toLowerCase().includes(q))) return false;
+    }
+    if(pos && p.position!==pos) return false;
+    if(champ && (p.championship||'')!==champ) return false;
+    if($('aucPrice')?.value){
+      const v = Number(a.current_price)/1e6;
+      if(v < pmin || v >= pmax) return false;
+    }
+    return true;
+  });
+  if($('c-live')) $('c-live').textContent = list.length;
+  if($('k-live')) $('k-live').innerHTML = list.length? list.map(a=>acard(a,'live')).join('')
+    : `<div class="col-empty">Aucun joueur ne correspond.</div>`;
   document.querySelectorAll('#k-live [data-bid]').forEach(btn=>
     btn.onclick = ()=> startBid(btn.dataset.bid));
 }
+// Câblage des filtres (une seule fois)
+['aucSearch','aucPos','aucChamp','aucPrice'].forEach(id=>{
+  const el=$(id); if(el) el.addEventListener('input', applyAucFilters);
+});
+if($('aucReset')) $('aucReset').onclick = ()=>{
+  ['aucSearch','aucPos','aucChamp','aucPrice'].forEach(id=>{ if($(id)) $(id).value=''; });
+  applyAucFilters();
+};
 // compte à rebours live (recalcule depuis ends_at)
 setInterval(()=>{
   document.querySelectorAll('.clock[data-ends]').forEach(c=>{
     const left=new Date(c.dataset.ends)-new Date();
-    const name=c.textContent.split('·')[1]??'';
-    c.textContent='⏱ '+fmtClock(left)+' ·'+name;
-    c.classList.toggle('safe',left>=600000); c.classList.toggle('hot',left<600000);
+    const name=c.textContent.replace(/^⏱[^·]*·/, '·').split('·')[1]??'';
+    const FINAL = 2*3600*1000, HOT = 10*60*1000;
+    let prefix = '⏱';
+    if(left<=0) prefix = '🏁';
+    else if(left<HOT) prefix = '🔥';
+    else if(left<FINAL) prefix = '⚡';
+    c.textContent = prefix+' '+fmtClock(left)+' ·'+name;
+    c.classList.toggle('safe', left>=FINAL);
+    c.classList.toggle('final', left<FINAL && left>=HOT);
+    c.classList.toggle('hot', left<HOT && left>0);
+    c.classList.toggle('over', left<=0);
   });
 },1000);
 
@@ -1678,6 +1750,12 @@ async function renderTeam(){
     const salColor = salPct>=90 ? 'var(--live)' : salPct>=70 ? 'var(--transfer)' : '#4ade80';
     $('dashSalary').innerHTML = `<b style="color:${salColor}">${fmtMoney(dash.salary_used)}</b> / ${fmtMoney(dash.salary_cap)}`;
     $('dashLocked').innerHTML = `<b>${fmtMoney(dash.budget_locked)}</b>`;
+    // Bloc masse salariale de l'en-tête (toujours visible)
+    if($('salaryBox') && $('walletSalary')){
+      $('walletSalary').textContent = `${fmtMoney(dash.salary_used)} / ${fmtMoney(dash.salary_cap)}`;
+      $('walletSalary').style.color = salColor;
+      $('salaryBox').style.display='block';
+    }
     // Alertes (E)
     const alerts = [];
     if(salPct>=90) alerts.push({c:'var(--live)', txt:`⚠️ Masse salariale à ${salPct}% du plafond — libère ou échange un joueur avant d'en acheter un nouveau.`});
@@ -2148,11 +2226,13 @@ async function init(){
     $('bellBtn').style.display='inline-block';
     showUserBadge(ME);
     loadNotifications();
+    updateSalaryBox();
     await loadTeamIdentity();
     maybeShowWelcome();
   } else {
     $('wallet').textContent = '—';
     $('walletBox').style.display='none';
+    if($('salaryBox')) $('salaryBox').style.display='none';
     $('bellBtn').style.display='none';
     $('userBadge').style.display='none';
   }
