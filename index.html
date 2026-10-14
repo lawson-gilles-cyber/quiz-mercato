@@ -1966,15 +1966,52 @@ async function renderRank(){
   $('rankBody').querySelectorAll('.rank-row').forEach(row=>row.onclick=()=>showManagerSquad(row.dataset.mgr));
 }
 let RANK_TEAMS = {};
-function showManagerSquad(mgrId){
+async function showManagerSquad(mgrId){
   const entry = RANK_TEAMS[mgrId];
   if(!entry) return;
   const modal = $('squadModal');
-  $('squadModalTitle').textContent = `Effectif de ${entry.name}`;
-  // Réutilise buildPitch (les notes seront cachées car ce ne sont pas mes joueurs)
-  $('squadModalBody').innerHTML = entry.team.length ? buildPitch(entry.team, true, entry.colors)
-    : `<div class="empty">Effectif vide.</div>`;
+  $('squadModalTitle').textContent = `Profil de ${entry.name}`;
+  $('squadModalBody').innerHTML = `<div class="empty">Chargement…</div>`;
   modal.style.display='flex';
+
+  // Synthèse + palmarès (en parallèle)
+  const [prof, awards] = await Promise.all([
+    api.managerProfile(mgrId).catch(()=>null),
+    api.managerAwards(mgrId).catch(()=>[])
+  ]);
+
+  // Bande de statistiques
+  let statsHtml = '';
+  if(prof){
+    const stat = (v,l,c)=>`<div style="background:var(--pitch-2);border-radius:10px;padding:10px 12px;text-align:center">
+      <div style="font-size:1.3rem;font-weight:800;${c?`color:${c}`:''}">${v}</div>
+      <div style="font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:2px">${l}</div></div>`;
+    statsHtml = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px;margin-bottom:16px">
+      ${stat(prof.season_points, 'Points', 'var(--transfer)')}
+      ${stat(prof.squad_count+' / 21', 'Effectif')}
+      ${stat(fmtMoney(prof.squad_value), 'Valeur')}
+      ${stat(fmtMoney(prof.bonus_total), 'Bonus cumulés', '#4ade80')}
+      ${stat(prof.buys_count, 'Achats')}
+      ${stat(prof.trades_count, 'Échanges')}
+    </div>`;
+  }
+
+  // Palmarès
+  let awardsHtml = '';
+  if(awards && awards.length){
+    awardsHtml = `<div style="margin-bottom:16px">
+      ${awards.map(a=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
+        <span style="font-size:1.1rem">🏆</span>
+        <span><b>${a.title}</b>${a.detail?` <span style="color:var(--muted);font-size:.82rem">(${a.detail})</span>`:''}</span>
+      </div>`).join('')}
+    </div>`;
+  }
+
+  // Effectif (terrain)
+  const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
+    : `<div class="empty">Effectif vide.</div>`;
+
+  $('squadModalBody').innerHTML = statsHtml + awardsHtml + pitchHtml;
 }
 
 // ---------- Mon activité (timeline personnelle) ----------

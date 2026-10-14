@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ultimate Squad — Administration</title>
+<!-- SheetJS pour l'export Excel (.xlsx) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- PWA : installation sur écran d'accueil Android / iPhone -->
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0a1428">
@@ -482,6 +484,18 @@
       <thead><tr><th>Date</th><th>Proposé par</th><th>Joueur</th><th>Statut</th><th>Motif / décideur</th></tr></thead>
       <tbody id="propHistoryRows"><tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
     </table>
+  </div>
+
+  <!-- Export des données (Excel) -->
+  <h2>Export des données</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Télécharge les données du jeu au format Excel (.xlsx), pour un bilan de fin de mercato ou l'archivage d'une saison.</p>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+      <button class="btn-primary btn-sm" id="btnExportClassement">📊 Classement</button>
+      <button class="btn-primary btn-sm" id="btnExportEffectifs">👥 Effectifs des équipes</button>
+      <button class="btn-primary btn-sm" id="btnExportTransactions">🔄 Transactions</button>
+      <button class="btn-ghost btn-sm" id="btnExportTout">📦 Tout exporter (1 fichier)</button>
+    </div>
   </div>
 
 </main>
@@ -1399,6 +1413,108 @@ async function loadProposals(){
     if(error){ toast(error.message,'err',5000); loadProposals(); return; }
     toast('Proposition refusée.','ok'); loadProposals();
   });
+}
+
+// ---------- Export Excel (.xlsx) ----------
+function fmtMx(v){ return Math.round(Number(v||0)/M) + ' M€'; }
+const POS_FR = {GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'};
+
+// Style l'en-tête (ligne 1) et élargit les colonnes d'une feuille
+function styleSheet(ws, rows){
+  if(!rows.length) return;
+  ws['!cols'] = Object.keys(rows[0]).map(k=>{
+    const maxLen = Math.max(k.length, ...rows.map(r=>String(r[k]??'').length));
+    return { wch: Math.min(Math.max(maxLen+2, 10), 40) };
+  });
+}
+function addSheet(wb, name, rows){
+  const ws = XLSX.utils.json_to_sheet(rows.length?rows:[{'(vide)':''}]);
+  styleSheet(ws, rows);
+  XLSX.utils.book_append_sheet(wb, ws, name.slice(0,31)); // Excel limite à 31 car.
+}
+function today(){ return new Date().toISOString().slice(0,10); }
+
+async function dataClassement(){
+  const mgrs = await api.leaderboard();
+  return mgrs.map((m,i)=>({
+    'Rang': i+1,
+    'Manager': m.display_name,
+    'Équipe': m.team_name||'',
+    'Points': m.season_points,
+    'Budget dispo': fmtMx(Number(m.budget)-Number(m.budget_locked)),
+  }));
+}
+async function dataEffectifs(){
+  const mgrs = (await api.listManagers()).filter(m=>!m.is_admin && !m.coach_of);
+  const out = [];
+  for(const m of mgrs){
+    const squad = await api.adminManagerSquad(m.id);
+    for(const p of squad){
+      const full = ((p.first_name||'').trim()?p.first_name.trim()+' ':'')+p.name;
+      out.push({
+        'Manager': m.display_name,
+        'Équipe': m.team_name||'',
+        'Poste': POS_FR[p.pos]||p.pos,
+        'Joueur': full,
+        'Club': p.club||'',
+        'Championnat': p.championship||'',
+        'Valeur': fmtMx(p.current_value),
+      });
+    }
+  }
+  return out;
+}
+async function dataTransactions(){
+  const tx = await api.adminTransactions();
+  return (tx||[]).map(t=>({
+    'Date': t.created_at ? new Date(t.created_at).toLocaleString('fr-FR') : '',
+    'Joueur': t.player_name||'',
+    'De': t.from_manager||'(marché)',
+    'Vers': t.to_manager||'(libéré)',
+    'Prix': fmtMx(t.price),
+  }));
+}
+function download(wb, filename){
+  XLSX.writeFile(wb, filename);
+}
+
+if($('btnExportClassement')) $('btnExportClassement').onclick = async (e)=>{
+  await withBtn(e.target, async ()=>{
+    const wb = XLSX.utils.book_new();
+    addSheet(wb, 'Classement', await dataClassement());
+    download(wb, `UltimateSquad_Classement_${today()}.xlsx`);
+  });
+};
+if($('btnExportEffectifs')) $('btnExportEffectifs').onclick = async (e)=>{
+  await withBtn(e.target, async ()=>{
+    const wb = XLSX.utils.book_new();
+    addSheet(wb, 'Effectifs', await dataEffectifs());
+    download(wb, `UltimateSquad_Effectifs_${today()}.xlsx`);
+  });
+};
+if($('btnExportTransactions')) $('btnExportTransactions').onclick = async (e)=>{
+  await withBtn(e.target, async ()=>{
+    const wb = XLSX.utils.book_new();
+    addSheet(wb, 'Transactions', await dataTransactions());
+    download(wb, `UltimateSquad_Transactions_${today()}.xlsx`);
+  });
+};
+if($('btnExportTout')) $('btnExportTout').onclick = async (e)=>{
+  await withBtn(e.target, async ()=>{
+    const wb = XLSX.utils.book_new();
+    addSheet(wb, 'Classement', await dataClassement());
+    addSheet(wb, 'Effectifs', await dataEffectifs());
+    addSheet(wb, 'Transactions', await dataTransactions());
+    download(wb, `UltimateSquad_Export_${today()}.xlsx`);
+  });
+};
+// Petit utilitaire de chargement sur bouton
+async function withBtn(btn, fn){
+  if(typeof XLSX==='undefined'){ toast('Module d\'export non chargé. Recharge la page.','err',5000); return; }
+  const old = btn.textContent; btn.disabled=true; btn.textContent='⏳ Export…';
+  try { await fn(); toast('Export téléchargé.','ok'); }
+  catch(err){ console.error(err); toast('Échec de l\'export.','err',5000); }
+  finally { btn.disabled=false; btn.textContent=old; }
 }
 
 // ---------- Init ----------

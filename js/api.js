@@ -189,6 +189,19 @@ export async function adminManagerSquad(managerId) {
   const { data } = await sb.rpc('qm_admin_manager_squad', { p_manager_id: managerId });
   return data ?? [];
 }
+// ---------- Profil public d'un manager ----------------------------
+export async function managerProfile(managerId) {
+  const { data } = await sb.rpc('qm_manager_profile', { p_manager_id: managerId });
+  return (data && data[0]) ? data[0] : null;
+}
+export async function publicSquad(managerId) {
+  const { data } = await sb.rpc('qm_public_squad', { p_manager_id: managerId });
+  return data ?? [];
+}
+export async function managerAwards(managerId) {
+  const { data } = await sb.rpc('qm_manager_awards', { p_manager_id: managerId });
+  return data ?? [];
+}
 export async function adminSetValue(id, value) {
   return sb.rpc('qm_admin_set_value', { p_id: id, p_value: value });
 }
