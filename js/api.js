@@ -308,6 +308,10 @@ export async function adminProposalCounts() {
   const { data } = await sb.rpc('qm_admin_proposal_counts');
   return (data && data[0]) ? data[0] : { pending: 0, approved: 0, needs_changes: 0 };
 }
+export async function adminProposalsHistory(limit = 100) {
+  const { data } = await sb.rpc('qm_admin_proposals_history', { p_limit: limit });
+  return data ?? [];
+}
 export async function proposalDuplicates(id) {
   const { data } = await sb.rpc('qm_proposal_duplicates', { p_proposal_id: id });
   return data ?? [];
@@ -343,6 +347,11 @@ export async function cancelProposal(id) {
 export async function adminTransactions() {
   const { data } = await sb.rpc('qm_admin_transactions');
   return data ?? [];
+}
+export async function adminOverview() {
+  const { data, error } = await sb.rpc('qm_admin_overview');
+  if (error) { console.error('qm_admin_overview:', error.message); return null; }
+  return (data && data[0]) ? data[0] : null;
 }
 
 // ---------- BONUS -----------------------------------------------------

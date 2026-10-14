@@ -156,6 +156,12 @@
 <main id="console" class="hidden">
   <div id="msg2"></div>
 
+  <!-- Vue d'ensemble -->
+  <h2>Vue d'ensemble</h2>
+  <div id="overviewGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px">
+    <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
+  </div>
+
   <!-- Phase du mercato -->
   <h2>Phase du mercato</h2>
   <div class="card">
@@ -468,6 +474,16 @@
     </table>
   </div>
 
+  <!-- Historique complet des propositions (traçabilité) -->
+  <h2>Historique des propositions</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:12px">Toutes les propositions, quel que soit leur statut final — traçabilité complète (manager, joueur, date, décision).</p>
+    <table>
+      <thead><tr><th>Date</th><th>Proposé par</th><th>Joueur</th><th>Statut</th><th>Motif / décideur</th></tr></thead>
+      <tbody id="propHistoryRows"><tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
+    </table>
+  </div>
+
 </main>
 
 <script type="module">
@@ -519,7 +535,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadProposalHistory();
 }
 
 $('btnLogin').onclick = async () => {
@@ -975,6 +991,33 @@ $('btnCreateWindow').onclick = async ()=>{
 };
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
+// Vue d'ensemble : chiffres clés du jeu
+async function loadOverview(){
+  const grid = $('overviewGrid'); if(!grid) return;
+  const o = await api.adminOverview();
+  if(!o){ grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Indisponible.</div>'; return; }
+  // tile(valeur, libellé, couleur d'accent si actionnable, note optionnelle)
+  const tile = (val, label, accent, note) => `
+    <div style="background:var(--card2,#101d38);border-radius:12px;padding:14px;border-left:3px solid ${accent||'var(--line)'}">
+      <div style="font-size:1.8rem;font-weight:800;line-height:1;${accent?`color:${accent}`:''}">${val}</div>
+      <div class="hint" style="margin-top:4px">${label}</div>
+      ${note?`<div style="font-size:.72rem;color:${accent||'var(--muted)'};margin-top:2px">${note}</div>`:''}
+    </div>`;
+  const act = 'var(--transfer)', live = 'var(--live,#ef5350)';
+  grid.innerHTML = [
+    tile(o.open_auctions, 'Enchères en cours', null,
+         o.ending_soon>0 ? `⏳ ${o.ending_soon} en phase finale` : null),
+    tile(o.proposals_pending, 'Propositions à traiter', o.proposals_pending>0?act:null),
+    tile(o.proposals_approved, 'Approuvées à publier', o.proposals_approved>0?act:null),
+    tile(o.injuries_pending, 'Blessures à valider', o.injuries_pending>0?live:null),
+    tile(o.pending_trades, 'Échanges en attente', null),
+    tile(o.managers_count, 'Managers'),
+    tile(o.free_players + ' / ' + o.total_players, 'Joueurs libres / total'),
+    tile(o.transfers_today, 'Mouvements aujourd\'hui'),
+    tile(o.market_open ? '🟢 Ouvert' : '🔴 Fermé', 'Marché des transferts', o.market_open?null:live),
+  ].join('');
+}
+
 async function loadRanking(){
   if(!$('rankAdminBody')) return;
   const managers = await api.leaderboard();  // déjà filtré (hors admin/coach)
@@ -1271,12 +1314,32 @@ const PROP_STATUS = {
   cancelled:     {txt:'Annulé',      cls:'s-closed'}
 };
 
+async function loadProposalHistory(){
+  const tbody = $('propHistoryRows'); if(!tbody) return;
+  const rows = await api.adminProposalsHistory(100);
+  if(!rows.length){ tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucune proposition enregistrée.</td></tr>'; return; }
+  const STCLS = {published:'s-open', approved:'s-open', pending:'s-open', needs_changes:'s-closed', rejected:'s-closed', cancelled:'s-closed'};
+  tbody.innerHTML = rows.map(r=>{
+    const d = new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
+    const motif = [r.decision_reason, r.reviewer_name?('par '+r.reviewer_name):null].filter(Boolean).join(' · ');
+    return `<tr>
+      <td style="font-size:.82rem;color:var(--muted)">${d}</td>
+      <td><b>${r.proposer_name}</b></td>
+      <td>${r.player_label}${r.club?` <span style="color:var(--muted);font-size:.78rem">(${r.club})</span>`:''}</td>
+      <td><span class="status ${STCLS[r.status]||'s-closed'}">${r.status_fr||r.status}</span></td>
+      <td style="font-size:.82rem;color:var(--muted)">${motif||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
 async function loadProposals(){
   // Compteurs d'en-tête
   const c = await api.adminProposalCounts();
   if($('pc_pending'))  $('pc_pending').textContent  = c.pending ?? 0;
   if($('pc_approved')) $('pc_approved').textContent = c.approved ?? 0;
   if($('pc_changes'))  $('pc_changes').textContent  = c.needs_changes ?? 0;
+  loadProposalHistory();  // garde l'historique à jour après chaque décision
+  loadOverview();         // et les compteurs de la vue d'ensemble
 
   const props = await api.adminProposals();
   const tbody = $('proposalRows');
