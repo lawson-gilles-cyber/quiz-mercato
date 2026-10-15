@@ -411,6 +411,15 @@ export async function positionScarcity(){
   return data ?? [];
 }
 
+// ---------- Éditeur de barèmes (réglages consolidés) ----------------
+export async function adminSettings(){
+  const { data } = await sb.rpc('qm_admin_settings');
+  return data ?? null;
+}
+export async function adminSetSettings(obj){
+  return sb.rpc('qm_admin_set_settings', { p: obj });
+}
+
 // ---------- COMMISSIONS / MARCHÉ ------------------------------------
 export async function estimateCommission(managerId, playerId) {
   const { data } = await sb.rpc('qm_estimate_commission', {

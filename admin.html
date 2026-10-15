@@ -203,6 +203,18 @@
     <button class="btn-ghost btn-sm" id="btnCollapseAll" type="button">Tout replier</button>
   </div>
 
+  <!-- Éditeur de barèmes -->
+  <h2>🎛️ Éditeur de barèmes</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">Tous les réglages du jeu au même endroit. Les montants sont en M€. Modifie ce que tu veux puis « Enregistrer ». Un aperçu des grilles est affiché sous l'éditeur.</p>
+    <div id="baremesEditor"><p class="hint">Chargement…</p></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn-primary btn-sm" id="btnSaveBaremes">Enregistrer les barèmes</button>
+      <button class="btn-ghost btn-sm" id="btnReloadBaremes">Recharger</button>
+    </div>
+    <div id="baremesPreview" style="margin-top:16px"></div>
+  </div>
+
   <!-- Diagnostic / santé -->
   <h2>🩺 Diagnostic</h2>
   <div class="card" style="margin-bottom:14px">
@@ -707,7 +719,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes();
 }
 
 // Enveloppe chaque <h2> + son contenu dans un <details> repliable.
@@ -1405,6 +1417,111 @@ if($('btnCreateChallenge')) $('btnCreateChallenge').onclick = async ()=>{
   showMsg($('msg2'),'Défi créé.',true);
   $('chalLabel').value=''; loadChallenges();
 };
+
+// ---------- Éditeur de barèmes ----------
+// Groupes de réglages : [clé, libellé, type]  (type: 'money' en M€, 'int', 'hours')
+const BAREMES_GROUPS = [
+  ['Plafonds & taxe', [
+    ['salary_cap','Masse salariale max','money'],
+    ['entry_tax','Taxe d\'entrée (enchère non dénichée)','money'],
+  ]],
+  ['Bonus journée', [
+    ['full_day_bonus','Journée complète — 3 postes différents','money'],
+    ['same_pos_bonus','Journée complète — 3 même poste','money'],
+  ]],
+  ['Dénicheur', [
+    ['scout_bonus','Bonus dénicheur (base)','money'],
+    ['scout_cap','Plafond du bonus dénicheur','money'],
+    ['scout_daily_max','Nb max de dénichages / jour','int'],
+    ['scout_min_bids','Offres mini pour valider un dénichage','int'],
+  ]],
+  ['Construction d\'effectif', [
+    ['build_11_bonus','Bonus 11 joueurs','money'],
+    ['build_15_bonus','Bonus 15 joueurs','money'],
+    ['build_19_bonus','Bonus 19 joueurs','money'],
+    ['build_clubs_bonus','Bonus 10 clubs différents','money'],
+  ]],
+  ['Coup de poker (seul enchérisseur)', [
+    ['poker_s1_threshold','Seuil 1','money'],['poker_s1_bonus','Bonus 1','money'],
+    ['poker_s2_threshold','Seuil 2','money'],['poker_s2_bonus','Bonus 2','money'],
+    ['poker_s3_threshold','Seuil 3','money'],['poker_s3_bonus','Bonus 3','money'],
+    ['poker_s4_threshold','Seuil 4','money'],['poker_s4_bonus','Bonus 4','money'],
+    ['poker_crowd_bonus','Bonus 5+ managers','money'],
+    ['poker_bigprice_threshold','Seuil grosse somme','money'],
+    ['poker_bigprice_bonus','Bonus grosse somme','money'],
+  ]],
+  ['Conversion budget → points', [
+    ['budget_to_points_rate','M€ pour 1 point','money'],
+    ['points_convert_cap','Plafond de points convertis','int'],
+    ['quiz_point_value','Valeur d\'un point de quiz','money'],
+  ]],
+  ['Limites du marché', [
+    ['max_active_auctions','Enchères actives max (global)','int'],
+    ['max_daily_purchases','Achats max / jour / manager','int'],
+    ['max_leading_auctions','Enchères menées max / manager','int'],
+    ['daily_proposals_target','Objectif de propositions / jour','int'],
+    ['bid_pass_limit','PASS (offres) max par joueur','int'],
+    ['bid_cooldown_hours','Délai entre 2 offres (h)','hours'],
+    ['no_first_bid_hours','Pas de 1re offre dans les N dernières h','hours'],
+    ['final_phase_hours','Durée de la phase finale (h)','hours'],
+    ['collusion_max_pairs','Paires d\'entente max tolérées','int'],
+  ]],
+];
+let BAREMES_DATA = null;
+async function loadBaremes(){
+  const box = $('baremesEditor'); if(!box) return;
+  try { BAREMES_DATA = await api.adminSettings(); }
+  catch(e){ box.innerHTML = '<p class="hint">Passe le script barèmes pour activer cette section.</p>'; return; }
+  if(!BAREMES_DATA){ box.innerHTML = '<p class="hint">Réglages indisponibles.</p>'; return; }
+  const field = (key,label,type)=>{
+    let val = BAREMES_DATA[key];
+    if(val==null) val = '';
+    const disp = (type==='money' && val!=='') ? (Number(val)/1e6) : val;
+    const suffix = type==='money' ? 'M€' : (type==='hours' ? 'h' : '');
+    return `<div style="display:flex;flex-direction:column;gap:2px">
+      <label style="font-size:.76rem;color:var(--muted)">${label}${suffix?` (${suffix})`:''}</label>
+      <input data-bareme="${key}" data-type="${type}" type="number" step="${type==='money'?'0.1':'1'}" value="${disp}" style="width:100%">
+    </div>`;
+  };
+  box.innerHTML = BAREMES_GROUPS.map(([title,fields])=>`
+    <details class="sec" open style="margin-bottom:10px">
+      <summary><h3 style="display:inline;margin:0;font-size:1rem">${title}</h3></summary>
+      <div class="sec-body" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;padding-top:8px">
+        ${fields.map(f=>field(f[0],f[1],f[2])).join('')}
+      </div>
+    </details>`).join('');
+  renderBaremesPreview();
+}
+function renderBaremesPreview(){
+  const el = $('baremesPreview'); if(!el || !BAREMES_DATA) return;
+  const m = v => (Number(v||0)/1e6);
+  el.innerHTML = `<div style="background:rgba(255,213,74,.06);border:1px solid var(--line);border-radius:8px;padding:12px">
+    <div style="font-weight:800;font-size:.84rem;margin-bottom:6px">Aperçu rapide</div>
+    <div style="font-size:.82rem;color:var(--muted);line-height:1.7">
+      Masse salariale max <b>${m(BAREMES_DATA.salary_cap)} M€</b> · Taxe d'entrée <b>${m(BAREMES_DATA.entry_tax)} M€</b><br>
+      Journée complète <b>${m(BAREMES_DATA.full_day_bonus)} M€</b> (même poste <b>${m(BAREMES_DATA.same_pos_bonus)} M€</b>)<br>
+      Dénicheur <b>${m(BAREMES_DATA.scout_bonus)} M€</b> plafonné à <b>${m(BAREMES_DATA.scout_cap)} M€</b>, max <b>${BAREMES_DATA.scout_daily_max}/jour</b><br>
+      Conversion <b>${m(BAREMES_DATA.budget_to_points_rate)} M€ = 1 pt</b>, plafond <b>${BAREMES_DATA.points_convert_cap} pts</b>
+    </div></div>`;
+}
+if($('btnSaveBaremes')) $('btnSaveBaremes').onclick = async ()=>{
+  const payload = {};
+  document.querySelectorAll('[data-bareme]').forEach(inp=>{
+    const key = inp.dataset.bareme, type = inp.dataset.type;
+    let v = inp.value;
+    if(v===''||v==null) return;
+    if(type==='money') v = Math.round(parseFloat(v)*1e6);
+    else v = Math.round(parseFloat(v));
+    if(!isNaN(v)) payload[key] = String(v);
+  });
+  const { data, error } = await api.adminSetSettings(payload);
+  if(error) return showMsg($('msg2'), error.message);
+  const n = (data && data.updated!=null) ? data.updated : '?';
+  showMsg($('msg2'), `${n} réglage(s) enregistré(s).`, true);
+  loadBaremes();
+  if(typeof loadBonusSettings==='function') loadBonusSettings();  // garde l'ancienne section à jour
+};
+if($('btnReloadBaremes')) $('btnReloadBaremes').onclick = ()=>loadBaremes();
 
 // Diagnostic / santé
 async function loadHealthcheck(){
