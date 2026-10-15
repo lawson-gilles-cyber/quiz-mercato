@@ -203,6 +203,14 @@
     <button class="btn-ghost btn-sm" id="btnCollapseAll" type="button">Tout replier</button>
   </div>
 
+  <!-- Diagnostic / santé -->
+  <h2>🩺 Diagnostic</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">Vérifie l'état du jeu : crons, fenêtres, barèmes, fonctions, cohérence des données. À consulter en cas de doute avant de signaler un bug.</p>
+    <button class="btn-primary btn-sm" id="btnHealthcheck">Lancer le diagnostic</button>
+    <div id="healthResult" style="margin-top:14px"></div>
+  </div>
+
   <!-- Vue d'ensemble -->
   <h2>Vue d'ensemble</h2>
   <div id="overviewGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px">
@@ -672,7 +680,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck();
 }
 
 // Enveloppe chaque <h2> + son contenu dans un <details> repliable.
@@ -731,6 +739,7 @@ function toggleAllSections(open){
 }
 if($('btnExpandAll')) $('btnExpandAll').onclick = ()=>toggleAllSections(true);
 if($('btnCollapseAll')) $('btnCollapseAll').onclick = ()=>toggleAllSections(false);
+if($('btnHealthcheck')) $('btnHealthcheck').onclick = ()=>loadHealthcheck();
 
 $('btnLogin').onclick = async () => {
   const { error } = await api.signIn($('email').value.trim(), $('password').value);
@@ -1305,6 +1314,36 @@ async function loadOverview(){
     tile(o.transfers_today, 'Mouvements aujourd\'hui'),
     tile(o.market_open ? '🟢 Ouvert' : '🔴 Fermé', 'Marché des transferts', o.market_open?null:live),
   ].join('');
+}
+
+// Diagnostic / santé
+async function loadHealthcheck(){
+  const el = $('healthResult'); if(!el) return;
+  el.innerHTML = '<p class="hint">Analyse en cours…</p>';
+  let rows;
+  try { rows = await api.adminHealthcheck(); }
+  catch(e){ el.innerHTML = '<p class="hint" style="color:var(--danger,#e0574a)">Diagnostic indisponible (script 83 non passé ?)</p>'; return; }
+  if(!rows.length){ el.innerHTML = '<p class="hint">Aucun résultat.</p>'; return; }
+  const dot = s => ({ok:'🟢',warn:'🟠',error:'🔴'}[s]||'⚪');
+  const nbErr = rows.filter(r=>r.status==='error').length;
+  const nbWarn = rows.filter(r=>r.status==='warn').length;
+  const banner = nbErr>0
+    ? `<div style="background:rgba(224,87,74,.12);border:1px solid var(--danger,#e0574a);border-radius:8px;padding:10px 12px;margin-bottom:12px;color:var(--danger,#e0574a);font-size:.88rem">🔴 ${nbErr} problème(s) critique(s)${nbWarn?` · 🟠 ${nbWarn} avertissement(s)`:''}</div>`
+    : nbWarn>0
+    ? `<div style="background:rgba(255,213,74,.12);border:1px solid var(--transfer);border-radius:8px;padding:10px 12px;margin-bottom:12px;color:var(--transfer);font-size:.88rem">🟠 ${nbWarn} avertissement(s), rien de critique.</div>`
+    : `<div style="background:rgba(74,222,128,.12);border:1px solid #4ade80;border-radius:8px;padding:10px 12px;margin-bottom:12px;color:#4ade80;font-size:.88rem">🟢 Tout est au vert.</div>`;
+  // Groupé par section
+  const bySection = {};
+  rows.forEach(r=>{ (bySection[r.section] ||= []).push(r); });
+  const body = Object.entries(bySection).map(([sec,items])=>`
+    <div style="margin-bottom:12px">
+      <div style="font-weight:800;font-size:.82rem;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px">${sec}</div>
+      ${items.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;padding:4px 0;font-size:.86rem">
+        <span>${dot(r.status)}</span>
+        <span style="flex:1"><b>${r.label}</b> — <span style="color:var(--muted)">${r.detail}</span></span>
+      </div>`).join('')}
+    </div>`).join('');
+  el.innerHTML = banner + body;
 }
 
 // Tableau de bord financier

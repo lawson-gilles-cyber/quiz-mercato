@@ -492,6 +492,13 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- DIAGNOSTIC / SANTÉ (admin) ------------------------------
+export async function adminHealthcheck() {
+  const { data, error } = await sb.rpc('qm_admin_healthcheck');
+  if (error) { console.error('qm_admin_healthcheck:', error.message); return []; }
+  return data ?? [];
+}
+
 // ---------- DASHBOARD FINANCIER (admin, vague 3) --------------------
 export async function adminFinance() {
   const { data, error } = await sb.rpc('qm_admin_finance');
@@ -676,6 +683,59 @@ export function subscribeMarket(onChange) {
 }
 export function unsubscribe(channel) {
   if (channel) { try { sb.removeChannel(channel); } catch(e){} }
+}
+
+// ---------- WEB PUSH (notifications app fermée) ---------------------
+export function pushAvailable() {
+  return ('serviceWorker' in navigator) && ('PushManager' in window)
+    && VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY !== 'TA_CLE_VAPID_PUBLIQUE';
+}
+function urlB64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const arr = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+  return arr;
+}
+// Abonne l'appareil courant aux notifications push. Renvoie true si OK.
+export async function enablePush() {
+  if (!pushAvailable()) return { ok: false, reason: 'unavailable' };
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') return { ok: false, reason: 'denied' };
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8Array(VAPID_PUBLIC_KEY)
+    });
+  }
+  const json = sub.toJSON();
+  const { error } = await sb.rpc('qm_push_subscribe', {
+    p_endpoint: sub.endpoint,
+    p_p256dh: json.keys.p256dh,
+    p_auth: json.keys.auth
+  });
+  if (error) return { ok: false, reason: error.message };
+  return { ok: true };
+}
+export async function disablePush() {
+  if (!('serviceWorker' in navigator)) return;
+  const reg = await navigator.serviceWorker.ready;
+  const sub = await reg.pushManager.getSubscription();
+  if (sub) {
+    await sb.rpc('qm_push_unsubscribe', { p_endpoint: sub.endpoint });
+    await sub.unsubscribe();
+  }
+}
+export async function pushEnabledHere() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  } catch(e){ return false; }
 }
 
 // ---------- VAGUE 3 : Journées, Coach, Compositions ----------------
