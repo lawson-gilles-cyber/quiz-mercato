@@ -504,6 +504,29 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- DÉFIS HEBDO ---------------------------------------------
+export async function myChallenges() {
+  const { data } = await sb.rpc('qm_my_challenges');
+  return data ?? [];
+}
+export async function claimChallenge(id) {
+  return sb.rpc('qm_claim_challenge', { p_challenge_id: id });
+}
+export async function adminChallenges() {
+  const { data } = await sb.rpc('qm_admin_challenges');
+  return data ?? [];
+}
+export async function adminCreateChallenge(c) {
+  // c : { kind, label, param_text, param_num, reward, days }
+  return sb.rpc('qm_admin_create_challenge', {
+    p_kind: c.kind, p_label: c.label, p_param_text: c.param_text ?? null,
+    p_param_num: c.param_num, p_reward: c.reward, p_days: c.days ?? 7
+  });
+}
+export async function adminSetChallengeActive(id, active) {
+  return sb.rpc('qm_admin_set_challenge_active', { p_challenge_id: id, p_active: active });
+}
+
 // ---------- DIAGNOSTIC / SANTÉ (admin) ------------------------------
 export async function adminHealthcheck() {
   const { data, error } = await sb.rpc('qm_admin_healthcheck');

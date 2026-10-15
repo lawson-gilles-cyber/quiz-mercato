@@ -348,6 +348,33 @@
     <div id="awardList" style="margin-top:16px"></div>
   </div>
 
+  <!-- Défis hebdomadaires -->
+  <h2>🎯 Défis & objectifs</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Crée des défis pour animer la semaine. Chaque manager voit sa progression et réclame la récompense (crédit de budget) une fois le défi atteint.</p>
+    <div class="row c3" style="margin-bottom:10px">
+      <div><label>Type</label>
+        <select id="chalKind">
+          <option value="buy_count">Recruter N joueurs</option>
+          <option value="buy_position">Recruter N joueurs d'un poste</option>
+          <option value="make_proposals">Faire N propositions</option>
+          <option value="spend_min">Dépenser au moins X M€</option>
+        </select>
+      </div>
+      <div id="chalPosWrap" style="display:none"><label>Poste</label>
+        <select id="chalPos"><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
+      </div>
+      <div><label id="chalTargetLbl">Cible (nombre)</label><input id="chalTarget" type="number" min="1" value="3"></div>
+    </div>
+    <div class="row c3" style="margin-bottom:10px">
+      <div><label>Libellé affiché</label><input id="chalLabel" type="text" placeholder="Recrute 3 joueurs cette semaine"></div>
+      <div><label>Récompense (M€)</label><input id="chalReward" type="number" min="0" value="10"></div>
+      <div><label>Durée (jours)</label><input id="chalDays" type="number" min="1" value="7"></div>
+    </div>
+    <button class="btn-primary btn-sm" id="btnCreateChallenge">Créer le défi</button>
+    <div id="chalList" style="margin-top:16px"></div>
+  </div>
+
   <!-- Saisie des notes (Vague 3) -->
   <h2>Saisie des notes (par journée)</h2>
   <div class="card" style="margin-bottom:14px">
@@ -680,7 +707,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges();
 }
 
 // Enveloppe chaque <h2> + son contenu dans un <details> repliable.
@@ -1315,6 +1342,60 @@ async function loadOverview(){
     tile(o.market_open ? '🟢 Ouvert' : '🔴 Fermé', 'Marché des transferts', o.market_open?null:live),
   ].join('');
 }
+
+// ---------- Défis & objectifs ----------
+// Adapte le formulaire selon le type de défi choisi
+function syncChallengeForm(){
+  const kind = $('chalKind')?.value;
+  if(!kind) return;
+  $('chalPosWrap').style.display = (kind==='buy_position') ? 'block' : 'none';
+  $('chalTargetLbl').textContent = (kind==='spend_min') ? 'Cible (M€)' : 'Cible (nombre)';
+}
+if($('chalKind')) $('chalKind').onchange = syncChallengeForm;
+
+async function loadChallenges(){
+  const el = $('chalList'); if(!el) return;
+  syncChallengeForm();
+  let rows;
+  try { rows = await api.adminChallenges(); }
+  catch(e){ el.innerHTML = '<p class="hint">Passe le script défis pour activer cette section.</p>'; return; }
+  const KL = {buy_count:'Recruter',buy_position:'Recruter (poste)',make_proposals:'Propositions',spend_min:'Dépenser'};
+  el.innerHTML = rows.length
+    ? `<table style="font-size:.85rem"><thead><tr><th>Défi</th><th>Type</th><th>Cible</th><th>Récompense</th><th>Fin</th><th>Réclamé</th><th></th></tr></thead>
+       <tbody>${rows.map(c=>{
+         const target = c.kind==='spend_min' ? fmtM(c.target) : c.target;
+         const fin = new Date(c.ends_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+         return `<tr>
+           <td><b>${c.label}</b></td><td>${KL[c.kind]||c.kind}</td><td>${target}</td>
+           <td class="val">${fmtM(c.reward)}</td><td>${fin}</td><td style="text-align:center">${c.claims}</td>
+           <td><button class="btn-ghost btn-sm" data-chaltoggle="${c.id}" data-active="${c.active}">${c.active?'Désactiver':'Activer'}</button></td>
+         </tr>`;
+       }).join('')}</tbody></table>`
+    : '<p class="hint">Aucun défi créé.</p>';
+  el.querySelectorAll('[data-chaltoggle]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminSetChallengeActive(b.dataset.chaltoggle, b.dataset.active!=='true');
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'),'Défi mis à jour.',true); loadChallenges();
+  });
+}
+if($('btnCreateChallenge')) $('btnCreateChallenge').onclick = async ()=>{
+  const kind = $('chalKind').value;
+  const label = $('chalLabel').value.trim();
+  const targetRaw = parseFloat($('chalTarget').value);
+  const rewardM = parseFloat($('chalReward').value)||0;
+  const days = parseInt($('chalDays').value,10)||7;
+  if(!label) return showMsg($('msg2'),'Donne un libellé au défi.');
+  if(isNaN(targetRaw) || targetRaw<=0) return showMsg($('msg2'),'Cible invalide.');
+  // Pour spend_min, la cible est en M€ -> euros ; sinon c'est un nombre
+  const param_num = (kind==='spend_min') ? Math.round(targetRaw*1e6) : Math.round(targetRaw);
+  const param_text = (kind==='buy_position') ? $('chalPos').value : null;
+  const { error } = await api.adminCreateChallenge({
+    kind, label, param_text, param_num, reward: Math.round(rewardM*1e6), days
+  });
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),'Défi créé.',true);
+  $('chalLabel').value=''; loadChallenges();
+};
 
 // Diagnostic / santé
 async function loadHealthcheck(){
