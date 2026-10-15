@@ -406,6 +406,10 @@ export async function adminPreviewDemand(){
   const { data } = await sb.rpc('qm_admin_preview_demand');
   return data ?? [];
 }
+export async function positionScarcity(){
+  const { data } = await sb.rpc('qm_position_scarcity');
+  return data ?? [];
+}
 
 // ---------- COMMISSIONS / MARCHÉ ------------------------------------
 export async function estimateCommission(managerId, playerId) {

@@ -1142,10 +1142,19 @@ if($('btnPreviewDemand')) $('btnPreviewDemand').onclick = async () => {
   const rows = await api.adminPreviewDemand();
   if(!rows.length){ $('demandPreview').innerHTML = '<p class="hint">Aucun joueur libre.</p>'; return; }
   const fmt = v => (Number(v)/1e6).toFixed(0)+' M€';
-  $('demandPreview').innerHTML = `
-    <table style="font-size:.85rem"><thead><tr><th>Joueur</th><th>Demande</th><th>Valeur actuelle</th><th>Nouvelle valeur</th></tr></thead>
+  const POSL = {GK:'GB',DEF:'DEF',MID:'MIL',FWD:'ATT'};
+  const rar = f => { const pct = Math.round((Number(f)-1)*100); return pct>0 ? `+${pct}%` : '—'; };
+  // Résumé rareté par poste (en tête)
+  let scar = [];
+  try { scar = await api.positionScarcity(); } catch(e){}
+  const scarLine = scar.length
+    ? `<div style="font-size:.8rem;color:var(--muted);margin-bottom:8px">Rareté par poste (joueurs libres) : ${
+        scar.map(s=>`${POSL[s.pos]||s.pos} ${s.free_count} (${rar(s.factor)})`).join(' · ')}</div>`
+    : '';
+  $('demandPreview').innerHTML = scarLine + `
+    <table style="font-size:.85rem"><thead><tr><th>Joueur</th><th>Poste</th><th>Demande</th><th>Rareté</th><th>Valeur actuelle</th><th>Nouvelle valeur</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
-      <td>${r.name}</td><td>${r.demand_score}</td><td>${fmt(r.current_value)}</td>
+      <td>${r.name}</td><td>${POSL[r.pos]||r.pos}</td><td>${r.demand_score}</td><td>${rar(r.scarcity)}</td><td>${fmt(r.current_value)}</td>
       <td style="color:${Number(r.target_value)!==Number(r.current_value)?'var(--transfer)':'inherit'}"><b>${fmt(r.target_value)}</b></td>
     </tr>`).join('')}</tbody></table>`;
 };
