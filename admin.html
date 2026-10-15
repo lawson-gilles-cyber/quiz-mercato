@@ -215,6 +215,28 @@
     <div id="baremesPreview" style="margin-top:16px"></div>
   </div>
 
+  <!-- Récap de journée -->
+  <h2>📣 Récap de journée</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">Génère un résumé des dernières heures (mouvements, top classement, plus gros transfert) à partager sur WhatsApp — en texte à copier ou en image.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
+      <label style="margin:0">Période :</label>
+      <select id="recapHours"><option value="24">24 h</option><option value="48">48 h</option><option value="72">3 jours</option><option value="168">7 jours</option></select>
+      <button class="btn-primary btn-sm" id="btnGenRecap">Générer</button>
+    </div>
+    <div id="recapOut" style="display:none">
+      <textarea id="recapText" rows="12" style="width:100%;font-family:monospace;font-size:.82rem" readonly></textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn-ghost btn-sm" id="btnCopyRecap">📋 Copier le texte</button>
+        <button class="btn-ghost btn-sm" id="btnWhatsRecap">🟢 Partager sur WhatsApp</button>
+        <button class="btn-ghost btn-sm" id="btnImgRecap">🖼 Générer l'image</button>
+        <a id="btnDlRecap" class="btn-ghost btn-sm" style="display:none" download="recap-ultimate-squad.png">⬇ Télécharger l'image</a>
+      </div>
+      <canvas id="recapCanvas" width="1080" height="1350" style="display:none"></canvas>
+      <div id="recapImgPrev" style="margin-top:12px"></div>
+    </div>
+  </div>
+
   <!-- Diagnostic / santé -->
   <h2>🩺 Diagnostic</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1522,6 +1544,114 @@ if($('btnSaveBaremes')) $('btnSaveBaremes').onclick = async ()=>{
   if(typeof loadBonusSettings==='function') loadBonusSettings();  // garde l'ancienne section à jour
 };
 if($('btnReloadBaremes')) $('btnReloadBaremes').onclick = ()=>loadBaremes();
+
+// ---------- Récap de journée ----------
+let RECAP_DATA = null;
+const PERIOD_LABEL = {24:'des dernières 24 h',48:'des dernières 48 h',72:'des 3 derniers jours',168:'des 7 derniers jours'};
+function recapToText(r, hours){
+  const m = v => (Number(v)/1e6).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
+  const L = [];
+  L.push('⚽ ULTIMATE SQUAD — Récap '+(PERIOD_LABEL[hours]||`des ${hours} h`));
+  L.push('');
+  L.push(`📊 ${r.moves_count} mouvement(s) · ${r.active_managers} manager(s) actif(s)`);
+  if(r.biggest && r.biggest.player){
+    L.push(`💰 Plus gros transfert : ${r.biggest.player} → ${r.biggest.to||'?'} (${m(r.biggest.price)})`);
+  }
+  L.push('');
+  if((r.moves||[]).length){
+    L.push('🔁 Mouvements :');
+    r.moves.slice(0,12).forEach(mv=>{
+      if(mv.kind==='buy') L.push(`  📈 ${mv.to} recrute ${mv.player}${Number(mv.price)>0?' ('+m(mv.price)+')':''}`);
+      else if(mv.kind==='swap') L.push(`  🔄 ${mv.from} → ${mv.to} : ${mv.player}`);
+      else L.push(`  📉 ${mv.from} libère ${mv.player}`);
+    });
+    L.push('');
+  }
+  if((r.top||[]).length){
+    L.push('🏆 Classement :');
+    r.top.forEach(t=>{ const med = t.rank===1?'🥇':t.rank===2?'🥈':t.rank===3?'🥉':`  ${t.rank}.`; L.push(`${med} ${t.team} — ${t.points} pts`); });
+  }
+  L.push('');
+  L.push('👉 Rejoins le mercato : quiz-mercato.pages.dev');
+  return L.join('\n');
+}
+if($('btnGenRecap')) $('btnGenRecap').onclick = async ()=>{
+  const hours = parseInt($('recapHours').value,10);
+  let r;
+  try { r = await api.recap(hours); } catch(e){ return showMsg($('msg2'),'Récap indisponible (script 90 non passé ?)'); }
+  if(!r){ return showMsg($('msg2'),'Aucune donnée.'); }
+  RECAP_DATA = {data:r, hours};
+  $('recapText').value = recapToText(r, hours);
+  $('recapOut').style.display='block';
+  $('recapImgPrev').innerHTML=''; $('btnDlRecap').style.display='none';
+};
+if($('btnCopyRecap')) $('btnCopyRecap').onclick = ()=>{
+  const t = $('recapText'); t.select();
+  try { navigator.clipboard.writeText(t.value); showMsg($('msg2'),'Texte copié !',true); }
+  catch(e){ document.execCommand('copy'); showMsg($('msg2'),'Texte copié !',true); }
+};
+if($('btnWhatsRecap')) $('btnWhatsRecap').onclick = ()=>{
+  const txt = encodeURIComponent($('recapText').value);
+  window.open('https://wa.me/?text='+txt, '_blank');
+};
+if($('btnImgRecap')) $('btnImgRecap').onclick = ()=>{
+  if(!RECAP_DATA) return;
+  drawRecapImage(RECAP_DATA.data, RECAP_DATA.hours);
+};
+// Dessine l'image de récap sur le canvas (format story 1080×1350)
+function drawRecapImage(r, hours){
+  const cv = $('recapCanvas'); const ctx = cv.getContext('2d');
+  const W=cv.width, H=cv.height;
+  const m = v => (Number(v)/1e6).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
+  // Fond dégradé
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#0a1428'); g.addColorStop(.5,'#0c1730'); g.addColorStop(1,'#081020');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // Accent haut
+  ctx.fillStyle='#f5c542'; ctx.fillRect(0,0,W,12);
+  let y=90;
+  ctx.textBaseline='top';
+  ctx.fillStyle='#f5c542'; ctx.font='bold 54px Arial'; ctx.fillText('ULTIMATE SQUAD', 60, y); y+=70;
+  ctx.fillStyle='#8fa79a'; ctx.font='28px Arial'; ctx.fillText('Récap '+(PERIOD_LABEL[hours]||`des ${hours} h`), 60, y); y+=70;
+  // Stats
+  ctx.fillStyle='#eef3ea'; ctx.font='30px Arial';
+  ctx.fillText(`📊  ${r.moves_count} mouvements  ·  ${r.active_managers} managers actifs`, 60, y); y+=56;
+  if(r.biggest && r.biggest.player){
+    ctx.fillStyle='#4ade80'; ctx.font='28px Arial';
+    ctx.fillText(`💰  ${r.biggest.player} → ${r.biggest.to||'?'} (${m(r.biggest.price)})`, 60, y); y+=56;
+  }
+  y+=20;
+  // Mouvements
+  ctx.fillStyle='#5fd0e0'; ctx.font='bold 34px Arial'; ctx.fillText('Mouvements', 60, y); y+=52;
+  ctx.font='26px Arial';
+  (r.moves||[]).slice(0,8).forEach(mv=>{
+    ctx.fillStyle='#cddbd2';
+    let line;
+    if(mv.kind==='buy') line=`📈 ${mv.to} recrute ${mv.player}${Number(mv.price)>0?' ('+m(mv.price)+')':''}`;
+    else if(mv.kind==='swap') line=`🔄 ${mv.from} → ${mv.to} : ${mv.player}`;
+    else line=`📉 ${mv.from} libère ${mv.player}`;
+    ctx.fillText(line.length>52?line.slice(0,51)+'…':line, 60, y); y+=42;
+  });
+  y+=24;
+  // Classement
+  ctx.fillStyle='#f5c542'; ctx.font='bold 34px Arial'; ctx.fillText('🏆 Classement', 60, y); y+=52;
+  ctx.font='28px Arial';
+  (r.top||[]).forEach(t=>{
+    const med = t.rank===1?'🥇':t.rank===2?'🥈':t.rank===3?'🥉':`${t.rank}.`;
+    ctx.fillStyle = t.rank===1?'#f5c542':'#eef3ea';
+    ctx.fillText(`${med}  ${t.team}`, 60, y);
+    ctx.textAlign='right'; ctx.fillText(`${t.points} pts`, W-60, y); ctx.textAlign='left';
+    y+=46;
+  });
+  // Pied
+  ctx.fillStyle='#8fa79a'; ctx.font='24px Arial';
+  ctx.fillText('quiz-mercato.pages.dev', 60, H-60);
+  // Export
+  const url = cv.toDataURL('image/png');
+  $('recapImgPrev').innerHTML = `<img src="${url}" style="max-width:320px;border-radius:12px;border:1px solid var(--line)">`;
+  const dl = $('btnDlRecap'); dl.href=url; dl.style.display='inline-block';
+  showMsg($('msg2'),'Image générée — clique « Télécharger ».',true);
+}
 
 // Diagnostic / santé
 async function loadHealthcheck(){

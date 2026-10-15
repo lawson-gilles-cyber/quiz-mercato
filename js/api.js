@@ -411,6 +411,12 @@ export async function positionScarcity(){
   return data ?? [];
 }
 
+// ---------- Récap de journée ----------------------------------------
+export async function recap(hours = 24){
+  const { data } = await sb.rpc('qm_recap', { p_hours: hours });
+  return data ?? null;
+}
+
 // ---------- Éditeur de barèmes (réglages consolidés) ----------------
 export async function adminSettings(){
   const { data } = await sb.rpc('qm_admin_settings');
