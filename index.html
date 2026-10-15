@@ -649,9 +649,16 @@
             <div style="flex:1"><label class="trade-l">Indemnité (M€)</label>
               <input id="loanFee" type="number" min="0" value="0" style="width:100%"></div>
           </div>
+          <div style="display:flex;gap:10px;margin-top:10px">
+            <div style="flex:1"><label class="trade-l">Option d'achat (M€, optionnel)</label>
+              <input id="loanOption" type="number" min="0" value="0" style="width:100%"></div>
+            <div style="flex:1;display:flex;align-items:flex-end;padding-bottom:4px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:.84rem;cursor:pointer">
+                <input id="loanFirm" type="checkbox"> Prêt ferme</label></div>
+          </div>
           <input id="loanMsg" type="text" placeholder="Message (optionnel)" style="width:100%;margin-top:8px">
           <button id="btnLoan" class="bid-btn" style="margin-top:14px">Proposer le prêt</button>
-          <p class="hint" style="font-size:.76rem;margin-top:8px">Pendant le prêt, l'emprunteur aligne le joueur et porte son salaire. Le retour est automatique à l'échéance (ou anticipé par l'un des deux managers).</p>
+          <p class="hint" style="font-size:.76rem;margin-top:8px">Pendant le prêt, l'emprunteur aligne le joueur et porte son salaire. <b>Option d'achat</b> : l'emprunteur peut acheter le joueur à ce prix pendant le prêt. <b>Prêt ferme</b> : l'emprunteur ne peut pas le rendre avant l'échéance. Retour automatique à l'échéance sinon.</p>
         </div>
       </div>
       <div id="loanList" style="margin-top:16px"></div>
@@ -1368,14 +1375,17 @@ async function renderLoans(){
       if(!player_id) return toast('Choisis un joueur à prêter.','err');
       if(!borrower_id) return toast('Choisis une équipe destinataire.','err');
       if(isNaN(days) || days<1 || days>60) return toast('Durée entre 1 et 60 jours.','err');
+      const optM = parseFloat($('loanOption').value)||0;
+      const firm = $('loanFirm').checked;
       await withLoading(ev.target, async ()=>{
         const { error } = await api.proposeLoan({
           player_id, borrower_id, days, fee: Math.round(feeM*1e6),
-          message: $('loanMsg').value || null
+          message: $('loanMsg').value || null,
+          option_price: Math.round(optM*1e6), firm
         });
         if(error) return toast('Échec : '+error.message,'err',4200);
         toast('Proposition de prêt envoyée !','ok');
-        $('loanMsg').value=''; $('loanFee').value='0';
+        $('loanMsg').value=''; $('loanFee').value='0'; $('loanOption').value='0'; $('loanFirm').checked=false;
         renderLoans();
       });
     };
@@ -1390,6 +1400,11 @@ async function renderLoans(){
     const other = l.role==='owner' ? l.borrower_name : l.owner_name;
     const dir = l.role==='owner' ? `prêté à <b>${other}</b>` : `emprunté à <b>${other}</b>`;
     const feeTxt = Number(l.fee)>0 ? ` · indemnité ${fmtMoney(l.fee)}` : '';
+    // Clauses (option d'achat, prêt ferme)
+    const clauses = [];
+    if(Number(l.option_price)>0) clauses.push(`💰 Option d'achat : ${fmtMoney(l.option_price)}`);
+    if(l.firm) clauses.push('🔒 Prêt ferme');
+    const clausesHtml = clauses.length ? `<div style="font-size:.74rem;color:var(--transfer);margin-top:3px">${clauses.join(' · ')}</div>` : '';
     let actions = '';
     if(l.status==='pending' && l.role==='borrower'){
       actions = `<button class="bid-btn" data-loan-accept="${l.id}" style="font-size:.74rem;padding:4px 10px">Accepter</button>
@@ -1398,7 +1413,14 @@ async function renderLoans(){
       actions = `<span class="hint" style="font-size:.74rem">En attente de réponse</span>
                  <button class="bid-btn ghost" data-loan-cancel="${l.id}" style="font-size:.74rem;padding:4px 10px">Annuler</button>`;
     } else if(l.status==='active'){
-      actions = `<button class="bid-btn ghost" data-loan-return="${l.id}" style="font-size:.74rem;padding:4px 10px">Rendre maintenant</button>`;
+      // L'emprunteur peut lever l'option d'achat (si définie)
+      if(l.role==='borrower' && Number(l.option_price)>0){
+        actions += `<button class="bid-btn" data-loan-buy="${l.id}" style="font-size:.74rem;padding:4px 10px">Lever l'option (${fmtMoney(l.option_price)})</button>`;
+      }
+      // Bouton "rendre" : masqué pour l'emprunteur si le prêt est ferme
+      if(!(l.firm && l.role==='borrower')){
+        actions += `<button class="bid-btn ghost" data-loan-return="${l.id}" style="font-size:.74rem;padding:4px 10px">Rendre maintenant</button>`;
+      }
     }
     const statusTxt = l.status==='pending' ? 'En attente' : 'En cours';
     return `<div style="padding:10px 0;border-bottom:1px solid var(--line)">
@@ -1406,6 +1428,7 @@ async function renderLoans(){
         <span style="font-size:.9rem"><b>${l.player_name}</b> — ${dir}${feeTxt}</span>
         <span style="font-size:.74rem;color:var(--muted)">${statusTxt} · retour le ${due}</span>
       </div>
+      ${clausesHtml}
       <div style="display:flex;gap:6px;margin-top:6px">${actions}</div>
     </div>`;
   }).join('');
@@ -1415,6 +1438,11 @@ async function renderLoans(){
   el.querySelectorAll('[data-loan-refuse]').forEach(b=>b.onclick=()=>refresh(api.refuseLoan,b.dataset.loanRefuse));
   el.querySelectorAll('[data-loan-cancel]').forEach(b=>b.onclick=()=>refresh(api.cancelLoan,b.dataset.loanCancel));
   el.querySelectorAll('[data-loan-return]').forEach(b=>b.onclick=()=>refresh(api.returnLoan,b.dataset.loanReturn));
+  el.querySelectorAll('[data-loan-buy]').forEach(b=>b.onclick=async()=>{
+    if(!await uxConfirm('Lever l\'option d\'achat et acquérir définitivement ce joueur ?', {title:'Option d\'achat', okText:'Acheter'})) return;
+    refresh(api.buyLoanOption, b.dataset.loanBuy);
+    toast('Option levée : le joueur est à toi !','ok');
+  });
 }
 
 // ---------- Dénichage de joueurs ----------

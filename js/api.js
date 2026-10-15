@@ -383,13 +383,15 @@ export async function cancelTrade(id){ return sb.rpc('qm_trade_cancel', { p_trad
 export async function proposeLoan(l) {
   return sb.rpc('qm_loan_propose', {
     p_player_id: l.player_id, p_borrower_id: l.borrower_id,
-    p_days: l.days, p_fee: l.fee ?? 0, p_message: l.message ?? null
+    p_days: l.days, p_fee: l.fee ?? 0, p_message: l.message ?? null,
+    p_option_price: l.option_price ?? 0, p_firm: l.firm ?? false
   });
 }
 export async function acceptLoan(id){ return sb.rpc('qm_loan_accept', { p_loan_id: id }); }
 export async function refuseLoan(id){ return sb.rpc('qm_loan_refuse', { p_loan_id: id }); }
 export async function cancelLoan(id){ return sb.rpc('qm_loan_cancel', { p_loan_id: id }); }
 export async function returnLoan(id){ return sb.rpc('qm_loan_return', { p_loan_id: id }); }
+export async function buyLoanOption(id){ return sb.rpc('qm_loan_buy_option', { p_loan_id: id }); }
 export async function myLoans() {
   const { data } = await sb.rpc('qm_my_loans');
   return data ?? [];
