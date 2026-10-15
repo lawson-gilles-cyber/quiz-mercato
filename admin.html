@@ -1400,7 +1400,14 @@ async function loadOverview(){
   const grid = $('overviewGrid'); if(!grid) return;
   const o = await api.adminOverview();
   if(!o){ grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Indisponible.</div>'; return; }
-  if(o.__error){ grid.innerHTML = `<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px;color:var(--danger,#e0574a)">Erreur : ${o.__error}<br><span style="color:var(--muted)">(un script SQL n'a peut-être pas été passé — vérifie le Diagnostic)</span></div>`; return; }
+  if(o.__error){
+    const isCache = /schema cache|find the function/i.test(o.__error);
+    const hint = isCache
+      ? "Cache d'API Supabase à recharger : exécute <code>notify pgrst, 'reload schema';</code> dans le SQL Editor, ou Settings → API → Reload schema cache."
+      : "Un script SQL n'a peut-être pas été passé — vérifie le Diagnostic.";
+    grid.innerHTML = `<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px;color:var(--danger,#e0574a)">Erreur : ${o.__error}<br><span style="color:var(--muted)">${hint}</span></div>`;
+    return;
+  }
   // tile(valeur, libellé, couleur d'accent si actionnable, note optionnelle)
   const tile = (val, label, accent, note) => `
     <div style="background:var(--card2,#101d38);border-radius:12px;padding:14px;border-left:3px solid ${accent||'var(--line)'}">

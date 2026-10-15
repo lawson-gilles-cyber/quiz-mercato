@@ -520,7 +520,14 @@ export async function adminTransactions() {
   return data ?? [];
 }
 export async function adminOverview() {
-  const { data, error } = await sb.rpc('qm_admin_overview');
+  let { data, error } = await sb.rpc('qm_admin_overview');
+  // Cache de schéma PostgREST périmé ("could not find the function … in the
+  // schema cache") : on retente une fois après une courte pause, le temps
+  // que le cache se recharge.
+  if (error && /schema cache|find the function/i.test(error.message || '')) {
+    await new Promise(r => setTimeout(r, 1500));
+    ({ data, error } = await sb.rpc('qm_admin_overview'));
+  }
   if (error) { console.error('qm_admin_overview:', error.message); return { __error: error.message }; }
   return (data && data[0]) ? data[0] : null;
 }
