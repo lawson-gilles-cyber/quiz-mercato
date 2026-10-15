@@ -1648,6 +1648,11 @@ async function startBid(playerId){
       ${cap?`<button data-set="${cap}">Plafond</button>`:''}
     </div>`}
     <div style="text-align:center;margin-top:8px"><a href="#" data-journal-link style="color:var(--transfer);font-size:.8rem;text-decoration:none">📜 Voir le journal des offres</a></div>
+    ${cap?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
+      <div style="font-size:.82rem;font-weight:700;margin-bottom:6px">🤖 Enchère automatique</div>
+      <p class="hint" style="font-size:.74rem;margin:0 0 6px">Fixe ton max : le système surenchérira pour toi, par paliers, jusqu'à cette limite (sans dépasser le plafond ${fmtMoney(cap)}).</p>
+      <div id="autoBidBox"></div>
+    </div>`:''}
     <div class="ux-actions">
       <button class="ux-cancel" data-no>Annuler</button>
       <button class="ux-ok" data-yes>Placer l'offre</button>
@@ -1656,6 +1661,8 @@ async function startBid(playerId){
   const inp = md.querySelector('#uxBid');
   const jl = md.querySelector('[data-journal-link]');
   if(jl) jl.onclick = (e)=>{ e.preventDefault(); showAuctionJournal(auc.id); };
+  // Bloc enchère auto (proxy bid)
+  if(cap) renderAutoBidBox(md, auc, next, cap);
   const close = ()=>ov.classList.remove('show');
   md.querySelectorAll('[data-add]').forEach(b=>b.onclick=()=>{ inp.value = Number(inp.value||auc.current_price)+Number(b.dataset.add); });
   md.querySelectorAll('[data-set]').forEach(b=>b.onclick=()=>{ inp.value = b.dataset.set; });
@@ -1675,6 +1682,40 @@ async function startBid(playerId){
       if(typeof loadNotifications==='function') loadNotifications();
     });
   };
+}
+
+// Bloc "enchère automatique" dans la modale d'enchère
+async function renderAutoBidBox(md, auc, minNext, cap){
+  const box = md.querySelector('#autoBidBox'); if(!box) return;
+  const current = await api.myAutoBid(auc.id).catch(()=>null);
+  if(current){
+    box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.84rem">
+      <span>Max actif : <b style="color:var(--transfer)">${fmtMoney(current)}</b></span>
+      <button data-autocancel style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.76rem">Désactiver</button>
+    </div>`;
+    box.querySelector('[data-autocancel]').onclick = async ()=>{
+      const { error } = await api.cancelAutoBid(auc.id);
+      if(error) return toast(error.message,'err');
+      toast('Enchère automatique désactivée.','info');
+      renderAutoBidBox(md, auc, minNext, cap);
+    };
+  } else {
+    box.innerHTML = `<div style="display:flex;gap:6px">
+      <input id="autoMax" type="number" inputmode="numeric" placeholder="Ton max (€)" value="${Math.min(cap, minNext*2)}" style="flex:1">
+      <button class="bid-btn" data-autoset style="font-size:.78rem;padding:6px 12px;margin:0">Activer</button>
+    </div>`;
+    box.querySelector('[data-autoset]').onclick = async ()=>{
+      const max = parseInt(box.querySelector('#autoMax').value,10);
+      if(isNaN(max) || max < minNext) return toast(`Le max doit être au moins l'offre minimale (${fmtMoney(minNext)}).`,'err');
+      if(max > cap) return toast(`Au-dessus du plafond (${fmtMoney(cap)}).`,'err');
+      const { error } = await api.setAutoBid(auc.id, max);
+      if(error) return toast('Échec : '+error.message,'err',4200);
+      toast('Enchère automatique activée !','ok');
+      renderAuctions();
+      if(typeof loadNotifications==='function') loadNotifications();
+      renderAutoBidBox(md, auc, minNext, cap);
+    };
+  }
 }
 
 // ---------- Kanban enchères ----------
@@ -2780,7 +2821,7 @@ if($('bellBtn')) $('bellBtn').onclick = ()=>{
     trade:'market', proposal_published:'market', proposal_changes:'market', proposal_rejected:'market',
     bonus:'bonus'
   };
-  panel.innerHTML = NOTIFS.length
+  const items = NOTIFS.length
     ? NOTIFS.map(n=>{
         const go = NOTIF_GOTO[n.kind];
         return `<div class="notif-item" ${go?`data-goto="${go}"`:''} style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);${go?'cursor:pointer':''}">
@@ -2789,7 +2830,9 @@ if($('bellBtn')) $('bellBtn').onclick = ()=>{
           <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div></div>
       </div>`;}).join('')
     : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
+  panel.innerHTML = `<div id="pushHeader" style="padding:4px 6px 10px;border-bottom:1px solid var(--line);margin-bottom:6px"></div>` + items;
   panel.style.display='block';
+  renderPushToggle();
   // Clic sur une notif → ouvre l'onglet concerné et ferme le panneau
   panel.querySelectorAll('[data-goto]').forEach(el=>el.onclick=(ev)=>{
     ev.stopPropagation();
@@ -2797,6 +2840,37 @@ if($('bellBtn')) $('bellBtn').onclick = ()=>{
     panel.style.display='none';
   });
 };
+// En-tête du panneau : bouton d'activation des notifications push réelles
+async function renderPushToggle(){
+  const box = $('pushHeader'); if(!box) return;
+  if(!api.pushAvailable()){
+    // Push indisponible (clé VAPID non configurée ou navigateur non compatible) :
+    // on n'affiche rien de spécial, les notifs locales restent actives.
+    box.style.display='none'; return;
+  }
+  const on = await api.pushEnabledHere().catch(()=>false);
+  box.style.display='block';
+  box.innerHTML = on
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.8rem">
+        <span style="color:#4ade80">🔔 Notifications push activées</span>
+        <button id="pushOff" style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:.74rem">Désactiver</button></div>`
+    : `<button id="pushOn" style="width:100%;background:var(--transfer);color:var(--pitch);border:none;border-radius:8px;padding:8px;cursor:pointer;font-weight:700;font-size:.82rem">🔔 Activer les notifications (même app fermée)</button>`;
+  const on1 = $('pushOn'), off1 = $('pushOff');
+  if(on1) on1.onclick = async ()=>{
+    on1.disabled=true; on1.textContent='Activation…';
+    const r = await api.enablePush();
+    if(r.ok){ toast('Notifications activées sur cet appareil !','ok'); }
+    else if(r.reason==='denied'){ toast('Permission refusée. Autorise les notifications dans ton navigateur.','err',4500); }
+    else { toast('Impossible d\'activer les notifications ici.','err'); }
+    renderPushToggle();
+  };
+  if(off1) off1.onclick = async ()=>{
+    await api.disablePush();
+    toast('Notifications push désactivées sur cet appareil.','info');
+    renderPushToggle();
+  };
+}
+
 // Fermer le panneau si on clique ailleurs
 document.addEventListener('click',(e)=>{
   const panel=$('notifPanel'), bell=$('bellBtn');

@@ -168,6 +168,18 @@ export async function openAuction(playerId) {
   return sb.rpc('qm_open_auction', { p_player_id: playerId });
 }
 
+// ---------- Enchère automatique (proxy bid) -------------------------
+export async function setAutoBid(auctionId, maxAmount) {
+  return sb.rpc('qm_autobid_set', { p_auction_id: auctionId, p_max: maxAmount });
+}
+export async function cancelAutoBid(auctionId) {
+  return sb.rpc('qm_autobid_cancel', { p_auction_id: auctionId });
+}
+export async function myAutoBid(auctionId) {
+  const { data } = await sb.rpc('qm_my_autobid', { p_auction_id: auctionId });
+  return data ?? null;  // montant max, ou null si pas d'enchère auto
+}
+
 // ---------- Journal des offres + suivi d'enchères (vague 1) ----------
 export async function auctionBids(auctionId) {
   const { data } = await sb.rpc('qm_auction_bids', { p_auction_id: auctionId });
