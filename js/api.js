@@ -504,6 +504,16 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- RÉACTIONS (stickers) sur les transferts -----------------
+export async function react(transferId, kind) {
+  return sb.rpc('qm_react', { p_transfer_id: transferId, p_kind: kind });
+}
+export async function reactionCounts(ids) {
+  if (!ids || !ids.length) return [];
+  const { data } = await sb.rpc('qm_reaction_counts', { p_ids: ids });
+  return data ?? [];
+}
+
 // ---------- DÉFIS HEBDO ---------------------------------------------
 export async function myChallenges() {
   const { data } = await sb.rpc('qm_my_challenges');
