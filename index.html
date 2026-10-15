@@ -151,6 +151,10 @@
   main{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
   .view{display:none;animation:fade .3s}
   .view.on{display:block}
+  /* Signal "activité en direct" sur l'onglet enchères */
+  .live-pulse{position:relative}
+  .live-pulse::after{content:'';position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:var(--live,#e0574a);box-shadow:0 0 0 0 rgba(224,87,74,.6);animation:lpulse 1.4s infinite}
+  @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(224,87,74,.6)}70%{box-shadow:0 0 0 7px rgba(224,87,74,0)}100%{box-shadow:0 0 0 0 rgba(224,87,74,0)}}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
@@ -1065,7 +1069,9 @@ let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
 const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','rules'];
+let CURRENT_VIEW = 'home';
 function goView(v){
+  CURRENT_VIEW = v;
   // Onglets actifs partout (barre haute + barre basse)
   document.querySelectorAll('#nav button, #tabbar button').forEach(x=>x.classList.toggle('active', x.dataset.v===v));
   // Si on va sur un onglet secondaire, marquer "Plus" (barre du bas) comme actif
@@ -1079,6 +1085,7 @@ function goView(v){
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
              rules:renderLiveRules};
   if(R[v]) R[v]();
+  if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   window.scrollTo({top:0, behavior:'smooth'});
 }
 $('nav').addEventListener('click', e=>{
@@ -2675,7 +2682,31 @@ async function init(){
   renderHome();
   renderMarket();
   renderAuctions();
+  startRealtime();
 }
+
+// ---------- Temps réel : la salle des enchères se met à jour seule ----------
+let MARKET_CHANNEL = null;
+function startRealtime(){
+  if(MARKET_CHANNEL) return;  // déjà abonné
+  try {
+    MARKET_CHANNEL = api.subscribeMarket((kind)=>{
+      // Rafraîchit uniquement ce qui est visible, pour rester léger
+      if(CURRENT_VIEW==='auctions') renderAuctions();
+      if(CURRENT_VIEW==='home') renderHome();
+      if(CURRENT_VIEW==='feed' && kind==='transfer') renderFeed();
+      // La cloche se recharge toujours (surenchère, enchère gagnée…)
+      if(ME && typeof loadNotifications==='function') loadNotifications();
+      // Petit signal discret si on n'est pas déjà sur les enchères
+      if(kind==='bid' && CURRENT_VIEW!=='auctions'){
+        // badge visuel sur l'onglet enchères, sans spammer de toast
+        document.querySelectorAll('[data-v="auctions"]').forEach(b=>b.classList.add('live-pulse'));
+      }
+    });
+  } catch(e){ /* Realtime indisponible : l'app fonctionne quand même */ }
+}
+// Quand on ouvre les enchères, on retire le signal "nouvelle activité"
+function clearAuctionPulse(){ document.querySelectorAll('[data-v="auctions"]').forEach(b=>b.classList.remove('live-pulse')); }
 
 // ---------- Notifications (A) ----------
 let NOTIFS = [];

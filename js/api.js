@@ -657,6 +657,27 @@ export function subscribeAuction(auctionId, onChange) {
     .subscribe();
 }
 
+// Abonnement GLOBAL au marché : toute enchère (créée, modifiée, clôturée)
+// et toute offre déclenchent onChange. Sert à rafraîchir la salle des
+// enchères, l'accueil et la cloche en direct, sans que personne ne recharge.
+// Renvoie le channel ; appeler sb.removeChannel(ch) pour se désabonner.
+export function subscribeMarket(onChange) {
+  let timer = null;
+  const ping = (kind) => {
+    // On regroupe les rafales (plusieurs events en < 400 ms = un seul refresh)
+    clearTimeout(timer);
+    timer = setTimeout(() => { try { onChange(kind); } catch(e){} }, 400);
+  };
+  return sb.channel('market:global')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qm_auctions' }, () => ping('auction'))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qm_bids' }, () => ping('bid'))
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'qm_transfers' }, () => ping('transfer'))
+    .subscribe();
+}
+export function unsubscribe(channel) {
+  if (channel) { try { sb.removeChannel(channel); } catch(e){} }
+}
+
 // ---------- VAGUE 3 : Journées, Coach, Compositions ----------------
 export async function adminCreateMatchday(number, label, deadline) {
   return sb.rpc('qm_admin_create_matchday', { p_number: number, p_label: label, p_deadline: deadline });

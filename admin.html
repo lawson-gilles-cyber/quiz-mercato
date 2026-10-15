@@ -105,35 +105,6 @@
   .toast.info{border-left-color:var(--transfer)}
   .toast .ti{font-size:1.1rem;flex-shrink:0}
   @keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-
-  /* ---------- Responsivité mobile ---------- */
-  /* Empêche tout débordement horizontal de la page entière */
-  html,body{max-width:100%;overflow-x:hidden}
-  /* Seules les cartes contenant un tableau défilent horizontalement en
-     interne (grâce à :has, supporté par Chrome/Safari récents), sans
-     pousser la page ni rogner les menus déroulants des autres cartes.
-     thead et tbody restent alignés car la table n'est pas en display:block. */
-  .card:has(table){overflow-x:auto;-webkit-overflow-scrolling:touch}
-  /* Les cellules ne se tassent pas en colonnes d'un mot par ligne ;
-     elles gardent leur contenu sur une ligne et la carte défile si besoin.
-     (les cellules à texte long peuvent revenir à la ligne via .wrap) */
-  .card:has(table) td,.card:has(table) th{white-space:nowrap}
-  .card:has(table) td.wrap{white-space:normal;min-width:160px}
-  @media (max-width:640px){
-    main{padding:18px 14px 80px}
-    .card{padding:14px}
-    table{font-size:.82rem}
-    th,td{padding:8px 7px}
-    /* Les grilles de tuiles passent à 2 colonnes serrées */
-    #overviewGrid,#financeGrid{grid-template-columns:repeat(2,1fr)!important}
-    h2{font-size:1.25rem}
-    h1{font-size:1.6rem}
-    /* Les rangées de boutons repassent à la ligne proprement */
-    .phase-btns,.actions{flex-wrap:wrap}
-  }
-  @media (max-width:380px){
-    #overviewGrid,#financeGrid{grid-template-columns:1fr!important}
-  }
 </style>
 </head>
 <body>
@@ -282,32 +253,6 @@
       <thead><tr><th>#</th><th>Manager</th><th>Équipe</th><th>Points</th><th>Effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankAdminBody"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
     </table>
-  </div>
-
-  <!-- Ligues / divisions -->
-  <h2>🏆 Ligues & divisions</h2>
-  <div class="card" style="margin-bottom:14px">
-    <p class="hint" style="margin-bottom:12px">Répartis les managers en divisions (niveau 1 = élite). Le classement s'affiche par division côté managers. En fin de saison, applique la montée/descente : les meilleurs montent, les derniers descendent.</p>
-    <div class="row c3" style="margin-bottom:10px">
-      <div><label>Niveau</label><input id="divLevel" type="number" min="1" value="1"></div>
-      <div><label>Nom</label><input id="divLabel" type="text" placeholder="Division Élite"></div>
-      <div><label>Places</label><input id="divCapacity" type="number" min="1" value="10"></div>
-    </div>
-    <button class="btn-primary btn-sm" id="btnCreateDivision">Créer / mettre à jour la division</button>
-    <div id="divList" style="margin-top:14px"></div>
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-      <h3 style="margin:0 0 8px">Affecter les managers</h3>
-      <div id="divAssign"><p class="hint">Chargement…</p></div>
-    </div>
-    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-      <h3 style="margin:0 0 8px">Montée / descente (fin de saison)</h3>
-      <div style="display:flex;gap:10px;align-items:center">
-        <label style="margin:0">Nombre par division</label>
-        <input id="prCount" type="number" min="1" value="2" style="width:70px">
-        <button class="btn-primary btn-sm" id="btnPromoRelegate">Appliquer</button>
-      </div>
-      <p class="hint" style="margin-top:6px">À lancer juste avant de clôturer la saison. Réversible uniquement en réaffectant à la main.</p>
-    </div>
   </div>
 
   <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
@@ -655,7 +600,7 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons();
 }
 
 $('btnLogin').onclick = async () => {
@@ -1284,55 +1229,6 @@ async function loadFinance(){
     </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun joueur.</td></tr>';
   }
 }
-
-// ---------- Ligues / divisions ----------
-async function loadDivisions(){
-  if(!$('divList')) return;
-  let divs = [];
-  try { divs = await api.divisionsList(); } catch(e){ $('divList').innerHTML='<p class="hint">Passe le script divisions pour activer cette section.</p>'; return; }
-  $('divList').innerHTML = divs.length
-    ? `<table style="font-size:.85rem"><thead><tr><th>Niveau</th><th>Nom</th><th>Managers</th><th>Places</th></tr></thead>
-       <tbody>${divs.map(d=>`<tr><td>${d.level}</td><td>${d.label}</td><td>${d.managers_count}</td><td>${d.capacity}</td></tr>`).join('')}</tbody></table>`
-    : '<p class="hint">Aucune division. Crée-en une ci-dessus.</p>';
-
-  // Affectation des managers
-  const managers = await api.leaderboard();
-  const box = $('divAssign');
-  if(box){
-    if(!managers.length){ box.innerHTML = '<p class="hint">Aucun manager.</p>'; }
-    else if(!divs.length){ box.innerHTML = '<p class="hint">Crée d\'abord au moins une division.</p>'; }
-    else {
-      const opts = d => divs.map(x=>`<option value="${x.id}"${d===x.id?' selected':''}>${x.label}</option>`).join('');
-      box.innerHTML = managers.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--line)">
-        <span>${m.team_name||m.display_name}</span>
-        <select data-assign="${m.id}"><option value="">— aucune —</option>${opts(m.division_id)}</select>
-      </div>`).join('');
-      box.querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=async()=>{
-        const { error } = await api.adminAssignDivision(sel.dataset.assign, sel.value||null);
-        if(error) return showMsg($('msg2'), error.message);
-        showMsg($('msg2'),'Affectation enregistrée.',true); loadDivisions();
-      });
-    }
-  }
-}
-if($('btnCreateDivision')) $('btnCreateDivision').onclick = async ()=>{
-  const level = parseInt($('divLevel').value,10);
-  const label = $('divLabel').value.trim();
-  const cap = parseInt($('divCapacity').value,10)||10;
-  if(isNaN(level)||level<1) return showMsg($('msg2'),'Niveau invalide.');
-  const { error } = await api.adminUpsertDivision(level, label||null, cap);
-  if(error) return showMsg($('msg2'), error.message);
-  showMsg($('msg2'),'Division enregistrée.',true);
-  $('divLabel').value=''; loadDivisions();
-};
-if($('btnPromoRelegate')) $('btnPromoRelegate').onclick = async ()=>{
-  const count = parseInt($('prCount').value,10)||2;
-  if(!confirm(`Appliquer la montée/descente (${count} par division) ? Les meilleurs montent, les derniers descendent.`)) return;
-  const { data, error } = await api.adminApplyPromotionRelegation(count);
-  if(error) return showMsg($('msg2'), error.message);
-  showMsg($('msg2'),`${data} mouvement(s) de division appliqué(s).`,true);
-  loadDivisions();
-};
 
 async function loadRanking(){
   if(!$('rankAdminBody')) return;
