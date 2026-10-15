@@ -521,7 +521,7 @@ export async function adminTransactions() {
 }
 export async function adminOverview() {
   const { data, error } = await sb.rpc('qm_admin_overview');
-  if (error) { console.error('qm_admin_overview:', error.message); return null; }
+  if (error) { console.error('qm_admin_overview:', error.message); return { __error: error.message }; }
   return (data && data[0]) ? data[0] : null;
 }
 

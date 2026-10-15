@@ -106,6 +106,17 @@
   .toast .ti{font-size:1.1rem;flex-shrink:0}
   @keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
+  /* ---------- Onglets de la console admin ---------- */
+  #adminTabs{position:sticky;top:0;z-index:20;display:flex;gap:6px;overflow-x:auto;
+    padding:10px 2px;margin:0 -2px 16px;background:var(--bg,#0a1428);
+    -webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #adminTabs::-webkit-scrollbar{display:none}
+  .admtab{flex:0 0 auto;white-space:nowrap;background:var(--pitch-2,#101d38);color:var(--muted);
+    border:1px solid var(--line);border-radius:22px;padding:8px 16px;cursor:pointer;
+    font-family:'Archivo Narrow',sans-serif;font-weight:700;font-size:.9rem;transition:.15s}
+  .admtab:hover{color:var(--chalk)}
+  .admtab.on{background:var(--transfer);color:#0a1428;border-color:var(--transfer)}
+
   /* ---------- Sections repliables ---------- */
   details.sec{margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);overflow:hidden}
   details.sec > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
@@ -198,10 +209,7 @@
 <!-- CONSOLE ADMIN -->
 <main id="console" class="hidden">
   <div id="msg2"></div>
-  <div id="secControls" style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px">
-    <button class="btn-ghost btn-sm" id="btnExpandAll" type="button">Tout déplier</button>
-    <button class="btn-ghost btn-sm" id="btnCollapseAll" type="button">Tout replier</button>
-  </div>
+  <!-- La barre d'onglets est injectée ici par makeSectionsCollapsible() -->
 
   <!-- Éditeur de barèmes -->
   <h2>🎛️ Éditeur de barèmes</h2>
@@ -744,62 +752,90 @@ async function refreshGate(){
   loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes();
 }
 
-// Enveloppe chaque <h2> + son contenu dans un <details> repliable.
-// Les éléments gardent leurs id (les load*() continuent de les remplir).
-// L'état ouvert/fermé de chaque section est mémorisé sur l'appareil.
+// Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
+// montrer qu'un groupe à la fois. Chaque section devient un <details> (repli
+// interne), et chaque onglet ne contient que ses sections.
+// Le mapping se fait par le début du titre de la section.
+const ADMIN_TABS = [
+  { id:'pilotage', label:'📊 Pilotage', titles:[
+      "Vue d'ensemble","Tableau de bord financier","Diagnostic","Phase du mercato","Fenêtres de mercato"] },
+  { id:'marche', label:'🔁 Marché', titles:[
+      "Validation du marché","Historique des propositions","Historique des transactions",
+      "Libérations & pénalités","Interventions manuelles","Trace des bonus"] },
+  { id:'joueurs', label:'⚽ Joueurs', titles:[
+      "Ajouter un joueur","Import CSV","Joueurs en base","Blessures à valider","Saisie des notes"] },
+  { id:'managers', label:'👥 Managers', titles:[
+      "Classement des managers","Ligues & divisions","Récompenses de fin de saison",
+      "Défis & objectifs","Journées & Compositions","Saisons & archives"] },
+  { id:'config', label:'🎛️ Config', titles:[
+      "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
+];
+function tabForTitle(title){
+  // On retire les emojis/symboles de préfixe pour comparer sur le texte réel.
+  const clean = title.replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').trim();
+  for(const t of ADMIN_TABS){ if(t.titles.some(x=>clean.startsWith(x))) return t.id; }
+  return 'pilotage';  // défaut : une section non mappée va dans Pilotage
+}
+
 function makeSectionsCollapsible(){
   const main = $('console');
   if(!main || main.dataset.collapsible) return;
   main.dataset.collapsible = '1';
-  // Sections ouvertes par défaut la première fois (les plus consultées)
-  const OPEN_DEFAULT = ["Vue d'ensemble","Phase du mercato"];
-  let saved = {};
-  try { saved = JSON.parse(localStorage.getItem('us_admin_sections')||'{}'); } catch(e){}
-  const persist = ()=>{ try { localStorage.setItem('us_admin_sections', JSON.stringify(saved)); } catch(e){} };
 
-  // On parcourt les enfants directs ; chaque <h2> démarre une nouvelle section.
+  // 1) Regroupe les enfants directs par section (<h2> + ce qui suit)
   const kids = Array.from(main.children);
-  let current = null, body = null;
-  const flush = ()=>{ if(current){ current.appendChild(body); main.insertBefore(current, marker); } current=null; body=null; };
-  // On insère les <details> à la place, dans l'ordre. Marker = position courante.
-  let marker = document.createComment('sections');
-  main.appendChild(marker);
-
+  const sections = [];   // {title, nodes:[...]}
+  let cur = null;
   kids.forEach(node=>{
-    if(node.id==='msg2' || node.id==='secControls'){ return; } // on laisse ces éléments en haut
+    if(node.id==='msg2' || node.id==='secControls') return;
     if(node.tagName==='H2'){
-      flush();
-      const title = node.textContent.trim();
-      current = document.createElement('details');
-      current.className = 'sec';
-      const key = title.replace(/\s+/g,'_').slice(0,40);
-      const isOpen = (key in saved) ? saved[key] : OPEN_DEFAULT.some(t=>title.startsWith(t));
-      if(isOpen) current.setAttribute('open','');
-      const summary = document.createElement('summary');
-      // On déplace le vrai <h2> dans le summary : ainsi un compteur vivant
-      // (ex. "Joueurs en base (12)") reste à jour dans le titre.
-      node.style.margin = '0';
-      node.style.fontSize = 'inherit';
-      node.style.fontWeight = 'inherit';
-      summary.appendChild(node);
-      current.appendChild(summary);
-      body = document.createElement('div');
-      body.className = 'sec-body';
-      current.addEventListener('toggle', ()=>{ saved[key] = current.open; persist(); });
-    } else if(current){
-      body.appendChild(node);
+      cur = { title: node.textContent.trim(), h2: node, nodes: [] };
+      sections.push(cur);
+    } else if(cur){
+      cur.nodes.push(node);
     }
   });
-  flush();
-  marker.remove();
+
+  // 2) Construit un conteneur par onglet
+  const panels = {};
+  ADMIN_TABS.forEach(t=>{
+    const p = document.createElement('div');
+    p.className = 'tab-panel'; p.dataset.tab = t.id; p.style.display='none';
+    main.appendChild(p);
+    panels[t.id] = p;
+  });
+
+  // 3) Transforme chaque section en <details> et la range dans son onglet
+  sections.forEach(sec=>{
+    const det = document.createElement('details');
+    det.className = 'sec'; det.setAttribute('open','');   // ouvert : peu de sections par onglet
+    const summary = document.createElement('summary');
+    sec.h2.style.margin='0'; sec.h2.style.fontSize='inherit'; sec.h2.style.fontWeight='inherit';
+    summary.appendChild(sec.h2);
+    det.appendChild(summary);
+    const body = document.createElement('div'); body.className='sec-body';
+    sec.nodes.forEach(n=>body.appendChild(n));
+    det.appendChild(body);
+    (panels[tabForTitle(sec.title)] || panels['pilotage']).appendChild(det);
+  });
+
+  // 4) Barre d'onglets
+  const bar = document.createElement('div');
+  bar.id = 'adminTabs';
+  bar.innerHTML = ADMIN_TABS.map((t,i)=>`<button class="admtab${i===0?' on':''}" data-tab="${t.id}">${t.label}</button>`).join('');
+  main.insertBefore(bar, panels[ADMIN_TABS[0].id]);
+
+  let saved = 'pilotage';
+  try { saved = localStorage.getItem('us_admin_tab') || 'pilotage'; } catch(e){}
+  function showTab(id){
+    ADMIN_TABS.forEach(t=>{ panels[t.id].style.display = (t.id===id)?'block':'none'; });
+    bar.querySelectorAll('.admtab').forEach(b=>b.classList.toggle('on', b.dataset.tab===id));
+    try { localStorage.setItem('us_admin_tab', id); } catch(e){}
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+  bar.querySelectorAll('.admtab').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+  showTab(ADMIN_TABS.some(t=>t.id===saved) ? saved : 'pilotage');
 }
-// Boutons "tout déplier / tout replier"
-function toggleAllSections(open){
-  // Modifier .open déclenche nativement l'event 'toggle' (qui persiste l'état).
-  document.querySelectorAll('details.sec').forEach(d=>{ d.open = open; });
-}
-if($('btnExpandAll')) $('btnExpandAll').onclick = ()=>toggleAllSections(true);
-if($('btnCollapseAll')) $('btnCollapseAll').onclick = ()=>toggleAllSections(false);
 if($('btnHealthcheck')) $('btnHealthcheck').onclick = ()=>loadHealthcheck();
 
 $('btnLogin').onclick = async () => {
@@ -1364,6 +1400,7 @@ async function loadOverview(){
   const grid = $('overviewGrid'); if(!grid) return;
   const o = await api.adminOverview();
   if(!o){ grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Indisponible.</div>'; return; }
+  if(o.__error){ grid.innerHTML = `<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px;color:var(--danger,#e0574a)">Erreur : ${o.__error}<br><span style="color:var(--muted)">(un script SQL n'a peut-être pas été passé — vérifie le Diagnostic)</span></div>`; return; }
   // tile(valeur, libellé, couleur d'accent si actionnable, note optionnelle)
   const tile = (val, label, accent, note) => `
     <div style="background:var(--card2,#101d38);border-radius:12px;padding:14px;border-left:3px solid ${accent||'var(--line)'}">
