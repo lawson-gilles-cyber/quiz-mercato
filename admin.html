@@ -105,6 +105,47 @@
   .toast.info{border-left-color:var(--transfer)}
   .toast .ti{font-size:1.1rem;flex-shrink:0}
   @keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ---------- Sections repliables ---------- */
+  details.sec{margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);overflow:hidden}
+  details.sec > summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:10px;
+    padding:14px 18px;font-family:'Archivo Narrow',sans-serif;font-weight:800;font-size:1.15rem;
+    color:var(--chalk);user-select:none;transition:background .15s}
+  details.sec > summary::-webkit-details-marker{display:none}
+  details.sec > summary::before{content:'▸';color:var(--transfer);font-size:.9rem;transition:transform .2s;flex-shrink:0}
+  details.sec[open] > summary::before{transform:rotate(90deg)}
+  details.sec > summary:hover{background:rgba(255,255,255,.04)}
+  details.sec .sec-body{padding:0 18px 16px}
+  details.sec > summary > h2{display:inline;margin:0}  /* le h2 vit dans le summary */
+
+  /* ---------- Responsivité mobile ---------- */
+  /* Empêche tout débordement horizontal de la page entière */
+  html,body{max-width:100%;overflow-x:hidden}
+  /* Seules les cartes contenant un tableau défilent horizontalement en
+     interne (grâce à :has, supporté par Chrome/Safari récents), sans
+     pousser la page ni rogner les menus déroulants des autres cartes.
+     thead et tbody restent alignés car la table n'est pas en display:block. */
+  .card:has(table){overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Les cellules ne se tassent pas en colonnes d'un mot par ligne ;
+     elles gardent leur contenu sur une ligne et la carte défile si besoin.
+     (les cellules à texte long peuvent revenir à la ligne via .wrap) */
+  .card:has(table) td,.card:has(table) th{white-space:nowrap}
+  .card:has(table) td.wrap{white-space:normal;min-width:160px}
+  @media (max-width:640px){
+    main{padding:18px 14px 80px}
+    .card{padding:14px}
+    table{font-size:.82rem}
+    th,td{padding:8px 7px}
+    /* Les grilles de tuiles passent à 2 colonnes serrées */
+    #overviewGrid,#financeGrid{grid-template-columns:repeat(2,1fr)!important}
+    h2{font-size:1.25rem}
+    h1{font-size:1.6rem}
+    /* Les rangées de boutons repassent à la ligne proprement */
+    .phase-btns,.actions{flex-wrap:wrap}
+  }
+  @media (max-width:380px){
+    #overviewGrid,#financeGrid{grid-template-columns:1fr!important}
+  }
 </style>
 </head>
 <body>
@@ -157,6 +198,10 @@
 <!-- CONSOLE ADMIN -->
 <main id="console" class="hidden">
   <div id="msg2"></div>
+  <div id="secControls" style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:12px">
+    <button class="btn-ghost btn-sm" id="btnExpandAll" type="button">Tout déplier</button>
+    <button class="btn-ghost btn-sm" id="btnCollapseAll" type="button">Tout replier</button>
+  </div>
 
   <!-- Vue d'ensemble -->
   <h2>Vue d'ensemble</h2>
@@ -253,6 +298,32 @@
       <thead><tr><th>#</th><th>Manager</th><th>Équipe</th><th>Points</th><th>Effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankAdminBody"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
     </table>
+  </div>
+
+  <!-- Ligues / divisions -->
+  <h2>🏆 Ligues & divisions</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Répartis les managers en divisions (niveau 1 = élite). Le classement s'affiche par division côté managers. En fin de saison, applique la montée/descente : les meilleurs montent, les derniers descendent.</p>
+    <div class="row c3" style="margin-bottom:10px">
+      <div><label>Niveau</label><input id="divLevel" type="number" min="1" value="1"></div>
+      <div><label>Nom</label><input id="divLabel" type="text" placeholder="Division Élite"></div>
+      <div><label>Places</label><input id="divCapacity" type="number" min="1" value="10"></div>
+    </div>
+    <button class="btn-primary btn-sm" id="btnCreateDivision">Créer / mettre à jour la division</button>
+    <div id="divList" style="margin-top:14px"></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+      <h3 style="margin:0 0 8px">Affecter les managers</h3>
+      <div id="divAssign"><p class="hint">Chargement…</p></div>
+    </div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+      <h3 style="margin:0 0 8px">Montée / descente (fin de saison)</h3>
+      <div style="display:flex;gap:10px;align-items:center">
+        <label style="margin:0">Nombre par division</label>
+        <input id="prCount" type="number" min="1" value="2" style="width:70px">
+        <button class="btn-primary btn-sm" id="btnPromoRelegate">Appliquer</button>
+      </div>
+      <p class="hint" style="margin-top:6px">À lancer juste avant de clôturer la saison. Réversible uniquement en réaffectant à la main.</p>
+    </div>
   </div>
 
   <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
@@ -600,8 +671,66 @@ async function refreshGate(){
   $('logout').onclick = async e => { e.preventDefault(); await sb.auth.signOut(); location.reload(); };
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons();
+  makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions();
 }
+
+// Enveloppe chaque <h2> + son contenu dans un <details> repliable.
+// Les éléments gardent leurs id (les load*() continuent de les remplir).
+// L'état ouvert/fermé de chaque section est mémorisé sur l'appareil.
+function makeSectionsCollapsible(){
+  const main = $('console');
+  if(!main || main.dataset.collapsible) return;
+  main.dataset.collapsible = '1';
+  // Sections ouvertes par défaut la première fois (les plus consultées)
+  const OPEN_DEFAULT = ["Vue d'ensemble","Phase du mercato"];
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('us_admin_sections')||'{}'); } catch(e){}
+  const persist = ()=>{ try { localStorage.setItem('us_admin_sections', JSON.stringify(saved)); } catch(e){} };
+
+  // On parcourt les enfants directs ; chaque <h2> démarre une nouvelle section.
+  const kids = Array.from(main.children);
+  let current = null, body = null;
+  const flush = ()=>{ if(current){ current.appendChild(body); main.insertBefore(current, marker); } current=null; body=null; };
+  // On insère les <details> à la place, dans l'ordre. Marker = position courante.
+  let marker = document.createComment('sections');
+  main.appendChild(marker);
+
+  kids.forEach(node=>{
+    if(node.id==='msg2' || node.id==='secControls'){ return; } // on laisse ces éléments en haut
+    if(node.tagName==='H2'){
+      flush();
+      const title = node.textContent.trim();
+      current = document.createElement('details');
+      current.className = 'sec';
+      const key = title.replace(/\s+/g,'_').slice(0,40);
+      const isOpen = (key in saved) ? saved[key] : OPEN_DEFAULT.some(t=>title.startsWith(t));
+      if(isOpen) current.setAttribute('open','');
+      const summary = document.createElement('summary');
+      // On déplace le vrai <h2> dans le summary : ainsi un compteur vivant
+      // (ex. "Joueurs en base (12)") reste à jour dans le titre.
+      node.style.margin = '0';
+      node.style.fontSize = 'inherit';
+      node.style.fontWeight = 'inherit';
+      summary.appendChild(node);
+      current.appendChild(summary);
+      body = document.createElement('div');
+      body.className = 'sec-body';
+      current.addEventListener('toggle', ()=>{ saved[key] = current.open; persist(); });
+    } else if(current){
+      body.appendChild(node);
+    }
+  });
+  flush();
+  marker.remove();
+}
+// Boutons "tout déplier / tout replier"
+function toggleAllSections(open){
+  // Modifier .open déclenche nativement l'event 'toggle' (qui persiste l'état).
+  document.querySelectorAll('details.sec').forEach(d=>{ d.open = open; });
+}
+if($('btnExpandAll')) $('btnExpandAll').onclick = ()=>toggleAllSections(true);
+if($('btnCollapseAll')) $('btnCollapseAll').onclick = ()=>toggleAllSections(false);
 
 $('btnLogin').onclick = async () => {
   const { error } = await api.signIn($('email').value.trim(), $('password').value);
@@ -1229,6 +1358,55 @@ async function loadFinance(){
     </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun joueur.</td></tr>';
   }
 }
+
+// ---------- Ligues / divisions ----------
+async function loadDivisions(){
+  if(!$('divList')) return;
+  let divs = [];
+  try { divs = await api.divisionsList(); } catch(e){ $('divList').innerHTML='<p class="hint">Passe le script divisions pour activer cette section.</p>'; return; }
+  $('divList').innerHTML = divs.length
+    ? `<table style="font-size:.85rem"><thead><tr><th>Niveau</th><th>Nom</th><th>Managers</th><th>Places</th></tr></thead>
+       <tbody>${divs.map(d=>`<tr><td>${d.level}</td><td>${d.label}</td><td>${d.managers_count}</td><td>${d.capacity}</td></tr>`).join('')}</tbody></table>`
+    : '<p class="hint">Aucune division. Crée-en une ci-dessus.</p>';
+
+  // Affectation des managers
+  const managers = await api.leaderboard();
+  const box = $('divAssign');
+  if(box){
+    if(!managers.length){ box.innerHTML = '<p class="hint">Aucun manager.</p>'; }
+    else if(!divs.length){ box.innerHTML = '<p class="hint">Crée d\'abord au moins une division.</p>'; }
+    else {
+      const opts = d => divs.map(x=>`<option value="${x.id}"${d===x.id?' selected':''}>${x.label}</option>`).join('');
+      box.innerHTML = managers.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:5px 0;border-top:1px solid var(--line)">
+        <span>${m.team_name||m.display_name}</span>
+        <select data-assign="${m.id}"><option value="">— aucune —</option>${opts(m.division_id)}</select>
+      </div>`).join('');
+      box.querySelectorAll('[data-assign]').forEach(sel=>sel.onchange=async()=>{
+        const { error } = await api.adminAssignDivision(sel.dataset.assign, sel.value||null);
+        if(error) return showMsg($('msg2'), error.message);
+        showMsg($('msg2'),'Affectation enregistrée.',true); loadDivisions();
+      });
+    }
+  }
+}
+if($('btnCreateDivision')) $('btnCreateDivision').onclick = async ()=>{
+  const level = parseInt($('divLevel').value,10);
+  const label = $('divLabel').value.trim();
+  const cap = parseInt($('divCapacity').value,10)||10;
+  if(isNaN(level)||level<1) return showMsg($('msg2'),'Niveau invalide.');
+  const { error } = await api.adminUpsertDivision(level, label||null, cap);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),'Division enregistrée.',true);
+  $('divLabel').value=''; loadDivisions();
+};
+if($('btnPromoRelegate')) $('btnPromoRelegate').onclick = async ()=>{
+  const count = parseInt($('prCount').value,10)||2;
+  if(!confirm(`Appliquer la montée/descente (${count} par division) ? Les meilleurs montent, les derniers descendent.`)) return;
+  const { data, error } = await api.adminApplyPromotionRelegation(count);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),`${data} mouvement(s) de division appliqué(s).`,true);
+  loadDivisions();
+};
 
 async function loadRanking(){
   if(!$('rankAdminBody')) return;
