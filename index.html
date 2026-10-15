@@ -339,6 +339,8 @@
   @media(max-width:560px){.kanban{grid-template-columns:1fr}}
 
   /* ---------- Classement ---------- */
+  /* Garde anti-débordement horizontal sur mobile */
+  html,body{max-width:100%;overflow-x:hidden}
   table{width:100%;border-collapse:collapse}
   th{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;font-size:.72rem;
     color:var(--muted);text-align:left;padding:12px 14px;border-bottom:1px solid var(--line)}

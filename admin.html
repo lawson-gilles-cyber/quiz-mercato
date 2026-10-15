@@ -105,6 +105,35 @@
   .toast.info{border-left-color:var(--transfer)}
   .toast .ti{font-size:1.1rem;flex-shrink:0}
   @keyframes tin{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ---------- Responsivité mobile ---------- */
+  /* Empêche tout débordement horizontal de la page entière */
+  html,body{max-width:100%;overflow-x:hidden}
+  /* Seules les cartes contenant un tableau défilent horizontalement en
+     interne (grâce à :has, supporté par Chrome/Safari récents), sans
+     pousser la page ni rogner les menus déroulants des autres cartes.
+     thead et tbody restent alignés car la table n'est pas en display:block. */
+  .card:has(table){overflow-x:auto;-webkit-overflow-scrolling:touch}
+  /* Les cellules ne se tassent pas en colonnes d'un mot par ligne ;
+     elles gardent leur contenu sur une ligne et la carte défile si besoin.
+     (les cellules à texte long peuvent revenir à la ligne via .wrap) */
+  .card:has(table) td,.card:has(table) th{white-space:nowrap}
+  .card:has(table) td.wrap{white-space:normal;min-width:160px}
+  @media (max-width:640px){
+    main{padding:18px 14px 80px}
+    .card{padding:14px}
+    table{font-size:.82rem}
+    th,td{padding:8px 7px}
+    /* Les grilles de tuiles passent à 2 colonnes serrées */
+    #overviewGrid,#financeGrid{grid-template-columns:repeat(2,1fr)!important}
+    h2{font-size:1.25rem}
+    h1{font-size:1.6rem}
+    /* Les rangées de boutons repassent à la ligne proprement */
+    .phase-btns,.actions{flex-wrap:wrap}
+  }
+  @media (max-width:380px){
+    #overviewGrid,#financeGrid{grid-template-columns:1fr!important}
+  }
 </style>
 </head>
 <body>
