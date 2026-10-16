@@ -148,8 +148,10 @@
     #tabbar button.active{color:var(--transfer)}
     /* marge basse pour que le contenu ne soit pas caché par la barre */
     main{padding-bottom:76px}
-    /* Le menu "Plus" mobile s'ancre en bas à droite au-dessus de la barre */
-    .more-menu{position:fixed;bottom:72px;right:10px;left:auto;top:auto}
+    /* Le menu "Plus" mobile s'ancre en bas à droite au-dessus de la barre.
+       On force via l'ID pour l'emporter sur la règle desktop .more-menu. */
+    #moreMenu.more-menu{position:fixed;bottom:76px;right:10px;left:auto;top:auto;
+      max-height:60vh;overflow-y:auto}
   }
 
   .wallet{
