@@ -8,7 +8,7 @@
  * incrémenter CACHE_VERSION ci-dessous (v1 -> v2 -> v3...).
  * L'ancien cache est alors supprimé automatiquement.
  */
-const CACHE_VERSION = 'us-v2';
+const CACHE_VERSION = 'us-v3';
 const CACHE_NAME = 'ultimate-squad-' + CACHE_VERSION;
 
 // Coquille minimale mise en cache à l'installation (ouverture rapide hors-ligne).
@@ -65,5 +65,32 @@ self.addEventListener('fetch', (event) => {
         // Réseau indisponible -> on sert la copie en cache si elle existe.
         caches.match(req).then((hit) => hit || caches.match('./index.html'))
       )
+  );
+});
+
+// ---------- Web Push : notification reçue (même app fermée) ----------
+self.addEventListener('push', (event) => {
+  let data = { title: 'Ultimate Squad', body: 'Nouvelle activité sur le mercato', url: '/' };
+  try { if (event.data) data = Object.assign(data, event.data.json()); } catch (e) {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      data: { url: data.url || '/' },
+      vibrate: [80, 40, 80]
+    })
+  );
+});
+
+// Clic sur la notification -> ouvre/réveille l'app sur la bonne page
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((wins) => {
+      for (const w of wins) { if ('focus' in w) return w.focus(); }
+      if (self.clients.openWindow) return self.clients.openWindow(target);
+    })
   );
 });

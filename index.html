@@ -1120,14 +1120,33 @@ $('nav').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b || !b.dataset.v) return;
   goView(b.dataset.v);
 });
+// Ouvre/ferme le menu "Plus" en le POSITIONNANT en JS (indépendant du CSS,
+// pour éviter tout problème de feuille de style servie en cache par la PWA).
+function toggleMoreMenu(){
+  const m = $('moreMenu'); if(!m) return;
+  const willOpen = !m.classList.contains('open');
+  m.classList.toggle('open');
+  if(willOpen){
+    // Mode "app" : la tabbar du bas est visible -> menu ancré en bas à droite.
+    const mobile = window.matchMedia('(max-width:1000px)').matches;
+    if(mobile){
+      m.style.position='fixed'; m.style.bottom='78px'; m.style.right='10px';
+      m.style.top='auto'; m.style.left='auto'; m.style.maxHeight='60vh'; m.style.overflowY='auto';
+    } else {
+      // Desktop : sous le bouton "Plus" du header (on laisse le CSS gérer).
+      m.style.position=''; m.style.bottom=''; m.style.right='';
+      m.style.top=''; m.style.left=''; m.style.maxHeight=''; m.style.overflowY='';
+    }
+  }
+}
 // Barre d'onglets du bas (mobile)
 if($('tabbar')) $('tabbar').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b) return;
-  if(b.id==='tabMore'){ e.stopPropagation(); $('moreMenu').classList.toggle('open'); return; }
+  if(b.id==='tabMore'){ e.stopPropagation(); toggleMoreMenu(); return; }
   if(b.dataset.v) goView(b.dataset.v);
 });
 // Menu "Plus" (desktop + mobile partagent le même #moreMenu)
-if($('moreBtn')) $('moreBtn').onclick = (e)=>{ e.stopPropagation(); $('moreMenu').classList.toggle('open'); };
+if($('moreBtn')) $('moreBtn').onclick = (e)=>{ e.stopPropagation(); toggleMoreMenu(); };
 $('moreMenu').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b || !b.dataset.v) return;
   goView(b.dataset.v);
