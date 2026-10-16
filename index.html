@@ -779,6 +779,18 @@
       <thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Effectif</th><th>Valeur effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankBody"></tbody>
     </table>
+
+    <!-- Comparateur d'effectifs (tête-à-tête) -->
+    <div style="margin-top:30px">
+      <div class="eyebrow" style="margin-bottom:12px">⚔️ Face-à-face</div>
+      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin-bottom:14px">Comparer deux effectifs</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
+        <select id="vsA" style="flex:1;min-width:140px"><option value="">— équipe A —</option></select>
+        <select id="vsB" style="flex:1;min-width:140px"><option value="">— équipe B —</option></select>
+        <button id="vsGo" class="bid-btn" style="margin:0;width:auto;padding:10px 18px">Comparer</button>
+      </div>
+      <div id="vsResult"></div>
+    </div>
   </section>
 
   <!-- FIL D'ACTUALITÉ -->
@@ -2391,6 +2403,67 @@ async function renderRank(){
   }).join('')
     || `<tr><td colspan="6" class="empty">Aucun manager inscrit.</td></tr>`;
   $('rankBody').querySelectorAll('.rank-row').forEach(row=>row.onclick=()=>showManagerSquad(row.dataset.mgr));
+  // Peuple les sélecteurs du comparateur d'effectifs
+  setupVersus(managers);
+}
+
+// ---------- Comparateur d'effectifs ----------
+function setupVersus(managers){
+  const a=$('vsA'), b=$('vsB'); if(!a||!b) return;
+  const opts = '<option value="">— équipe —</option>' +
+    managers.map(m=>`<option value="${m.id}">${m.team_name||m.display_name}</option>`).join('');
+  // Ne réinitialise que la première fois (garde la sélection en cours)
+  if(!a.dataset.filled){ a.innerHTML=opts.replace('— équipe —','— équipe A —'); a.dataset.filled='1'; }
+  if(!b.dataset.filled){ b.innerHTML=opts.replace('— équipe —','— équipe B —'); b.dataset.filled='1'; }
+  if(!$('vsGo').dataset.bound){
+    $('vsGo').dataset.bound='1';
+    $('vsGo').onclick = renderVersus;
+  }
+}
+async function renderVersus(){
+  const idA=$('vsA').value, idB=$('vsB').value;
+  if(!idA || !idB) return toast('Choisis deux équipes à comparer.','err');
+  if(idA===idB) return toast('Choisis deux équipes différentes.','err');
+  const box=$('vsResult'); box.innerHTML='<div class="hint">Analyse…</div>';
+  const [sa, sb2] = await Promise.all([api.squadSummary(idA), api.squadSummary(idB)]);
+  const nameA = $('vsA').selectedOptions[0].textContent;
+  const nameB = $('vsB').selectedOptions[0].textContent;
+  const byBucket = (arr,b)=>arr.find(x=>x.bucket===b);
+  const POSL = {GK:'Gardiens',DEF:'Défense',MID:'Milieu',FWD:'Attaque',TOTAL:'TOTAL'};
+  const rows = ['GK','DEF','MID','FWD','TOTAL'].map(bk=>{
+    const x=byBucket(sa,bk), y=byBucket(sb2,bk);
+    if(!x && !y) return '';
+    const cell = (s, other, key, fmt)=>{
+      if(!s) return '<td style="color:var(--muted)">—</td>';
+      const v=Number(s[key]||0), ov=other?Number(other[key]||0):0;
+      const win = v>ov && v>0;
+      return `<td style="${win?'color:var(--transfer);font-weight:700':''}">${fmt?fmt(s[key]):s[key]}</td>`;
+    };
+    const isTot = bk==='TOTAL';
+    return `<tr style="${isTot?'border-top:2px solid var(--transfer);font-weight:700':''}">
+      <td style="color:var(--muted)">${POSL[bk]}</td>
+      ${cell(x,y,'players')}${cell(y,x,'players')}
+      ${cell(x,y,'avg_rating')}${cell(y,x,'avg_rating')}
+      ${cell(x,y,'value_total',fmtMoney)}${cell(y,x,'value_total',fmtMoney)}
+      ${cell(x,y,'salary_total',fmtMoney)}${cell(y,x,'salary_total',fmtMoney)}
+    </tr>`;
+  }).join('');
+  box.innerHTML = `
+    <div style="overflow-x:auto">
+    <table style="width:100%;font-size:.82rem;min-width:560px">
+      <thead>
+        <tr><th rowspan="2" style="vertical-align:bottom">Poste</th>
+          <th colspan="2">Effectif</th><th colspan="2">Note moy.</th><th colspan="2">Valeur</th><th colspan="2">Masse sal.</th></tr>
+        <tr>
+          <th style="font-size:.68rem">${nameA}</th><th style="font-size:.68rem">${nameB}</th>
+          <th style="font-size:.68rem">${nameA}</th><th style="font-size:.68rem">${nameB}</th>
+          <th style="font-size:.68rem">${nameA}</th><th style="font-size:.68rem">${nameB}</th>
+          <th style="font-size:.68rem">${nameA}</th><th style="font-size:.68rem">${nameB}</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table></div>
+    <p class="hint" style="font-size:.74rem;margin-top:8px">En doré : la meilleure des deux valeurs sur chaque ligne.</p>`;
 }
 let RANK_TEAMS = {};
 async function showManagerSquad(mgrId){

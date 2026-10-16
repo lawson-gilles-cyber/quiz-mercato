@@ -532,6 +532,12 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- COMPARATEUR D'EFFECTIFS ---------------------------------
+export async function squadSummary(managerId) {
+  const { data } = await sb.rpc('qm_squad_summary', { p_manager_id: managerId });
+  return data ?? [];
+}
+
 // ---------- COURBE DE VALEUR D'UN JOUEUR ----------------------------
 export async function valueHistory(playerId, limit = 60) {
   const { data } = await sb.rpc('qm_value_history', { p_player_id: playerId, p_limit: limit });
