@@ -1245,17 +1245,30 @@ function toggleMoreMenu(){
   const m = $('moreMenu'); if(!m) return;
   const willOpen = !m.classList.contains('open');
   m.classList.toggle('open');
-  if(willOpen){
-    // Mode "app" : la tabbar du bas est visible -> menu ancré en bas à droite.
-    const mobile = window.matchMedia('(max-width:1000px)').matches;
-    if(mobile){
-      m.style.position='fixed'; m.style.bottom='78px'; m.style.right='10px';
-      m.style.top='auto'; m.style.left='auto'; m.style.maxHeight='60vh'; m.style.overflowY='auto';
-    } else {
-      // Desktop : sous le bouton "Plus" du header (on laisse le CSS gérer).
-      m.style.position=''; m.style.bottom=''; m.style.right='';
-      m.style.top=''; m.style.left=''; m.style.maxHeight=''; m.style.overflowY='';
-    }
+  if(!willOpen) return;
+  // On positionne TOUJOURS en JS (position:fixed), borné à l'écran, pour que
+  // le menu ne soit jamais tronqué ni hors de vue — quel que soit l'appareil.
+  m.style.position = 'fixed';
+  m.style.left = 'auto';
+  m.style.right = '10px';
+  m.style.zIndex = '200';
+  m.style.overflowY = 'auto';
+  const mobile = window.matchMedia('(max-width:1000px)').matches;
+  if(mobile){
+    // Mode app : ancré au-dessus de la tabbar du bas, sans dépasser le header.
+    const bottomGap = 78;                 // au-dessus de la tabbar
+    const topSafe = 70;                   // sous le header
+    m.style.bottom = bottomGap + 'px';
+    m.style.top = 'auto';
+    m.style.maxHeight = (window.innerHeight - bottomGap - topSafe) + 'px';
+  } else {
+    // Desktop : ancré sous le bouton "Plus" du header.
+    const btn = $('moreBtn');
+    const r = btn ? btn.getBoundingClientRect() : {bottom:60, right:window.innerWidth-16};
+    m.style.top = (r.bottom + 6) + 'px';
+    m.style.bottom = 'auto';
+    m.style.right = Math.max(10, window.innerWidth - r.right) + 'px';
+    m.style.maxHeight = (window.innerHeight - r.bottom - 20) + 'px';
   }
 }
 // Barre d'onglets du bas (mobile)
