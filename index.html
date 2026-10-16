@@ -116,8 +116,16 @@
     .logo{font-size:1.4rem}
     /* En dessous de 1000px, la barre complète (nav + 2 budgets + cloche +
        badge + déconnexion) ne tient plus sur une ligne et se chevauche.
-       On bascule donc en mode "app" : nav du haut masquée, tabbar en bas. */
-    nav#nav{display:none}
+       On bascule donc en mode "app" : nav du haut masquée, tabbar en bas.
+       ATTENTION : on ne met PAS #nav en display:none, car le menu "Plus"
+       (#moreMenu) en est un enfant et ne serait plus rendu du tout — il
+       faut qu'il reste affichable depuis la tabbar du bas. On masque donc
+       seulement les onglets du haut et le bouton "Plus ▾" du haut. */
+    nav#nav{position:absolute;width:0;height:0;overflow:visible;padding:0;margin:0;pointer-events:none}
+    nav#nav > button, nav#nav .more-btn{display:none}
+    /* Le menu déroulant reste cliquable quand il est ouvert */
+    nav#nav .more-wrap{position:static}
+    #moreMenu{pointer-events:auto}
     .wallet{margin-left:0;padding:5px 9px;font-size:.74rem}
     .wallet small{font-size:.54rem;letter-spacing:.5px}
     .wallet .lbl-long{display:none}
