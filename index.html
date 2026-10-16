@@ -3499,10 +3499,31 @@ document.addEventListener('click',(e)=>{
 });
 init();
 
-// ---------- PWA : enregistrement du service worker ----------
+// ---------- PWA : enregistrement + mise à jour AUTOMATIQUE ----------
 if ('serviceWorker' in navigator) {
+  // Quand le nouveau service worker prend le contrôle, on recharge une fois
+  // pour servir immédiatement la dernière version (fini le cache bloqué).
+  let swReloaded = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swReloaded) return;
+    swReloaded = true;
+    location.reload();
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('service-worker.js').catch(() => {});
+    navigator.serviceWorker.register('service-worker.js').then(reg => {
+      // Vérifie les mises à jour au lancement et toutes les 60 s.
+      reg.update().catch(()=>{});
+      setInterval(() => reg.update().catch(()=>{}), 60000);
+      // Si une nouvelle version est trouvée, on la laisse s'activer (skipWaiting)
+      reg.addEventListener('updatefound', () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener('statechange', () => {
+          // installée + un contrôleur existe déjà => c'est une MAJ => elle
+          // s'activera et déclenchera controllerchange (rechargement auto).
+        });
+      });
+    }).catch(() => {});
   });
 }
 </script>
