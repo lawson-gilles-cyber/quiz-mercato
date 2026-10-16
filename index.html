@@ -1851,7 +1851,7 @@ function acard(a, status){
   return `<div class="acard">
     <div class="photo">${photo}<span class="tag t-${status}">${tag}</span></div>
     <div class="info">
-      <div class="title">${playerName(p)||'—'}</div>
+      <div class="title" data-player="${p.id}" style="cursor:pointer" title="Voir la fiche & la courbe de valeur">${playerName(p)||'—'} <span style="color:var(--muted);font-size:.7rem">📈</span></div>
       <div class="nick">${POS[p.position]??''}</div>
       ${bottom}
     </div></div>`;
@@ -1937,6 +1937,65 @@ async function showAuctionJournal(auctionId){
     <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
   md.querySelector('[data-no]').onclick = ()=>ov.classList.remove('show');
 }
+
+// Fiche joueur + courbe de valeur (SVG inline, sans dépendance)
+function sparkline(points, w=460, h=120){
+  if(!points || points.length<2) return '<div class="hint">Pas encore assez de données pour tracer la courbe.</div>';
+  const vals = points.map(p=>Number(p.value));
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const pad = 8, span = (max-min)||1;
+  const xy = points.map((p,i)=>{
+    const x = pad + i*(w-2*pad)/(points.length-1);
+    const y = h-pad - (Number(p.value)-min)/span*(h-2*pad);
+    return [x,y];
+  });
+  const path = xy.map((c,i)=>(i?'L':'M')+c[0].toFixed(1)+' '+c[1].toFixed(1)).join(' ');
+  const area = `M ${xy[0][0].toFixed(1)} ${(h-pad).toFixed(1)} `+xy.map(c=>'L'+c[0].toFixed(1)+' '+c[1].toFixed(1)).join(' ')+` L ${xy[xy.length-1][0].toFixed(1)} ${(h-pad).toFixed(1)} Z`;
+  const up = vals[vals.length-1] >= vals[0];
+  const col = up ? '#4ade80' : '#e0574a';
+  const last = xy[xy.length-1];
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" style="display:block">
+    <defs><linearGradient id="vgrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="${col}" stop-opacity=".28"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#vgrad)"/>
+    <path d="${path}" fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="${col}"/>
+  </svg>`;
+}
+async function showPlayerCard(playerId){
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  md.innerHTML = `<h3>Fiche joueur</h3><div class="hint">Chargement…</div>
+    <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
+  ov.classList.add('show');
+  const close = ()=>ov.classList.remove('show');
+  md.querySelector('[data-no]').onclick = close;
+  ov.onclick = (e)=>{ if(e.target===ov) close(); };
+  // Infos joueur depuis la liste déjà chargée, sinon valeurs minimales
+  const all = (typeof PLAYERS!=='undefined' && PLAYERS) ? PLAYERS : [];
+  const p = all.find(x=>x.id===playerId) || {};
+  const hist = await api.valueHistory(playerId, 80).catch(()=>[]);
+  const first = hist.length ? Number(hist[0].value) : null;
+  const last = hist.length ? Number(hist[hist.length-1].value) : null;
+  const delta = (first!=null && last!=null) ? last-first : null;
+  const deltaTxt = delta==null ? '' :
+    `<span style="color:${delta>=0?'#4ade80':'#e0574a'};font-size:.84rem">${delta>=0?'▲':'▼'} ${fmtMoney(Math.abs(delta))} depuis le début</span>`;
+  const name = p.name ? (playerName ? playerName(p) : p.name) : 'Joueur';
+  md.innerHTML = `
+    <h3>${name}</h3>
+    <div class="hint" style="margin:0 0 10px">${p.club||''}${p.position?' · '+(POS[p.position]||p.position):''}${p.current_value!=null?' · '+fmtMoney(p.current_value):''}</div>
+    <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la cote</div>
+    <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(hist)}</div>
+    <div style="text-align:center;margin-top:6px">${deltaTxt}</div>
+    <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
+  md.querySelector('[data-no]').onclick = close;
+}
+// Délégation : clic sur un nom de joueur (carte d'enchère) ouvre sa fiche
+document.addEventListener('click', e=>{
+  const t = e.target.closest('.title[data-player]');
+  if(t){ e.stopPropagation(); showPlayerCard(t.dataset.player); }
+});
+
 // Câblage des filtres (une seule fois)
 ['aucSearch','aucPos','aucChamp','aucPrice'].forEach(id=>{
   const el=$(id); if(el) el.addEventListener('input', applyAucFilters);
