@@ -1787,9 +1787,9 @@ function acard(a, status){
     const star = ME ? `<button class="watch-star${watched?' on':''}" data-watch="${a.id}" title="${watched?'Ne plus suivre':'Suivre cette enchère (alertes sniping)'}">${watched?'★':'☆'}</button>` : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span style="display:flex;gap:6px;align-items:center">${interestTag}${star}</span></div>
       <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
-      <div style="display:flex;gap:6px;margin-top:10px">
-        <button class="bid-btn" data-bid="${p.id}" style="flex:1">Enchérir</button>
-        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:0 0 auto;padding:0 12px">📜</button>
+      <div style="display:flex;gap:6px;margin-top:10px;width:100%;min-width:0">
+        <button class="bid-btn" data-bid="${p.id}" style="flex:1 1 auto;min-width:0;margin-top:0">Enchérir</button>
+        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:0 0 auto;width:44px;padding:0;margin-top:0">📜</button>
       </div>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
