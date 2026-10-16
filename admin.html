@@ -441,6 +441,18 @@
     <div id="pronoList" style="margin-top:16px"></div>
   </div>
 
+  <!-- Draft -->
+  <h2>🎯 Draft de début de saison</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Lance une pioche à tour de rôle (serpent) parmi les joueurs libres, avant les enchères. L'ordre des managers est tiré au sort. Les joueurs piochés sont attribués gratuitement.</p>
+    <div id="draftAdminState" style="margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label style="margin:0">Nombre de tours</label>
+      <input id="draftRounds" type="number" min="1" max="25" value="5" style="width:80px">
+      <button class="btn-primary btn-sm" id="btnCreateDraft">Créer le draft</button>
+    </div>
+  </div>
+
   <!-- Saisie des notes (Vague 3) -->
   <h2>Saisie des notes (par journée)</h2>
   <div class="card" style="margin-bottom:14px">
@@ -773,7 +785,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -790,7 +802,7 @@ const ADMIN_TABS = [
       "Ajouter un joueur","Import CSV","Joueurs en base","Blessures à valider","Saisie des notes"] },
   { id:'managers', label:'👥 Managers', titles:[
       "Classement des managers","Ligues & divisions","Modération du chat","Récompenses de fin de saison",
-      "Défis & objectifs","Pronostics","Journées & Compositions","Saisons & archives"] },
+      "Défis & objectifs","Pronostics","Draft","Journées & Compositions","Saisons & archives"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
 ];
@@ -1764,6 +1776,46 @@ if($('btnCreateProno')) $('btnCreateProno').onclick = async ()=>{
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'),'Pronostic créé.',true);
   $('pronoQ').value=''; $('pronoOpts').value=''; loadPronos();
+};
+
+// ---------- Draft (admin) ----------
+async function loadDraftAdmin(){
+  const el = $('draftAdminState'); if(!el) return;
+  let st;
+  try { st = await api.draftState(); }
+  catch(e){ el.innerHTML = '<p class="hint">Passe le script draft pour activer cette section.</p>'; return; }
+  if(!st || !st.draft_id){
+    el.innerHTML = '<p class="hint">Aucun draft actif.</p>';
+    if($('btnCreateDraft')) $('btnCreateDraft').disabled = false;
+    return;
+  }
+  if($('btnCreateDraft')) $('btnCreateDraft').disabled = true;
+  const sLbl = {setup:'En préparation',running:'En cours',done:'Terminé'}[st.status]||st.status;
+  let actions = '';
+  if(st.status==='setup') actions = `<button class="btn-primary btn-sm" id="btnStartDraft">▶ Démarrer le draft</button>
+    <button class="btn-ghost btn-sm" id="btnCancelDraft" style="margin-left:6px">Annuler</button>`;
+  else if(st.status==='running') actions = `<span style="font-size:.85rem">Au tour de <b>${st.current_manager_name||'—'}</b> (pick ${st.pick_no+1}/${st.total_picks})</span>
+    <button class="btn-ghost btn-sm" id="btnCancelDraft" style="margin-left:10px">Arrêter</button>`;
+  el.innerHTML = `<div style="background:var(--card2,#101d38);border-radius:10px;padding:12px 14px">
+    <b>Draft ${sLbl}</b> · ${st.rounds} tour(s) · ${st.total_picks} picks<div style="margin-top:8px">${actions}</div></div>`;
+  if($('btnStartDraft')) $('btnStartDraft').onclick = async ()=>{
+    const r = await api.adminStartDraft(st.draft_id);
+    if(r.error) return showMsg($('msg2'), r.error.message);
+    showMsg($('msg2'),'Draft démarré !',true); loadDraftAdmin();
+  };
+  if($('btnCancelDraft')) $('btnCancelDraft').onclick = async ()=>{
+    if(!confirm('Arrêter/annuler le draft en cours ?')) return;
+    const r = await api.adminCancelDraft(st.draft_id);
+    if(r.error) return showMsg($('msg2'), r.error.message);
+    showMsg($('msg2'),'Draft arrêté.',true); loadDraftAdmin();
+  };
+}
+if($('btnCreateDraft')) $('btnCreateDraft').onclick = async ()=>{
+  const rounds = parseInt($('draftRounds').value,10)||5;
+  if(!confirm(`Créer un draft de ${rounds} tour(s) ? L'ordre des managers sera tiré au sort.`)) return;
+  const r = await api.adminCreateDraft(rounds);
+  if(r.error) return showMsg($('msg2'), r.error.message);
+  showMsg($('msg2'),'Draft créé. Clique « Démarrer » pour lancer.',true); loadDraftAdmin();
 };
 
 // Diagnostic / santé

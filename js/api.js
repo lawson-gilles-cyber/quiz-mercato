@@ -532,6 +532,35 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- DRAFT ---------------------------------------------------
+export async function draftState() {
+  const { data } = await sb.rpc('qm_draft_state');
+  return (data && data[0]) ? data[0] : null;
+}
+export async function draftPick(playerId) {
+  return sb.rpc('qm_draft_pick', { p_player_id: playerId });
+}
+export async function draftPicksList(draftId = null) {
+  const { data } = await sb.rpc('qm_draft_picks_list', { p_draft_id: draftId });
+  return data ?? [];
+}
+export async function adminCreateDraft(rounds) {
+  return sb.rpc('qm_admin_create_draft', { p_rounds: rounds });
+}
+export async function adminStartDraft(id) {
+  return sb.rpc('qm_admin_start_draft', { p_draft_id: id });
+}
+export async function adminCancelDraft(id) {
+  return sb.rpc('qm_admin_cancel_draft', { p_draft_id: id });
+}
+// Temps réel : le draft avance -> on rafraîchit
+export function subscribeDraft(onChange) {
+  return sb.channel('draft:live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qm_drafts' }, () => { try{onChange();}catch(e){} })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qm_draft_picks' }, () => { try{onChange();}catch(e){} })
+    .subscribe();
+}
+
 // ---------- COMPARATEUR D'EFFECTIFS ---------------------------------
 export async function squadSummary(managerId) {
   const { data } = await sb.rpc('qm_squad_summary', { p_manager_id: managerId });

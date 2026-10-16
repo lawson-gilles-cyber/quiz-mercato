@@ -486,6 +486,7 @@
         <button data-v="feed">Actu</button>
         <button data-v="chat">💬 Chat</button>
         <button data-v="pronos">🎲 Pronos</button>
+        <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
         <button data-v="rules">Règlement</button>
       </div>
     </div>
@@ -831,6 +832,27 @@
     </div>
   </section>
 
+  <!-- DRAFT -->
+  <section class="view" id="draft">
+    <div class="eyebrow">La répartition de début de saison</div>
+    <h1>Le <em>draft</em></h1>
+    <div id="draftNone" style="display:none" class="empty">Aucun draft en cours. L'organisateur peut en lancer un.</div>
+    <div id="draftUI" style="display:none">
+      <div id="draftStatus" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px"></div>
+      <div id="draftMyTurn" style="display:none">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          <input id="draftSearch" type="search" placeholder="🔍 Chercher un joueur libre…" style="flex:1;min-width:160px">
+          <select id="draftPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
+        </div>
+        <div id="draftPlayers" style="max-height:46vh;overflow-y:auto"></div>
+      </div>
+      <div style="margin-top:18px">
+        <div class="eyebrow" style="margin-bottom:10px">Picks récents</div>
+        <div id="draftPicks"></div>
+      </div>
+    </div>
+  </section>
+
   <!-- BONUS -->
   <section class="view" id="bonus">
     <div class="eyebrow">Mes bonus de budget</div>
@@ -991,6 +1013,59 @@
         </ul>
         <p class="rule-p">Le jeu récompense la recherche et la stratégie ; attendre passivement que les autres dénichent les pépites pour surenchérir n'est pas dans l'esprit du jeu. L'organisateur tranche tout litige.</p>
       </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">16. Enchère automatique (proxy)</h3>
+        <p class="rule-p">Dans la fenêtre d'enchère, tu peux fixer un <b>montant maximum</b>. Le système surenchérit alors pour toi, par paliers, juste ce qu'il faut pour rester en tête — sans jamais dépasser ton max, le plafond du joueur (prix × 1,5) ni ton budget disponible. Deux enchères automatiques se répondent entre elles jusqu'à ce que l'une atteigne sa limite. Tu peux la désactiver à tout moment.</p>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">17. Journal des offres & suivi</h3>
+        <ul class="rule-ul">
+          <li><b>Journal des offres</b> : sur chaque enchère, le bouton 📜 montre l'historique complet (qui a misé, combien, quand).</li>
+          <li><b>Suivi (★)</b> : suis une enchère pour recevoir une alerte quand quelqu'un te dépasse ou quand elle se termine dans moins de 2 h — même sans y avoir misé.</li>
+          <li><b>Fiche joueur</b> : clique sur le nom d'un joueur (📈) pour voir sa <b>courbe de valeur</b> dans le temps.</li>
+        </ul>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">18. Cote dynamique & rareté</h3>
+        <p class="rule-p">La valeur des joueurs <b>libres</b> évolue : elle monte pour les joueurs les plus demandés (nombre d'offres reçues) et pour les postes rares (peu de joueurs libres à ce poste), et s'érode doucement sinon. La cote reste bornée entre 50 % et 130 % de la valeur de base. Les joueurs que tu possèdes gardent leur valeur d'achat.</p>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">19. Prêts de joueurs</h3>
+        <ul class="rule-ul">
+          <li>Tu peux <b>prêter</b> un de tes joueurs à un autre manager pour une durée fixe (1 à 60 jours), avec une indemnité optionnelle.</li>
+          <li>Pendant le prêt, c'est l'<b>emprunteur</b> qui aligne le joueur et porte son salaire ; le retour est automatique à l'échéance.</li>
+          <li><b>Option d'achat</b> : si elle est prévue, l'emprunteur peut acheter définitivement le joueur au prix convenu pendant le prêt.</li>
+          <li><b>Prêt ferme</b> : l'emprunteur ne peut pas rendre le joueur avant l'échéance.</li>
+        </ul>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">20. Ligues & divisions</h3>
+        <p class="rule-p">Les managers peuvent être répartis en <b>divisions</b> (élite, 2ᵉ division…). Le classement s'affiche alors par division. En fin de saison, l'organisateur applique la <b>montée / descente</b> : les meilleurs de chaque division montent, les derniers descendent.</p>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">21. Défis & objectifs</h3>
+        <p class="rule-p">L'organisateur propose des <b>défis</b> (recruter N joueurs, faire des propositions, dépenser un montant…). Dès qu'un défi est atteint, tu réclames ta récompense en <b>budget</b> depuis l'accueil. Un défi ne se réclame qu'une fois.</p>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">22. Chat, pronostics & réactions</h3>
+        <ul class="rule-ul">
+          <li><b>Chat de ligue</b> : un salon commun en direct pour échanger et se chambrer. Reste fair-play — l'organisateur peut effacer un message ou réduire au silence.</li>
+          <li><b>Pronostics</b> : parie des <b>points pronos</b> (capital de départ 100, sans lien avec le classement sportif) sur les questions ouvertes par l'organisateur. Bon pronostic = mise doublée. Un classement des pronostiqueurs récompense les plus malins.</li>
+          <li><b>Réactions & commentaires</b> : réagis aux transferts avec des stickers et commente les mouvements dans le fil d'actu.</li>
+        </ul>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">23. Le draft (optionnel)</h3>
+        <p class="rule-p">En début de saison, l'organisateur peut lancer un <b>draft</b> : les managers piochent chacun leur tour un joueur libre, attribué gratuitement. L'ordre suit le format <b>serpent</b> (1→N puis N→1) et le tout se déroule en direct. Le draft constitue les premiers effectifs avant l'ouverture des enchères.</p>
+      </div>
     </div>
   </section>
 </main>
@@ -1140,7 +1215,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','draft','rules'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1155,7 +1230,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, draft:renderDraft};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -2061,6 +2136,7 @@ async function renderLiveRules(){
 
   const caps = s ? `<ul class="rule-ul">
     <li><b>Masse salariale max</b> : ${m(s.salary_cap)} M€</li>
+    <li><b>Plafond d'enchère</b> : prix du joueur × 1,5 (dernière offre possible au plafond)</li>
     <li><b>Taxe d'entrée</b> (enchère non dénichée) : ${m(s.entry_tax)} M€</li>
     <li><b>Conversion budget → points</b> : ${m(s.budget_to_points_rate)} M€ = 1 point · plafond ${m(s.points_convert_cap)} pts</li>
   </ul>` : '';
@@ -3142,6 +3218,73 @@ async function renderPronos(){
   };
 }
 
+// ---------- Draft ----------
+let DRAFT_CHANNEL = null;
+async function renderDraft(){
+  const st = await api.draftState().catch(()=>null);
+  const none = $('draftNone'), ui = $('draftUI');
+  if(!st || !st.draft_id){
+    none.style.display='block'; ui.style.display='none';
+    if($('draftMenuBtn')) $('draftMenuBtn').style.display='none';
+    return;
+  }
+  none.style.display='none'; ui.style.display='block';
+  // Statut
+  const sLbl = {setup:'En préparation',running:'En cours',done:'Terminé'}[st.status]||st.status;
+  const mine = st.is_my_turn && st.status==='running';
+  $('draftStatus').innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+      <div><b>Draft ${sLbl}</b> · Tour ${st.round_no}/${st.rounds} · Pick ${st.pick_no+1}/${st.total_picks}</div>
+      ${st.status==='running' ? `<div style="font-size:.9rem">${mine?`<b style="color:var(--transfer)">🎯 C'est ton tour !</b>`:`Au tour de <b>${st.current_manager_name||'—'}</b>`}</div>`:''}
+    </div>
+    ${st.status==='setup'?`<div class="hint" style="margin-top:6px">Le draft va démarrer, attends le lancement par l'organisateur.</div>`:''}
+    ${st.status==='done'?'<div class="hint" style="margin-top:6px;color:#4ade80">Draft terminé ! Les effectifs sont constitués.</div>':''}`;
+  // Zone de pioche (seulement si c'est mon tour)
+  $('draftMyTurn').style.display = mine ? 'block' : 'none';
+  if(mine) await renderDraftPlayers();
+  // Picks récents
+  const picks = await api.draftPicksList().catch(()=>[]);
+  $('draftPicks').innerHTML = picks.length ? picks.slice(0,15).map(p=>`
+    <div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:.86rem">
+      <span>#${p.pick_no+1} · <b>${p.manager}</b> → ${p.player}</span>
+      <span style="color:var(--muted);font-size:.72rem">T${p.round_no}</span>
+    </div>`).join('') : '<div class="hint">Aucun pick pour l\'instant.</div>';
+  // Abonnement temps réel (une fois)
+  if(!DRAFT_CHANNEL){
+    try { DRAFT_CHANNEL = api.subscribeDraft(()=>{ if(CURRENT_VIEW==='draft') renderDraft(); else refreshDraftMenu(); }); } catch(e){}
+  }
+}
+async function renderDraftPlayers(){
+  const box = $('draftPlayers'); if(!box) return;
+  const q = ($('draftSearch')?.value||'').toLowerCase();
+  const pos = $('draftPos')?.value||'';
+  let free = (PLAYERS||[]).filter(p=>p.status==='free');
+  if(pos) free = free.filter(p=>p.position===pos);
+  if(q) free = free.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.club||'').toLowerCase().includes(q));
+  free.sort((a,b)=>Number(b.current_value)-Number(a.current_value));
+  box.innerHTML = free.slice(0,100).map(p=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--pitch-2)">
+      <span><b>${p.name}</b> <span style="color:var(--muted);font-size:.76rem">${POS[p.position]||''} · ${p.club||'—'} · ${fmtMoney(p.current_value)}</span></span>
+      <button class="bid-btn" data-draftpick="${p.id}" style="margin:0;width:auto;padding:5px 12px;font-size:.78rem">Choisir</button>
+    </div>`).join('') || '<div class="hint">Aucun joueur libre ne correspond.</div>';
+  box.querySelectorAll('[data-draftpick]').forEach(b=>b.onclick=async()=>{
+    if(!await uxConfirm('Choisir ce joueur pour ton effectif ?', {title:'Draft', okText:'Choisir'})) return;
+    const { error } = await api.draftPick(b.dataset.draftpick);
+    if(error) return toast(error.message,'err',4000);
+    toast('Joueur ajouté à ton effectif !','ok');
+    await loadPlayers();         // rafraîchit le cache des joueurs (statut)
+    renderDraft();
+  });
+}
+// Câblage filtres draft (une fois)
+['draftSearch','draftPos'].forEach(id=>{ const el=$(id); if(el) el.addEventListener('input', renderDraftPlayers); });
+// Affiche/masque l'entrée "Draft" du menu selon qu'un draft est actif
+async function refreshDraftMenu(){
+  if(!ME || !$('draftMenuBtn')) return;
+  try { const st = await api.draftState(); $('draftMenuBtn').style.display = (st && st.draft_id)?'block':'none'; }
+  catch(e){ $('draftMenuBtn').style.display='none'; }
+}
+
 // ---------- Compte à rebours accueil (fin du mercato : lit season_state si dispo) ----------
 let hs=47*3600+59*60+12;
 setInterval(()=>{
@@ -3178,6 +3321,7 @@ async function init(){
   renderMarket();
   renderAuctions();
   startRealtime();
+  refreshDraftMenu();
 }
 
 // ---------- Temps réel : la salle des enchères se met à jour seule ----------
