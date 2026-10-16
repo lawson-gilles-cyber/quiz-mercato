@@ -69,6 +69,7 @@
     padding:16px 22px;border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:20;
     background:rgba(10,20,40,.92);backdrop-filter:blur(8px);
+    flex-wrap:wrap;  /* filet : si ça déborde, on passe à la ligne au lieu de chevaucher */
   }
   .logo{flex:0 0 auto;font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:1px;text-transform:uppercase;
     background:linear-gradient(180deg,#ffe89a 0%,#f5c542 45%,#d4a017 55%,#b8860b 100%);
@@ -110,10 +111,12 @@
   .wallet .lbl-short{display:none}
   .wallet .lbl-long{display:inline}
 
-  @media (max-width:760px){
+  @media (max-width:1000px){
     header{flex-wrap:wrap;gap:10px;padding:12px 14px}
     .logo{font-size:1.4rem}
-    /* La nav du haut (onglets qui défilent) est remplacée par la barre du bas */
+    /* En dessous de 1000px, la barre complète (nav + 2 budgets + cloche +
+       badge + déconnexion) ne tient plus sur une ligne et se chevauche.
+       On bascule donc en mode "app" : nav du haut masquée, tabbar en bas. */
     nav#nav{display:none}
     .wallet{margin-left:0;padding:5px 9px;font-size:.74rem}
     .wallet small{font-size:.54rem;letter-spacing:.5px}
@@ -1015,7 +1018,7 @@ function bidCap(baseValue){ return Math.round(Number(baseValue) * 1.5); }
 // Affiche la paire masse salariale : compact sur mobile ("88 / 120"),
 // complet sur grand écran ("88 M€ / 120 M€").
 function renderSalaryPair(used, cap){
-  const compact = window.matchMedia('(max-width:760px)').matches;
+  const compact = window.matchMedia('(max-width:1000px)').matches;
   if(compact){
     return `${Math.round(Number(used)/1e6)} / ${Math.round(Number(cap)/1e6)}`;
   }
