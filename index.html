@@ -72,12 +72,11 @@
     flex-wrap:wrap;overflow:visible;  /* filet anti-chevauchement + logo jamais rogné */
   }
   .logo{flex:0 0 auto;font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:1px;text-transform:uppercase;
-    line-height:1.25;padding:2px 0;   /* évite que les hautes lettres (Anton) soient coupées */
+    line-height:1.5;padding:6px 0 2px;overflow:visible;   /* l'ascender d'Anton ne doit pas être rogné en haut */
     background:linear-gradient(180deg,#ffe89a 0%,#f5c542 45%,#d4a017 55%,#b8860b 100%);
-    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-    filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   .logo b{-webkit-text-fill-color:transparent}
-  .logo span{display:inline-block;transform:skewX(-8deg);line-height:1.25}
+  .logo span{display:inline-block;transform:skewX(-8deg);line-height:1.5}
   /* Barre de menus épurée : une seule ligne, onglets discrets.
      overflow visible pour ne pas clipper le menu déroulant "Plus". */
   nav{display:flex;gap:2px;margin-left:auto;flex-wrap:nowrap;min-width:0;max-width:100%}
@@ -157,10 +156,11 @@
 
   .wallet{
     font-family:'Space Mono',monospace;font-size:.82rem;
-    padding:7px 12px;border:1px solid var(--line);border-radius:8px;
-    color:var(--transfer);white-space:nowrap;
+    padding:7px 14px;border:1px solid var(--line);border-radius:8px;
+    color:var(--transfer);white-space:nowrap;overflow:visible;
   }
-  .wallet small{color:var(--muted);display:block;font-size:.62rem;letter-spacing:1px}
+  .wallet small{color:var(--muted);display:block;font-size:.62rem;letter-spacing:.8px}
+  .wallet span{display:inline-block}
 
   main{max-width:1180px;margin:0 auto;padding:28px 22px 80px}
   .view{display:none;animation:fade .3s}
