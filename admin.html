@@ -376,6 +376,14 @@
     </div>
   </div>
 
+  <!-- Modération du chat -->
+  <h2>💬 Modération du chat</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Réduis un manager au silence (il ne pourra plus écrire) ou vide tout le salon. Les messages se suppriment un à un directement dans le chat.</p>
+    <div id="muteList"><p class="hint">Chargement…</p></div>
+    <button class="btn-ghost btn-sm" id="btnClearChat" style="margin-top:12px">🗑 Vider tout le chat</button>
+  </div>
+
   <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
   <h2>Récompenses de fin de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -415,6 +423,22 @@
     </div>
     <button class="btn-primary btn-sm" id="btnCreateChallenge">Créer le défi</button>
     <div id="chalList" style="margin-top:16px"></div>
+  </div>
+
+  <!-- Pronostics -->
+  <h2>🎲 Pronostics</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Ouvre un pronostic : les managers parient des points pronos sur une option. À la résolution, les bons parieurs doublent leur mise.</p>
+    <label>Question</label>
+    <input id="pronoQ" type="text" placeholder="Qui finira 1er de la prochaine journée ?" style="width:100%;margin-bottom:8px">
+    <label>Options (une par ligne, 2 à 6)</label>
+    <textarea id="pronoOpts" rows="4" placeholder="KOMIVI&#10;Avengers&#10;OAC" style="width:100%;font-size:.88rem"></textarea>
+    <div style="display:flex;gap:10px;align-items:center;margin-top:8px">
+      <label style="margin:0">Fermeture dans (h)</label>
+      <input id="pronoHours" type="number" min="1" value="24" style="width:80px">
+      <button class="btn-primary btn-sm" id="btnCreateProno">Créer le pronostic</button>
+    </div>
+    <div id="pronoList" style="margin-top:16px"></div>
   </div>
 
   <!-- Saisie des notes (Vague 3) -->
@@ -749,7 +773,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -765,8 +789,8 @@ const ADMIN_TABS = [
   { id:'joueurs', label:'⚽ Joueurs', titles:[
       "Ajouter un joueur","Import CSV","Joueurs en base","Blessures à valider","Saisie des notes"] },
   { id:'managers', label:'👥 Managers', titles:[
-      "Classement des managers","Ligues & divisions","Récompenses de fin de saison",
-      "Défis & objectifs","Journées & Compositions","Saisons & archives"] },
+      "Classement des managers","Ligues & divisions","Modération du chat","Récompenses de fin de saison",
+      "Défis & objectifs","Pronostics","Journées & Compositions","Saisons & archives"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
 ];
@@ -1697,6 +1721,51 @@ function drawRecapImage(r, hours){
   showMsg($('msg2'),'Image générée — clique « Télécharger ».',true);
 }
 
+// ---------- Pronostics ----------
+async function loadPronos(){
+  const el = $('pronoList'); if(!el) return;
+  let rows;
+  try { rows = await api.adminPronos(); }
+  catch(e){ el.innerHTML = '<p class="hint">Passe le script pronostics pour activer cette section.</p>'; return; }
+  const SL = {open:'🟢 Ouvert',closed:'🔒 Fermé',resolved:'✅ Résolu'};
+  el.innerHTML = rows.length ? rows.map(p=>{
+    const optBtns = (p.status!=='resolved')
+      ? (p.options||[]).map((o,i)=>`<button class="btn-ghost btn-sm" data-resolve="${p.id}" data-widx="${i}" style="font-size:.72rem;margin:2px">${o} gagne</button>`).join('')
+      : `<span style="color:#4ade80;font-size:.82rem">Gagnant : <b>${p.options[p.winner_idx]}</b></span>`;
+    const closeBtn = p.status==='open' ? `<button class="btn-ghost btn-sm" data-closep="${p.id}" style="font-size:.72rem">Fermer les paris</button>` : '';
+    return `<div style="padding:10px 0;border-top:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <b style="font-size:.9rem">${p.question}</b>
+        <span style="font-size:.74rem;color:var(--muted)">${SL[p.status]||p.status} · ${p.bets} pari(s) · ${p.pool} pts</span>
+      </div>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${closeBtn}${optBtns}</div>
+    </div>`;
+  }).join('') : '<p class="hint">Aucun pronostic.</p>';
+  el.querySelectorAll('[data-closep]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminCloseProno(b.dataset.closep);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'),'Paris fermés.',true); loadPronos();
+  });
+  el.querySelectorAll('[data-resolve]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Désigner cette option comme gagnante et distribuer les gains ?')) return;
+    const { data, error } = await api.adminResolveProno(b.dataset.resolve, parseInt(b.dataset.widx,10));
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), `Pronostic résolu : ${data} gagnant(s) récompensé(s).`, true);
+    loadPronos();
+  });
+}
+if($('btnCreateProno')) $('btnCreateProno').onclick = async ()=>{
+  const q = $('pronoQ').value.trim();
+  const opts = $('pronoOpts').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  const hours = parseInt($('pronoHours').value,10)||24;
+  if(!q) return showMsg($('msg2'),'Pose une question.');
+  if(opts.length<2 || opts.length>6) return showMsg($('msg2'),'Il faut entre 2 et 6 options.');
+  const { error } = await api.adminCreateProno(q, opts, hours);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),'Pronostic créé.',true);
+  $('pronoQ').value=''; $('pronoOpts').value=''; loadPronos();
+};
+
 // Diagnostic / santé
 async function loadHealthcheck(){
   const el = $('healthResult'); if(!el) return;
@@ -1778,6 +1847,32 @@ async function loadFinance(){
     </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun joueur.</td></tr>';
   }
 }
+
+// ---------- Modération du chat ----------
+async function loadMuteList(){
+  const el = $('muteList'); if(!el) return;
+  const { data, error } = await sb.from('qm_managers')
+    .select('id, display_name, team_name, chat_muted, is_admin, coach_of')
+    .order('display_name');
+  if(error){ el.innerHTML = '<p class="hint">Passe le script chat pour activer cette section.</p>'; return; }
+  const mgrs = (data||[]).filter(m=>!m.is_admin && !m.coach_of);
+  if(!mgrs.length){ el.innerHTML = '<p class="hint">Aucun manager.</p>'; return; }
+  el.innerHTML = mgrs.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-top:1px solid var(--line)">
+      <span>${m.team_name||m.display_name}${m.chat_muted?' <span style="color:var(--danger,#e0574a);font-size:.74rem">🔇 silencieux</span>':''}</span>
+      <button class="btn-${m.chat_muted?'primary':'ghost'} btn-sm" data-mute="${m.id}" data-muted="${m.chat_muted}">${m.chat_muted?'Réactiver':'Réduire au silence'}</button>
+    </div>`).join('');
+  el.querySelectorAll('[data-mute]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminSetMute(b.dataset.mute, b.dataset.muted!=='true');
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'),'Statut de chat mis à jour.',true); loadMuteList();
+  });
+}
+if($('btnClearChat')) $('btnClearChat').onclick = async ()=>{
+  if(!confirm('Vider TOUT le chat de la ligue ? Cette action est définitive.')) return;
+  const { data, error } = await api.adminClearChat();
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), `Chat vidé (${data} message(s) supprimé(s)).`, true);
+};
 
 // ---------- Ligues / divisions ----------
 async function loadDivisions(){

@@ -484,6 +484,8 @@
         <button data-v="penalty">Pénalités</button>
         <button data-v="rank">Classement</button>
         <button data-v="feed">Actu</button>
+        <button data-v="chat">💬 Chat</button>
+        <button data-v="pronos">🎲 Pronos</button>
         <button data-v="rules">Règlement</button>
       </div>
     </div>
@@ -785,6 +787,36 @@
     <h1>L'<em>actu</em> du mercato</h1>
     <div id="feedList"></div>
     <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les derniers mouvements de tous les managers : recrutements, échanges, libérations.</p>
+  </section>
+
+  <!-- CHAT DE LIGUE -->
+  <section class="view" id="chat">
+    <div class="eyebrow">Le salon des managers</div>
+    <h1>Le <em>chat</em> de la ligue</h1>
+    <div id="chatGate" style="display:none" class="empty">Connecte-toi pour participer au chat.</div>
+    <div id="chatUI" style="display:none">
+      <div id="chatMessages" style="height:min(55vh,460px);overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--pitch-2);margin-bottom:12px;display:flex;flex-direction:column;gap:8px"></div>
+      <div style="display:flex;gap:8px">
+        <input id="chatInput" type="text" maxlength="500" placeholder="Ton message…" style="flex:1" autocomplete="off">
+        <button id="chatSend" class="bid-btn" style="margin:0;width:auto;padding:10px 18px">Envoyer</button>
+      </div>
+      <p class="hint" style="font-size:.76rem;margin-top:6px">Reste fair-play : l'organisateur peut effacer un message ou te réduire au silence.</p>
+    </div>
+  </section>
+
+  <!-- PRONOSTICS -->
+  <section class="view" id="pronos">
+    <div class="eyebrow">Paris amicaux entre managers</div>
+    <h1>Les <em>pronos</em></h1>
+    <div id="pronosGate" style="display:none" class="empty">Connecte-toi pour parier.</div>
+    <div id="pronosUI" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px">
+        <div style="font-size:.9rem">Ton capital : <b id="pronosCapital" style="color:var(--transfer)">—</b> pts</div>
+        <button id="pronosRankBtn" class="btn-ghost btn-sm" style="font-size:.8rem">🏆 Classement pronostiqueurs</button>
+      </div>
+      <div id="pronosList"></div>
+      <div id="pronosRank" style="display:none;margin-top:18px"></div>
+    </div>
   </section>
 
   <!-- BONUS -->
@@ -1096,7 +1128,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','rules'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1111,7 +1143,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   window.scrollTo({top:0, behavior:'smooth'});
@@ -2870,6 +2902,112 @@ async function renderCommentBox(box, tid){
     const n = $('feedList').querySelector(`[data-cn="${tid}"]`);
     if(n) n.textContent = Math.max(0,(parseInt(n.textContent)||1)-1);
   });
+}
+
+// ---------- Chat de ligue ----------
+let CHAT_CHANNEL = null;
+let CHAT_BOUND = false;
+async function renderChat(){
+  if(!ME){ $('chatGate').style.display='block'; $('chatUI').style.display='none'; return; }
+  $('chatGate').style.display='none'; $('chatUI').style.display='block';
+  await loadChatMessages();
+  // Abonnement temps réel (une seule fois)
+  if(!CHAT_CHANNEL){
+    try { CHAT_CHANNEL = api.subscribeChat(()=>{ if(CURRENT_VIEW==='chat') loadChatMessages(true); }); } catch(e){}
+  }
+  // Câblage input/envoi (une seule fois)
+  if(!CHAT_BOUND){
+    CHAT_BOUND = true;
+    const send = async ()=>{
+      const inp = $('chatInput'); const body = (inp.value||'').trim();
+      if(!body) return;
+      inp.value='';
+      const { error } = await api.chatSend(body);
+      if(error){ toast(error.message,'err',4000); inp.value=body; return; }
+      loadChatMessages(true);
+    };
+    $('chatSend').onclick = send;
+    $('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } });
+  }
+}
+async function loadChatMessages(keepScroll){
+  const box = $('chatMessages'); if(!box) return;
+  const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+  const msgs = await api.chatRecent(80);
+  box.innerHTML = msgs.length ? msgs.map(m=>{
+    const t = new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+    const col = m.color || 'var(--transfer)';
+    const name = m.is_admin ? `${m.author} <span style="color:var(--transfer);font-size:.68rem">ADMIN</span>` : m.author;
+    const canDel = m.is_mine || (ME && ME.is_admin);
+    const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
+    return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
+      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${del}</div>
+      <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
+    </div>`;
+  }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
+  // Suppression
+  box.querySelectorAll('[data-chatdel]').forEach(a=>a.onclick=async(ev)=>{
+    ev.preventDefault();
+    const { error } = await api.chatDelete(a.dataset.chatdel);
+    if(error) return toast(error.message,'err');
+    loadChatMessages(true);
+  });
+  if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
+}
+
+// ---------- Pronostics ----------
+async function renderPronos(){
+  if(!ME){ $('pronosGate').style.display='block'; $('pronosUI').style.display='none'; return; }
+  $('pronosGate').style.display='none'; $('pronosUI').style.display='block';
+  const [list, capital] = await Promise.all([
+    api.pronosList().catch(()=>[]), api.myPronosPoints().catch(()=>0)
+  ]);
+  $('pronosCapital').textContent = capital;
+  const el = $('pronosList');
+  if(!list.length){ el.innerHTML = '<div class="empty">Aucun pronostic ouvert pour le moment.</div>'; }
+  else el.innerHTML = list.map(p=>{
+    const open = p.status==='open' && (!p.closes_at || new Date(p.closes_at) > new Date());
+    const statusTxt = p.status==='resolved' ? '✅ Résolu' : p.status==='closed' ? '🔒 Paris fermés' : (open?'🟢 Ouvert':'🔒 Fermé');
+    const opts = (p.options||[]).map((o,i)=>{
+      const mine = p.my_option===i;
+      const won = p.status==='resolved' && p.winner_idx===i;
+      const bg = won?'rgba(74,222,128,.18)':mine?'rgba(245,197,66,.14)':'var(--pitch)';
+      const bd = won?'#4ade80':mine?'var(--transfer)':'var(--line)';
+      const canBet = open;
+      return `<button ${canBet?`data-bet="${p.id}" data-opt="${i}"`:'disabled'} style="display:block;width:100%;text-align:left;background:${bg};border:1px solid ${bd};border-radius:8px;padding:8px 12px;margin-top:6px;color:var(--chalk);cursor:${canBet?'pointer':'default'};font-size:.88rem">
+        ${won?'🏆 ':''}${o}${mine?` <span style="color:var(--transfer);font-size:.74rem">· ton pari (${p.my_stake} pts)</span>`:''}</button>`;
+    }).join('');
+    return `<div style="border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px;background:var(--pitch-2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="font-weight:800;font-size:.95rem">${p.question}</span>
+        <span style="font-size:.74rem;color:var(--muted)">${statusTxt}</span>
+      </div>
+      <div style="font-size:.74rem;color:var(--muted);margin:2px 0 4px">${p.total_bets} parieur(s) · cagnotte ${p.pool} pts</div>
+      ${opts}
+    </div>`;
+  }).join('');
+  // Câblage des paris
+  el.querySelectorAll('[data-bet]').forEach(b=>b.onclick=async()=>{
+    const stakeStr = prompt('Ta mise en points pronos :', '10');
+    if(stakeStr===null) return;
+    const stake = parseInt(stakeStr,10);
+    if(isNaN(stake) || stake<=0) return toast('Mise invalide.','err');
+    const { error } = await api.pronoBet(b.dataset.bet, parseInt(b.dataset.opt,10), stake);
+    if(error) return toast(error.message,'err',4000);
+    toast('Pari enregistré !','ok');
+    renderPronos();
+  });
+  // Bouton classement
+  if($('pronosRankBtn')) $('pronosRankBtn').onclick = async ()=>{
+    const box = $('pronosRank');
+    if(box.style.display==='block'){ box.style.display='none'; return; }
+    const rank = await api.pronosLeaderboard();
+    box.innerHTML = `<h3 style="font-family:'Archivo';font-weight:900;font-size:1.1rem;margin-bottom:10px">🏆 Meilleurs pronostiqueurs</h3>
+      <table style="width:100%"><thead><tr><th>#</th><th>Équipe</th><th>Points pronos</th></tr></thead><tbody>${
+        rank.map((r,i)=>`<tr><td>${i+1}</td><td>${r.team}</td><td style="color:var(--transfer);font-family:'Space Mono'">${r.pronos_points}</td></tr>`).join('')
+      }</tbody></table>`;
+    box.style.display='block';
+  };
 }
 
 // ---------- Compte à rebours accueil (fin du mercato : lit season_state si dispo) ----------

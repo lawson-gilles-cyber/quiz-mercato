@@ -532,6 +532,61 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// ---------- PRONOSTICS ----------------------------------------------
+export async function pronosList() {
+  const { data } = await sb.rpc('qm_pronos_list');
+  return data ?? [];
+}
+export async function pronoBet(pronoId, optionIdx, stake) {
+  return sb.rpc('qm_prono_bet', { p_prono_id: pronoId, p_option_idx: optionIdx, p_stake: stake });
+}
+export async function pronosLeaderboard() {
+  const { data } = await sb.rpc('qm_pronos_leaderboard');
+  return data ?? [];
+}
+export async function myPronosPoints() {
+  const { data } = await sb.rpc('qm_my_pronos_points');
+  return data ?? 0;
+}
+export async function adminPronos() {
+  const { data } = await sb.rpc('qm_admin_pronos');
+  return data ?? [];
+}
+export async function adminCreateProno(question, options, hours) {
+  return sb.rpc('qm_admin_create_prono', { p_question: question, p_options: options, p_hours: hours ?? 24 });
+}
+export async function adminCloseProno(id) {
+  return sb.rpc('qm_admin_close_prono', { p_prono_id: id });
+}
+export async function adminResolveProno(id, winnerIdx) {
+  return sb.rpc('qm_admin_resolve_prono', { p_prono_id: id, p_winner_idx: winnerIdx });
+}
+
+// ---------- CHAT DE LIGUE -------------------------------------------
+export async function chatSend(body) {
+  return sb.rpc('qm_chat_send', { p_body: body });
+}
+export async function chatRecent(limit = 60) {
+  const { data } = await sb.rpc('qm_chat_recent', { p_limit: limit });
+  return (data ?? []).reverse();  // du plus ancien au plus récent pour l'affichage
+}
+export async function chatDelete(id) {
+  return sb.rpc('qm_chat_delete', { p_id: id });
+}
+export async function adminSetMute(managerId, muted) {
+  return sb.rpc('qm_admin_set_mute', { p_manager_id: managerId, p_muted: muted });
+}
+export async function adminClearChat() {
+  return sb.rpc('qm_admin_clear_chat');
+}
+// Abonnement temps réel au chat : onMsg() appelé à chaque nouveau message.
+export function subscribeChat(onChange) {
+  return sb.channel('chat:league')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qm_chat_messages' },
+      () => { try { onChange(); } catch(e){} })
+    .subscribe();
+}
+
 // ---------- RÉACTIONS (stickers) sur les transferts -----------------
 export async function react(transferId, kind) {
   return sb.rpc('qm_react', { p_transfer_id: transferId, p_kind: kind });
