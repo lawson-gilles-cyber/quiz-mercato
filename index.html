@@ -836,6 +836,14 @@
   <section class="view" id="draft">
     <div class="eyebrow">La répartition de début de saison</div>
     <h1>Le <em>draft</em></h1>
+    <details style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:18px">
+      <summary style="cursor:pointer;font-weight:800;color:var(--transfer)">❓ C'est quoi le draft ?</summary>
+      <div style="margin-top:10px;font-size:.9rem;line-height:1.6;color:var(--chalk)">
+        <p style="margin:0 0 8px;padding:8px 10px;background:rgba(224,168,0,.1);border-radius:8px"><b>Mode secondaire, optionnel.</b> Le mercato se joue normalement <b>aux enchères</b> — c'est elles qui départagent les coachs qui visent le même joueur. Le draft n'est utilisé que si l'organisateur décide ponctuellement de répartir des joueurs autrement (saison détente, dépannage).</p>
+        <p style="margin:0 0 8px">Son principe : <b>sans argent, à tour de rôle</b>. Chacun pioche un joueur libre quand vient son tour, attribué <b>gratuitement</b>. L'ordre est tiré au sort et s'inverse à chaque tour (format <b>serpent</b> : 1→2→3 puis 3→2→1).</p>
+        <p style="margin:0;color:var(--muted);font-size:.84rem">Par défaut, ce mode n'est pas lancé : c'est bien le recrutement aux enchères qui ouvre la saison.</p>
+      </div>
+    </details>
     <div id="draftNone" style="display:none" class="empty">Aucun draft en cours. L'organisateur peut en lancer un.</div>
     <div id="draftUI" style="display:none">
       <div id="draftStatus" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px"></div>
@@ -1063,8 +1071,8 @@
       </div>
 
       <div class="rule-block">
-        <h3 class="rule-h">23. Le draft (optionnel)</h3>
-        <p class="rule-p">En début de saison, l'organisateur peut lancer un <b>draft</b> : les managers piochent chacun leur tour un joueur libre, attribué gratuitement. L'ordre suit le format <b>serpent</b> (1→N puis N→1) et le tout se déroule en direct. Le draft constitue les premiers effectifs avant l'ouverture des enchères.</p>
+        <h3 class="rule-h">23. Le draft (mode secondaire, optionnel)</h3>
+        <p class="rule-p">Par défaut, la saison s'ouvre <b>aux enchères</b> : ce sont elles qui départagent au mérite les coachs qui visent le même joueur. Le <b>draft</b> est un mode <b>alternatif</b> que l'organisateur peut lancer ponctuellement (saison détente, dépannage) : chacun pioche à son tour un joueur libre, attribué gratuitement, selon un ordre <b>serpent</b> (1→N puis N→1). Il n'est pas activé par défaut.</p>
       </div>
     </div>
   </section>
