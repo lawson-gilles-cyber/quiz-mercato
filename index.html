@@ -66,17 +66,18 @@
   /* ---------- Header ---------- */
   header{
     display:flex;align-items:center;gap:18px;
-    padding:16px 22px;border-bottom:1px solid var(--line);
-    position:sticky;top:0;z-index:20;
+    padding:14px 22px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;z-index:20;min-height:64px;box-sizing:border-box;
     background:rgba(10,20,40,.92);backdrop-filter:blur(8px);
-    flex-wrap:wrap;  /* filet : si ça déborde, on passe à la ligne au lieu de chevaucher */
+    flex-wrap:wrap;overflow:visible;  /* filet anti-chevauchement + logo jamais rogné */
   }
   .logo{flex:0 0 auto;font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:1px;text-transform:uppercase;
+    line-height:1.25;padding:2px 0;   /* évite que les hautes lettres (Anton) soient coupées */
     background:linear-gradient(180deg,#ffe89a 0%,#f5c542 45%,#d4a017 55%,#b8860b 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
     filter:drop-shadow(0 1px 1px rgba(0,0,0,.4))}
   .logo b{-webkit-text-fill-color:transparent}
-  .logo span{display:inline-block;transform:skewX(-8deg)}
+  .logo span{display:inline-block;transform:skewX(-8deg);line-height:1.25}
   /* Barre de menus épurée : une seule ligne, onglets discrets.
      overflow visible pour ne pas clipper le menu déroulant "Plus". */
   nav{display:flex;gap:2px;margin-left:auto;flex-wrap:nowrap;min-width:0;max-width:100%}
