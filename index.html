@@ -71,12 +71,16 @@
     background:rgba(10,20,40,.92);backdrop-filter:blur(8px);
     flex-wrap:wrap;overflow:visible;  /* filet anti-chevauchement + logo jamais rogné */
   }
-  .logo{flex:0 0 auto;font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.7rem;letter-spacing:1px;text-transform:uppercase;
-    line-height:1.5;padding:6px 0 2px;overflow:visible;   /* l'ascender d'Anton ne doit pas être rogné en haut */
+  .logo{flex:0 0 auto;align-self:center;
+    font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.55rem;letter-spacing:1px;text-transform:uppercase;
+    /* Anton a un ascender très haut. Avec overflow-x:hidden sur body, le
+       sommet des lettres peut être rogné. line-height généreuse + padding
+       vertical poussent le glyphe à l'intérieur de la box, à l'abri du clip. */
+    line-height:1.6;padding:4px 2px 2px;overflow:visible;
     background:linear-gradient(180deg,#ffe89a 0%,#f5c542 45%,#d4a017 55%,#b8860b 100%);
-    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
-  .logo b{-webkit-text-fill-color:transparent}
-  .logo span{display:inline-block;transform:skewX(-8deg);line-height:1.5}
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
+  .logo b{-webkit-text-fill-color:transparent;color:transparent}
+  .logo span{display:inline-block;transform:skewX(-8deg)}
   /* Barre de menus épurée : une seule ligne, onglets discrets.
      overflow visible pour ne pas clipper le menu déroulant "Plus". */
   nav{display:flex;gap:2px;margin-left:auto;flex-wrap:nowrap;min-width:0;max-width:100%}
@@ -621,9 +625,20 @@
             <option value="DEF">Défenseur</option><option value="GK">Gardien</option></select></div>
           <div><label class="trade-l">Club</label><input id="scoutClub" placeholder="ex. Real" style="width:100%"></div>
           <div><label class="trade-l">Championnat</label><select id="scoutChamp" style="width:100%">
-            <option value="Premier League">Premier L.</option><option value="Liga">Liga</option>
-            <option value="Ligue 1">Ligue 1</option><option value="Bundesliga">Bundesliga</option>
-            <option value="Serie A">Serie A</option><option value="Autre">Autre</option></select></div>
+            <option value="Premier League">Premier League</option>
+            <option value="Liga">Liga</option>
+            <option value="Serie A">Serie A</option>
+            <option value="Bundesliga">Bundesliga</option>
+            <option value="Ligue 1">Ligue 1</option>
+            <option value="Primeira Liga">Primeira Liga</option>
+            <option value="Eredivisie">Eredivisie</option>
+            <option value="Pro League">Pro League (Belgique)</option>
+            <option value="Süper Lig">Süper Lig</option>
+            <option value="Brasileirão">Brasileirão</option>
+            <option value="Primera División">Primera División</option>
+            <option value="MLS">MLS</option>
+            <option value="Saudi Pro League">Saudi Pro League</option>
+            <option value="Autre">Autre</option></select></div>
           <div><label class="trade-l">Valeur (M€)</label><input id="scoutValue" type="number" placeholder="80" style="width:100%"></div>
           <button id="btnScout" class="bid-btn" style="margin:0">Proposer</button>
         </div>
@@ -689,7 +704,7 @@
     <div id="aucFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
       <input id="aucSearch" type="search" placeholder="🔍 Rechercher un joueur…" style="flex:1;min-width:180px">
       <select id="aucPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
-      <select id="aucChamp"><option value="">Tous championnats</option><option value="Premier League">Premier League</option><option value="Liga">Liga</option><option value="Ligue 1">Ligue 1</option><option value="Bundesliga">Bundesliga</option><option value="Serie A">Serie A</option><option value="Autre">Autre</option></select>
+      <select id="aucChamp"><option value="">Tous championnats</option><option value="Premier League">Premier League</option><option value="Liga">Liga</option><option value="Serie A">Serie A</option><option value="Bundesliga">Bundesliga</option><option value="Ligue 1">Ligue 1</option><option value="Primeira Liga">Primeira Liga</option><option value="Eredivisie">Eredivisie</option><option value="Pro League">Pro League (Belgique)</option><option value="Süper Lig">Süper Lig</option><option value="Brasileirão">Brasileirão</option><option value="Primera División">Primera División</option><option value="MLS">MLS</option><option value="Saudi Pro League">Saudi Pro League</option><option value="Autre">Autre</option></select>
       <select id="aucPrice"><option value="">Tout prix</option><option value="0-20">&lt; 20 M€</option><option value="20-50">20–50 M€</option><option value="50-100">50–100 M€</option><option value="100-180">100–180 M€</option><option value="180-99999">180 M€ +</option></select>
       <button id="aucReset" class="btn-ghost btn-sm" type="button" style="white-space:nowrap">Réinitialiser</button>
     </div>
