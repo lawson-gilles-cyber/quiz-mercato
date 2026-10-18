@@ -1651,13 +1651,39 @@ async function renderScoutList(){
       remEl.innerHTML = `✓ Objectif du jour atteint : ${rem.made} proposition${rem.made>1?'s':''} faite${rem.made>1?'s':''}. Bravo !`;
     }
   }
+  // Brouillons de l'équipe en attente d'approbation du binôme
+  let draftsHtml = '';
+  try {
+    const drafts = await api.teamDrafts();
+    if(drafts.length){
+      draftsHtml = `<div style="background:rgba(255,213,74,.08);border:1px solid var(--transfer);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-weight:800;font-size:.86rem;color:var(--transfer);margin-bottom:6px">🤝 Propositions à valider à deux</div>
+        <div class="hint" style="font-size:.76rem;margin-bottom:8px">Une proposition n'est soumise à l'admin que lorsque le Manager ET le Coach l'ont approuvée.</div>
+        ${drafts.map(d=>{
+          const who = `${d.approved_by_manager?'✅':'⬜'} Manager · ${d.approved_by_coach?'✅':'⬜'} Coach`;
+          const action = d.needs_my_approval
+            ? `<button class="bid-btn" data-dapprove="${d.id}" style="font-size:.72rem;padding:4px 10px;margin:0">Approuver & soumettre</button>`
+            : `<span class="hint" style="font-size:.72rem">En attente de ton binôme</span>`;
+          return `<div style="padding:7px 0;border-top:1px solid var(--line)">
+            <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center">
+              <span style="font-size:.86rem"><b>${d.player_name}</b>${d.value?` · ${fmtMoney(d.value)}`:''} <span style="color:var(--muted);font-size:.72rem">(par ${d.author})</span></span>
+              <span style="font-size:.72rem;color:var(--muted)">${who}</span>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:5px">${action}
+              <button class="bid-btn ghost" data-ddiscard="${d.id}" style="font-size:.72rem;padding:4px 10px;margin:0">Jeter</button></div>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }
+  } catch(e){ /* fonction non déployée : on ignore */ }
+
   const props = await api.myProposals();
-  const labels = {pending:'En attente',approved:'Validé (à publier)',published:'Publié → aux enchères',rejected:'Refusé',needs_changes:'À corriger',cancelled:'Annulé'};
-  const colors = {pending:'var(--transfer)',approved:'#4ade80',published:'#4ade80',rejected:'var(--muted)',needs_changes:'var(--live)',cancelled:'var(--muted)'};
+  const labels = {draft:'Brouillon',pending:'En attente',approved:'Validé (à publier)',published:'Publié → aux enchères',rejected:'Refusé',needs_changes:'À corriger',cancelled:'Annulé'};
+  const colors = {draft:'var(--muted)',pending:'var(--transfer)',approved:'#4ade80',published:'#4ade80',rejected:'var(--muted)',needs_changes:'var(--live)',cancelled:'var(--muted)'};
   const el = $('scoutList');
   if(!el) return;
-  if(props.length===0){ el.innerHTML=''; return; }
-  el.innerHTML = '<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">Mes propositions de joueurs :</div>' +
+  if(props.length===0 && !draftsHtml){ el.innerHTML=''; return; }
+  el.innerHTML = draftsHtml + (props.length? '<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">Mes propositions de joueurs :</div>' : '') +
     props.map(p=>{
       const name = p.player_name || 'joueur existant';
       const reason = (p.status==='needs_changes' && p.decision_reason)
@@ -1671,6 +1697,21 @@ async function renderScoutList(){
         </div>${reason}${fixBtn}
       </div>`;
     }).join('');
+  // Boutons des brouillons (double approbation)
+  el.querySelectorAll('[data-dapprove]').forEach(btn=>btn.onclick=async()=>{
+    const { data, error } = await api.proposalApproveSubmit(btn.dataset.dapprove);
+    if(error) return toast(error.message,'err',4200);
+    const st = (data && data.status) || 'pending';
+    toast(st==='pending' ? 'Proposition soumise à l\'admin !' : 'Ton approbation est enregistrée.', 'ok');
+    renderScoutList();
+  });
+  el.querySelectorAll('[data-ddiscard]').forEach(btn=>btn.onclick=async()=>{
+    if(!await uxConfirm('Jeter ce brouillon de proposition ?', {title:'Brouillon', okText:'Jeter'})) return;
+    const { error } = await api.proposalDiscardDraft(btn.dataset.ddiscard);
+    if(error) return toast(error.message,'err');
+    toast('Brouillon supprimé.','info');
+    renderScoutList();
+  });
   // Bouton corriger : resoumet avec de nouvelles valeurs saisies.
   el.querySelectorAll('[data-fix]').forEach(btn=>btn.onclick=async()=>{
     const id = btn.dataset.fix;
@@ -1698,7 +1739,7 @@ if($('btnScout')) $('btnScout').onclick = async (ev)=>{
   if(!name) return toast('Indique le nom de famille du joueur.','err');
   if(isNaN(valM)) return toast('Indique la valeur du joueur (en M€).','err');
   await withLoading(ev.target, async ()=>{
-    const { error } = await api.proposePlayer({
+    const { data, error } = await api.proposePlayer({
       new_first_name: first,
       new_name: name,
       new_position: $('scoutPos').value,
@@ -1706,8 +1747,12 @@ if($('btnScout')) $('btnScout').onclick = async (ev)=>{
       new_value: Math.round(valM * 1e6),
       new_championship: $('scoutChamp').value
     });
-    if(error){ toast('Échec : '+error.message,'err'); return; }
-    toast('Joueur proposé ! En attente de validation par l\'admin.','ok');
+    if(error){ toast('Échec : '+error.message,'err',4200); return; }
+    // data = la proposition créée. 'draft' => en attente de l'autre membre ;
+    // 'pending' => soumise directement (équipe sans coach).
+    const st = (data && data.status) || 'pending';
+    if(st==='draft') toast('Brouillon créé ! En attente de l\'approbation de ton binôme pour être soumis.','ok',4500);
+    else toast('Joueur proposé ! En attente de validation par l\'admin.','ok');
     $('scoutFirst').value=''; $('scoutName').value=''; $('scoutClub').value=''; $('scoutValue').value='';
     renderScoutList();
   });

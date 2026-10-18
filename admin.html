@@ -1470,6 +1470,25 @@ async function loadOverview(){
     tile(o.transfers_today, 'Mouvements aujourd\'hui'),
     tile(o.market_open ? '🟢 Ouvert' : '🔴 Fermé', 'Marché des transferts', o.market_open?null:live),
   ].join('');
+
+  // Surveillance des effectifs complets (pré-J10)
+  try {
+    const sf = await api.adminSquadFill();
+    if(sf){
+      const warn = sf.full_squads > 0;  // dès qu'un effectif est complet, on alerte en orange
+      const extra = [
+        tile(`${sf.full_squads} / ${sf.managers_total}`, 'Effectifs complets (21/21)', warn?act:null),
+        tile(sf.near_full, 'Presque complets (18–20)'),
+        tile(sf.avg_squad, 'Taille moyenne d\'effectif'),
+        tile(sf.max_squad + ' / 21', 'Plus gros effectif'),
+      ].join('');
+      grid.insertAdjacentHTML('beforeend', extra);
+      if(sf.full_squads > 0){
+        grid.insertAdjacentHTML('beforeend',
+          `<div style="grid-column:1/-1;background:rgba(255,213,74,.1);border:1px solid var(--transfer);border-radius:10px;padding:10px 12px;font-size:.84rem;color:var(--transfer)">⚠️ ${sf.full_squads} effectif(s) déjà complet(s). Surveille avant le J10 : si trop d'équipes sont pleines tôt, ajuste les acquisitions/jour ou la disponibilité du marché.</div>`);
+      }
+    }
+  } catch(e){ /* fonction effectifs non déployée : on ignore */ }
 }
 
 // ---------- Défis & objectifs ----------
@@ -1536,6 +1555,7 @@ const BAREMES_GROUPS = [
   ['Bonus journée', [
     ['full_day_bonus','Journée complète — 3 postes différents','money'],
     ['same_pos_bonus','Journée complète — 3 même poste','money'],
+    ['full_day_max_per_manager','Journées complètes max / manager (0 = illimité)','int'],
   ]],
   ['Dénicheur', [
     ['scout_bonus','Bonus dénicheur (base)','money'],

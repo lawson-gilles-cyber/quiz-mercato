@@ -466,6 +466,17 @@ export async function myProposals() {
   const { data } = await sb.rpc('qm_my_proposals');
   return data ?? [];
 }
+// Double approbation Manager+Coach
+export async function teamDrafts() {
+  const { data } = await sb.rpc('qm_team_drafts');
+  return data ?? [];
+}
+export async function proposalApproveSubmit(id) {
+  return sb.rpc('qm_proposal_approve_submit', { p_proposal_id: id });
+}
+export async function proposalDiscardDraft(id) {
+  return sb.rpc('qm_proposal_discard_draft', { p_proposal_id: id });
+}
 export async function adminPendingProposals() {
   const { data } = await sb.rpc('qm_admin_pending_proposals');
   return data ?? [];
@@ -659,6 +670,12 @@ export async function adminCreateChallenge(c) {
 }
 export async function adminSetChallengeActive(id, active) {
   return sb.rpc('qm_admin_set_challenge_active', { p_challenge_id: id, p_active: active });
+}
+
+// ---------- Effectifs complets (surveillance pré-J10) ---------------
+export async function adminSquadFill() {
+  const { data } = await sb.rpc('qm_admin_squad_fill');
+  return (data && data[0]) ? data[0] : null;
 }
 
 // ---------- DIAGNOSTIC / SANTÉ (admin) ------------------------------
