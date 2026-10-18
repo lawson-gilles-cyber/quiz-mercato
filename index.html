@@ -72,14 +72,12 @@
     flex-wrap:wrap;overflow:visible;  /* filet anti-chevauchement + logo jamais rogné */
   }
   .logo{flex:0 0 auto;align-self:center;
-    font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.55rem;letter-spacing:1px;text-transform:uppercase;
-    /* Anton a un ascender très haut. Avec overflow-x:hidden sur body, le
-       sommet des lettres peut être rogné. line-height généreuse + padding
-       vertical poussent le glyphe à l'intérieur de la box, à l'abri du clip. */
-    line-height:1.6;padding:4px 2px 2px;overflow:visible;
-    background:linear-gradient(180deg,#ffe89a 0%,#f5c542 45%,#d4a017 55%,#b8860b 100%);
-    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent}
-  .logo b{-webkit-text-fill-color:transparent;color:transparent}
+    font-family:'Anton','Saira Condensed',sans-serif;font-weight:400;font-size:1.5rem;letter-spacing:1px;text-transform:uppercase;
+    /* Couleur dorée UNIE (pas de background-clip:text) : ne peut pas être
+       rognée par le clip. line-height normale + padding pour l'ascender. */
+    line-height:normal;padding:8px 2px;overflow:visible;
+    color:#f5c542;text-shadow:0 1px 1px rgba(0,0,0,.35)}
+  .logo b{color:#d4a017}
   .logo span{display:inline-block;transform:skewX(-8deg)}
   /* Barre de menus épurée : une seule ligne, onglets discrets.
      overflow visible pour ne pas clipper le menu déroulant "Plus". */
@@ -1263,6 +1261,14 @@ $('nav').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b || !b.dataset.v) return;
   goView(b.dataset.v);
 });
+// Le menu "Plus" est enfant du <nav> (dans le header), qui le coince (overflow,
+// contexte d'empilement). On le déplace à la racine du <body> une bonne fois,
+// pour qu'il échappe à tout conteneur parent et s'affiche entier partout.
+(function detachMoreMenu(){
+  const m = document.getElementById('moreMenu');
+  if(m && m.parentElement !== document.body) document.body.appendChild(m);
+})();
+
 // Ouvre/ferme le menu "Plus" en le POSITIONNANT en JS (indépendant du CSS,
 // pour éviter tout problème de feuille de style servie en cache par la PWA).
 function toggleMoreMenu(){
@@ -1279,12 +1285,14 @@ function toggleMoreMenu(){
   m.style.overflowY = 'auto';
   const mobile = window.matchMedia('(max-width:1000px)').matches;
   if(mobile){
-    // Mode app : ancré au-dessus de la tabbar du bas, sans dépasser le header.
+    // Mode app : on ancre le menu par le HAUT (sous le header) et on borne sa
+    // hauteur jusqu'au-dessus de la tabbar. Ainsi la 1re entrée est toujours
+    // visible et le reste défile — plus de troncature des entrées du haut.
+    const topSafe = 66;                   // sous le header
     const bottomGap = 78;                 // au-dessus de la tabbar
-    const topSafe = 70;                   // sous le header
-    m.style.bottom = bottomGap + 'px';
-    m.style.top = 'auto';
-    m.style.maxHeight = (window.innerHeight - bottomGap - topSafe) + 'px';
+    m.style.top = topSafe + 'px';
+    m.style.bottom = 'auto';
+    m.style.maxHeight = (window.innerHeight - topSafe - bottomGap) + 'px';
   } else {
     // Desktop : ancré sous le bouton "Plus" du header.
     const btn = $('moreBtn');
