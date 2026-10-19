@@ -245,14 +245,6 @@
     </div>
   </div>
 
-  <!-- Diagnostic / santé -->
-  <h2>🩺 Diagnostic</h2>
-  <div class="card" style="margin-bottom:14px">
-    <p class="hint" style="margin-bottom:10px">Vérifie l'état du jeu : crons, fenêtres, barèmes, fonctions, cohérence des données. À consulter en cas de doute avant de signaler un bug.</p>
-    <button class="btn-primary btn-sm" id="btnHealthcheck">Lancer le diagnostic</button>
-    <div id="healthResult" style="margin-top:14px"></div>
-  </div>
-
   <!-- Vue d'ensemble -->
   <h2>Vue d'ensemble</h2>
   <div id="overviewGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px">
@@ -269,13 +261,6 @@
     <table style="font-size:.85rem">
       <thead><tr><th>Équipe</th><th>Budget dispo</th><th>Engagé</th><th>Masse salariale</th><th>Effectif</th><th>Valeur effectif</th></tr></thead>
       <tbody id="financeManagerRows"><tr><td colspan="6" class="hint">Chargement…</td></tr></tbody>
-    </table>
-  </div>
-  <div class="card" style="margin-bottom:14px">
-    <h3 style="margin:0 0 10px">Joueurs les plus chers</h3>
-    <table style="font-size:.85rem">
-      <thead><tr><th>Joueur</th><th>Club</th><th>Valeur</th><th>Salaire</th><th>Statut</th><th>Propriétaire</th></tr></thead>
-      <tbody id="financeTopRows"><tr><td colspan="6" class="hint">Chargement…</td></tr></tbody>
     </table>
   </div>
 
@@ -791,21 +776,23 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadHealthcheck(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin();
+  loadPhase(); loadPlayers(); loadProposals(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
 // montrer qu'un groupe à la fois. Chaque section devient un <details> (repli
 // interne), et chaque onglet ne contient que ses sections.
 // Le mapping se fait par le début du titre de la section.
+// L'ORDRE des titres dans chaque onglet est aussi l'ordre d'AFFICHAGE des
+// sections (voir le tri plus bas). Ordre demandé par Audrey (17/10).
 const ADMIN_TABS = [
   { id:'pilotage', label:'📊 Pilotage', titles:[
-      "Vue d'ensemble","Tableau de bord financier","Diagnostic","Phase du mercato","Fenêtres de mercato"] },
+      "Vue d'ensemble","Phase du mercato","Fenêtres de mercato","Tableau de bord financier"] },
   { id:'marche', label:'🔁 Marché', titles:[
-      "Validation du marché","Historique des propositions","Historique des transactions",
-      "Libérations & pénalités","Interventions manuelles","Trace des bonus"] },
+      "Validation du marché","Interventions manuelles","Trace des bonus",
+      "Historique des transactions","Libérations & pénalités","Historique des propositions"] },
   { id:'joueurs', label:'⚽ Joueurs', titles:[
-      "Ajouter un joueur","Import CSV","Joueurs en base","Blessures à valider","Saisie des notes"] },
+      "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
   { id:'managers', label:'👥 Managers', titles:[
       "Classement des managers","Ligues & divisions","Modération du chat","Récompenses de fin de saison",
       "Défis & objectifs","Pronostics","Draft","Journées & Compositions","Saisons & archives"] },
@@ -817,6 +804,16 @@ function tabForTitle(title){
   const clean = title.replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').trim();
   for(const t of ADMIN_TABS){ if(t.titles.some(x=>clean.startsWith(x))) return t.id; }
   return 'pilotage';  // défaut : une section non mappée va dans Pilotage
+}
+// Rang d'une section dans son onglet (pour trier selon l'ordre voulu).
+// Une section non listée passe en fin d'onglet.
+function orderForTitle(title){
+  const clean = title.replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').trim();
+  for(const t of ADMIN_TABS){
+    const i = t.titles.findIndex(x=>clean.startsWith(x));
+    if(i >= 0) return i;
+  }
+  return 999;
 }
 
 function makeSectionsCollapsible(){
@@ -847,19 +844,26 @@ function makeSectionsCollapsible(){
     panels[t.id] = p;
   });
 
-  // 3) Transforme chaque section en <details> et la range dans son onglet
-  sections.forEach(sec=>{
-    const det = document.createElement('details');
-    det.className = 'sec'; det.setAttribute('open','');   // ouvert : peu de sections par onglet
-    const summary = document.createElement('summary');
-    sec.h2.style.margin='0'; sec.h2.style.fontSize='inherit'; sec.h2.style.fontWeight='inherit';
-    summary.appendChild(sec.h2);
-    det.appendChild(summary);
-    const body = document.createElement('div'); body.className='sec-body';
-    sec.nodes.forEach(n=>body.appendChild(n));
-    det.appendChild(body);
-    (panels[tabForTitle(sec.title)] || panels['pilotage']).appendChild(det);
-  });
+  // 3) Transforme chaque section en <details>, en respectant l'ORDRE voulu
+  //    dans chaque onglet. La section « Diagnostic » est retirée (Audrey).
+  sections
+    .filter(sec=>{
+      const clean = sec.title.replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').trim();
+      return !clean.startsWith('Diagnostic');
+    })
+    .sort((a,b)=> orderForTitle(a.title) - orderForTitle(b.title))
+    .forEach(sec=>{
+      const det = document.createElement('details');
+      det.className = 'sec'; det.setAttribute('open','');   // ouvert : peu de sections par onglet
+      const summary = document.createElement('summary');
+      sec.h2.style.margin='0'; sec.h2.style.fontSize='inherit'; sec.h2.style.fontWeight='inherit';
+      summary.appendChild(sec.h2);
+      det.appendChild(summary);
+      const body = document.createElement('div'); body.className='sec-body';
+      sec.nodes.forEach(n=>body.appendChild(n));
+      det.appendChild(body);
+      (panels[tabForTitle(sec.title)] || panels['pilotage']).appendChild(det);
+    });
 
   // 4) Barre d'onglets
   const bar = document.createElement('div');
@@ -1908,21 +1912,6 @@ async function loadFinance(){
       <td style="text-align:center">${m.squad_count}</td>
       <td class="val">${fmtM(m.squad_value)}</td>
     </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun manager.</td></tr>';
-  }
-
-  // Joueurs les plus chers
-  const top = await api.adminTopPlayers(10);
-  const tb = $('financeTopRows');
-  if(tb){
-    const stLabel = {free:'Libre',owned:'Détenu',locked:'En enchère'};
-    tb.innerHTML = top.length ? top.map(p=>`<tr>
-      <td><b>${p.name}</b></td>
-      <td style="color:var(--muted)">${p.club||'—'}</td>
-      <td class="val">${fmtM(p.current_value)}</td>
-      <td class="val" style="color:var(--transfer)">${fmtM(p.salary)}</td>
-      <td>${stLabel[p.status]||p.status}</td>
-      <td>${p.owner_name||'—'}</td>
-    </tr>`).join('') : '<tr><td colspan="6" class="hint">Aucun joueur.</td></tr>';
   }
 }
 
