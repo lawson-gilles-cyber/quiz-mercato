@@ -270,6 +270,27 @@
   @keyframes cardpulse{0%{box-shadow:0 0 0 2px rgba(224,87,74,.7)}70%{box-shadow:0 0 0 6px rgba(224,87,74,0)}100%{box-shadow:0 0 0 2px rgba(224,87,74,0)}}
   @media (prefers-reduced-motion: reduce){ .last-minute .lm-dot,.acard.urgent{animation:none} }
 
+  /* Bilan de mon effectif (fiche manager) */
+  .sr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-weight:800;font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .sr-barwrap{margin-bottom:16px}
+  .sr-barlabel{display:flex;justify-content:space-between;font-size:.82rem;color:var(--muted);margin-bottom:5px}
+  .sr-barlabel b{color:var(--chalk)}
+  .sr-bar{height:12px;border-radius:7px;background:var(--pitch);border:1px solid var(--line);overflow:hidden}
+  .sr-bar i{display:block;height:100%;border-radius:7px;background:linear-gradient(90deg,#4ade80,#f5c542);transition:width .4s}
+  .sr-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px}
+  .sr-pos{text-align:center;padding:10px 6px;border-radius:10px;background:var(--pitch);border:1px solid var(--line)}
+  .sr-pos .n{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.5rem;color:var(--chalk);line-height:1}
+  .sr-pos .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:3px}
+  .sr-champs .sr-ctitle{font-size:.78rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px}
+  .sr-crow{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:.86rem}
+  .sr-cname{flex:0 0 auto;min-width:120px;color:var(--chalk)}
+  .sr-cbar{flex:1;height:8px;border-radius:5px;background:var(--pitch);border:1px solid var(--line);overflow:hidden}
+  .sr-cbar i{display:block;height:100%;border-radius:5px;background:var(--transfer)}
+  .sr-cbar i.warn{background:var(--live,#e0574a)}
+  .sr-ccount{flex:0 0 auto;font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);white-space:nowrap}
+  .sr-ccount.full{color:var(--live,#e0574a);font-weight:700}
+
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
   h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
@@ -857,6 +878,8 @@
       <div class="news"><div class="k">Budget engagé (enchères)</div><div class="v" id="dashLocked"><b>—</b></div></div>
     </div>
     <div id="dashAlerts" style="margin-bottom:18px"></div>
+    <!-- Bilan de mon effectif : complétude, postes, championnats -->
+    <div id="squadReport" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px"></div>
     <!-- Identité d'équipe (nom + couleurs), Manager seulement -->
     <div id="teamIdentityBox" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -2754,8 +2777,53 @@ async function renderPenalty(){
 }
 
 // ---------- Mon équipe ----------
+// Bilan de l'effectif : complétude (x/21), répartition par poste, et nombre
+// de joueurs par championnat (avec alerte à l'approche de la règle des 6).
+const SQUAD_TARGET = 21, CHAMP_MAX = 6;
+function renderSquadReport(mine){
+  const box = $('squadReport'); if(!box) return;
+  if(!mine || !mine.length){ box.style.display='none'; box.innerHTML=''; return; }
+
+  // Répartition par poste
+  const byPos = {GK:0, DEF:0, MID:0, FWD:0};
+  mine.forEach(p=>{ if(byPos[p.position]!==undefined) byPos[p.position]++; });
+
+  // Répartition par championnat (ignore les sans-championnat)
+  const byChamp = {};
+  mine.forEach(p=>{ const c=(p.championship||'').trim(); if(c) byChamp[c]=(byChamp[c]||0)+1; });
+  const champs = Object.entries(byChamp).sort((a,b)=> b[1]-a[1]);
+
+  const n = mine.length;
+  const pct = Math.min(100, Math.round(n/SQUAD_TARGET*100));
+  const posCell = (key,label)=>`<div class="sr-pos"><div class="n">${byPos[key]}</div><div class="l">${label}</div></div>`;
+
+  box.innerHTML =
+    `<div class="sr-title">📋 Bilan de mon effectif</div>`+
+    `<div class="sr-barwrap">
+       <div class="sr-barlabel"><span>Complétude</span><span><b>${n}</b> / ${SQUAD_TARGET} joueurs</span></div>
+       <div class="sr-bar"><i style="width:${pct}%"></i></div>
+     </div>`+
+    `<div class="sr-grid">
+       ${posCell('GK','Gardiens')}${posCell('DEF','Défenseurs')}${posCell('MID','Milieux')}${posCell('FWD','Attaquants')}
+     </div>`+
+    (champs.length ? `<div class="sr-champs">
+       <div class="sr-ctitle">Joueurs par championnat · max ${CHAMP_MAX}</div>
+       ${champs.map(([c,cnt])=>{
+         const w = Math.round(cnt/CHAMP_MAX*100);
+         const warn = cnt>=CHAMP_MAX-1;   // alerte dès 5/6
+         const full = cnt>=CHAMP_MAX;
+         return `<div class="sr-crow">
+           <span class="sr-cname">${c}</span>
+           <span class="sr-cbar"><i class="${warn?'warn':''}" style="width:${Math.min(100,w)}%"></i></span>
+           <span class="sr-ccount${full?' full':''}">${cnt}/${CHAMP_MAX}${full?' · complet':''}</span>
+         </div>`;
+       }).join('')}
+     </div>` : '');
+  box.style.display='block';
+}
 async function renderTeam(){
   if(!ME){
+    $('squadReport') && ($('squadReport').style.display='none');
     $('teamGrid').innerHTML=`<div class="empty" style="grid-column:1/-1">Connecte-toi pour voir ton équipe.</div>`;
     $('teamPitch').innerHTML='';
     $('teamCount').innerHTML='0 <b>/ 21</b>'; $('teamValue').innerHTML='<b>—</b>'; $('teamPts').innerHTML='<b>0</b>';
@@ -2797,6 +2865,8 @@ async function renderTeam(){
   $('teamPts').innerHTML=`<b>${ME.season_points}</b>`;
   $('teamGrid').innerHTML = mine.length? mine.map(playerCard).join('')
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
+  // Bilan de l'effectif (complétude, postes, championnats)
+  renderSquadReport(mine);
   // Vue terrain
   $('teamPitch').innerHTML = buildPitch(mine);
   // Mon activité récente (B)
