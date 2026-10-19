@@ -389,9 +389,20 @@
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,90,77,.6)}70%{box-shadow:0 0 0 10px rgba(255,90,77,0)}100%{box-shadow:0 0 0 0 rgba(255,90,77,0)}}
   .hero h2{font-size:1.9rem;font-weight:900;letter-spacing:-.5px;line-height:1.05}
   .hero p{color:var(--muted);margin-top:10px;max-width:44ch}
-  .countdown{text-align:center;border-left:1px solid var(--line);padding-left:24px;display:flex;flex-direction:column;justify-content:center}
-  .countdown .num{font-family:'Saira','Space Mono';font-size:2.8rem;font-weight:800;color:var(--transfer);line-height:1;font-variant-numeric:tabular-nums}
-  .countdown small{color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-size:.7rem;margin-top:8px}
+  .countdown{text-align:center;border-left:1px solid var(--line);padding-left:24px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+  .countdown .num{font-family:'Saira','Space Mono';font-size:2.4rem;font-weight:800;color:var(--transfer);line-height:1;font-variant-numeric:tabular-nums}
+  .countdown small{color:var(--muted);text-transform:uppercase;letter-spacing:2px;font-size:.66rem;margin-top:8px}
+  /* Anneau de progression autour du décompte */
+  .cd-ring{position:relative;width:210px;height:210px;max-width:52vw}
+  .cd-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .cd-ring .cd-track{fill:none;stroke:var(--line);stroke-width:5;opacity:.6}
+  .cd-ring .cd-prog{fill:none;stroke:var(--transfer);stroke-width:6;stroke-linecap:round;
+    transition:stroke-dashoffset .95s linear, stroke .4s}
+  .cd-ring .cd-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .cd-ring.urgent .cd-prog{stroke:var(--live,#e0574a);animation:cdglow 1.2s ease-in-out infinite}
+  .cd-ring.urgent .num{color:#ff9a8f}
+  @keyframes cdglow{0%,100%{filter:drop-shadow(0 0 0 rgba(224,87,74,0))}50%{filter:drop-shadow(0 0 5px rgba(224,87,74,.7))}}
+  @media (prefers-reduced-motion: reduce){ .cd-ring .cd-prog{transition:none} .cd-ring.urgent .cd-prog{animation:none} }
 
   .newsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}
@@ -765,8 +776,16 @@
         <button id="obLaunch" class="ob-launch" type="button" style="display:none">🧭 Guide de démarrage</button>
       </div>
       <div class="countdown">
-        <div class="num" id="homeNextClock">—</div>
-        <small id="homeNextLabel">prochaine clôture</small>
+        <div class="cd-ring">
+          <svg viewBox="0 0 120 120" aria-hidden="true">
+            <circle class="cd-track" cx="60" cy="60" r="54"/>
+            <circle class="cd-prog" id="cdProgress" cx="60" cy="60" r="54"/>
+          </svg>
+          <div class="cd-center">
+            <div class="num" id="homeNextClock">—</div>
+            <small id="homeNextLabel">prochaine clôture</small>
+          </div>
+        </div>
       </div>
     </div>
     <div class="pillars">
@@ -3712,11 +3731,14 @@ async function renderHome(){
   if(auctions.length){
     const next = [...auctions].sort((a,b)=> new Date(a.ends_at)-new Date(b.ends_at))[0];
     HOME_NEXT_END = next.ends_at;
+    // Départ de la fenêtre pour l'anneau (durée totale de l'enchère).
+    HOME_NEXT_START = next.created_at || null;
     updateHomeClock();
   } else {
     $('homeNextClock').textContent = '—';
     $('homeNextLabel').textContent = 'aucune enchère en cours';
-    HOME_NEXT_END = null;
+    HOME_NEXT_END = null; HOME_NEXT_START = null;
+    setCountdownRing(0, false);
   }
 
   // CTA selon connexion
@@ -3995,13 +4017,45 @@ async function renderChallenges(){
     renderChallenges();
   });
 }
-let HOME_NEXT_END = null;
+let HOME_NEXT_END = null, HOME_NEXT_START = null;
+const CD_R = 54, CD_CIRC = 2 * Math.PI * CD_R;  // circonférence de l'anneau
+
+// Positionne l'anneau : frac = part de temps RESTANTE (1 = plein, 0 = vide).
+function setCountdownRing(frac, urgent){
+  const prog = $('cdProgress'), ring = document.querySelector('.cd-ring');
+  if(!prog) return;
+  const f = Math.max(0, Math.min(1, frac));
+  prog.style.strokeDasharray = CD_CIRC;
+  // L'arc visible correspond au temps restant.
+  prog.style.strokeDashoffset = CD_CIRC * (1 - f);
+  if(ring) ring.classList.toggle('urgent', !!urgent);
+}
+
 function updateHomeClock(){
-  if(!HOME_NEXT_END || !$('homeNextClock')) return;
-  const left = new Date(HOME_NEXT_END) - new Date();
-  if(left<=0){ $('homeNextClock').textContent='00:00:00'; $('homeNextLabel').textContent='clôture imminente'; return; }
+  if(!$('homeNextClock')) return;
+  if(!HOME_NEXT_END){ setCountdownRing(0, false); return; }
+  const now = new Date();
+  const end = new Date(HOME_NEXT_END);
+  const left = end - now;
+  if(left<=0){
+    $('homeNextClock').textContent='00:00:00';
+    $('homeNextLabel').textContent='clôture imminente';
+    setCountdownRing(0, true);
+    return;
+  }
   $('homeNextClock').textContent = fmtClock(left);
   $('homeNextLabel').textContent = 'prochaine clôture';
+  // Fraction restante : temps restant / durée totale de l'enchère.
+  let frac;
+  if(HOME_NEXT_START){
+    const total = end - new Date(HOME_NEXT_START);
+    frac = total>0 ? left/total : 1;
+  } else {
+    // Pas de date de départ connue : anneau plafonné à 48 h de référence.
+    frac = Math.min(1, left/(48*3600*1000));
+  }
+  // Urgence : moins de 10 min restantes.
+  setCountdownRing(frac, left < 10*60*1000);
 }
 setInterval(updateHomeClock, 1000);
 
