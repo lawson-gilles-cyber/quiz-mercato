@@ -3282,14 +3282,45 @@ async function showManagerSquad(mgrId){
   modal.style.display='flex';
 
   // Synthèse + palmarès + badges + historique enrichi (en parallèle)
-  const [prof, awards, badges, balance, best, history] = await Promise.all([
+  const isMe = ME && mgrId === ME.id;
+  const [prof, awards, badges, balance, best, history, myProf] = await Promise.all([
     api.managerProfile(mgrId).catch(()=>null),
     api.managerAwards(mgrId).catch(()=>[]),
     api.managerBadges(mgrId).catch(()=>[]),
     api.managerBalance(mgrId).catch(()=>null),
     api.managerBestDeal(mgrId).catch(()=>null),
-    api.managerHistory(mgrId).catch(()=>[])
+    api.managerHistory(mgrId).catch(()=>[]),
+    (ME && !isMe) ? api.managerProfile(ME.id).catch(()=>null) : Promise.resolve(null)
   ]);
+
+  // Tête-à-tête : MOI vs ce manager (écart de points, valeur, effectif).
+  let h2hHtml = '';
+  if(myProf && prof && !isMe){
+    const dPts = Number(myProf.season_points) - Number(prof.season_points);
+    const dVal = Number(myProf.squad_value) - Number(prof.squad_value);
+    const ahead = dPts>0, tie = dPts===0;
+    const headline = tie ? `Vous êtes <b>à égalité</b> au classement`
+      : ahead ? `Tu es devant de <b style="color:#4ade80">${Math.abs(dPts)} pt${Math.abs(dPts)>1?'s':''}</b>`
+              : `Tu es derrière de <b style="color:var(--live,#e0574a)">${Math.abs(dPts)} pt${Math.abs(dPts)>1?'s':''}</b>`;
+    const line = (label, mine, theirs, fmt)=>{
+      const f = fmt||(x=>x);
+      const better = Number(mine)>=Number(theirs);
+      return `<div style="display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:5px 0;font-size:.86rem">
+        <span style="text-align:right;${better?'color:#4ade80;font-weight:700':''}">${f(mine)}</span>
+        <span style="color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.5px">${label}</span>
+        <span style="${!better?'color:#4ade80;font-weight:700':''}">${f(theirs)}</span>
+      </div>`;
+    };
+    h2hHtml = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.1),transparent);border:1px solid var(--transfer);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-weight:800;font-size:.82rem;margin-bottom:8px">
+        <span>⚔️ Toi</span><span style="color:var(--muted)">tête-à-tête</span><span>${entry.name}</span>
+      </div>
+      <div style="text-align:center;font-size:.9rem;margin-bottom:8px">${headline}</div>
+      ${line('Points', myProf.season_points, prof.season_points)}
+      ${line('Valeur effectif', myProf.squad_value, prof.squad_value, fmtMoney)}
+      ${line('Effectif', myProf.squad_count, prof.squad_count)}
+    </div>`;
+  }
 
   // Badges (distinctions automatiques)
   let badgesHtml = '';
@@ -3364,7 +3395,7 @@ async function showManagerSquad(mgrId){
   const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
 
-  $('squadModalBody').innerHTML = statsHtml + badgesHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
+  $('squadModalBody').innerHTML = h2hHtml + statsHtml + badgesHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
 }
 
 // ---------- Mon activité (timeline personnelle) ----------
