@@ -365,6 +365,28 @@
   .rem-del{flex:0 0 auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:2px 6px}
   .rem-del:hover{color:var(--live,#e0574a)}
 
+  /* Journal du mercato (gazette) */
+  .gz-masthead{text-align:center;border-top:2px solid var(--transfer);border-bottom:2px solid var(--transfer);
+    padding:10px 0;margin-bottom:22px}
+  .gz-masthead .gz-sub{font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:3px;
+    font-size:.72rem;color:var(--muted)}
+  .gz-block{background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .gz-h{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-weight:800;
+    font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px;color:var(--chalk)}
+  .gz-lead{display:flex;align-items:center;gap:14px;padding:4px 0}
+  .gz-lead .gz-big{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.5rem;color:var(--transfer)}
+  .gz-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:.88rem}
+  .gz-row:first-of-type{border-top:none}
+  .gz-row .gz-name{color:var(--chalk);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .gz-row .gz-name b{color:#fff}
+  .gz-row .gz-val{flex:0 0 auto;font-family:'Space Mono',monospace;font-weight:700;color:var(--transfer);white-space:nowrap}
+  .gz-rank{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:.9rem}
+  .gz-rank:first-of-type{border-top:none}
+  .gz-medal{flex:0 0 auto;font-size:1.1rem;width:26px;text-align:center}
+  .gz-rank .gz-team{flex:1;color:var(--chalk)}
+  .gz-rank .gz-pts{flex:0 0 auto;font-family:'Space Mono',monospace;font-weight:700;color:var(--transfer)}
+  .gz-empty{color:var(--muted);font-size:.84rem;padding:4px 0}
+
   /* Bilan de mon effectif (fiche manager) */
   .sr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-weight:800;font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -820,6 +842,7 @@
         <button data-v="chat">💬 Chat</button>
         <button data-v="pronos">🎲 Pronos</button>
         <button data-v="achievements">🏅 Succès</button>
+        <button data-v="gazette">📰 Journal</button>
         <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
         <button data-v="rules">Règlement</button>
@@ -1211,6 +1234,13 @@
   </section>
 
   <!-- PRONOSTICS -->
+  <!-- JOURNAL DU MERCATO (gazette hebdo) -->
+  <section class="view" id="gazette">
+    <div class="eyebrow">La gazette de la semaine</div>
+    <h1>Le <em>journal</em> du mercato</h1>
+    <div id="gazetteBody"><div class="empty">Chargement…</div></div>
+  </section>
+
   <!-- SUCCÈS / TROPHÉES -->
   <section class="view" id="achievements">
     <div class="eyebrow">Tes trophées personnels</div>
@@ -1803,7 +1833,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','calendar','draft','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','gazette','calendar','draft','rules'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1821,7 +1851,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, draft:renderDraft};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, draft:renderDraft};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -4889,6 +4919,83 @@ async function renderAchievements(){
     </div>`+
     (done.length ? `<div class="ach-grouptitle">🏆 Débloqués (${done.length})</div><div class="ach-grid">${done.map(card).join('')}</div>` : '')+
     (todo.length ? `<div class="ach-grouptitle">🔒 À débloquer (${todo.length})</div><div class="ach-grid">${todo.map(card).join('')}</div>` : '');
+}
+
+// ---------- Journal du mercato (gazette hebdo) ----------
+// Compile l'actu des 7 derniers jours à partir des données publiques :
+// plus gros transferts, qui a le plus dépensé, pépite la plus disputée, podium.
+async function renderGazette(){
+  const box = $('gazetteBody'); if(!box) return;
+  box.innerHTML = '<div class="empty">Chargement…</div>';
+  let transfers=[], managers=[], auctions=[];
+  try { [transfers, managers, auctions] = await Promise.all([
+    api.recentTransfers(100).catch(()=>[]),
+    api.leaderboard().catch(()=>[]),
+    api.listOpenAuctions().catch(()=>[])
+  ]); } catch(e){}
+
+  const weekAgo = Date.now() - 7*86400000;
+  const week = (transfers||[]).filter(t=> new Date(t.created_at).getTime() >= weekAgo);
+
+  // 1) Plus gros transferts de la semaine (prix décroissant)
+  const biggest = [...week].filter(t=>Number(t.price)>0)
+    .sort((a,b)=> Number(b.price)-Number(a.price)).slice(0,5);
+
+  // 2) Qui a le plus dépensé (somme des achats de la semaine : to_manager payé)
+  const spendBy = {};
+  week.forEach(t=>{
+    const to = t.to?.display_name; const px = Number(t.price)||0;
+    if(to && px>0) spendBy[to] = (spendBy[to]||0) + px;
+  });
+  const topSpenders = Object.entries(spendBy).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // 3) Pépite la plus disputée (enchère en cours au plus d'intéressés)
+  const hottest = (auctions||[]).filter(a=>a.player)
+    .sort((a,b)=> (b.interest||0)-(a.interest||0) || Number(b.current_price)-Number(a.current_price))[0];
+
+  // 4) Podium du classement
+  const podium = (managers||[]).slice(0,3);
+
+  const dateNow = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+
+  const blocBiggest = `<div class="gz-block">
+    <div class="gz-h">💰 Les gros transferts de la semaine</div>
+    ${biggest.length ? biggest.map(t=>{
+      const nm = t.player?.name || 'Un joueur';
+      const to = t.to?.display_name ? ` → <b>${t.to.display_name}</b>` : '';
+      return `<div class="gz-row"><span class="gz-name"><b>${nm}</b>${to}</span><span class="gz-val">${fmtMoney(t.price)}</span></div>`;
+    }).join('') : '<div class="gz-empty">Aucun transfert cette semaine. Le marché est calme…</div>'}
+  </div>`;
+
+  const blocSpend = `<div class="gz-block">
+    <div class="gz-h">🤑 Les plus gros dépensiers</div>
+    ${topSpenders.length ? topSpenders.map(([name,sum],i)=>
+      `<div class="gz-row"><span class="gz-name">${i===0?'🥇 ':''}<b>${name}</b></span><span class="gz-val">${fmtMoney(sum)}</span></div>`
+    ).join('') : '<div class="gz-empty">Personne n\'a (encore) sorti le chéquier cette semaine.</div>'}
+  </div>`;
+
+  const blocHot = `<div class="gz-block">
+    <div class="gz-h">🔥 La pépite la plus disputée</div>
+    ${hottest && (hottest.interest||0)>0
+      ? `<div class="gz-lead"><span style="font-size:1.8rem">⚡</span><div>
+           <div class="gz-big">${hottest.player.name}</div>
+           <div style="font-size:.84rem;color:var(--muted)">${fmtMoney(hottest.current_price)} · ${hottest.interest} manager${hottest.interest>1?'s':''} à la lutte</div>
+         </div></div>`
+      : '<div class="gz-empty">Aucune enchère disputée pour l\'instant.</div>'}
+  </div>`;
+
+  const medals = ['🥇','🥈','🥉'];
+  const blocPodium = `<div class="gz-block">
+    <div class="gz-h">🏆 Le podium du moment</div>
+    ${podium.length ? podium.map((m,i)=>
+      `<div class="gz-rank"><span class="gz-medal">${medals[i]}</span><span class="gz-team">${m.team_name||m.display_name}</span><span class="gz-pts">${m.season_points} pts</span></div>`
+    ).join('') : '<div class="gz-empty">Classement pas encore établi.</div>'}
+  </div>`;
+
+  box.innerHTML =
+    `<div class="gz-masthead"><div class="gz-sub">Édition du ${dateNow}</div></div>`+
+    blocBiggest + blocSpend + blocHot + blocPodium +
+    `<p style="text-align:center;color:var(--muted);font-size:.76rem;margin-top:8px">Gazette générée automatiquement à partir de l'activité des 7 derniers jours.</p>`;
 }
 
 // ---------- Calendrier du mercato ----------
