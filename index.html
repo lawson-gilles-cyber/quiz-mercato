@@ -303,6 +303,31 @@
   @keyframes spin-line{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
   @media (prefers-reduced-motion: reduce){ .speaker .sp-dot{animation:none} .speaker .sp-line{animation:none} }
 
+  /* Calendrier du mercato (frise verticale) */
+  .cal-group{margin-bottom:22px}
+  .cal-gh{font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-weight:800;font-size:.76rem;color:var(--muted);margin-bottom:10px}
+  .cal-item{position:relative;display:flex;gap:14px;padding:0 0 4px 0}
+  .cal-rail{flex:0 0 auto;width:22px;display:flex;flex-direction:column;align-items:center}
+  .cal-node{width:14px;height:14px;border-radius:50%;background:var(--pitch);border:2px solid var(--line);margin-top:4px;z-index:1}
+  .cal-item.past .cal-node{background:var(--muted);border-color:var(--muted)}
+  .cal-item.today .cal-node{background:var(--live,#e0574a);border-color:var(--live,#e0574a);box-shadow:0 0 0 4px rgba(224,87,74,.2)}
+  .cal-item.soon .cal-node{background:var(--transfer);border-color:var(--transfer)}
+  .cal-line{flex:1;width:2px;background:var(--line);margin:2px 0 -4px}
+  .cal-item:last-child .cal-line{display:none}
+  .cal-card{flex:1;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:12px}
+  .cal-item.today .cal-card{border-color:var(--live,#e0574a)}
+  .cal-item.soon .cal-card{border-color:var(--transfer-deep,#d4a017)}
+  .cal-item.past .cal-card{opacity:.6}
+  .cal-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+  .cal-title{font-weight:700;font-size:.92rem;color:var(--chalk);display:flex;align-items:center;gap:7px}
+  .cal-when{font-family:'Space Mono',monospace;font-size:.78rem;color:var(--muted);white-space:nowrap}
+  .cal-rel{font-size:.74rem;margin-top:3px}
+  .cal-rel.past{color:var(--muted)}
+  .cal-rel.today{color:#ff9a8f;font-weight:700}
+  .cal-rel.soon{color:var(--transfer)}
+  .cal-rel.later{color:var(--muted)}
+
   /* Bilan de mon effectif (fiche manager) */
   .sr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-weight:800;font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -742,6 +767,7 @@
         <button data-v="feed">Actu</button>
         <button data-v="chat">💬 Chat</button>
         <button data-v="pronos">🎲 Pronos</button>
+        <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
         <button data-v="rules">Règlement</button>
       </div>
@@ -1132,6 +1158,14 @@
   </section>
 
   <!-- PRONOSTICS -->
+  <!-- CALENDRIER DU MERCATO -->
+  <section class="view" id="calendar">
+    <div class="eyebrow">Les échéances à venir</div>
+    <h1>Le <em>calendrier</em></h1>
+    <p style="color:var(--muted);font-size:.86rem;margin-bottom:20px">Toutes les dates clés du mercato : ouverture et clôture des fenêtres, dates limites de composition, échéances importantes.</p>
+    <div id="calendarBody"><div class="empty">Chargement…</div></div>
+  </section>
+
   <section class="view" id="pronos">
     <div class="eyebrow">Paris amicaux entre managers</div>
     <h1>Les <em>pronos</em></h1>
@@ -1708,7 +1742,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','draft','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','calendar','draft','rules'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1726,7 +1760,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, draft:renderDraft};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, draft:renderDraft};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -4524,6 +4558,91 @@ async function loadChatMessages(keepScroll){
     loadChatMessages(true);
   });
   if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
+}
+
+// ---------- Calendrier du mercato ----------
+// Frise chronologique : fenêtres de mercato (ouverture/clôture) + dates limites
+// de composition des journées. Regroupé en Passé / Aujourd'hui / À venir.
+async function renderCalendar(){
+  const box = $('calendarBody'); if(!box) return;
+  box.innerHTML = '<div class="empty">Chargement…</div>';
+  let windows=[], mds=[];
+  try { [windows, mds] = await Promise.all([ api.listWindows().catch(()=>[]), api.listMatchdays().catch(()=>[]) ]); }
+  catch(e){}
+
+  const ev = [];
+  // Fenêtres de mercato : ouverture + clôture
+  (windows||[]).forEach(w=>{
+    const lbl = w.label || (w.kind==='winter'?'Mercato d\'hiver':'Mercato d\'été');
+    if(w.opens_at)  ev.push({ when:w.opens_at,  ic:'🟢', title:`Ouverture — ${lbl}` });
+    if(w.closes_at) ev.push({ when:w.closes_at, ic:'🔴', title:`Clôture — ${lbl}` });
+  });
+  // Journées : date limite d'alignement de la compo
+  (mds||[]).forEach(m=>{
+    if(m.lineup_deadline){
+      ev.push({ when:m.lineup_deadline, ic:'📋', title:`Compo — ${m.label||('Journée '+m.number)}`, sub:'date limite d\'alignement' });
+    }
+  });
+
+  if(!ev.length){
+    box.innerHTML = '<div class="empty">Aucune échéance programmée pour le moment. Les dates apparaîtront ici dès que l\'organisateur les aura définies.</div>';
+    return;
+  }
+
+  const now = Date.now();
+  ev.sort((a,b)=> new Date(a.when)-new Date(b.when));
+  // État de chaque événement
+  ev.forEach(e=>{
+    const t = new Date(e.when).getTime();
+    const diff = t - now;
+    const sameDay = new Date(t).toDateString() === new Date(now).toDateString();
+    e.state = diff<0 ? 'past' : (sameDay ? 'today' : 'future');
+    e.diff = diff;
+  });
+
+  const fmtWhen = (iso)=>{
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR',{weekday:'short',day:'2-digit',month:'short'})
+         + ' · ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  };
+  const relText = (e)=>{
+    if(e.state==='past'){ return {cls:'past', txt:'passé'}; }
+    if(e.state==='today'){ return {cls:'today', txt:'aujourd\'hui'}; }
+    const days = Math.ceil(e.diff/86400000);
+    if(days<=1) return {cls:'soon', txt:'demain'};
+    if(days<=7) return {cls:'soon', txt:`dans ${days} jours`};
+    return {cls:'later', txt:`dans ${days} jours`};
+  };
+  const nodeCls = (e)=> e.state==='past'?'past' : e.state==='today'?'today' : (relText(e).cls==='soon'?'soon':'');
+
+  // Groupes : À venir (futur + aujourd'hui) en haut, Passé replié en bas
+  const upcoming = ev.filter(e=>e.state!=='past');
+  const past = ev.filter(e=>e.state==='past').reverse();  // plus récent d'abord
+
+  const itemHtml = (e)=>{
+    const rel = relText(e);
+    return `<div class="cal-item ${nodeCls(e)}">
+      <div class="cal-rail"><div class="cal-node"></div><div class="cal-line"></div></div>
+      <div class="cal-card">
+        <div class="cal-top">
+          <span class="cal-title">${e.ic} ${e.title}</span>
+          <span class="cal-when">${fmtWhen(e.when)}</span>
+        </div>
+        ${e.sub?`<div style="font-size:.78rem;color:var(--muted);margin-top:2px">${e.sub}</div>`:''}
+        <div class="cal-rel ${rel.cls}">${rel.txt}</div>
+      </div>
+    </div>`;
+  };
+
+  let html = '';
+  if(upcoming.length){
+    html += `<div class="cal-group"><div class="cal-gh">À venir</div>${upcoming.map(itemHtml).join('')}</div>`;
+  }
+  if(past.length){
+    html += `<details class="cal-group"><summary class="cal-gh" style="cursor:pointer">Passé (${past.length})</summary>
+      <div style="margin-top:10px">${past.map(itemHtml).join('')}</div></details>`;
+  }
+  box.innerHTML = html;
 }
 
 // ---------- Pronostics ----------
