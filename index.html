@@ -1375,14 +1375,29 @@ const OB_ART = {
     <circle cx="44" cy="44" r="18" fill="none" stroke="#f5c542" stroke-width="3"/>
     <line x1="57" y1="57" x2="70" y2="70" stroke="#f5c542" stroke-width="4" stroke-linecap="round"/>
     <path d="M44 35l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="#f5c542"/>`,
-  // 4) Classement : podium 1-2-3
+  // 3bis) Menu PLUS : les trois points, avec une flèche qui pointe dessus
+  menu:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
+    <rect x="22" y="22" width="52" height="20" rx="6" fill="#132339" stroke="#1d3a6b" stroke-width="2"/>
+    <text x="34" y="35" font-size="8" fill="#9fb0cc" font-family="sans-serif">Plus</text>
+    <g fill="#f5c542"><circle cx="56" cy="32" r="2.6"/><circle cx="63" cy="32" r="2.6"/><circle cx="70" cy="32" r="2.6"/></g>
+    <path d="M63 72V50" stroke="#f5c542" stroke-width="3" fill="none" stroke-linecap="round"/>
+    <path d="M56 56l7-7 7 7" stroke="#f5c542" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+  // 4) Classement : podium 1-2-3 avec flèches monter (vert) / descendre (rouge)
   rank:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
-    <rect x="38" y="34" width="20" height="36" rx="2" fill="#f5c542"/>
-    <rect x="20" y="48" width="20" height="22" rx="2" fill="#9fb0cc" opacity=".7"/>
-    <rect x="56" y="54" width="20" height="16" rx="2" fill="#9fb0cc" opacity=".5"/>
-    <text x="48" y="52" font-size="12" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">1</text>
-    <text x="30" y="62" font-size="10" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">2</text>
-    <text x="66" y="65" font-size="9" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">3</text>`,
+    <rect x="38" y="40" width="20" height="34" rx="2" fill="#f5c542"/>
+    <rect x="18" y="52" width="20" height="22" rx="2" fill="#9fb0cc" opacity=".75"/>
+    <rect x="58" y="58" width="20" height="16" rx="2" fill="#9fb0cc" opacity=".55"/>
+    <text x="48" y="58" font-size="12" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">1</text>
+    <text x="28" y="67" font-size="10" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">2</text>
+    <text x="68" y="69" font-size="9" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">3</text>
+    <!-- Flèche MONTER (vert) côté 1re place -->
+    <g stroke="#4ade80" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M48 36V20"/><path d="M41 27l7-7 7 7"/>
+    </g>
+    <!-- Flèche DESCENDRE (rouge) côté 3e place -->
+    <g stroke="#e0574a" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".9">
+      <path d="M68 40v14"/><path d="M63 49l5 5 5-5"/>
+    </g>`,
   // 5) Chat : deux bulles de discussion
   chat:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
     <path d="M22 32h36a5 5 0 0 1 5 5v14a5 5 0 0 1-5 5H38l-10 8v-8h-6a5 5 0 0 1-5-5V37a5 5 0 0 1 5-5z" fill="#132339" stroke="#f5c542" stroke-width="2"/>
@@ -1412,8 +1427,8 @@ const OB_STEPS = [
     cta:'Aller au marché', view:'market', link:'Voir le marché' },
   { num:'Étape 4 · Classement', art:'rank',
     title:'Suis ton classement',
-    body:'L\'onglet <b>Classement</b> te situe face aux autres managers. Les points viennent des performances réelles de tes titulaires : plus tu recrutes et alignes juste, plus tu grimpes.',
-    tip:'Un bon mercato ne suffit pas : c\'est la régularité des compos, journée après journée, qui fait la différence au classement.',
+    body:'L\'onglet <b>Classement</b> te situe face aux autres managers. Les points viennent des performances réelles de tes titulaires : chaque journée, tu <span style="color:#4ade80">montes</span> ou tu <span style="color:#e0574a">descends</span> selon tes résultats.',
+    tip:'Un bon mercato ne suffit pas : c\'est la régularité des compos, journée après journée, qui te fait <span style="color:#4ade80">grimper</span> au classement.',
     cta:'Voir le classement', view:'rank', link:'Voir le classement' },
   { num:'Étape 5 · Chat', art:'chat',
     title:'Le chat de la ligue',
