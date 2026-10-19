@@ -117,6 +117,24 @@
   .status.s-locked{background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.4)}
   .status.s-owned{background:rgba(255,120,120,.14);color:#ff9a9a;border:1px solid rgba(255,120,120,.38)}
 
+  /* Bandeau défilant (ticker) — actualité du mercato en direct */
+  .ticker{display:flex;align-items:stretch;gap:0;margin:0 0 18px;border-radius:10px;overflow:hidden;
+    border:1px solid var(--line);background:var(--pitch-2)}
+  .ticker-tag{flex:0 0 auto;display:flex;align-items:center;gap:6px;padding:0 14px;
+    font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-weight:800;font-size:.74rem;color:#0a1428;background:linear-gradient(180deg,#ffe89a,#f5c542 55%,#d4a017);
+    white-space:nowrap}
+  .ticker-viewport{flex:1 1 auto;overflow:hidden;position:relative;mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent)}
+  .ticker-track{display:inline-flex;align-items:center;white-space:nowrap;will-change:transform;
+    animation:ticker-scroll 42s linear infinite}
+  .ticker:hover .ticker-track{animation-play-state:paused}
+  .ticker-item{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;font-size:.86rem;color:var(--chalk)}
+  .ticker-item + .ticker-item{border-left:1px solid var(--line)}
+  .ticker-item b{color:#fff}
+  .ticker-ic{font-size:.95rem}
+  @keyframes ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  @media (prefers-reduced-motion: reduce){ .ticker-track{animation:none} }
+
   /* ---------- Header ---------- */
   header{
     display:flex;align-items:center;gap:18px;
@@ -606,6 +624,13 @@
 <main>
   <!-- Bandeau fenêtre de mercato (compte à rebours) -->
   <div id="mercatoBanner" style="display:none"></div>
+
+  <!-- Bandeau défilant : actualité du mercato en temps réel -->
+  <div id="mercatoTicker" class="ticker" style="display:none">
+    <div class="ticker-tag">🔴 EN DIRECT</div>
+    <div class="ticker-viewport"><div class="ticker-track" id="tickerTrack"></div></div>
+  </div>
+
   <!-- ACCUEIL -->
   <section class="view on" id="home">
     <div class="hero">
@@ -1470,6 +1495,9 @@ function goView(v){
   if(SECONDARY_VIEWS.includes(v) && $('tabMore')) $('tabMore').classList.add('active');
   document.querySelectorAll('.view').forEach(view=>view.classList.remove('on'));
   const target = $(v); if(target) target.classList.add('on');
+  // Le ticker n'apparaît que sur l'accueil (sinon on le masque).
+  const tk = $('mercatoTicker');
+  if(tk && v!=='home') tk.style.display='none';
   // Ferme le menu "Plus" s'il est ouvert
   const more = $('moreMenu'); if(more) more.classList.remove('open');
   // Rendu de la vue
@@ -3260,7 +3288,53 @@ async function renderHome(){
           <span>${ic}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
       }).join('')
     : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
+  renderTicker(moves, auctions);
   renderChallenges();
+}
+
+// ---------- Bandeau défilant : actu du mercato en direct ----------
+// Combine les enchères en cours (🔥) et les derniers mouvements (recrutements,
+// libérations, échanges) en une bande qui défile en boucle. Mise à jour par
+// renderHome et par le temps réel.
+function renderTicker(moves, auctions){
+  const bar = $('mercatoTicker'), track = $('tickerTrack');
+  if(!bar || !track) return;
+  const items = [];
+
+  // Enchères en cours (les plus chaudes d'abord)
+  (auctions||[])
+    .slice()
+    .sort((a,b)=> (b.interest||0)-(a.interest||0) || Number(b.current_price)-Number(a.current_price))
+    .slice(0, 8)
+    .forEach(a=>{
+      const nm = a.player?.name || 'Joueur';
+      const intr = a.interest||0;
+      items.push(`<span class="ticker-item"><span class="ticker-ic">🔥</span><span>Enchère : <b>${nm}</b> à <b>${fmtMoney(a.current_price)}</b>${intr>0?` · ${intr} intéressé${intr>1?'s':''}`:''}</span></span>`);
+    });
+
+  // Derniers mouvements
+  (moves||[]).forEach(m=>{
+    const pname = m.player?.name || 'Un joueur';
+    let ic, txt;
+    if(m.to && m.from){ ic='🔄'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
+    else if(m.to){ ic='📈'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
+    else if(m.from){ ic='📉'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
+    else { ic='•'; txt=pname; }
+    items.push(`<span class="ticker-item"><span class="ticker-ic">${ic}</span><span>${txt}</span></span>`);
+  });
+
+  if(!items.length){
+    bar.style.display = 'none';
+    track.innerHTML = '';
+    return;
+  }
+  // On duplique la séquence pour une boucle sans couture (translateX -50%).
+  const seq = items.join('');
+  track.innerHTML = seq + seq;
+  // Vitesse proportionnelle au nombre d'items (bande plus longue = plus lente).
+  const dur = Math.max(24, Math.min(80, items.length * 6));
+  track.style.animationDuration = dur + 's';
+  bar.style.display = 'flex';
 }
 
 // ---------- Défis de la semaine ----------
