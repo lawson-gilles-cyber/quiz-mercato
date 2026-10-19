@@ -74,10 +74,12 @@
   .ob-step{text-align:center;animation:wmFade .25s ease}
   .ob-num{display:inline-block;font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;
     letter-spacing:2px;font-size:.72rem;color:var(--transfer,#f5c542);margin-bottom:8px}
-  .ob-ic{width:64px;height:64px;margin:0 auto 14px;display:flex;align-items:center;justify-content:center;
-    border-radius:16px;background:rgba(245,197,66,.1);border:1px solid var(--transfer-deep,#1d3a6b)}
-  .ob-ic svg{width:34px;height:34px;stroke:var(--transfer,#f5c542);fill:none;stroke-width:1.8;
-    stroke-linecap:round;stroke-linejoin:round}
+  .ob-art{width:132px;height:132px;margin:0 auto 16px;border-radius:20px;
+    background:rgba(245,197,66,.05);border:1px solid var(--transfer-deep,#1d3a6b);
+    display:flex;align-items:center;justify-content:center;overflow:hidden;
+    animation:obArt .45s cubic-bezier(.2,.9,.3,1.3)}
+  .ob-art svg{width:112px;height:112px;display:block}
+  @keyframes obArt{from{transform:scale(.82);opacity:0}to{transform:scale(1);opacity:1}}
   .ob-step h3{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-size:1.35rem;font-weight:800;margin:0 0 10px;color:#fff}
   .ob-step p{color:var(--muted,#9fb0cc);font-size:.9rem;line-height:1.55;margin:0 auto 6px;max-width:400px}
@@ -1294,27 +1296,65 @@ function maybeShowWelcome(){
 // ses deux budgets, comment recruter, puis comment aligner sa 1re compo.
 // Chaque étape renvoie vers l'écran concerné. Vu une fois (par utilisateur),
 // puis toujours relançable via le bouton "Guide de démarrage" sur l'accueil.
+// Chaque étape a un PICTOGRAMME illustré (SVG maison, viewBox 0 0 96 96) qui
+// montre concrètement la notion — comme les écrans d'un tuto d'application.
+const OB_ART = {
+  // 1) Duo Manager–Coach + effectif : deux maillots côte à côte
+  team:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
+    <g stroke="#f5c542" stroke-width="2.4" stroke-linejoin="round" fill="rgba(245,197,66,.14)">
+      <path d="M26 40 36 32l5 4 5-4 10 8-6 7-4-3v22H30V47l-4 3z" opacity=".55"/>
+      <path d="M46 44 56 36l5 4 5-4 10 8-6 7-4-3v22H50V51l-4 3z"/>
+    </g>
+    <text x="41" y="60" font-size="9" fill="#f5c542" font-family="sans-serif" text-anchor="middle" opacity=".55">9</text>
+    <text x="61" y="64" font-size="10" fill="#0a1428" font-family="sans-serif" text-anchor="middle" font-weight="700">10</text>`,
+  // 2) Deux budgets : deux jauges (transfert pleine, salaire partielle)
+  budget:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
+    <g font-family="sans-serif" text-anchor="middle">
+      <rect x="20" y="30" width="56" height="12" rx="6" fill="#132339" stroke="#1d3a6b" stroke-width="2"/>
+      <rect x="20" y="30" width="44" height="12" rx="6" fill="#f5c542"/>
+      <text x="48" y="25" font-size="8" fill="#9fb0cc">💰 BUDGET</text>
+      <rect x="20" y="56" width="56" height="12" rx="6" fill="#132339" stroke="#1d3a6b" stroke-width="2"/>
+      <rect x="20" y="56" width="30" height="12" rx="6" fill="#4ea1ff"/>
+      <text x="48" y="51" font-size="8" fill="#9fb0cc">⚖️ SALAIRE</text>
+    </g>`,
+  // 3) Recruter : marteau d'enchère frappant un socle
+  bid:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
+    <g stroke="#f5c542" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="rgba(245,197,66,.14)">
+      <rect x="34" y="24" width="26" height="14" rx="3" transform="rotate(38 47 31)"/>
+      <line x1="40" y1="40" x2="62" y2="58"/>
+      <line x1="30" y1="70" x2="56" y2="70"/>
+      <rect x="36" y="64" width="14" height="6" rx="2" transform="rotate(-6 43 67)"/>
+    </g>`,
+  // 4) Compo : grille 11 titulaires sur un terrain (4-4-2)
+  lineup:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
+    <rect x="22" y="14" width="52" height="68" rx="6" fill="#0e2a16" stroke="#f5c542" stroke-width="2"/>
+    <line x1="22" y1="48" x2="74" y2="48" stroke="#f5c542" stroke-width="1.4" opacity=".5"/>
+    <circle cx="48" cy="48" r="7" fill="none" stroke="#f5c542" stroke-width="1.4" opacity=".5"/>
+    <g fill="#f5c542">
+      <circle cx="48" cy="22" r="3"/>
+      <circle cx="35" cy="36" r="3"/><circle cx="61" cy="36" r="3"/>
+      <circle cx="30" cy="58" r="3"/><circle cx="42" cy="58" r="3"/><circle cx="54" cy="58" r="3"/><circle cx="66" cy="58" r="3"/>
+      <circle cx="34" cy="74" r="3"/><circle cx="48" cy="74" r="3"/><circle cx="62" cy="74" r="3"/>
+      <circle cx="48" cy="68" r="3"/>
+    </g>`
+};
 const OB_STEPS = [
-  { num:'Étape 1 · Ton équipe',
-    ic:'<path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/>',
+  { num:'Étape 1 · Ton équipe', art:'team',
     title:'Ton duo, ton effectif',
     body:'Chaque équipe est un duo <b>Manager–Coach</b>. Ton objectif : bâtir un effectif de <b>21 joueurs</b> en recrutant aux enchères. Ce sont leurs performances réelles qui te rapportent des points au classement.',
     tip:'Le <b>Manager</b> gère le recrutement et le budget. Le <b>Coach</b> aligne les titulaires chaque journée. À deux, vous pilotez toute l\'équipe.',
     cta:'Voir mon équipe', view:'team' },
-  { num:'Étape 2 · Le budget',
-    ic:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/><circle cx="12" cy="14.5" r="1.6"/>',
+  { num:'Étape 2 · Le budget', art:'budget',
     title:'Tes deux budgets',
     body:'Tu démarres avec un <b>budget transfert de 800 M€</b> pour acheter tes joueurs. Surveille aussi ta <b>masse salariale</b> : chaque joueur a un salaire, et le total ne doit pas dépasser le plafond.',
     tip:'En haut de l\'écran : <b>💰 Budget dispo</b> = ce qu\'il te reste à dépenser (le budget engagé sur une enchère en cours est bloqué). <b>⚖️ Masse salariale</b> = la somme des salaires de ton effectif.',
     cta:'Compris', view:null },
-  { num:'Étape 3 · Recruter',
-    ic:'<path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>',
+  { num:'Étape 3 · Recruter', art:'bid',
     title:'Deux façons de recruter',
     body:'Aux <b>Enchères</b>, tu te positionnes sur les joueurs mis en vente : le plus offrant l\'emporte. Au <b>Marché</b>, tu peux aussi faire un <b>recrutement direct</b> d\'un joueur libre à sa valeur, sans attendre.',
     tip:'Toute enchère t\'engage : si tu mènes, ton budget est bloqué, et si tu gagnes, tu paies. Vise les postes qui te manquent pour compléter tes 21.',
     cta:'Aller aux enchères', view:'auctions' },
-  { num:'Étape 4 · La compo',
-    ic:'<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/>',
+  { num:'Étape 4 · La compo', art:'lineup',
     title:'Prépare ta première compo',
     body:'Une fois tes joueurs recrutés, direction <b>Compo</b> : le Coach aligne <b>11 titulaires</b> chaque journée. Seuls les titulaires marquent des points — choisis-les selon leurs matchs réels à venir.',
     tip:'Pas besoin d\'un effectif complet pour commencer à aligner : construis au fil des recrutements. Tu peux modifier ta compo jusqu\'à la clôture de chaque journée.',
@@ -1327,7 +1367,7 @@ function obRender(){
   $('obDots').innerHTML = OB_STEPS.map((_,i)=>`<span class="ob-dot${i===OB_I?' on':''}"></span>`).join('');
   $('obStep').innerHTML =
     `<div class="ob-num">${s.num}</div>`+
-    `<div class="ob-ic"><svg viewBox="0 0 24 24">${s.ic}</svg></div>`+
+    `<div class="ob-art"><svg viewBox="0 0 96 96">${OB_ART[s.art]||''}</svg></div>`+
     `<h3>${s.title}</h3><p>${s.body}</p>`+
     `<div class="ob-tip">💡 ${s.tip}</div>`;
   $('obPrev').style.visibility = OB_I===0 ? 'hidden' : 'visible';
