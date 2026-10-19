@@ -42,6 +42,25 @@
     font-family:'Archivo',system-ui,sans-serif;
     min-height:100vh; line-height:1.45;
   }
+  /* ---------- Mode clair (surfaces claires, accents or/bleu conservés) ----- */
+  html[data-theme="light"] body{
+    background:
+      radial-gradient(ellipse at 50% -5%, rgba(245,197,66,.14), transparent 45%),
+      radial-gradient(circle at 85% 15%, rgba(120,160,220,.10), transparent 40%),
+      linear-gradient(180deg, #eef2f8 0%, #e6ecf5 50%, #dde4ef 100%);
+  }
+  html[data-theme="light"] ::selection{background:var(--transfer);color:#111}
+  /* Surfaces à fond codé en dur : versions claires */
+  html[data-theme="light"] header{background:rgba(255,255,255,.92)}
+  html[data-theme="light"] .hero{background:linear-gradient(120deg,#ffffff,#eef2f8)}
+  html[data-theme="light"] .pillar{background:linear-gradient(160deg,rgba(245,197,66,.08),rgba(230,236,245,.6))}
+  html[data-theme="light"] #tabbar{background:rgba(255,255,255,.97)}
+  html[data-theme="light"] .logo{color:var(--transfer-deep)}
+  html[data-theme="light"] .logo b{color:#b4790c}
+  /* Ombres plus douces et bordures un poil plus marquées en clair */
+  html[data-theme="light"] .acard,
+  html[data-theme="light"] .news,
+  html[data-theme="light"] .card{box-shadow:0 1px 3px rgba(20,40,80,.06)}
   ::selection{background:var(--transfer);color:#111}
 
   /* ---------- Pop-up d'accueil ---------- */
@@ -716,6 +735,7 @@
   </nav>
   <div class="wallet" id="walletBox"><small><span class="lbl-long">💰 BUDGET DISPO</span><span class="lbl-short">💰 BUDGET</span></small><span id="wallet">—</span></div>
   <div class="wallet" id="salaryBox" style="display:none"><small><span class="lbl-long">⚖️ MASSE SALARIALE</span><span class="lbl-short">⚖️ SALAIRE</span></small><span id="walletSalary">—</span></div>
+  <button id="themeBtn" title="Thème clair / sombre / auto" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)">🌓</button>
   <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
   <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-left:10px">
     <span id="userInitials" title="" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--transfer),var(--transfer-deep));color:var(--pitch);font-family:'Anton','Saira Condensed';font-size:.85rem;letter-spacing:.5px"></span>
@@ -4403,10 +4423,63 @@ setInterval(()=>{
 },1000);
 
 // ---------- Init ----------
+// ---------- Mode clair / sombre / auto ----------
+// 3 états : 'auto' (suit le système), 'light', 'dark'. Mémorisé par navigateur.
+// Le mode clair remplace les surfaces et le texte (variables CSS), en gardant
+// les accents or/bleu de la marque. Appliqué en inline sur :root pour passer
+// AVANT un éventuel thème personnalisé admin.
+const LIGHT_VARS = {
+  '--pitch':'#ffffff', '--pitch-2':'#f3f6fb', '--line':'#d4dcea',
+  '--chalk':'#132036', '--muted':'#5f7190'
+};
+let COLOR_MODE = 'auto';
+let ADMIN_THEME = null;   // thème personnalisé admin (pour le re-poser en sombre)
+function systemPrefersLight(){
+  try { return window.matchMedia('(prefers-color-scheme: light)').matches; } catch(e){ return false; }
+}
+function effectiveLight(){ return COLOR_MODE==='light' || (COLOR_MODE==='auto' && systemPrefersLight()); }
+function applyColorScheme(){
+  const root = document.documentElement;
+  if(effectiveLight()){
+    root.setAttribute('data-theme','light');
+    for(const k in LIGHT_VARS) root.style.setProperty(k, LIGHT_VARS[k]);
+  } else {
+    root.setAttribute('data-theme','dark');
+    // Retire les surcharges claires pour revenir au sombre par défaut…
+    for(const k in LIGHT_VARS) root.style.removeProperty(k);
+    // …puis re-pose l'éventuel thème personnalisé admin (sinon on perdrait ses
+    // couleurs, posées elles aussi en inline).
+    if(ADMIN_THEME){ try { api.applyTheme(ADMIN_THEME); } catch(e){} }
+  }
+  // Icône du bouton selon le mode choisi.
+  const btn = $('themeBtn');
+  if(btn) btn.textContent = COLOR_MODE==='auto' ? '🌓' : (COLOR_MODE==='light' ? '☀️' : '🌙');
+}
+function initColorScheme(){
+  try { COLOR_MODE = localStorage.getItem('us_color_mode') || 'auto'; } catch(e){}
+  applyColorScheme();
+  // En mode auto, suivre les changements du système en direct.
+  try {
+    window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', ()=>{
+      if(COLOR_MODE==='auto') applyColorScheme();
+    });
+  } catch(e){}
+}
+if($('themeBtn')) $('themeBtn').onclick = ()=>{
+  COLOR_MODE = COLOR_MODE==='auto' ? 'light' : (COLOR_MODE==='light' ? 'dark' : 'auto');
+  try { localStorage.setItem('us_color_mode', COLOR_MODE); } catch(e){}
+  applyColorScheme();
+  const label = COLOR_MODE==='auto' ? 'Thème automatique (selon ton système)'
+    : COLOR_MODE==='light' ? 'Mode clair' : 'Mode sombre';
+  toast(label, 'info', 2200);
+};
+
 async function init(){
   wireOnboarding();
+  initColorScheme();           // mode clair/sombre avant tout
   // Thème personnalisé (couleurs admin) — appliqué en premier
-  try { api.applyTheme(await api.getTheme()); } catch(e){ /* thème par défaut */ }
+  try { ADMIN_THEME = await api.getTheme(); api.applyTheme(ADMIN_THEME); } catch(e){ /* thème par défaut */ }
+  applyColorScheme();          // ré-applique (le mode clair prime sur l'admin)
   ME = await api.currentManager();
   if(ME){
     $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
