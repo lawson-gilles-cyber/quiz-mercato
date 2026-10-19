@@ -249,6 +249,27 @@
   @keyframes lpulse{0%{box-shadow:0 0 0 0 rgba(224,87,74,.6)}70%{box-shadow:0 0 0 7px rgba(224,87,74,0)}100%{box-shadow:0 0 0 0 rgba(224,87,74,0)}}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 
+  /* Alerte « dernière minute » (enchères qui se terminent) */
+  .last-minute{margin:0 0 18px;border-radius:12px;padding:12px 16px;
+    background:linear-gradient(90deg,rgba(224,87,74,.18),rgba(224,87,74,.06));
+    border:1px solid rgba(224,87,74,.45);animation:fade .3s ease}
+  .last-minute .lm-head{display:flex;align-items:center;gap:8px;font-family:'Archivo Narrow','Saira Condensed',sans-serif;
+    text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.82rem;color:#ff9a8f;margin-bottom:8px}
+  .last-minute .lm-dot{width:9px;height:9px;border-radius:50%;background:#e0574a;
+    box-shadow:0 0 0 0 rgba(224,87,74,.7);animation:lpulse 1.2s infinite}
+  .last-minute .lm-item{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:7px 0;font-size:.88rem;color:var(--chalk);border-top:1px solid rgba(224,87,74,.2)}
+  .last-minute .lm-item:first-of-type{border-top:none}
+  .last-minute .lm-item b{color:#fff}
+  .last-minute .lm-you{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;font-weight:700;
+    color:#0a1428;background:#f5c542;padding:1px 7px;border-radius:20px;white-space:nowrap}
+  .last-minute .lm-time{font-family:'Space Mono',monospace;font-weight:700;color:#ff9a8f;white-space:nowrap}
+  .last-minute .lm-go{background:none;border:none;color:#ff9a8f;cursor:pointer;text-decoration:underline;font-size:.82rem}
+  /* Carte d'enchère en toute dernière minute : halo rouge pulsant */
+  .acard.urgent{box-shadow:0 0 0 2px rgba(224,87,74,.7);animation:cardpulse 1.3s infinite}
+  @keyframes cardpulse{0%{box-shadow:0 0 0 2px rgba(224,87,74,.7)}70%{box-shadow:0 0 0 6px rgba(224,87,74,0)}100%{box-shadow:0 0 0 2px rgba(224,87,74,0)}}
+  @media (prefers-reduced-motion: reduce){ .last-minute .lm-dot,.acard.urgent{animation:none} }
+
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
   h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
@@ -804,6 +825,8 @@
   <section class="view" id="auctions">
     <div class="eyebrow">Salle des enchères · en direct</div>
     <h1>Le <em>marché</em> des transferts</h1>
+    <!-- Alerte « dernière minute » : enchères qui se terminent très bientôt -->
+    <div id="lastMinute" class="last-minute" style="display:none"></div>
     <div id="aucFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
       <input id="aucSearch" type="search" placeholder="🔍 Rechercher un joueur…" style="flex:1;min-width:180px">
       <select id="aucPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
@@ -2348,6 +2371,7 @@ function acard(a, status){
     const FINAL = 2*3600*1000, HOT = 10*60*1000;
     const cls = left<=0?'over' : left<HOT?'hot' : left<FINAL?'final' : 'safe';
     const pre = left<=0?'🏁' : left<HOT?'🔥' : left<FINAL?'⚡' : '⏱';
+    const urgent = left>0 && left < LAST_MIN_MS;  // halo si toute dernière minute
     const interest = a.interest || 0;
     const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
     const watched = AUC_WATCH.has(a.id);
@@ -2362,7 +2386,8 @@ function acard(a, status){
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
   }
-  return `<div class="acard">
+  const urgentCls = (status==='live' && new Date(a.ends_at)-new Date() > 0 && new Date(a.ends_at)-new Date() < LAST_MIN_MS) ? ' urgent' : '';
+  return `<div class="acard${urgentCls}" data-acard="${a.id||''}">
     <div class="photo">${photo}<span class="tag t-${status}">${tag}</span></div>
     <div class="info">
       <div class="title" data-player="${p.id}" style="cursor:pointer" title="Voir la fiche & la courbe de valeur">${playerName(p)||'—'} <span style="color:var(--muted);font-size:.7rem">📈</span></div>
@@ -2373,6 +2398,59 @@ function acard(a, status){
 let AUC_LIVE = [];       // enchères en direct (pour le filtrage)
 let AUC_BUCKETS = {};    // les autres colonnes
 let AUC_WATCH = new Set(); // ids d'enchères suivies par le manager courant
+const LAST_MIN_MS = 5*60*1000;  // seuil « dernière minute » : 5 minutes
+
+// Une enchère « me concerne » si je mène OU si je la suis (watchlist).
+function aucConcernsMe(a){
+  if(!ME) return false;
+  if(AUC_WATCH.has(a.id)) return true;
+  const tb = a.top_bidder_id || a.top_bidder?.id;
+  return tb && tb === ME.id;
+}
+
+// Bandeau « dernière minute » + halo sur les cartes + pastille sur l'onglet.
+// Appelé au rendu et chaque seconde (léger : lecture de AUC_LIVE en mémoire).
+function renderLastMinute(){
+  const box = $('lastMinute'); if(!box) return;
+  const now = Date.now();
+  // Enchères en direct qui se terminent dans les 5 min (les miennes d'abord).
+  const soon = (AUC_LIVE||[])
+    .map(a=>({a, left:new Date(a.ends_at)-now, mine:aucConcernsMe(a)}))
+    .filter(x=> x.left>0 && x.left < LAST_MIN_MS)
+    .sort((x,y)=> (y.mine-x.mine) || (x.left-y.left))
+    .slice(0, 6);
+
+  if(!soon.length){
+    box.style.display='none'; box.innerHTML='';
+    // Retire la pastille de l'onglet si plus rien d'urgent me concernant.
+    if(!soon.some(x=>x.mine)) document.querySelectorAll('[data-v="auctions"]').forEach(b=>b.classList.remove('live-pulse'));
+    return;
+  }
+  const mineCount = soon.filter(x=>x.mine).length;
+  box.innerHTML =
+    `<div class="lm-head"><span class="lm-dot"></span>⏰ Dernière minute — ${soon.length} enchère${soon.length>1?'s':''} se termine${soon.length>1?'nt':''} bientôt</div>`+
+    soon.map(x=>{
+      const nm = x.a.player?.name || 'Joueur';
+      const mm = Math.floor(x.left/60000), ss = Math.floor((x.left%60000)/1000);
+      const t = (mm>0? mm+' min ' : '')+ (mm>0? (ss<10?'0':'')+ss : ss+' s');
+      return `<div class="lm-item">
+        <span><b>${nm}</b> · ${fmtMoney(x.a.current_price)}${x.mine?' <span class="lm-you">Toi</span>':''}</span>
+        <span style="display:flex;gap:10px;align-items:center"><span class="lm-time">${t}</span><button class="lm-go" data-lmgo="${x.a.player?.id||''}">Enchérir ↗</button></span>
+      </div>`;
+    }).join('');
+  box.style.display='block';
+
+  // Pastille pulsante sur l'onglet Enchères si une enchère me concerne,
+  // même quand je suis sur un autre écran.
+  document.querySelectorAll('[data-v="auctions"]').forEach(b=>b.classList.toggle('live-pulse', mineCount>0 && CURRENT_VIEW!=='auctions'));
+
+  // Clic « Enchérir » dans le bandeau : ouvre la fenêtre d'enchère du joueur.
+  box.querySelectorAll('[data-lmgo]').forEach(btn=>btn.onclick=()=>{
+    if(CURRENT_VIEW!=='auctions') goView('auctions');
+    const pid = btn.dataset.lmgo;
+    setTimeout(()=>{ const bid = document.querySelector(`[data-bid="${pid}"]`); if(bid) bid.click(); }, 120);
+  });
+}
 async function renderAuctions(){
   const open = await api.listOpenAuctions();
   AUC_WATCH = ME ? await api.myWatchlist().catch(()=>new Set()) : new Set();
@@ -2428,6 +2506,7 @@ function applyAucFilters(){
     });
   document.querySelectorAll('#k-live [data-journal]').forEach(btn=>
     btn.onclick = ()=> showAuctionJournal(btn.dataset.journal));
+  renderLastMinute();
 }
 
 // Journal des offres d'une enchère (modale)
@@ -2533,7 +2612,12 @@ setInterval(()=>{
     c.classList.toggle('final', left<FINAL && left>=HOT);
     c.classList.toggle('hot', left<HOT && left>0);
     c.classList.toggle('over', left<=0);
+    // Halo « dernière minute » sur la carte parente
+    const card = c.closest('.acard');
+    if(card) card.classList.toggle('urgent', left>0 && left<LAST_MIN_MS);
   });
+  // Rafraîchit le bandeau « dernière minute » + la pastille d'onglet.
+  renderLastMinute();
 },1000);
 
 // ---------- Règles vivantes (barèmes en vigueur, tirés de la base) ----------
@@ -3823,6 +3907,20 @@ function startRealtime(){
 }
 // Quand on ouvre les enchères, on retire le signal "nouvelle activité"
 function clearAuctionPulse(){ document.querySelectorAll('[data-v="auctions"]').forEach(b=>b.classList.remove('live-pulse')); }
+
+// Rafraîchit en arrière-plan la liste des enchères en direct quand on n'est
+// PAS sur l'onglet Enchères, pour que l'alerte « dernière minute » et la
+// pastille sur l'onglet restent fiables même en naviguant ailleurs.
+setInterval(async ()=>{
+  if(!ME || CURRENT_VIEW==='auctions') return;  // sur l'onglet, renderAuctions s'en charge
+  try {
+    const open = await api.listOpenAuctions();
+    AUC_WATCH = await api.myWatchlist().catch(()=>AUC_WATCH);
+    const now = new Date();
+    AUC_LIVE = open.filter(a=> new Date(a.ends_at) > now);
+    renderLastMinute();
+  } catch(e){ /* silencieux : best-effort */ }
+}, 45000);
 
 // ---------- Notifications (A) ----------
 let NOTIFS = [];
