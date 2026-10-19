@@ -1338,7 +1338,7 @@ function maybeShowWelcome(){
   modal.onclick = (e)=>{ if(e.target===modal) close(); };
 }
 
-// ---------- Guide de démarrage (onboarding 6 étapes) ----------
+// ---------- Guide de démarrage (onboarding 7 étapes) ----------
 // Parcours orienté ACTION (demande d'Audrey) : l'accueil des enchères, faire
 // une enchère, dénicher un joueur, le classement, le chat, les bonus.
 // Chaque étape renvoie vers l'écran concerné. Vu une fois (par utilisateur),
@@ -1375,13 +1375,21 @@ const OB_ART = {
     <circle cx="44" cy="44" r="18" fill="none" stroke="#f5c542" stroke-width="3"/>
     <line x1="57" y1="57" x2="70" y2="70" stroke="#f5c542" stroke-width="4" stroke-linecap="round"/>
     <path d="M44 35l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" fill="#f5c542"/>`,
-  // 3bis) Menu PLUS : les trois points, avec une flèche qui pointe dessus
+  // 3bis) Menu PLUS : le bouton ⋮ qui déroule un panneau (Bonus, Pénalités…)
   menu:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
-    <rect x="22" y="22" width="52" height="20" rx="6" fill="#132339" stroke="#1d3a6b" stroke-width="2"/>
-    <text x="34" y="35" font-size="8" fill="#9fb0cc" font-family="sans-serif">Plus</text>
-    <g fill="#f5c542"><circle cx="56" cy="32" r="2.6"/><circle cx="63" cy="32" r="2.6"/><circle cx="70" cy="32" r="2.6"/></g>
-    <path d="M63 72V50" stroke="#f5c542" stroke-width="3" fill="none" stroke-linecap="round"/>
-    <path d="M56 56l7-7 7 7" stroke="#f5c542" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`,
+    <!-- Bouton « Plus ⋮ » -->
+    <rect x="24" y="18" width="48" height="15" rx="5" fill="#132339" stroke="#f5c542" stroke-width="2"/>
+    <text x="34" y="28.5" font-size="7.5" fill="#f5c542" font-family="sans-serif" font-weight="700">Plus</text>
+    <g fill="#f5c542"><circle cx="56" cy="25.5" r="1.9"/><circle cx="62" cy="25.5" r="1.9"/><circle cx="68" cy="25.5" r="1.9"/></g>
+    <!-- Panneau déroulé -->
+    <rect x="30" y="38" width="44" height="42" rx="5" fill="#0e1b33" stroke="#1d3a6b" stroke-width="1.5"/>
+    <g fill="#9fb0cc">
+      <rect x="35" y="44" width="30" height="4" rx="2"/>
+      <rect x="35" y="53" width="26" height="4" rx="2"/>
+      <rect x="35" y="62" width="32" height="4" rx="2"/>
+      <rect x="35" y="71" width="24" height="4" rx="2"/>
+    </g>
+    <circle cx="70" cy="46" r="1.8" fill="#f5c542"/>`,
   // 4) Classement : podium 1-2-3 avec flèches monter (vert) / descendre (rouge)
   rank:`<circle cx="48" cy="48" r="44" fill="rgba(245,197,66,.08)"/>
     <rect x="38" y="40" width="20" height="34" rx="2" fill="#f5c542"/>
@@ -1439,7 +1447,12 @@ const OB_STEPS = [
     title:'Les bonus de budget',
     body:'Tu gagnes des <b>bonus de budget</b> en jouant malin : journée complète (attaquant + milieu + défenseur le même jour), coup de poker (joueur remporté sans concurrence), dénicheur, quiz… À réclamer depuis l\'accueil.',
     tip:'Les bonus créditent ton <b>budget</b> (pouvoir d\'achat), pas ton classement. Ils te donnent les moyens de frapper un gros coup au bon moment.',
-    cta:'C\'est parti !', view:'bonus' }
+    cta:'Voir les bonus', view:'bonus', link:'Voir les bonus' },
+  { num:'Étape 7 · Menu Plus', art:'menu',
+    title:'Tout est dans le menu ⋮',
+    body:'Les <b>trois points « Plus ⋮ »</b> (en haut à droite) ouvrent tout le reste du jeu : <b>Bonus</b>, <b>Pénalités</b>, <b>Classement</b>, <b>Chat</b>, <b>Actu</b> et le <b>Règlement</b>. C\'est ton menu à tiroirs : rien n\'est perdu, tout est rangé là.',
+    tip:'Sur téléphone, le menu ⋮ regroupe les onglets secondaires pour garder la barre du bas légère. Un seul appui et tu accèdes à tout.',
+    cta:'C\'est parti !', view:'home' }
 ];
 let OB_I = 0;
 function obKey(){ return 'us_onboard_done_' + (ME && ME.id ? ME.id : 'anon'); }
