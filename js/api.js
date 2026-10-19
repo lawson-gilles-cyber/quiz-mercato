@@ -155,6 +155,15 @@ export async function recentTransfers(limit = 30) {
     .limit(limit);
   return data ?? [];
 }
+export async function myTransfers(teamId) {
+  // Mes transferts : achats (to_manager = moi) et ventes/échanges (from = moi).
+  if (!teamId) return [];
+  const { data } = await sb.from('qm_transfers')
+    .select('*, player:qm_players(name, club, position), from:qm_managers!qm_transfers_from_manager_fkey(display_name), to:qm_managers!qm_transfers_to_manager_fkey(display_name)')
+    .or(`to_manager.eq.${teamId},from_manager.eq.${teamId}`)
+    .order('created_at', { ascending: false });
+  return data ?? [];
+}
 export async function myNotifications() {
   const { data } = await sb.rpc('qm_my_notifications');
   return data ?? [];

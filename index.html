@@ -328,6 +328,30 @@
   .dc-item.done .dc-go{display:none}
   .dc-allok{text-align:center;padding:8px 0 2px;color:#4ade80;font-size:.88rem;font-weight:700}
 
+  /* Relevé personnel (ledger) */
+  .ledger{border:1px solid var(--line);border-radius:12px;background:var(--pitch-2);margin-bottom:18px;overflow:hidden}
+  .ledger-sum{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1rem}
+  .ledger-sum::-webkit-details-marker{display:none}
+  .ledger-sum::after{content:'▾';color:var(--muted);transition:transform .2s}
+  .ledger[open] .ledger-sum::after{transform:rotate(180deg)}
+  .ledger-hint{font-family:'Space Mono',monospace;font-size:.76rem;color:var(--muted);text-transform:none;letter-spacing:0;font-weight:400}
+  .ledger-sum > span:first-child{display:flex;align-items:center;gap:8px}
+  #ledgerBody{padding:0 18px 16px}
+  .lg-sumbar{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 14px}
+  .lg-stat{text-align:center;padding:10px 6px;border-radius:10px;background:var(--pitch);border:1px solid var(--line)}
+  .lg-stat .v{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.1rem;line-height:1}
+  .lg-stat .l{font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:4px}
+  .lg-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:.86rem}
+  .lg-row:first-child{border-top:none}
+  .lg-ic{flex:0 0 auto;width:26px;text-align:center;font-size:1rem}
+  .lg-desc{flex:1;min-width:0;color:var(--chalk)}
+  .lg-desc .lg-date{display:block;font-size:.72rem;color:var(--muted);margin-top:1px}
+  .lg-amt{flex:0 0 auto;font-family:'Space Mono',monospace;font-weight:700;white-space:nowrap}
+  .lg-amt.pos{color:#4ade80}
+  .lg-amt.neg{color:var(--live,#e0574a)}
+  .lg-empty{padding:14px 0;color:var(--muted);font-size:.86rem;text-align:center}
+
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
   h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
@@ -919,6 +943,11 @@
     <div id="dashAlerts" style="margin-bottom:18px"></div>
     <!-- Bilan de mon effectif : complétude, postes, championnats -->
     <div id="squadReport" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px"></div>
+    <!-- Relevé personnel : achats, ventes, bonus, taxes… -->
+    <details id="myLedger" class="ledger" style="display:none">
+      <summary class="ledger-sum"><span>📒 Mon relevé de transactions</span><span class="ledger-hint" id="ledgerHint"></span></summary>
+      <div id="ledgerBody"></div>
+    </details>
     <!-- Identité d'équipe (nom + couleurs), Manager seulement -->
     <div id="teamIdentityBox" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:18px">
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
@@ -2819,6 +2848,83 @@ async function renderPenalty(){
 }
 
 // ---------- Mon équipe ----------
+// Relevé personnel : fusionne achats/ventes (transferts), bonus et libérations
+// en un journal chronologique daté, avec montants signés (+ crédité / − débité).
+let LEDGER_DONE = false;
+async function renderMyLedger(){
+  const box = $('myLedger'); if(!box || !ME) return;
+  // Chargé une seule fois par session (évite de re-tirer à chaque rendu équipe).
+  if(LEDGER_DONE) return;
+  LEDGER_DONE = true;
+  const body = $('ledgerBody');
+  body.innerHTML = '<div class="lg-empty">Chargement…</div>';
+  box.style.display = 'block';
+
+  let teamId=null, transfers=[], bonuses=[], releases=[];
+  try { teamId = await api.myTeamId(); } catch(e){}
+  try {
+    [transfers, bonuses, releases] = await Promise.all([
+      api.myTransfers(teamId).catch(()=>[]),
+      api.myBonuses().catch(()=>[]),
+      api.myReleases().catch(()=>[])
+    ]);
+  } catch(e){ /* best-effort */ }
+
+  const rows = [];
+  // Transferts : achat (to = moi, débit) / vente-échange (from = moi, crédit)
+  (transfers||[]).forEach(t=>{
+    const pname = t.player?.name || 'Joueur';
+    const price = Number(t.price)||0;
+    if(t.to_manager === teamId){
+      const via = t.from_manager ? `échange avec ${t.from?.display_name||'un manager'}` : 'achat aux enchères';
+      rows.push({ d:t.created_at, ic:'📥', amt:-price, desc:`Recrutement — <b>${pname}</b> <span style="color:var(--muted)">(${via})</span>` });
+    } else if(t.from_manager === teamId){
+      const via = t.to_manager ? `cédé à ${t.to?.display_name||'un manager'}` : 'revente';
+      rows.push({ d:t.created_at, ic:'📤', amt:+price, desc:`Départ — <b>${pname}</b> <span style="color:var(--muted)">(${via})</span>` });
+    }
+  });
+  // Libérations : remboursement (crédit) — on note la pénalité perdue en détail
+  (releases||[]).forEach(r=>{
+    rows.push({ d:r.created_at, ic:'🔓', amt:+Number(r.refund||0),
+      desc:`Libération — <b>${r.player_name}</b> <span style="color:var(--muted)">(pénalité ${r.penalty_pct}% : −${fmtMoney(r.penalty)})</span>` });
+  });
+  // Bonus : crédits (dénicheur, journée complète, quiz…)
+  (bonuses||[]).forEach(b=>{
+    rows.push({ d:b.created_at, ic:'🎁', amt:+Number(b.amount||0),
+      desc:`Bonus — <span>${b.detail||b.bonus_type}</span>` });
+  });
+
+  if(!rows.length){
+    body.innerHTML = '<div class="lg-empty">Aucune transaction pour l\'instant. Tes achats, bonus et libérations apparaîtront ici.</div>';
+    $('ledgerHint').textContent = '';
+    return;
+  }
+  rows.sort((a,b)=> new Date(b.d)-new Date(a.d));
+
+  const credit = rows.filter(r=>r.amt>0).reduce((s,r)=>s+r.amt,0);
+  const debit  = rows.filter(r=>r.amt<0).reduce((s,r)=>s+r.amt,0);
+  const net = credit + debit;
+  $('ledgerHint').textContent = `${rows.length} opération${rows.length>1?'s':''}`;
+
+  body.innerHTML =
+    `<div class="lg-sumbar">
+       <div class="lg-stat"><div class="v" style="color:var(--live,#e0574a)">${fmtMoney(debit)}</div><div class="l">Dépensé</div></div>
+       <div class="lg-stat"><div class="v" style="color:#4ade80">+${fmtMoney(credit)}</div><div class="l">Encaissé</div></div>
+       <div class="lg-stat"><div class="v" style="color:${net>=0?'#4ade80':'var(--live,#e0574a)'}">${net>=0?'+':''}${fmtMoney(net)}</div><div class="l">Solde net</div></div>
+     </div>`+
+    rows.map(r=>{
+      const dt = new Date(r.d).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})
+               + ' · ' + new Date(r.d).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      const sign = r.amt>0?'pos':'neg';
+      const amt = (r.amt>0?'+':'−')+fmtMoney(Math.abs(r.amt));
+      return `<div class="lg-row">
+        <span class="lg-ic">${r.ic}</span>
+        <span class="lg-desc">${r.desc}<span class="lg-date">${dt}</span></span>
+        <span class="lg-amt ${sign}">${amt}</span>
+      </div>`;
+    }).join('');
+}
+
 // Bilan de l'effectif : complétude (x/21), répartition par poste, et nombre
 // de joueurs par championnat (avec alerte à l'approche de la règle des 6).
 const SQUAD_TARGET = 21, CHAMP_MAX = 6;
@@ -2909,6 +3015,8 @@ async function renderTeam(){
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
   // Bilan de l'effectif (complétude, postes, championnats)
   renderSquadReport(mine);
+  // Relevé personnel (achats, ventes, bonus, taxes…)
+  renderMyLedger();
   // Vue terrain
   $('teamPitch').innerHTML = buildPitch(mine);
   // Mon activité récente (B)
@@ -4157,6 +4265,8 @@ function startRealtime(){
       if(CURRENT_VIEW==='auctions') renderAuctions();
       if(CURRENT_VIEW==='home') renderHome();
       if(CURRENT_VIEW==='feed' && kind==='transfer') renderFeed();
+      // Un transfert modifie mon relevé : on le recharge au prochain affichage.
+      if(kind==='transfer'){ LEDGER_DONE=false; if(CURRENT_VIEW==='team') renderMyLedger(); }
       // La cloche se recharge toujours (surenchère, enchère gagnée…)
       if(ME && typeof loadNotifications==='function') loadNotifications();
       // Petit signal discret si on n'est pas déjà sur les enchères
