@@ -109,6 +109,14 @@
     color:var(--transfer,#f5c542);text-decoration:underline;opacity:.9}
   .ob-link:hover{opacity:1}
 
+  /* Pastilles de statut joueur (recherche « déjà pris ? ») */
+  .status.s-free,.status.s-locked,.status.s-owned{display:inline-block;padding:2px 9px;border-radius:20px;
+    font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;
+    font-weight:700;white-space:nowrap}
+  .status.s-free{background:rgba(79,161,255,.15);color:#7ab8ff;border:1px solid rgba(79,161,255,.4)}
+  .status.s-locked{background:rgba(245,197,66,.15);color:#f5c542;border:1px solid rgba(245,197,66,.4)}
+  .status.s-owned{background:rgba(255,120,120,.14);color:#ff9a9a;border:1px solid rgba(255,120,120,.38)}
+
   /* ---------- Header ---------- */
   header{
     display:flex;align-items:center;gap:18px;
@@ -650,6 +658,15 @@
   <section class="view" id="market">
     <div class="eyebrow">Marché · dénicher & échanger</div>
     <h1>Le <em>marché</em></h1>
+
+    <!-- Vérifier si un joueur est déjà dans le jeu (avant de le dénicher) -->
+    <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">🔎 Ce joueur est-il déjà pris ?</div>
+      <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Tape un nom avant de le dénicher : tu verras s'il est déjà <b>libre</b>, <b>en enchère</b> ou <b>déjà dans une équipe</b>.</p>
+      <input id="chkSearch" type="text" placeholder="Nom du joueur (ex. Mbappé)…" style="width:100%;padding:9px;margin-bottom:10px">
+      <div id="chkResult"></div>
+    </div>
+
     <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
       <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">Comparateur de joueurs</div>
       <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Choisis jusqu'à 3 joueurs pour comparer leur note, valeur et salaire avant d'enchérir.</p>
@@ -1721,7 +1738,47 @@ async function setupDirectRecruit(){
   };
 }
 
+// Recherche « ce joueur est-il déjà pris ? » — sur le cache PLAYERS (instantané).
+// Visible par tous. On montre le STATUT (libre / en enchère / détenu) sans
+// révéler le propriétaire (info stratégique réservée à l'admin).
+let _chkWired = false;
+function setupPlayerCheck(){
+  const inp = $('chkSearch'), out = $('chkResult');
+  if(!inp || !out) return;
+  const render = ()=>{
+    const q = (inp.value||'').trim().toLowerCase();
+    if(q.length < 2){ out.innerHTML = '<div class="hint" style="font-size:.82rem;color:var(--muted)">Tape au moins 2 lettres…</div>'; return; }
+    const hits = (PLAYERS||[]).filter(p=>{
+      const full = ((p.first_name||'')+' '+(p.name||'')).toLowerCase();
+      return full.includes(q) || (p.name||'').toLowerCase().includes(q);
+    }).slice(0, 12);
+    if(!hits.length){
+      out.innerHTML = `<div style="padding:10px 12px;border-radius:8px;background:rgba(79,161,255,.1);border:1px solid #1d3a6b;font-size:.86rem">✅ Aucun joueur de ce nom dans le jeu — tu peux le <b>dénicher</b>.</div>`;
+      return;
+    }
+    const chip = (st)=>{
+      if(st==='free')   return '<span class="status s-free" style="font-size:.7rem">Libre</span>';
+      if(st==='locked') return '<span class="status s-locked" style="font-size:.7rem">En enchère</span>';
+      if(st==='owned')  return '<span class="status s-owned" style="font-size:.7rem">Déjà dans une équipe</span>';
+      return '<span class="status" style="font-size:.7rem">'+st+'</span>';
+    };
+    out.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">${hits.map(p=>{
+      const full = ((p.first_name||'').trim()? p.first_name.trim()+' ' : '')+(p.name||'');
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:var(--pitch);border:1px solid var(--line)">
+        <span style="font-size:.88rem"><b>${full}</b> <span style="color:var(--muted);font-size:.78rem">${p.club||'—'}${p.championship?' · '+p.championship:''}</span></span>
+        ${chip(p.status)}
+      </div>`;
+    }).join('')}</div>`;
+  };
+  // Débounce léger
+  if(!_chkWired){
+    let t; inp.addEventListener('input', ()=>{ clearTimeout(t); t=setTimeout(render, 160); });
+    _chkWired = true;
+  }
+  render();
+}
 async function renderMarket(){
+  setupPlayerCheck();            // « ce joueur est-il déjà pris ? » (tous)
   if(!ME){
     $('tradeGate').style.display='block'; $('tradeUI').style.display='none';
     setupComparator(); setupDirectRecruit(); return;

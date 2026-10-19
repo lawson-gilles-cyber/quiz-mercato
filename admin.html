@@ -532,8 +532,18 @@
     <div id="demandPreview" style="margin-top:12px"></div>
   </div>
   <div class="card">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">
+      <input id="playerSearch" type="text" placeholder="🔎 Rechercher un joueur (nom, club)…" style="flex:1;min-width:200px;padding:8px 10px">
+      <select id="playerStatusFilter" style="padding:8px 10px">
+        <option value="">Tous les statuts</option>
+        <option value="free">Libres</option>
+        <option value="locked">En enchère</option>
+        <option value="owned">Déjà achetés</option>
+      </select>
+      <span id="playerFilterCount" class="hint" style="font-size:.8rem"></span>
+    </div>
     <table>
-      <thead><tr><th>Nom</th><th>Poste</th><th>Club</th><th>Valeur</th><th>Statut</th><th></th></tr></thead>
+      <thead><tr><th>Nom</th><th>Poste</th><th>Club</th><th>Valeur</th><th>Statut</th><th>Détenu par</th><th></th></tr></thead>
       <tbody id="playerRows"></tbody>
     </table>
   </div>
@@ -1085,9 +1095,28 @@ if($('photoSave')) $('photoSave').onclick = async ()=>{
   setTimeout(()=>{ $('photoModal').style.display='none'; loadPlayers(); }, 700);
 };
 
+let ADMIN_PLAYERS = [];   // cache de la base joueurs (pour recherche/filtre)
+const STATUS_FR = { free:'Libre', locked:'En enchère', owned:'Déjà acheté' };
+
 async function loadPlayers(){
-  const players = await api.listPlayers();
-  $('playerCount').textContent = players.length;
+  ADMIN_PLAYERS = await api.listPlayers();
+  $('playerCount').textContent = ADMIN_PLAYERS.length;
+  renderPlayerRows();
+}
+
+// Applique la recherche + le filtre de statut, puis rend le tableau.
+function renderPlayerRows(){
+  const q = ($('playerSearch')?.value||'').trim().toLowerCase();
+  const st = $('playerStatusFilter')?.value || '';
+  let players = ADMIN_PLAYERS;
+  if(q)  players = players.filter(p=>((p.name||'')+' '+(p.club||'')).toLowerCase().includes(q));
+  if(st) players = players.filter(p=>p.status===st);
+
+  if($('playerFilterCount')){
+    $('playerFilterCount').textContent = (q||st)
+      ? `${players.length} / ${ADMIN_PLAYERS.length} affiché(s)` : '';
+  }
+
   $('playerRows').innerHTML = players.map(p=>`
     <tr>
       <td>${p.nationality?p.nationality+' ':''}${p.name}</td>
@@ -1096,7 +1125,8 @@ async function loadPlayers(){
       <td>${p.status==='free'
         ? `<input class="val-edit" type="number" step="1000000" value="${p.current_value}" data-val="${p.id}" title="Valeur en euros"> <a class="tm-mini" href="https://www.transfermarkt.com/schnellsuche/ergebnis/schnellsuche?query=${encodeURIComponent(p.name)}" target="_blank" rel="noopener noreferrer" title="Chercher sur Transfermarkt">TM↗</a>`
         : `<span class="val">${fmtM(p.current_value)}</span>`}</td>
-      <td><span class="status s-${p.status}">${p.status}</span></td>
+      <td><span class="status s-${p.status}">${STATUS_FR[p.status]||p.status}</span></td>
+      <td style="font-size:.84rem;color:var(--muted)">${p.status==='owned' ? (p.owner_name||p.owner?.display_name||'—') : '—'}</td>
       <td><div class="actions">
         <button class="btn-ghost btn-sm" data-photo="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" data-purl="${p.photo_url||''}" title="Photo du joueur">${p.photo_url?'🖼️':'📷'}</button>
         <button class="btn-ghost btn-sm" data-attr="${p.id}">Note / Critères</button>
@@ -1105,7 +1135,7 @@ async function loadPlayers(){
              <button class="btn-danger" data-del="${p.id}">Suppr.</button>`
           : `<span class="hint">verrouillé</span>`}
       </div></td>
-    </tr>`).join('') || `<tr><td colspan="6" class="hint" style="text-align:center;padding:30px">Aucun joueur. Ajoute-en un ci-dessus.</td></tr>`;
+    </tr>`).join('') || `<tr><td colspan="7" class="hint" style="text-align:center;padding:30px">${(q||st)?'Aucun joueur ne correspond à la recherche.':'Aucun joueur. Ajoute-en un ci-dessus.'}</td></tr>`;
 
   // Option A : saisie rapide de la valeur (validée à la sortie du champ)
   $('playerRows').querySelectorAll('[data-val]').forEach(inp=>inp.onchange = async ()=>{
@@ -1139,7 +1169,7 @@ async function loadPlayers(){
   });
 
   $('playerRows').querySelectorAll('[data-attr]').forEach(b=>b.onclick = async ()=>{
-    const p = players.find(x=>x.id===b.dataset.attr);
+    const p = ADMIN_PLAYERS.find(x=>x.id===b.dataset.attr);
     // Charge les critères actuels
     const cur = await api.adminCriteria(p.id);
     const labels = [
@@ -1165,6 +1195,10 @@ async function loadPlayers(){
     loadPlayers();
   });
 }
+
+// Recherche + filtre de la base joueurs (ré-rendu instantané, sans recharger).
+if($('playerSearch')) $('playerSearch').addEventListener('input', ()=>renderPlayerRows());
+if($('playerStatusFilter')) $('playerStatusFilter').addEventListener('change', ()=>renderPlayerRows());
 
 // ---------- Propositions de joueurs (dénichage) ----------
 async function loadTransactions(){
