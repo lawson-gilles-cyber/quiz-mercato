@@ -2709,6 +2709,88 @@ function sparkline(points, w=460, h=120){
     <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="${col}"/>
   </svg>`;
 }
+// ---------- Partage d'un coup de mercato (image générée) ----------
+// Dessine une image story 1080×1350 aux couleurs de l'équipe, puis la partage
+// (navigator.share avec fichier si dispo) ou la télécharge.
+function drawShareCard(ctx, opts){
+  const W=1080, H=1350;
+  const col = (MY_TEAM_COLORS && MY_TEAM_COLORS.primary) ? MY_TEAM_COLORS.primary : '#0f1d38';
+  const col2 = (MY_TEAM_COLORS && MY_TEAM_COLORS.secondary) ? MY_TEAM_COLORS.secondary : '#f5c542';
+  // Fond : dégradé aux couleurs de l'équipe
+  const g = ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0, col); g.addColorStop(1, '#0a1428');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  // Halo accent
+  const rg = ctx.createRadialGradient(W/2,420,60, W/2,420,620);
+  rg.addColorStop(0, hexA(col2,.22)); rg.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  // Bandeau marque
+  ctx.fillStyle=col2; ctx.font='bold 46px Arial'; ctx.textAlign='left';
+  ctx.fillText('ULTIMATE SQUAD', 70, 110);
+  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='28px Arial';
+  ctx.fillText('MERCATO', 70, 150);
+  // Badge type de coup
+  ctx.textAlign='center';
+  ctx.fillStyle=col2; ctx.font='bold 40px Arial';
+  ctx.fillText(opts.badge||'🔥 NOUVELLE RECRUE', W/2, 430);
+  // Nom du joueur (grand)
+  ctx.fillStyle='#ffffff'; ctx.font='bold 96px Arial';
+  wrapText(ctx, opts.playerName||'Joueur', W/2, 560, W-140, 104);
+  // Prix
+  if(opts.price){
+    ctx.fillStyle=col2; ctx.font='bold 120px Arial';
+    ctx.fillText(opts.price, W/2, 820);
+    ctx.fillStyle='rgba(255,255,255,.65)'; ctx.font='34px Arial';
+    ctx.fillText(opts.priceLabel||'prix du transfert', W/2, 875);
+  }
+  // Ligne équipe
+  ctx.fillStyle='#ffffff'; ctx.font='bold 48px Arial';
+  wrapText(ctx, (opts.teamName||'Mon équipe'), W/2, 1130, W-140, 56);
+  ctx.fillStyle='rgba(255,255,255,.6)'; ctx.font='30px Arial';
+  ctx.fillText('a frappé fort sur le mercato', W/2, 1185);
+  // Pied
+  ctx.fillStyle='rgba(255,255,255,.45)'; ctx.font='26px Arial';
+  ctx.fillText('quiz-mercato.pages.dev', W/2, 1290);
+}
+// Petits utilitaires canvas
+function hexA(hex, a){
+  const h=(hex||'#f5c542').replace('#',''); const n=h.length===3?h.split('').map(c=>c+c).join(''):h;
+  const r=parseInt(n.slice(0,2),16), g=parseInt(n.slice(2,4),16), b=parseInt(n.slice(4,6),16);
+  return `rgba(${r},${g},${b},${a})`;
+}
+function wrapText(ctx, text, x, y, maxW, lh){
+  const words=String(text).split(' '); let line='', yy=y;
+  for(const w of words){
+    const test=line?line+' '+w:w;
+    if(ctx.measureText(test).width>maxW && line){ ctx.fillText(line, x, yy); line=w; yy+=lh; }
+    else line=test;
+  }
+  ctx.fillText(line, x, yy);
+}
+async function shareRecruit(opts){
+  const cv = document.createElement('canvas');
+  cv.width=1080; cv.height=1350;
+  const ctx = cv.getContext('2d');
+  drawShareCard(ctx, opts);
+  const fileName = 'ultimate-squad-'+(opts.playerName||'coup').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';
+  const blob = await new Promise(res=> cv.toBlob(res, 'image/png'));
+  if(!blob){ toast('Impossible de générer l\'image.','err'); return; }
+  const file = new File([blob], fileName, { type:'image/png' });
+  // 1) Partage natif avec fichier (mobile surtout)
+  if(navigator.canShare && navigator.canShare({ files:[file] })){
+    try {
+      await navigator.share({ files:[file], title:'Ultimate Squad',
+        text:`${opts.teamName||'Mon équipe'} : ${opts.shareText||opts.playerName}` });
+      return;
+    } catch(e){ if(e && e.name==='AbortError') return; /* sinon on retombe sur le téléchargement */ }
+  }
+  // 2) Repli : téléchargement du PNG
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=fileName; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  toast('Image enregistrée — prête à partager !','ok',3000);
+}
+
 // Couleur d'une note Sofascore (≈3–10) : rouge → orange → vert.
 function ratingColor(r){
   if(r==null) return 'var(--muted)';
@@ -2782,8 +2864,22 @@ async function showPlayerCard(playerId){
     <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la cote</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(hist)}</div>
     <div style="text-align:center;margin-top:6px">${deltaTxt}</div>
-    <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
+    <div class="ux-actions">
+      ${(ME && p.owner_id===ME.id) ? `<button class="ux-ok" data-share style="background:var(--transfer);color:var(--pitch);border:none">📲 Partager ce coup</button>` : ''}
+      <button class="ux-cancel" data-no>Fermer</button>
+    </div>`;
   md.querySelector('[data-no]').onclick = close;
+  const shareBtn = md.querySelector('[data-share]');
+  if(shareBtn) shareBtn.onclick = ()=>{
+    shareRecruit({
+      badge:'🔥 DANS MON EFFECTIF',
+      playerName: name,
+      price: p.current_value!=null ? fmtMoney(p.current_value) : '',
+      priceLabel:'valeur actuelle',
+      teamName: MY_TEAM_NAME || (ME && ME.display_name) || 'Mon équipe',
+      shareText: `J'ai ${name} dans mon effectif sur Ultimate Squad 🔥`
+    });
+  };
 }
 // Délégation : clic sur un nom de joueur (carte d'enchère) ouvre sa fiche
 document.addEventListener('click', e=>{
@@ -3160,11 +3256,13 @@ async function renderTeam(){
 
 // Couleurs de l'équipe du manager courant (maillot uniforme Manager+Coach)
 let MY_TEAM_COLORS = null;  // {primary, secondary} ou null
+let MY_TEAM_NAME = null;    // nom d'équipe (pour l'image de partage)
 async function loadTeamIdentity(){
   if(!ME) return;
   const id = await api.teamIdentity();
   if(!id) return;
   MY_TEAM_COLORS = { primary: id.color_primary, secondary: id.color_secondary };
+  MY_TEAM_NAME = id.team_name || ME.display_name;
   // L'éditeur n'est visible que pour le Manager (pas le Coach)
   const amCoach = ME.is_coach && ME.coach_of;
   const box = $('teamIdentityBox');
