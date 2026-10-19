@@ -614,6 +614,14 @@
   /* Le bouton "Offre…" (secondaire) quand l'enchère rapide est présente */
   .bid-btn.secondary{background:transparent;color:var(--transfer);border:1px solid var(--transfer)}
   .bid-btn.secondary:hover{background:var(--transfer);color:var(--pitch)}
+  /* Simulateur de budget dans la fenêtre d'enchère */
+  .bid-sim{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--pitch)}
+  .bid-sim:empty{display:none}
+  .bid-sim .sim-head{font-size:.78rem;color:var(--muted);margin-bottom:6px}
+  .bid-sim .sim-row{display:flex;justify-content:space-between;gap:10px;font-size:.86rem;padding:2px 0;color:var(--chalk)}
+  .bid-sim .sim-row span:last-child{font-family:'Space Mono',monospace;font-weight:700}
+  .bid-sim .sim-row .ko{color:var(--live,#e0574a)}
+  .bid-sim .sim-warn{margin-top:6px;font-size:.78rem;color:#ff9a8f}
   /* Les boutons d'enchère placés dans une barre flex ne doivent pas garder la marge pleine largeur */
   .acard .info > div[style*="flex"] > .bid-btn{margin-top:0}
   .watch-star{background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;color:var(--muted);padding:0 2px;transition:.15s}
@@ -2572,6 +2580,7 @@ async function startBid(playerId){
       <button data-add="${step*2}">+${fmtMoney(step*2)}</button>
       ${cap?`<button data-set="${cap}">Plafond</button>`:''}
     </div>`}
+    <div id="bidSim" class="bid-sim"></div>
     <div style="text-align:center;margin-top:8px"><a href="#" data-journal-link style="color:var(--transfer);font-size:.8rem;text-decoration:none">📜 Voir le journal des offres</a></div>
     ${cap?`<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--line)">
       <div style="font-size:.82rem;font-weight:700;margin-bottom:6px">🤖 Enchère automatique</div>
@@ -2586,6 +2595,41 @@ async function startBid(playerId){
   const inp = md.querySelector('#uxBid');
   const jl = md.querySelector('[data-journal-link]');
   if(jl) jl.onclick = (e)=>{ e.preventDefault(); showAuctionJournal(auc.id); };
+
+  // Simulateur « puis-je me le payer ? » : impact budget + masse salariale.
+  (async ()=>{
+    const simBox = md.querySelector('#bidSim'); if(!simBox) return;
+    let dash = null;
+    try { dash = await api.myDashboard(); } catch(e){}
+    if(!dash){ simBox.style.display='none'; return; }
+    const budgetDispo = Number(dash.budget_available||0);
+    const salUsed = Number(dash.salary_used||0);
+    const salCap  = Number(dash.salary_cap||0);
+    const renderSim = ()=>{
+      const amount = parseInt(inp.value,10);
+      if(isNaN(amount) || amount<=0){ simBox.innerHTML=''; return; }
+      // Budget restant après l'achat (offre + taxe d'entrée éventuelle).
+      const afterBudget = budgetDispo - amount - (entryTax||0);
+      // Masse salariale après : salaire du joueur estimé d'après le prix payé.
+      const addSalary = playerSalary(amount);
+      const afterSal = salUsed + addSalary;
+      const salPct = salCap>0 ? Math.round(afterSal/salCap*100) : 0;
+      const budgetKo = afterBudget < 0;
+      const salKo = salCap>0 && afterSal > salCap;
+      const line = (label, val, ko)=>`<div class="sim-row"><span>${label}</span><span class="${ko?'ko':''}">${val}</span></div>`;
+      let warn = '';
+      if(budgetKo) warn += `<div class="sim-warn">⚠️ Budget insuffisant : il te manque <b>${fmtMoney(-afterBudget)}</b>.</div>`;
+      if(salKo)    warn += `<div class="sim-warn">⚠️ Masse salariale dépassée (${salPct}% du plafond).</div>`;
+      simBox.innerHTML =
+        `<div class="sim-head">🧮 Si tu mises ${fmtMoney(amount)}${entryTax>0?` (+ ${fmtMoney(entryTax)} de taxe)`:''}</div>`+
+        line('Budget restant', fmtMoney(afterBudget), budgetKo)+
+        (salCap>0 ? line('Masse salariale', `${fmtMoney(afterSal)} / ${fmtMoney(salCap)} (${salPct}%)`, salKo) : '')+
+        warn;
+    };
+    inp.addEventListener('input', renderSim);
+    md.querySelectorAll('[data-add],[data-set]').forEach(b=>b.addEventListener('click', ()=>setTimeout(renderSim,0)));
+    renderSim();
+  })();
   // Bloc enchère auto (proxy bid)
   if(cap) renderAutoBidBox(md, auc, next, cap);
   const close = ()=>ov.classList.remove('show');
