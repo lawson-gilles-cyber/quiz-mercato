@@ -328,6 +328,32 @@
   .cal-rel.soon{color:var(--transfer)}
   .cal-rel.later{color:var(--muted)}
 
+  /* Succès / trophées */
+  .ach-summary{display:flex;align-items:center;gap:14px;background:var(--pitch-2);border:1px solid var(--line);
+    border-radius:14px;padding:16px 18px;margin-bottom:20px}
+  .ach-ring{flex:0 0 auto;position:relative;width:72px;height:72px}
+  .ach-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+  .ach-ring .r-t{fill:none;stroke:var(--line);stroke-width:7}
+  .ach-ring .r-p{fill:none;stroke:var(--transfer);stroke-width:7;stroke-linecap:round;transition:stroke-dashoffset .5s}
+  .ach-ring .r-c{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.1rem}
+  .ach-sum-txt .big{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.1rem}
+  .ach-sum-txt .sub{font-size:.82rem;color:var(--muted);margin-top:2px}
+  .ach-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px}
+  .ach-card{border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--pitch-2);position:relative;overflow:hidden}
+  .ach-card.locked{opacity:.72}
+  .ach-card.done{border-color:var(--transfer-deep,#d4a017)}
+  .ach-card.done::after{content:'✓';position:absolute;top:10px;right:12px;color:#0a1428;background:#4ade80;
+    width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem}
+  .ach-ic{font-size:1.7rem;line-height:1;margin-bottom:8px;filter:grayscale(.1)}
+  .ach-card.locked .ach-ic{filter:grayscale(1) opacity(.6)}
+  .ach-name{font-weight:800;font-size:.92rem;color:var(--chalk);margin-bottom:3px}
+  .ach-desc{font-size:.78rem;color:var(--muted);line-height:1.4;margin-bottom:10px}
+  .ach-prog{height:7px;border-radius:5px;background:var(--pitch);border:1px solid var(--line);overflow:hidden}
+  .ach-prog i{display:block;height:100%;border-radius:5px;background:linear-gradient(90deg,#4ade80,var(--transfer))}
+  .ach-pnum{font-size:.72rem;color:var(--muted);margin-top:5px;font-family:'Space Mono',monospace}
+  .ach-grouptitle{font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-weight:800;font-size:.78rem;color:var(--muted);margin:20px 0 12px}
+
   /* Bilan de mon effectif (fiche manager) */
   .sr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-weight:800;font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -767,6 +793,7 @@
         <button data-v="feed">Actu</button>
         <button data-v="chat">💬 Chat</button>
         <button data-v="pronos">🎲 Pronos</button>
+        <button data-v="achievements">🏅 Succès</button>
         <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
         <button data-v="rules">Règlement</button>
@@ -1158,6 +1185,14 @@
   </section>
 
   <!-- PRONOSTICS -->
+  <!-- SUCCÈS / TROPHÉES -->
+  <section class="view" id="achievements">
+    <div class="eyebrow">Tes trophées personnels</div>
+    <h1>Mes <em>succès</em></h1>
+    <div id="achGate" style="display:none" class="empty">Connecte-toi pour voir tes succès.</div>
+    <div id="achBody"></div>
+  </section>
+
   <!-- CALENDRIER DU MERCATO -->
   <section class="view" id="calendar">
     <div class="eyebrow">Les échéances à venir</div>
@@ -1742,7 +1777,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','calendar','draft','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','calendar','draft','rules'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1760,7 +1795,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, draft:renderDraft};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, draft:renderDraft};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -4598,6 +4633,99 @@ async function loadChatMessages(keepScroll){
     loadChatMessages(true);
   });
   if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
+}
+
+// ---------- Succès / trophées ----------
+// Objectifs personnels à débloquer, avec progression. Calculés côté client à
+// partir des données du manager (transferts, bonus, effectif, propositions).
+// Distinct des badges compétitifs du classement (un seul gagnant).
+const ACHIEVEMENTS = [
+  { code:'first_recruit', ic:'⚽', name:'Premier pas', desc:'Recrute ton tout premier joueur.', target:1,
+    calc:c=>c.buys },
+  { code:'squad_11', ic:'👥', name:'Une équipe sur le terrain', desc:'Atteins 11 joueurs — de quoi aligner une compo complète.', target:11,
+    calc:c=>c.squad },
+  { code:'squad_full', ic:'✅', name:'Effectif au complet', desc:'Constitue ton effectif de 21 joueurs.', target:21,
+    calc:c=>c.squad },
+  { code:'scout_1', ic:'🔎', name:'Dénicheur', desc:'Fais valider une première proposition de joueur.', target:1,
+    calc:c=>c.proposalsOk },
+  { code:'scout_5', ic:'🕵️', name:'Dénicheur confirmé', desc:'Fais valider 5 propositions de joueurs.', target:5,
+    calc:c=>c.proposalsOk },
+  { code:'big_spender', ic:'💸', name:'Flambeur', desc:'Remporte une enchère à plus de 150 M€.', target:1,
+    calc:c=>c.over150 },
+  { code:'collector', ic:'🧲', name:'Collectionneur', desc:'Réalise 10 recrutements au total.', target:10,
+    calc:c=>c.buys },
+  { code:'bonus_hunter', ic:'💰', name:'Chasseur de bonus', desc:'Décroche 5 bonus de budget.', target:5,
+    calc:c=>c.bonusCount },
+  { code:'poker', ic:'🎲', name:'Coup de poker', desc:'Décroche un bonus « coup de poker ».', target:1,
+    calc:c=>c.pokerCount },
+  { code:'trader', ic:'🤝', name:'Négociateur', desc:'Conclus un échange avec un autre manager.', target:1,
+    calc:c=>c.trades },
+];
+async function renderAchievements(){
+  const gate=$('achGate'), body=$('achBody'); if(!body) return;
+  if(!ME){ if(gate) gate.style.display='block'; body.innerHTML=''; return; }
+  if(gate) gate.style.display='none';
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+
+  let teamId=null, transfers=[], bonuses=[], proposals=[], squad=0;
+  try { teamId = await api.myTeamId(); } catch(e){}
+  try {
+    const all = await api.listPlayers();
+    squad = all.filter(p=>p.owner_id===teamId && p.status==='owned').length;
+  } catch(e){}
+  try {
+    [transfers, bonuses, proposals] = await Promise.all([
+      api.myTransfers(teamId).catch(()=>[]),
+      api.myBonuses().catch(()=>[]),
+      api.myProposals().catch(()=>[])
+    ]);
+  } catch(e){}
+
+  // Contexte de calcul
+  const buys = (transfers||[]).filter(t=>t.to_manager===teamId).length;
+  const trades = (transfers||[]).filter(t=>t.to_manager===teamId && t.from_manager).length
+               + (transfers||[]).filter(t=>t.from_manager===teamId && t.to_manager).length;
+  const over150 = (transfers||[]).some(t=>t.to_manager===teamId && Number(t.price)>150e6) ? 1 : 0;
+  const bonusCount = (bonuses||[]).length;
+  const pokerCount = (bonuses||[]).filter(b=>b.bonus_type==='poker').length;
+  const proposalsOk = (proposals||[]).filter(p=>['approved','published'].includes(p.status)).length;
+  const ctx = { buys, trades:Math.min(trades,99), over150, bonusCount, pokerCount, proposalsOk, squad };
+
+  const items = ACHIEVEMENTS.map(a=>{
+    const cur = Math.max(0, a.calc(ctx)||0);
+    const done = cur >= a.target;
+    return { ...a, cur:Math.min(cur, a.target), done };
+  });
+  const unlocked = items.filter(i=>i.done).length;
+  const total = items.length;
+  const pct = Math.round(unlocked/total*100);
+  const R=30, CIRC=2*Math.PI*R, off=CIRC*(1-unlocked/total);
+
+  // Débloqués d'abord, puis en cours
+  const done = items.filter(i=>i.done);
+  const todo = items.filter(i=>!i.done).sort((a,b)=> (b.cur/b.target)-(a.cur/a.target));
+
+  const card = (a)=>`<div class="ach-card ${a.done?'done':'locked'}">
+      <div class="ach-ic">${a.ic}</div>
+      <div class="ach-name">${a.name}</div>
+      <div class="ach-desc">${a.desc}</div>
+      <div class="ach-prog"><i style="width:${Math.round(a.cur/a.target*100)}%"></i></div>
+      <div class="ach-pnum">${a.done?'Débloqué':`${a.cur} / ${a.target}`}</div>
+    </div>`;
+
+  body.innerHTML =
+    `<div class="ach-summary">
+      <div class="ach-ring"><svg viewBox="0 0 72 72">
+        <circle class="r-t" cx="36" cy="36" r="${R}"/>
+        <circle class="r-p" cx="36" cy="36" r="${R}" style="stroke-dasharray:${CIRC};stroke-dashoffset:${off}"/>
+      </svg><div class="r-c">${pct}%</div></div>
+      <div class="ach-sum-txt">
+        <div class="big">${unlocked} / ${total} succès débloqués</div>
+        <div class="sub">Continue à jouer pour tout débloquer — chaque action compte.</div>
+      </div>
+    </div>`+
+    (done.length ? `<div class="ach-grouptitle">🏆 Débloqués (${done.length})</div><div class="ach-grid">${done.map(card).join('')}</div>` : '')+
+    (todo.length ? `<div class="ach-grouptitle">🔒 À débloquer (${todo.length})</div><div class="ach-grid">${todo.map(card).join('')}</div>` : '');
 }
 
 // ---------- Calendrier du mercato ----------
