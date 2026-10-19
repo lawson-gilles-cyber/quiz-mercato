@@ -305,6 +305,29 @@
   .lineup-alert.warn .la-deadline{color:var(--transfer)}
   .lineup-alert.urgent .la-deadline{color:#ff9a8f}
 
+  /* Checklist du jour (accueil) */
+  .daily-check{margin-top:26px;border:1px solid var(--line);border-radius:14px;
+    background:var(--pitch-2);padding:16px 18px;animation:fade .3s ease}
+  .dc-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+  .dc-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-weight:800;font-size:1.05rem;display:flex;align-items:center;gap:8px}
+  .dc-progress{font-size:.78rem;color:var(--muted);font-family:'Space Mono',monospace}
+  .dc-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);cursor:pointer;
+    transition:background .15s;border-radius:8px}
+  .dc-item:first-of-type{border-top:none}
+  .dc-item:hover{background:rgba(255,255,255,.03)}
+  .dc-item.done{cursor:default}
+  .dc-box{flex:0 0 auto;width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-size:.8rem;font-weight:700}
+  .dc-item.done .dc-box{background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.4)}
+  .dc-item.todo .dc-box{background:var(--pitch);color:var(--muted);border:1px solid var(--line)}
+  .dc-label{flex:1;font-size:.9rem;color:var(--chalk)}
+  .dc-item.done .dc-label{color:var(--muted);text-decoration:line-through}
+  .dc-label b{color:#fff}
+  .dc-go{flex:0 0 auto;font-size:.76rem;color:var(--transfer);white-space:nowrap}
+  .dc-item.done .dc-go{display:none}
+  .dc-allok{text-align:center;padding:8px 0 2px;color:#4ade80;font-size:.88rem;font-weight:700}
+
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
   h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
@@ -725,6 +748,8 @@
       <div class="news"><div class="k">Joueur le plus convoité</div><div class="v" id="homeMostWanted"><b>—</b></div></div>
       <div class="news"><div class="k">Managers en lice</div><div class="v" id="homeManagers"><b>—</b></div></div>
     </div>
+    <!-- Checklist du jour (manager connecté) -->
+    <div id="dailyChecklist" class="daily-check" style="display:none"></div>
     <div id="challengesWrap" style="margin-top:26px;display:none">
       <div class="eyebrow" style="margin-bottom:12px">🎯 Défis de la semaine</div>
       <div id="challengesList"></div>
@@ -3554,6 +3579,90 @@ async function renderHome(){
     : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
   renderTicker(moves, auctions);
   renderChallenges();
+  renderDailyChecklist(auctions);
+}
+
+// ---------- Checklist du jour (accueil) ----------
+// Assemble en une to-do les rappels épars : compo, propositions du jour,
+// défis à réclamer, enchères à surveiller. Pousse à revenir chaque jour.
+async function renderDailyChecklist(auctions){
+  const box = $('dailyChecklist'); if(!box) return;
+  if(!ME){ box.style.display='none'; box.innerHTML=''; return; }
+
+  const items = [];
+
+  // 1) Compo : y a-t-il une journée ouverte avec compo incomplète ?
+  try {
+    const mds = await api.listMatchdays();
+    const open = mds.filter(m=>m.status==='open')
+      .sort((a,b)=> new Date(a.lineup_deadline||0)-new Date(b.lineup_deadline||0))[0];
+    if(open){
+      const lu = await api.myLineup(open.id).catch(()=>null);
+      const sel = (lu?.player_ids||[]).length;
+      items.push({ done: sel>=11, view:'lineup',
+        label: sel>=11 ? `Compo validée pour <b>${open.label||('Journée '+open.number)}</b>`
+                        : `Compléter ta compo (<b>${sel}/11</b>) — ${open.label||('Journée '+open.number)}`,
+        go: sel>=11 ? '' : 'Aligner →' });
+    }
+  } catch(e){ /* pas de journée : on saute */ }
+
+  // 2) Propositions du jour (dénichage)
+  try {
+    const rem = await api.proposalsReminder();
+    const done = Number(rem.remaining)<=0;
+    items.push({ done, view:'market',
+      label: done ? `Propositions du jour faites (<b>${rem.made}/${rem.target}</b>)`
+                  : `Faire tes propositions du jour — il en reste <b>${rem.remaining}</b>`,
+      go: done ? '' : 'Dénicher →' });
+  } catch(e){ /* quota indispo : on saute */ }
+
+  // 3) Défis prêts à réclamer
+  try {
+    const ch = await api.myChallenges();
+    const claimable = (ch||[]).filter(c=>c.done && !c.claimed).length;
+    if(claimable>0){
+      items.push({ done:false, view:'home', scrollTo:'challengesWrap',
+        label: `Réclamer <b>${claimable}</b> défi${claimable>1?'s':''} réussi${claimable>1?'s':''}`,
+        go:'Réclamer →' });
+    }
+  } catch(e){ /* pas de défis : on saute */ }
+
+  // 4) Enchères à surveiller (en cours, qui me concernent)
+  const watch = ME ? (AUC_WATCH || new Set()) : new Set();
+  const liveMine = (auctions||[]).filter(a=>{
+    const tb = a.top_bidder_id || a.top_bidder?.id;
+    return watch.has(a.id) || (tb && tb===ME.id);
+  }).length;
+  if(liveMine>0){
+    items.push({ done:false, view:'auctions',
+      label: `Surveiller <b>${liveMine}</b> enchère${liveMine>1?'s':''} en cours`,
+      go:'Voir →' });
+  }
+
+  if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+
+  const doneCount = items.filter(i=>i.done).length;
+  const allOk = doneCount===items.length;
+  box.innerHTML =
+    `<div class="dc-head">
+       <div class="dc-title">✅ Ta checklist du jour</div>
+       <div class="dc-progress">${doneCount}/${items.length}</div>
+     </div>`+
+    items.map((it,idx)=>`
+      <div class="dc-item ${it.done?'done':'todo'}" data-dcidx="${idx}">
+        <span class="dc-box">${it.done?'✓':''}</span>
+        <span class="dc-label">${it.label}</span>
+        <span class="dc-go">${it.go||''}</span>
+      </div>`).join('')+
+    (allOk ? `<div class="dc-allok">🎉 Tout est à jour pour aujourd'hui !</div>` : '');
+  box.style.display='block';
+
+  // Clic sur une tâche à faire → navigue vers le bon écran.
+  box.querySelectorAll('.dc-item.todo').forEach(el=>el.onclick=()=>{
+    const it = items[+el.dataset.dcidx]; if(!it) return;
+    if(it.view && it.view!==CURRENT_VIEW) goView(it.view);
+    if(it.scrollTo){ setTimeout(()=>{ const t=$(it.scrollTo); if(t) t.scrollIntoView({behavior:'smooth',block:'start'}); }, 150); }
+  });
 }
 
 // ---------- Bandeau défilant : actu du mercato en direct ----------
