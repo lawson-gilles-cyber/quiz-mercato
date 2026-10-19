@@ -289,6 +289,20 @@
   @keyframes cardpulse{0%{box-shadow:0 0 0 2px rgba(224,87,74,.7)}70%{box-shadow:0 0 0 6px rgba(224,87,74,0)}100%{box-shadow:0 0 0 2px rgba(224,87,74,0)}}
   @media (prefers-reduced-motion: reduce){ .last-minute .lm-dot,.acard.urgent{animation:none} }
 
+  /* Fil speaker (commentaire live du marché) */
+  .speaker{margin:0 0 18px;border-radius:12px;border:1px solid var(--line);background:var(--pitch-2);overflow:hidden}
+  .speaker .sp-head{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line);
+    font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.8rem;color:var(--chalk)}
+  .speaker .sp-dot{width:9px;height:9px;border-radius:50%;background:#e0574a;box-shadow:0 0 0 0 rgba(224,87,74,.7);animation:lpulse 1.3s infinite}
+  .speaker .sp-line{display:flex;align-items:flex-start;gap:9px;padding:9px 14px;font-size:.88rem;color:var(--chalk);
+    border-top:1px solid rgba(255,255,255,.04);animation:spin-line .35s ease}
+  .speaker #speakerFeed > .sp-line:first-child{border-top:none;background:rgba(245,197,66,.05)}
+  .speaker .sp-ic{flex:0 0 auto}
+  .speaker .sp-txt b{color:#fff}
+  .speaker .sp-time{margin-left:auto;flex:0 0 auto;font-family:'Space Mono',monospace;font-size:.68rem;color:var(--muted);white-space:nowrap}
+  @keyframes spin-line{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+  @media (prefers-reduced-motion: reduce){ .speaker .sp-dot{animation:none} .speaker .sp-line{animation:none} }
+
   /* Bilan de mon effectif (fiche manager) */
   .sr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-weight:800;font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -971,6 +985,11 @@
     <h1>Le <em>marché</em> des transferts</h1>
     <!-- Alerte « dernière minute » : enchères qui se terminent très bientôt -->
     <div id="lastMinute" class="last-minute" style="display:none"></div>
+    <!-- Fil speaker : commentaire live du marché -->
+    <div id="speaker" class="speaker" style="display:none">
+      <div class="sp-head"><span class="sp-dot"></span>🎙️ Le direct du marché</div>
+      <div id="speakerFeed"></div>
+    </div>
     <div id="aucFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
       <input id="aucSearch" type="search" placeholder="🔍 Rechercher un joueur…" style="flex:1;min-width:180px">
       <select id="aucPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
@@ -2623,6 +2642,75 @@ async function renderAuctions(){
       : `<div class="col-empty">Aucune</div>`;
   }
   applyAucFilters();  // remplit la colonne "live" selon les filtres
+  updateSpeaker(open, transfers||[]);  // commentaire live du marché
+}
+
+// ---------- Fil speaker : commentaire live du marché ----------
+// Compare l'état des enchères/transferts à l'instantané précédent et génère
+// des phrases façon commentateur. Pas de nouvelle requête : on exploite les
+// données déjà chargées par renderAuctions.
+let SP_SNAP = null;        // { prices:{id:price}, interest:{id:n}, lastTransfer:id }
+let SP_LINES = [];         // lignes affichées (récentes en tête)
+const SP_MAX = 6;
+function spPush(ic, txt){
+  const t = new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  SP_LINES.unshift({ic, txt, t});
+  if(SP_LINES.length>SP_MAX) SP_LINES.length = SP_MAX;
+}
+function spPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function updateSpeaker(auctions, transfers){
+  const box = $('speaker'), feed = $('speakerFeed');
+  if(!box || !feed) return;
+  const live = (auctions||[]).filter(a=>a.player);
+  const prices = {}, interest = {};
+  live.forEach(a=>{ prices[a.id]=Number(a.current_price)||0; interest[a.id]=a.interest||0; });
+
+  if(SP_SNAP){
+    // 1) Surenchères (prix qui monte) + nouveaux intéressés
+    live.forEach(a=>{
+      const nm = a.player.name, old = SP_SNAP.prices[a.id];
+      if(old!=null && prices[a.id] > old){
+        const n = interest[a.id];
+        spPush('🔥', spPick([
+          `<b>${nm}</b> s'envole à <b>${fmtMoney(prices[a.id])}</b>${n>1?` — ${n} managers à la lutte !`:' !'}`,
+          `Nouvelle offre sur <b>${nm}</b> : <b>${fmtMoney(prices[a.id])}</b> !`,
+          `Ça chauffe pour <b>${nm}</b>, désormais à <b>${fmtMoney(prices[a.id])}</b>${n>2?` et ${n} prétendants !`:' !'}`
+        ]));
+      } else if(SP_SNAP.interest[a.id]!=null && interest[a.id] > SP_SNAP.interest[a.id] && interest[a.id]>1){
+        spPush('👀', spPick([
+          `Un manager de plus se positionne sur <b>${nm}</b> : ${interest[a.id]} en lice !`,
+          `<b>${nm}</b> attire les convoitises — ${interest[a.id]} managers intéressés.`
+        ]));
+      }
+    });
+    // 2) Nouveaux transferts conclus
+    const topT = (transfers||[])[0];
+    if(topT && topT.id && topT.id !== SP_SNAP.lastTransfer){
+      const nm = topT.player?.name || 'Un joueur';
+      const px = Number(topT.price)>0 ? ' pour '+fmtMoney(topT.price) : '';
+      spPush('✅', spPick([
+        `Coup de marteau ! <b>${nm}</b> est transféré${px} !`,
+        `Affaire conclue : <b>${nm}</b> change d'équipe${px} !`,
+        `C'est signé pour <b>${nm}</b>${px} !`
+      ]));
+    }
+  } else {
+    // Première passe : une phrase d'ambiance si le marché est animé
+    const hottest = [...live].sort((a,b)=>(b.interest||0)-(a.interest||0))[0];
+    if(hottest && (hottest.interest||0)>0){
+      spPush('🎙️', `En ce moment, <b>${hottest.player.name}</b> fait le plus parler : ${hottest.interest} manager${hottest.interest>1?'s':''} à l'affût.`);
+    } else if(live.length){
+      spPush('🎙️', `${live.length} enchère${live.length>1?'s':''} en cours — le marché est ouvert, à vous de jouer !`);
+    }
+  }
+
+  SP_SNAP = { prices, interest, lastTransfer: (transfers||[])[0]?.id || (SP_SNAP?.lastTransfer) };
+
+  if(!SP_LINES.length){ box.style.display='none'; return; }
+  feed.innerHTML = SP_LINES.map(l=>`<div class="sp-line">
+      <span class="sp-ic">${l.ic}</span><span class="sp-txt">${l.txt}</span><span class="sp-time">${l.t}</span>
+    </div>`).join('');
+  box.style.display='block';
 }
 
 // Applique recherche + filtres à la colonne "En direct"
