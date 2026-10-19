@@ -354,6 +354,17 @@
   .ach-grouptitle{font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-weight:800;font-size:.78rem;color:var(--muted);margin:20px 0 12px}
 
+  /* Rappels programmés (calendrier) */
+  .cal-remind{background:transparent;border:1px solid var(--transfer-deep,#d4a017);color:var(--transfer);
+    border-radius:8px;padding:5px 11px;font-size:.76rem;font-weight:700;cursor:pointer;white-space:nowrap;transition:.15s}
+  .cal-remind:hover{background:var(--transfer);color:var(--pitch)}
+  .rem-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;
+    background:var(--pitch-2);margin-bottom:8px}
+  .rem-txt{flex:1;min-width:0;font-size:.86rem;color:var(--chalk);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rem-when{flex:0 0 auto;font-family:'Space Mono',monospace;font-size:.76rem;color:var(--transfer)}
+  .rem-del{flex:0 0 auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:.9rem;padding:2px 6px}
+  .rem-del:hover{color:var(--live,#e0574a)}
+
   /* Bilan de mon effectif (fiche manager) */
   .sr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-weight:800;font-size:1.05rem;margin-bottom:12px;display:flex;align-items:center;gap:8px}
@@ -4941,6 +4952,10 @@ async function renderCalendar(){
 
   const itemHtml = (e)=>{
     const rel = relText(e);
+    // Bouton rappel : seulement pour un événement futur (date dans > 2 min).
+    const canRemind = ME && e.diff > 2*60000;
+    const remBtn = canRemind
+      ? `<button class="cal-remind" data-remind="${e.when}" data-label="${(e.ic+' '+e.title).replace(/"/g,'&quot;')}" title="Programmer un rappel">⏰ Me rappeler</button>` : '';
     return `<div class="cal-item ${nodeCls(e)}">
       <div class="cal-rail"><div class="cal-node"></div><div class="cal-line"></div></div>
       <div class="cal-card">
@@ -4949,12 +4964,29 @@ async function renderCalendar(){
           <span class="cal-when">${fmtWhen(e.when)}</span>
         </div>
         ${e.sub?`<div style="font-size:.78rem;color:var(--muted);margin-top:2px">${e.sub}</div>`:''}
-        <div class="cal-rel ${rel.cls}">${rel.txt}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+          <div class="cal-rel ${rel.cls}">${rel.txt}</div>
+          ${remBtn}
+        </div>
       </div>
     </div>`;
   };
 
-  let html = '';
+  // Bloc « Mes rappels » (programmés par le manager)
+  let remHtml = '';
+  if(ME){
+    const rems = remGet().filter(r=>!r.done).sort((a,b)=> new Date(a.fireAt)-new Date(b.fireAt));
+    if(rems.length){
+      remHtml = `<div class="cal-group"><div class="cal-gh">⏰ Mes rappels (${rems.length})</div>`+
+        rems.map(r=>`<div class="rem-row">
+          <span class="rem-txt">${r.label}</span>
+          <span class="rem-when">${fmtWhen(r.fireAt)}</span>
+          <button class="rem-del" data-remdel="${r.id}" title="Supprimer">✕</button>
+        </div>`).join('')+`</div>`;
+    }
+  }
+
+  let html = remHtml;
   if(upcoming.length){
     html += `<div class="cal-group"><div class="cal-gh">À venir</div>${upcoming.map(itemHtml).join('')}</div>`;
   }
@@ -4963,6 +4995,46 @@ async function renderCalendar(){
       <div style="margin-top:10px">${past.map(itemHtml).join('')}</div></details>`;
   }
   box.innerHTML = html;
+
+  // Clic « Me rappeler » : propose un décalage puis programme.
+  box.querySelectorAll('[data-remind]').forEach(btn=>btn.onclick=()=> promptReminder(btn.dataset.remind, btn.dataset.label));
+  // Suppression d'un rappel
+  box.querySelectorAll('[data-remdel]').forEach(btn=>btn.onclick=()=>{ remRemove(btn.dataset.remdel); renderCalendar(); });
+}
+
+// Propose un décalage de rappel (via AskUserQuestion si dispo, sinon menu simple).
+async function promptReminder(whenIso, label){
+  await askNotifPermission();
+  const target = new Date(whenIso).getTime();
+  const now = Date.now();
+  // Options possibles seulement si elles tombent encore dans le futur.
+  const OPTS = [
+    {k:'10m', m:10,  t:'10 min avant'},
+    {k:'1h',  m:60,  t:'1 h avant'},
+    {k:'3h',  m:180, t:'3 h avant'},
+    {k:'1d',  m:1440,t:'1 jour avant'}
+  ].filter(o=> target - o.m*60000 > now + 30000);
+  if(!OPTS.length){ toast('Trop tard pour programmer un rappel sur cette échéance.','info'); return; }
+  // Petit sélecteur maison (overlay ux)
+  const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
+  md.innerHTML = `<h3>⏰ Me rappeler</h3>
+    <p style="font-size:.86rem;color:var(--muted);margin-bottom:12px">${label}</p>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${OPTS.map(o=>`<button class="ux-ok" data-rem="${o.m}" style="width:100%">${o.t}</button>`).join('')}
+    </div>
+    <p class="hint" style="font-size:.72rem;margin-top:12px">Le rappel s'affiche tant que l'app reste ouverte (onglet ou application installée).</p>
+    <div class="ux-actions"><button class="ux-cancel" data-no>Annuler</button></div>`;
+  ov.classList.add('show');
+  const close=()=>ov.classList.remove('show');
+  md.querySelector('[data-no]').onclick=close;
+  ov.onclick=(e)=>{ if(e.target===ov) close(); };
+  md.querySelectorAll('[data-rem]').forEach(b=>b.onclick=()=>{
+    const fireAt = new Date(target - Number(b.dataset.rem)*60000);
+    if(remAdd('Bientôt : '+label, fireAt)){
+      toast('Rappel programmé ✓','ok');
+      close(); renderCalendar();
+    }
+  });
 }
 
 // ---------- Pronostics ----------
@@ -5182,6 +5254,7 @@ async function init(){
   startRealtime();
   refreshDraftMenu();
   if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
+  remCheck();                     // déclenche les rappels échus au démarrage
 }
 
 // ---------- Temps réel : la salle des enchères se met à jour seule ----------
@@ -5298,6 +5371,49 @@ async function askNotifPermission(){
 // Rafraîchit les notifications toutes les 60 s (pour les notifs système
 // même quand l'utilisateur ne fait rien).
 setInterval(()=>{ if(ME) loadNotifications(); }, 60000);
+
+// ---------- Rappels programmés (notifications locales) ----------
+// Les rappels sont vérifiés tant que l'app est ouverte (onglet ou PWA). Il ne
+// s'agit PAS de push serveur : si l'app est fermée, le rappel se déclenche à
+// la réouverture s'il est échu. Stockés par navigateur, par utilisateur.
+function remKey(){ return 'us_reminders_' + (ME && ME.id ? ME.id : 'anon'); }
+function remGet(){ try { return JSON.parse(localStorage.getItem(remKey())||'[]'); } catch(e){ return []; } }
+function remSave(list){ try { localStorage.setItem(remKey(), JSON.stringify(list.slice(-50))); } catch(e){} }
+function remAdd(label, fireAt){
+  const list = remGet();
+  // Évite les doublons exacts (même label + même minute).
+  const key = label+'@'+Math.round(new Date(fireAt).getTime()/60000);
+  if(list.some(r=>r.key===key)){ toast('Ce rappel est déjà programmé.','info'); return false; }
+  list.push({ id:'r'+Date.now()+Math.random().toString(36).slice(2,6), key, label, fireAt:new Date(fireAt).toISOString(), done:false });
+  remSave(list);
+  return true;
+}
+function remRemove(id){ remSave(remGet().filter(r=>r.id!==id)); }
+function remFireNotice(r){
+  // Notification système si autorisée, sinon toast dans l'app.
+  if(('Notification' in window) && Notification.permission==='granted'){
+    try { const n=new Notification('⏰ Rappel — Ultimate Squad', { body:r.label, icon:'icon-192.png', tag:r.id }); n.onclick=()=>{ window.focus(); n.close(); }; }
+    catch(e){ toast('⏰ '+r.label, 'info', 6000); }
+  } else {
+    toast('⏰ '+r.label, 'info', 6000);
+  }
+}
+function remCheck(){
+  const now = Date.now();
+  const list = remGet();
+  let changed = false;
+  list.forEach(r=>{
+    if(!r.done && new Date(r.fireAt).getTime() <= now){
+      remFireNotice(r); r.done = true; changed = true;
+    }
+  });
+  if(changed) remSave(list);
+  // Nettoyage : retire les rappels échus depuis plus d'un jour.
+  const cleaned = remGet().filter(r=> !(r.done && (now - new Date(r.fireAt).getTime()) > 86400000));
+  if(cleaned.length !== remGet().length) remSave(cleaned);
+}
+// Vérifie au démarrage puis toutes les 30 s.
+setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'⚠️', trade:'🔄', winning:'✅',
   proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
   auction_won:'🏆', bonus:'💰'};
