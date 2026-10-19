@@ -4299,16 +4299,32 @@ setInterval(()=>{ if(ME && CURRENT_VIEW!=='lineup') checkLineupTabPulse(); }, 12
 
 // ---------- Notifications (A) ----------
 let NOTIFS = [];
+// Clé d'une notif (pour marquer comme lue). Les notifs "live" (outbid/winning)
+// n'ont pas d'identité stable utile ; on utilise kind+ref+detail.
+function notifKey(n){ return n.kind+':'+(n.ref||'')+':'+(n.detail||''); }
+function notifReadSet(){
+  try { return new Set(JSON.parse(localStorage.getItem('us_notif_read')||'[]')); }
+  catch(e){ return new Set(); }
+}
+function notifReadSave(set){
+  try { localStorage.setItem('us_notif_read', JSON.stringify([...set].slice(-300))); } catch(e){}
+}
 async function loadNotifications(){
   if(!ME) return;
   NOTIFS = await api.myNotifications();
-  // Badge : on compte tout SAUF le rappel "tu mènes" (winning) qui est
-  // purement informatif et serait affiché en permanence.
-  const count = NOTIFS.filter(n=>n.kind!=='winning').length;
+  updateNotifBadge();
+  maybeSystemNotify(NOTIFS);
+  // Si le panneau est ouvert, on le rafraîchit en direct.
+  if($('notifPanel') && $('notifPanel').style.display==='block') renderNotifPanel();
+}
+// Badge : compte les notifs NON LUES, hors "winning" (rappel permanent positif).
+function updateNotifBadge(){
+  const read = notifReadSet();
+  const count = NOTIFS.filter(n=> n.kind!=='winning' && !read.has(notifKey(n))).length;
   const badge = $('bellBadge');
+  if(!badge) return;
   if(count>0){ badge.textContent = count>99?'99+':count; badge.style.display='block'; }
   else badge.style.display='none';
-  maybeSystemNotify(NOTIFS);
 }
 
 // ---------- Notifications système locales (navigateur) ----------
@@ -4353,40 +4369,100 @@ async function askNotifPermission(){
 // Rafraîchit les notifications toutes les 60 s (pour les notifs système
 // même quand l'utilisateur ne fait rien).
 setInterval(()=>{ if(ME) loadNotifications(); }, 60000);
+const NOTIF_ICONS = {outbid:'⚠️', trade:'🔄', winning:'✅',
+  proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
+  auction_won:'🏆', bonus:'💰'};
+const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
+  proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
+  auction_won:'#4ade80', bonus:'var(--transfer)'};
+// Libellé de l'action proposée au clic, par type.
+const NOTIF_ACTION_LABEL = {
+  outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
+  trade:'Voir l\'échange', proposal_published:'Voir le marché',
+  proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer'
+};
+// Action profonde : amène au bon endroit ET ouvre la bonne chose si possible.
+function notifAction(n){
+  const panel = $('notifPanel'); if(panel) panel.style.display='none';
+  switch(n.kind){
+    case 'outbid':
+    case 'winning':
+    case 'auction_won':
+      goView('auctions');
+      // Repère la carte de l'enchère (ref = id enchère) et ouvre l'offre.
+      if(n.ref) setTimeout(()=>{
+        const card = document.querySelector(`[data-acard="${n.ref}"]`);
+        if(card){
+          card.scrollIntoView({behavior:'smooth',block:'center'});
+          const bid = card.querySelector('[data-bid]');
+          if(bid && n.kind==='outbid') bid.click();
+        }
+      }, 160);
+      break;
+    case 'trade':
+    case 'proposal_published':
+    case 'proposal_rejected':
+      goView('market');
+      break;
+    case 'proposal_changes':
+      // Proposition à corriger : va au marché, section dénichage.
+      goView('market');
+      setTimeout(()=>{ const s=$('scoutList'); if(s) s.scrollIntoView({behavior:'smooth',block:'start'}); }, 160);
+      break;
+    case 'bonus':
+      goView('bonus');
+      break;
+    default:
+      goView('home');
+  }
+}
+function renderNotifPanel(){
+  const panel = $('notifPanel'); if(!panel) return;
+  const read = notifReadSet();
+  const unread = NOTIFS.filter(n=> n.kind!=='winning' && !read.has(notifKey(n))).length;
+  const items = NOTIFS.length
+    ? NOTIFS.map(n=>{
+        const isRead = read.has(notifKey(n));
+        const act = NOTIF_ACTION_LABEL[n.kind];
+        return `<div class="notif-item" data-nkey="${notifKey(n).replace(/"/g,'&quot;')}"
+            style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);cursor:pointer;opacity:${isRead?'.55':'1'}">
+          <span>${NOTIF_ICONS[n.kind]||'•'}</span>
+          <div style="flex:1">
+            <div style="font-size:.85rem;font-weight:700;color:${NOTIF_COLORS[n.kind]||'var(--chalk)'}">${n.title}</div>
+            <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div>
+            ${act?`<div style="font-size:.74rem;color:var(--transfer);margin-top:4px;font-weight:700">${act} ▸</div>`:''}
+          </div>
+        </div>`;}).join('')
+    : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
+  const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 10px;border-bottom:1px solid var(--line);margin-bottom:6px">
+      <span style="font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.9rem">Notifications${unread>0?` <span style="color:var(--live)">(${unread})</span>`:''}</span>
+      ${NOTIFS.some(n=>n.kind!=='winning') ? `<button id="notifReadAll" style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:.72rem">Tout marquer lu</button>` : ''}
+    </div>`;
+  panel.innerHTML = header + `<div id="pushHeader" style="padding:0 0 10px"></div>` + items;
+  renderPushToggle();
+  // Clic sur une notif → action profonde + marquage lu
+  panel.querySelectorAll('[data-nkey]').forEach((el,i)=>el.onclick=(ev)=>{
+    ev.stopPropagation();
+    const n = NOTIFS[i];
+    const r = notifReadSet(); r.add(notifKey(n)); notifReadSave(r); updateNotifBadge();
+    notifAction(n);
+  });
+  // Tout marquer comme lu
+  const allBtn = $('notifReadAll');
+  if(allBtn) allBtn.onclick = (ev)=>{
+    ev.stopPropagation();
+    const r = notifReadSet();
+    NOTIFS.forEach(n=> r.add(notifKey(n)));
+    notifReadSave(r); updateNotifBadge(); renderNotifPanel();
+    toast('Toutes les notifications sont marquées comme lues.','ok',2500);
+  };
+}
 if($('bellBtn')) $('bellBtn').onclick = ()=>{
   askNotifPermission();  // propose d'activer les notifications système (1re fois)
   const panel = $('notifPanel');
   if(panel.style.display==='block'){ panel.style.display='none'; return; }
-  const icons = {outbid:'⚠️', trade:'🔄', winning:'✅',
-    proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
-    auction_won:'🏆', bonus:'💰'};
-  const colors = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
-    proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
-    auction_won:'#4ade80', bonus:'var(--transfer)'};
-  // Vers quel onglet chaque notification renvoie au clic
-  const NOTIF_GOTO = {
-    outbid:'auctions', winning:'auctions', auction_won:'auctions',
-    trade:'market', proposal_published:'market', proposal_changes:'market', proposal_rejected:'market',
-    bonus:'bonus'
-  };
-  const items = NOTIFS.length
-    ? NOTIFS.map(n=>{
-        const go = NOTIF_GOTO[n.kind];
-        return `<div class="notif-item" ${go?`data-goto="${go}"`:''} style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);${go?'cursor:pointer':''}">
-        <span>${icons[n.kind]||'•'}</span>
-        <div style="flex:1"><div style="font-size:.85rem;font-weight:700;color:${colors[n.kind]||'var(--chalk)'}">${n.title}${go?' <span style="color:var(--muted);font-weight:400;font-size:.72rem">▸</span>':''}</div>
-          <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div></div>
-      </div>`;}).join('')
-    : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
-  panel.innerHTML = `<div id="pushHeader" style="padding:4px 6px 10px;border-bottom:1px solid var(--line);margin-bottom:6px"></div>` + items;
+  renderNotifPanel();
   panel.style.display='block';
-  renderPushToggle();
-  // Clic sur une notif → ouvre l'onglet concerné et ferme le panneau
-  panel.querySelectorAll('[data-goto]').forEach(el=>el.onclick=(ev)=>{
-    ev.stopPropagation();
-    if(typeof goView==='function') goView(el.dataset.goto);
-    panel.style.display='none';
-  });
 };
 // En-tête du panneau : bouton d'activation des notifications push réelles
 async function renderPushToggle(){
