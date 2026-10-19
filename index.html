@@ -291,6 +291,20 @@
   .sr-ccount{flex:0 0 auto;font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);white-space:nowrap}
   .sr-ccount.full{color:var(--live,#e0574a);font-weight:700}
 
+  /* Garde-fou compo : bandeau d'alerte (compo incomplète) */
+  .lineup-alert{margin:0 0 18px;border-radius:12px;padding:12px 16px;font-size:.9rem;
+    display:flex;align-items:flex-start;gap:10px;animation:fade .3s ease}
+  .lineup-alert .la-ic{flex:0 0 auto;font-size:1.1rem;line-height:1.3}
+  .lineup-alert .la-txt{flex:1;color:var(--chalk);line-height:1.45}
+  .lineup-alert .la-txt b{color:#fff}
+  .lineup-alert.warn{background:rgba(245,197,66,.12);border:1px solid rgba(245,197,66,.45)}
+  .lineup-alert.warn .la-ic{color:var(--transfer)}
+  .lineup-alert.urgent{background:rgba(224,87,74,.14);border:1px solid rgba(224,87,74,.5)}
+  .lineup-alert.urgent .la-ic{color:var(--live,#e0574a)}
+  .lineup-alert .la-deadline{font-family:'Space Mono',monospace;font-weight:700}
+  .lineup-alert.warn .la-deadline{color:var(--transfer)}
+  .lineup-alert.urgent .la-deadline{color:#ff9a8f}
+
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
   h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
@@ -921,6 +935,8 @@
   <section class="view" id="lineup">
     <div class="eyebrow">La composition d'équipe</div>
     <h1>Ma <em>compo</em></h1>
+    <!-- Garde-fou : compo incomplète avant la clôture de la journée -->
+    <div id="lineupAlert" class="lineup-alert" style="display:none"></div>
     <div id="lineupGate" class="empty">Connecte-toi pour aligner ton équipe.</div>
     <div id="lineupUI" style="display:none">
       <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:20px">
@@ -1580,6 +1596,7 @@ function goView(v){
              rules:renderLiveRules, chat:renderChat, pronos:renderPronos, draft:renderDraft};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
+  if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
   window.scrollTo({top:0, behavior:'smooth'});
 }
 $('nav').addEventListener('click', e=>{
@@ -3259,6 +3276,68 @@ async function renderMyActivity(){
 // ---------- Composition (11 titulaires) ----------
 let LINEUP_SELECTED = new Set();
 let LINEUP_MDS = [];
+// Garde-fou pré-clôture : alerte si la compo n'est pas complète pour une
+// journée ouverte. Urgence selon la proximité de la date limite.
+function renderLineupAlert(md, selectedCount, ownedCount){
+  const box = $('lineupAlert'); if(!box) return;
+  // Pas d'alerte si pas de journée ouverte, ou compo déjà complète.
+  if(!md || md.status!=='open' || selectedCount>=11){
+    box.style.display='none'; box.innerHTML=''; box.className='lineup-alert';
+    document.querySelectorAll('[data-v="lineup"]').forEach(b=>b.classList.remove('live-pulse'));
+    return;
+  }
+  const mdName = md.label || ('Journée '+md.number);
+  let dlTxt = '', urgent = false;
+  if(md.lineup_deadline){
+    const left = new Date(md.lineup_deadline) - new Date();
+    urgent = left>0 && left < 24*3600*1000;   // < 24h = urgent
+    if(left>0){
+      const h = Math.floor(left/3600000), mn = Math.floor((left%3600000)/60000);
+      dlTxt = h>=24 ? `dans ${Math.floor(h/24)} j` : (h>0 ? `dans ${h} h ${mn} min` : `dans ${mn} min`);
+    } else dlTxt = 'imminente';
+  }
+
+  let ic, txt;
+  if(ownedCount < 11){
+    // Effectif trop petit pour aligner 11 titulaires
+    urgent = urgent || !!md.lineup_deadline;
+    ic = '⚠️';
+    txt = `Il te manque des joueurs : <b>${ownedCount}/11</b> alignables pour <b>${mdName}</b>. `+
+          `Direction le mercato pour compléter ton effectif${dlTxt?` — clôture <span class="la-deadline">${dlTxt}</span>`:''}.`;
+  } else {
+    // Assez de joueurs mais compo incomplète
+    ic = urgent ? '⏰' : '📋';
+    txt = `Ta compo pour <b>${mdName}</b> n'est pas complète : <b>${selectedCount}/11</b> titulaires. `+
+          `Termine ta sélection${dlTxt?` avant la clôture <span class="la-deadline">${dlTxt}</span>`:''} — sinon tu marqueras moins de points.`;
+  }
+  box.className = 'lineup-alert ' + (urgent ? 'urgent' : 'warn');
+  box.innerHTML = `<span class="la-ic">${ic}</span><span class="la-txt">${txt}</span>`;
+  box.style.display='flex';
+
+  // Pastille sur l'onglet Compo si on n'y est pas (nudge le retardataire).
+  document.querySelectorAll('[data-v="lineup"]').forEach(b=>b.classList.toggle('live-pulse', CURRENT_VIEW!=='lineup'));
+}
+
+// Vérifie en arrière-plan s'il faut alerter (pastille onglet Compo), sans
+// afficher la vue. Léger : ne tourne que pour un manager connecté.
+let LINEUP_PULSE_ON = false;
+async function checkLineupTabPulse(){
+  if(!ME) return;
+  try {
+    const mds = await api.listMatchdays();
+    const open = mds.filter(m=>m.status==='open')
+      .sort((a,b)=> new Date(a.lineup_deadline||0)-new Date(b.lineup_deadline||0))[0];
+    if(!open){ setLineupPulse(false); return; }
+    const lu = await api.myLineup(open.id).catch(()=>null);
+    const selected = (lu?.player_ids||[]).length;
+    setLineupPulse(selected < 11 && CURRENT_VIEW!=='lineup');
+  } catch(e){ /* best-effort */ }
+}
+function setLineupPulse(on){
+  LINEUP_PULSE_ON = on;
+  document.querySelectorAll('[data-v="lineup"]').forEach(b=>b.classList.toggle('live-pulse', on));
+}
+
 async function renderLineup(){
   if(!ME){ $('lineupGate').style.display='block'; $('lineupUI').style.display='none'; return; }
   $('lineupGate').style.display='none'; $('lineupUI').style.display='block';
@@ -3301,6 +3380,9 @@ async function loadLineupForMatchday(mdId){
 
   renderLineupPlayers(mine);
   $('btnSaveLineup').onclick = ()=>saveLineup(mdId);
+
+  // Garde-fou : alerte si la compo n'est pas complète (11) sur une journée ouverte
+  renderLineupAlert(md, LINEUP_SELECTED.size, mine.length);
 
   // Journée clôturée : lecture seule (pas d'alignement possible)
   const isClosed = md && md.status==='closed';
@@ -3953,6 +4035,7 @@ async function init(){
   renderAuctions();
   startRealtime();
   refreshDraftMenu();
+  if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
 }
 
 // ---------- Temps réel : la salle des enchères se met à jour seule ----------
@@ -3991,6 +4074,9 @@ setInterval(async ()=>{
     renderLastMinute();
   } catch(e){ /* silencieux : best-effort */ }
 }, 45000);
+
+// Garde-fou compo : vérifie périodiquement s'il faut nudger l'onglet Compo.
+setInterval(()=>{ if(ME && CURRENT_VIEW!=='lineup') checkLineupTabPulse(); }, 120000);
 
 // ---------- Notifications (A) ----------
 let NOTIFS = [];
