@@ -104,6 +104,10 @@
     font-size:.86rem;padding:9px 16px;border-radius:10px;cursor:pointer;
     background:transparent;border:1px solid var(--transfer-deep,#1d3a6b);color:var(--transfer,#f5c542);transition:.18s}
   .ob-launch:hover{background:rgba(245,197,66,.1);transform:translateY(-1px)}
+  .ob-link{display:inline-block;margin-top:14px;background:none;border:none;cursor:pointer;
+    font-family:'Saira Condensed',sans-serif;font-size:.84rem;letter-spacing:.3px;
+    color:var(--transfer,#f5c542);text-decoration:underline;opacity:.9}
+  .ob-link:hover{opacity:1}
 
   /* ---------- Header ---------- */
   header{
@@ -1343,7 +1347,7 @@ const OB_STEPS = [
     title:'Ton duo, ton effectif',
     body:'Chaque équipe est un duo <b>Manager–Coach</b>. Ton objectif : bâtir un effectif de <b>21 joueurs</b> en recrutant aux enchères. Ce sont leurs performances réelles qui te rapportent des points au classement.',
     tip:'Le <b>Manager</b> gère le recrutement et le budget. Le <b>Coach</b> aligne les titulaires chaque journée. À deux, vous pilotez toute l\'équipe.',
-    cta:'Voir mon équipe', view:'team' },
+    cta:'Voir mon équipe', view:'team', link:'Voir mon équipe' },
   { num:'Étape 2 · Le budget', art:'budget',
     title:'Tes deux budgets',
     body:'Tu démarres avec un <b>budget transfert de 800 M€</b> pour acheter tes joueurs. Surveille aussi ta <b>masse salariale</b> : chaque joueur a un salaire, et le total ne doit pas dépasser le plafond.',
@@ -1353,7 +1357,7 @@ const OB_STEPS = [
     title:'Deux façons de recruter',
     body:'Aux <b>Enchères</b>, tu te positionnes sur les joueurs mis en vente : le plus offrant l\'emporte. Au <b>Marché</b>, tu peux aussi faire un <b>recrutement direct</b> d\'un joueur libre à sa valeur, sans attendre.',
     tip:'Toute enchère t\'engage : si tu mènes, ton budget est bloqué, et si tu gagnes, tu paies. Vise les postes qui te manquent pour compléter tes 21.',
-    cta:'Aller aux enchères', view:'auctions' },
+    cta:'Aller aux enchères', view:'auctions', link:'Voir les enchères' },
   { num:'Étape 4 · La compo', art:'lineup',
     title:'Prépare ta première compo',
     body:'Une fois tes joueurs recrutés, direction <b>Compo</b> : le Coach aligne <b>11 titulaires</b> chaque journée. Seuls les titulaires marquent des points — choisis-les selon leurs matchs réels à venir.',
@@ -1364,14 +1368,23 @@ let OB_I = 0;
 function obKey(){ return 'us_onboard_done_' + (ME && ME.id ? ME.id : 'anon'); }
 function obRender(){
   const s = OB_STEPS[OB_I];
+  const last = OB_I === OB_STEPS.length-1;
   $('obDots').innerHTML = OB_STEPS.map((_,i)=>`<span class="ob-dot${i===OB_I?' on':''}"></span>`).join('');
+  // Lien secondaire optionnel : « Voir cet écran » — navigue SANS interrompre
+  // le tuto (sauf à la dernière étape, où le bouton principal y renvoie déjà).
+  const linkHtml = (s.view && !last)
+    ? `<button class="ob-link" type="button" data-obview="${s.view}">${s.link||'Voir cet écran'} ↗</button>` : '';
   $('obStep').innerHTML =
     `<div class="ob-num">${s.num}</div>`+
     `<div class="ob-art"><svg viewBox="0 0 96 96">${OB_ART[s.art]||''}</svg></div>`+
     `<h3>${s.title}</h3><p>${s.body}</p>`+
-    `<div class="ob-tip">💡 ${s.tip}</div>`;
+    `<div class="ob-tip">💡 ${s.tip}</div>`+
+    linkHtml;
+  // Branche le lien secondaire (navigue, ferme le tuto proprement).
+  const lk = $('obStep').querySelector('.ob-link');
+  if(lk) lk.onclick = ()=>{ obClose(true); goView(lk.dataset.obview); };
   $('obPrev').style.visibility = OB_I===0 ? 'hidden' : 'visible';
-  const last = OB_I === OB_STEPS.length-1;
+  // Le bouton principal AVANCE toujours ; seul le dernier termine + redirige.
   $('obNext').textContent = last ? s.cta : 'Suivant';
 }
 function obClose(markDone){
@@ -1383,13 +1396,11 @@ function openOnboarding(fromStart){
   $('onboard').style.display = 'flex';
 }
 function obNext(){
-  const s = OB_STEPS[OB_I];
+  // SUIVANT fait toujours avancer d'une étape ; à la dernière, termine + redirige.
   if(OB_I < OB_STEPS.length-1){
-    // Étape avec redirection immédiate (ex. enchères) : on y va et on ferme.
-    if(s.view && s.cta !== 'Compris'){ obClose(true); goView(s.view); return; }
     OB_I++; obRender();
   } else {
-    // Dernière étape : termine le guide et ouvre l'écran final.
+    const s = OB_STEPS[OB_I];
     obClose(true);
     if(s.view) goView(s.view);
   }
