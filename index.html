@@ -2709,6 +2709,49 @@ function sparkline(points, w=460, h=120){
     <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="3.5" fill="${col}"/>
   </svg>`;
 }
+// Couleur d'une note Sofascore (≈3–10) : rouge → orange → vert.
+function ratingColor(r){
+  if(r==null) return 'var(--muted)';
+  if(r>=7.5) return '#4ade80';     // excellent
+  if(r>=6.8) return '#a3e635';     // bon
+  if(r>=6.0) return '#f5c542';     // correct
+  if(r>=5.0) return '#fb923c';     // moyen
+  return '#e0574a';                // faible
+}
+// Baromètre de forme : verdict + dernières notes (plus récente à droite).
+function formWidget(form){
+  if(!form || !form.length){
+    return `<div class="hint" style="font-size:.82rem;color:var(--muted)">Pas encore de note — ce joueur n'a pas été noté sur une journée clôturée.</div>`;
+  }
+  // form est trié du plus récent au plus ancien ; on remet chronologique.
+  const chrono = [...form].reverse();
+  const avg = chrono.reduce((s,x)=>s+x.rating,0)/chrono.length;
+  // Tendance : moyenne de la 2e moitié (récente) vs 1re moitié (ancienne).
+  let verdict = '→ Régulier', vcol = 'var(--transfer)';
+  if(chrono.length>=3){
+    const mid = Math.floor(chrono.length/2);
+    const older = chrono.slice(0, mid), recent = chrono.slice(mid);
+    const a = older.reduce((s,x)=>s+x.rating,0)/older.length;
+    const b = recent.reduce((s,x)=>s+x.rating,0)/recent.length;
+    const d = b-a;
+    if(d>=0.5){ verdict='↗ En forme'; vcol='#4ade80'; }
+    else if(d<=-0.5){ verdict='↘ En méforme'; vcol='#e0574a'; }
+    else { verdict='→ Régulier'; vcol='var(--transfer)'; }
+  } else {
+    verdict = avg>=6.8 ? '↗ Bon niveau' : avg>=6 ? '→ Correct' : '↘ En difficulté';
+    vcol = avg>=6.8 ? '#4ade80' : avg>=6 ? 'var(--transfer)' : '#e0574a';
+  }
+  const pills = chrono.map(x=>{
+    const c = ratingColor(x.rating);
+    return `<span title="Journée ${x.md_number||'?'}" style="display:inline-flex;align-items:center;justify-content:center;min-width:34px;padding:4px 6px;border-radius:7px;font-family:'Space Mono',monospace;font-weight:700;font-size:.82rem;color:#0a1428;background:${c}">${x.rating.toFixed(1)}</span>`;
+  }).join('');
+  return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+      <span style="font-weight:800;color:${vcol};font-size:.9rem">${verdict}</span>
+      <span style="font-size:.78rem;color:var(--muted)">moyenne <b style="color:${ratingColor(avg)}">${avg.toFixed(1)}</b> · ${chrono.length} match${chrono.length>1?'s':''}</span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${pills}</div>`;
+}
+
 async function showPlayerCard(playerId){
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
@@ -2721,7 +2764,10 @@ async function showPlayerCard(playerId){
   // Infos joueur depuis la liste déjà chargée, sinon valeurs minimales
   const all = (typeof PLAYERS!=='undefined' && PLAYERS) ? PLAYERS : [];
   const p = all.find(x=>x.id===playerId) || {};
-  const hist = await api.valueHistory(playerId, 80).catch(()=>[]);
+  const [hist, form] = await Promise.all([
+    api.valueHistory(playerId, 80).catch(()=>[]),
+    api.playerForm(playerId, 5).catch(()=>[])
+  ]);
   const first = hist.length ? Number(hist[0].value) : null;
   const last = hist.length ? Number(hist[hist.length-1].value) : null;
   const delta = (first!=null && last!=null) ? last-first : null;
@@ -2731,6 +2777,8 @@ async function showPlayerCard(playerId){
   md.innerHTML = `
     <h3>${name}</h3>
     <div class="hint" style="margin:0 0 10px">${p.club||''}${p.position?' · '+(POS[p.position]||p.position):''}${p.current_value!=null?' · '+fmtMoney(p.current_value):''}</div>
+    <div style="font-weight:800;font-size:.9rem;margin-bottom:6px">💓 Forme récente</div>
+    <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">${formWidget(form)}</div>
     <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la cote</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(hist)}</div>
     <div style="text-align:center;margin-top:6px">${deltaTxt}</div>

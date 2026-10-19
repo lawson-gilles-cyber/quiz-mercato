@@ -593,6 +593,24 @@ export async function valueHistory(playerId, limit = 60) {
   return data ?? [];
 }
 
+// ---------- FORME RÉCENTE D'UN JOUEUR (dernières notes de journée) ----
+export async function playerForm(playerId, limit = 5) {
+  if (!playerId) return [];
+  // Notes saisies ; on trie par numéro de journée côté client (robuste).
+  const { data } = await sb.from('qm_player_scores')
+    .select('rating, play_status, matchday:qm_matchdays(number, label)')
+    .eq('player_id', playerId)
+    .not('rating', 'is', null);
+  const rows = (data ?? []).map(r => ({
+    rating: Number(r.rating),
+    play_status: r.play_status,
+    md_number: r.matchday?.number ?? 0,
+    md_label: r.matchday?.label
+  }));
+  rows.sort((a, b) => b.md_number - a.md_number);
+  return rows.slice(0, limit);
+}
+
 // ---------- PRONOSTICS ----------------------------------------------
 export async function pronosList() {
   const { data } = await sb.rpc('qm_pronos_list');
