@@ -2999,28 +2999,78 @@ function wrapText(ctx, text, x, y, maxW, lh){
   }
   ctx.fillText(line, x, yy);
 }
-async function shareRecruit(opts){
+// Génère l'image via un dessinateur, puis partage (natif) ou télécharge.
+async function shareCanvas(drawer, opts, fileBase, shareText){
   const cv = document.createElement('canvas');
   cv.width=1080; cv.height=1350;
-  const ctx = cv.getContext('2d');
-  drawShareCard(ctx, opts);
-  const fileName = 'ultimate-squad-'+(opts.playerName||'coup').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';
+  drawer(cv.getContext('2d'), opts);
+  const fileName = 'ultimate-squad-'+String(fileBase||'image').toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.png';
   const blob = await new Promise(res=> cv.toBlob(res, 'image/png'));
   if(!blob){ toast('Impossible de générer l\'image.','err'); return; }
   const file = new File([blob], fileName, { type:'image/png' });
-  // 1) Partage natif avec fichier (mobile surtout)
   if(navigator.canShare && navigator.canShare({ files:[file] })){
-    try {
-      await navigator.share({ files:[file], title:'Ultimate Squad',
-        text:`${opts.teamName||'Mon équipe'} : ${opts.shareText||opts.playerName}` });
-      return;
-    } catch(e){ if(e && e.name==='AbortError') return; /* sinon on retombe sur le téléchargement */ }
+    try { await navigator.share({ files:[file], title:'Ultimate Squad', text:shareText||'Ultimate Squad' }); return; }
+    catch(e){ if(e && e.name==='AbortError') return; }
   }
-  // 2) Repli : téléchargement du PNG
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=fileName; a.click();
   setTimeout(()=>URL.revokeObjectURL(url), 2000);
   toast('Image enregistrée — prête à partager !','ok',3000);
+}
+async function shareRecruit(opts){
+  return shareCanvas(drawShareCard, opts, opts.playerName||'coup',
+    `${opts.teamName||'Mon équipe'} : ${opts.shareText||opts.playerName}`);
+}
+
+// ---------- Carte de partage d'une ÉQUIPE (profil) ----------
+function drawTeamCard(ctx, opts){
+  const W=1080, H=1350;
+  const col = opts.primary || '#0f1d38';
+  const col2 = opts.secondary || '#f5c542';
+  const g = ctx.createLinearGradient(0,0,W,H);
+  g.addColorStop(0, col); g.addColorStop(1, '#0a1428');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const rg = ctx.createRadialGradient(W/2,360,60, W/2,360,640);
+  rg.addColorStop(0, hexA(col2,.2)); rg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  // Marque
+  ctx.textAlign='left'; ctx.fillStyle=col2; ctx.font='bold 44px Arial';
+  ctx.fillText('ULTIMATE SQUAD', 70, 100);
+  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='26px Arial'; ctx.fillText('PROFIL D\'ÉQUIPE', 70, 138);
+  // Maillot stylisé (couleurs équipe)
+  const jx=W/2, jy=300;
+  ctx.save(); ctx.translate(jx, jy);
+  ctx.fillStyle=col2; ctx.strokeStyle='rgba(255,255,255,.25)'; ctx.lineWidth=4;
+  ctx.beginPath();
+  ctx.moveTo(-90,-40); ctx.lineTo(-40,-70); ctx.lineTo(-15,-50); ctx.lineTo(15,-50);
+  ctx.lineTo(40,-70); ctx.lineTo(90,-40); ctx.lineTo(60,0); ctx.lineTo(45,-12);
+  ctx.lineTo(45,120); ctx.lineTo(-45,120); ctx.lineTo(-45,-12); ctx.lineTo(-60,0);
+  ctx.closePath(); ctx.fill(); ctx.stroke();
+  ctx.fillStyle=col; ctx.fillRect(-45,30,90,14);  // bande secondaire
+  ctx.restore();
+  // Nom d'équipe
+  ctx.textAlign='center'; ctx.fillStyle='#ffffff'; ctx.font='bold 76px Arial';
+  wrapText(ctx, opts.teamName||'Mon équipe', W/2, 560, W-120, 82);
+  // Grille de stats
+  const stats = opts.stats||[];
+  const cols=2, cw=(W-180)/cols, y0=680, rh=150;
+  stats.slice(0,6).forEach((s,i)=>{
+    const cx = 90 + (i%cols)*cw + cw/2;
+    const cy = y0 + Math.floor(i/cols)*rh;
+    ctx.fillStyle=col2; ctx.font='bold 58px Arial'; ctx.fillText(s.v, cx, cy);
+    ctx.fillStyle='rgba(255,255,255,.6)'; ctx.font='26px Arial'; ctx.fillText(s.l, cx, cy+38);
+  });
+  // Badges (icônes) en bas
+  if(opts.badges && opts.badges.length){
+    ctx.font='54px Arial'; ctx.textAlign='center';
+    ctx.fillText(opts.badges.slice(0,6).join('   '), W/2, 1210);
+  }
+  ctx.fillStyle='rgba(255,255,255,.45)'; ctx.font='26px Arial';
+  ctx.fillText('quiz-mercato.pages.dev', W/2, 1290);
+}
+async function shareTeam(opts){
+  return shareCanvas(drawTeamCard, opts, 'equipe-'+(opts.teamName||'mon-equipe'),
+    `${opts.teamName||'Mon équipe'} sur Ultimate Squad 🔥`);
 }
 
 // Couleur d'une note Sofascore (≈3–10) : rouge → orange → vert.
@@ -3834,7 +3884,29 @@ async function showManagerSquad(mgrId){
   const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
 
-  $('squadModalBody').innerHTML = h2hHtml + statsHtml + badgesHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
+  // Bouton « Partager l'équipe » (image générée)
+  const shareHtml = prof ? `<div style="text-align:center;margin:4px 0 16px">
+      <button id="btnShareTeam" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">📲 Partager ${isMe?'mon équipe':'cette équipe'}</button>
+    </div>` : '';
+
+  $('squadModalBody').innerHTML = h2hHtml + statsHtml + badgesHtml + shareHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
+
+  const shareBtn = $('btnShareTeam');
+  if(shareBtn) shareBtn.onclick = ()=>{
+    shareTeam({
+      teamName: entry.name,
+      primary: entry.colors?.primary, secondary: entry.colors?.secondary,
+      badges: (badges||[]).map(b=>b.icon),
+      stats: [
+        { v: String(prof.season_points),         l:'POINTS' },
+        { v: (prof.squad_count+' / 21'),          l:'EFFECTIF' },
+        { v: fmtMoney(prof.squad_value),          l:'VALEUR' },
+        { v: fmtMoney(prof.bonus_total),          l:'BONUS CUMULÉS' },
+        { v: String(prof.buys_count),             l:'RECRUTEMENTS' },
+        { v: String(prof.trades_count),           l:'ÉCHANGES' }
+      ]
+    });
+  };
 }
 
 // ---------- Mon activité (timeline personnelle) ----------
