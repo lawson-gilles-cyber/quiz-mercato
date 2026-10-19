@@ -1932,6 +1932,45 @@ function scoutSheet(p){
     </div>
   </div>`;
 }
+// Indicateur « vaut-il son prix ? » — qualité (palier de note, public) vs prix.
+// N'utilise JAMAIS la note exacte (cachée) : seulement le palier de couleur,
+// comparé au prix attendu pour ce palier. Repère les affaires et les pièges.
+function valueForMoney(p){
+  if(!p || !p.note_color || p.current_value==null) return '';
+  const tier = NOTE_COLORS[p.note_color]; if(!tier) return '';
+  // Fourchette de prix attendue (M€) par palier de qualité.
+  const BANDS = {
+    'rouge':      [3, 25],    // Faible
+    'jaune':      [18, 55],   // Correct
+    'vert-clair': [45, 105],  // Bon
+    'vert-vif':   [90, 185]   // Élite
+  };
+  const [lo, hi] = BANDS[p.note_color] || [0, 200];
+  const mid = (lo+hi)/2;
+  const priceM = Number(p.current_value)/1e6;
+  // Position du prix dans/hors de la fourchette attendue.
+  let verdict, vcol, icon, pos;
+  if(priceM <= lo){           verdict='Affaire';  vcol='#4ade80'; icon='💎'; pos=12; }
+  else if(priceM < mid){      verdict='Bon prix'; vcol='#7bc96f'; icon='👍'; pos=35; }
+  else if(priceM <= hi){      verdict='Prix juste';vcol='var(--transfer)'; icon='⚖️'; pos=62; }
+  else if(priceM <= hi*1.25){ verdict='Un peu cher';vcol='#fb923c'; icon='💸'; pos=84; }
+  else {                      verdict='Surcoté';  vcol='#e0574a'; icon='⚠️'; pos=96; }
+  return `<div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
+      <span style="font-weight:800;font-size:.9rem">💰 Rapport qualité / prix</span>
+      <span style="font-weight:800;color:${vcol};font-size:.9rem">${icon} ${verdict}</span>
+    </div>
+    <div style="position:relative;height:10px;border-radius:6px;overflow:hidden;
+      background:linear-gradient(90deg,#4ade80,#7bc96f 30%,#e0a800 60%,#fb923c 82%,#e0574a)">
+      <span style="position:absolute;top:-4px;left:calc(${pos}% - 9px);width:3px;height:18px;border-radius:2px;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.35)"></span>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.5px">
+      <span>💎 Affaire</span><span>⚖️ Juste</span><span>⚠️ Surcoté</span>
+    </div>
+    <div style="font-size:.74rem;color:var(--muted);margin-top:8px">Qualité estimée : <b style="color:${tier.c}">${tier.label}</b> · prix actuel <b>${fmtMoney(p.current_value)}</b>${p.note!=null?'':' <span style="font-style:italic">(note exacte cachée avant l\'achat)</span>'}</div>
+  </div>`;
+}
+
 // ---------- Mercato ----------
 async function loadPlayers(){
   PLAYERS = await api.listPlayers();
@@ -2981,6 +3020,7 @@ async function showPlayerCard(playerId){
   md.innerHTML = `
     <h3>${name}</h3>
     <div class="hint" style="margin:0 0 10px">${p.club||''}${p.position?' · '+(POS[p.position]||p.position):''}${p.current_value!=null?' · '+fmtMoney(p.current_value):''}</div>
+    ${valueForMoney(p)}
     <div style="font-weight:800;font-size:.9rem;margin-bottom:6px">💓 Forme récente</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">${formWidget(form)}</div>
     <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la cote</div>
