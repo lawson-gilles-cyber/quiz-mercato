@@ -607,6 +607,13 @@
   .bid-btn.owned{background:transparent;color:var(--muted);border:1px solid var(--line);cursor:default}
   .bid-btn.ghost{background:transparent;color:var(--transfer);border:1px solid var(--transfer)}
   .bid-btn.ghost:hover{background:var(--transfer);color:var(--pitch)}
+  /* Enchère rapide (un clic) : vert, compacte, mise en avant */
+  .bid-btn.quick{background:linear-gradient(180deg,#5de88a,#2fbf63);color:#07210f;border:none;
+    padding:10px 12px;font-size:.82rem;box-shadow:0 2px 8px rgba(47,191,99,.3)}
+  .bid-btn.quick:hover{background:linear-gradient(180deg,#6ff29a,#35cf6d)}
+  /* Le bouton "Offre…" (secondaire) quand l'enchère rapide est présente */
+  .bid-btn.secondary{background:transparent;color:var(--transfer);border:1px solid var(--transfer)}
+  .bid-btn.secondary:hover{background:var(--transfer);color:var(--pitch)}
   /* Les boutons d'enchère placés dans une barre flex ne doivent pas garder la marge pleine largeur */
   .acard .info > div[style*="flex"] > .bid-btn{margin-top:0}
   .watch-star{background:none;border:none;cursor:pointer;font-size:1.1rem;line-height:1;color:var(--muted);padding:0 2px;transition:.15s}
@@ -2602,6 +2609,21 @@ async function startBid(playerId){
   };
 }
 
+// Enchère rapide : place directement l'offre minimale (palier) en un clic.
+// La validation complète (PASS, budget, masse salariale, taxe, plafond) est
+// faite côté serveur par placeBid ; on affiche l'erreur éventuelle.
+async function quickBid(auctionId, amount, btn){
+  if(!ME){ $('authModal').style.display='flex'; return; }
+  if(!auctionId || !amount) return;
+  await withLoading(btn, async ()=>{
+    const { error } = await api.placeBid(auctionId, amount);
+    if(error){ toast('Échec : '+error.message,'err',4200); return; }
+    toast(`⚡ Offre de ${fmtMoney(amount)} placée !`,'ok');
+    renderAuctions();
+    if(typeof loadNotifications==='function') loadNotifications();
+  });
+}
+
 // Bloc "enchère automatique" dans la modale d'enchère
 async function renderAutoBidBox(md, auc, minNext, cap){
   const box = md.querySelector('#autoBidBox'); if(!box) return;
@@ -2657,10 +2679,22 @@ function acard(a, status){
     const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
     const watched = AUC_WATCH.has(a.id);
     const star = ME ? `<button class="watch-star${watched?' on':''}" data-watch="${a.id}" title="${watched?'Ne plus suivre':'Suivre cette enchère (alertes sniping)'}">${watched?'★':'☆'}</button>` : '';
+    // Enchère rapide : offre minimale au palier (bornée au plafond), un clic.
+    const price = Number(a.current_price);
+    const cap = (a.player && a.player.base_value) ? bidCap(a.player.base_value) : null;
+    const step = minIncrement(price);
+    let next = price + step; if(cap && next>cap) next = cap;
+    const iLead = ME && (a.top_bidder_id===ME.id || a.top_bidder?.id===ME.id);
+    const atCap = cap && price>=cap;
+    // Bouton rapide seulement si je ne mène pas déjà et qu'on n'est pas au plafond.
+    const quickBtn = (ME && !iLead && !atCap)
+      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:0 0 auto;margin-top:0;white-space:nowrap">⚡ ${fmtMoney(next)}</button>`
+      : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span style="display:flex;gap:6px;align-items:center">${interestTag}${star}</span></div>
       <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
       <div style="display:flex;gap:6px;margin-top:10px;width:100%;min-width:0">
-        <button class="bid-btn" data-bid="${p.id}" style="flex:1 1 auto;min-width:0;margin-top:0">Enchérir</button>
+        ${quickBtn}
+        <button class="bid-btn${quickBtn?' secondary':''}" data-bid="${p.id}" style="flex:1 1 auto;min-width:0;margin-top:0">${quickBtn?'Offre…':'Enchérir'}</button>
         <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:0 0 auto;width:44px;padding:0;margin-top:0">📜</button>
       </div>`;
   } else {
@@ -2846,6 +2880,8 @@ function applyAucFilters(){
     : `<div class="col-empty">Aucun joueur ne correspond.</div>`;
   document.querySelectorAll('#k-live [data-bid]').forEach(btn=>
     btn.onclick = ()=> startBid(btn.dataset.bid));
+  document.querySelectorAll('#k-live [data-quickbid]').forEach(btn=>
+    btn.onclick = ()=> quickBid(btn.dataset.quickbid, Number(btn.dataset.next), btn));
   document.querySelectorAll('#k-live [data-watch]').forEach(btn=>
     btn.onclick = async ()=>{
       const id = btn.dataset.watch;
