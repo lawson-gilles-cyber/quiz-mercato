@@ -352,6 +352,25 @@
   .lg-amt.neg{color:var(--live,#e0574a)}
   .lg-empty{padding:14px 0;color:var(--muted);font-size:.86rem;text-align:center}
 
+  /* Tendances du marché */
+  .trends{margin-top:26px;border:1px solid var(--line);border-radius:14px;background:var(--pitch-2);padding:16px 18px;animation:fade .3s ease}
+  .tr-title{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-weight:800;font-size:1.05rem;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .tr-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media (max-width:620px){ .tr-grid{grid-template-columns:1fr} }
+  .tr-col .tr-h{font-size:.74rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;display:flex;align-items:center;gap:6px}
+  .tr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0;font-size:.86rem;border-top:1px solid var(--line)}
+  .tr-row:first-of-type{border-top:none}
+  .tr-row .tr-name{color:var(--chalk);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .tr-row .tr-name b{color:#fff}
+  .tr-badge{flex:0 0 auto;font-family:'Space Mono',monospace;font-size:.76rem;font-weight:700;white-space:nowrap}
+  .tr-badge.hot{color:var(--transfer)}
+  .tr-badge.up{color:#4ade80}
+  .tr-badge.rare{color:#ff9a8f}
+  .tr-empty{color:var(--muted);font-size:.82rem;padding:6px 0}
+  .tr-chip{display:inline-flex;align-items:center;gap:5px;background:var(--pitch);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:.8rem;margin:0 6px 6px 0}
+  .tr-chip b{color:var(--transfer)}
+
   .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3px;
     color:var(--transfer);font-size:.72rem;font-weight:700;margin-bottom:6px}
   h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
@@ -774,6 +793,8 @@
     </div>
     <!-- Checklist du jour (manager connecté) -->
     <div id="dailyChecklist" class="daily-check" style="display:none"></div>
+    <!-- Tendances du marché (ce qui bouge) -->
+    <div id="marketTrends" class="trends" style="display:none"></div>
     <div id="challengesWrap" style="margin-top:26px;display:none">
       <div class="eyebrow" style="margin-bottom:12px">🎯 Défis de la semaine</div>
       <div id="challengesList"></div>
@@ -3719,6 +3740,83 @@ async function renderHome(){
   renderTicker(moves, auctions);
   renderChallenges();
   renderDailyChecklist(auctions);
+  renderMarketTrends(auctions);
+}
+
+// ---------- Tendances du marché (ce qui bouge) ----------
+// Radar public : joueurs les plus convoités, cotes qui grimpent, postes les
+// plus demandés / les plus rares. Aide les managers à viser, et Audrey à
+// savoir quoi mettre sur le marché.
+const POS_FR = {GK:'Gardiens', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants'};
+async function renderMarketTrends(auctions){
+  const box = $('marketTrends'); if(!box) return;
+  const live = (auctions||[]).filter(a=>a.player);
+  if(!live.length){ box.style.display='none'; box.innerHTML=''; return; }
+
+  // 1) Les plus convoités (par nombre d'intéressés, puis prix)
+  const wanted = [...live]
+    .sort((a,b)=> (b.interest||0)-(a.interest||0) || Number(b.current_price)-Number(a.current_price))
+    .slice(0,4)
+    .filter(a=>(a.interest||0)>0);
+
+  // 2) Cotes qui grimpent (valeur actuelle > valeur de base)
+  const rising = live
+    .map(a=>{
+      const base = Number(a.player.base_value)||0, cur = Number(a.player.current_value)||0;
+      const pct = base>0 ? Math.round((cur-base)/base*100) : 0;
+      return { name:a.player.name, pct };
+    })
+    .filter(x=>x.pct>0)
+    .sort((a,b)=> b.pct-a.pct)
+    .slice(0,4);
+
+  // 3) Postes les plus demandés (somme des intéressés par poste)
+  const demand = {};
+  live.forEach(a=>{ const p=a.player.position; if(p) demand[p]=(demand[p]||0)+(a.interest||0); });
+  const demandRows = Object.entries(demand).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+
+  // 4) Rareté par poste (peu de libres = rare) — via positionScarcity
+  let scarce = [];
+  try {
+    const sc = await api.positionScarcity();
+    scarce = (sc||[]).filter(s=>Number(s.free_count)<=5).sort((a,b)=>Number(a.free_count)-Number(b.free_count)).slice(0,4);
+  } catch(e){ /* indispo : on saute */ }
+
+  const colWanted = `<div class="tr-col">
+    <div class="tr-h">🔥 Les plus convoités</div>
+    ${wanted.length ? wanted.map(a=>`<div class="tr-row">
+      <span class="tr-name"><b>${a.player.name}</b> <span style="color:var(--muted);font-size:.78rem">${fmtMoney(a.current_price)}</span></span>
+      <span class="tr-badge hot">👥 ${a.interest}</span>
+    </div>`).join('') : '<div class="tr-empty">Pas encore d\'enchère disputée.</div>'}
+  </div>`;
+
+  const colRising = `<div class="tr-col">
+    <div class="tr-h">📈 Cotes qui grimpent</div>
+    ${rising.length ? rising.map(x=>`<div class="tr-row">
+      <span class="tr-name"><b>${x.name}</b></span>
+      <span class="tr-badge up">+${x.pct}%</span>
+    </div>`).join('') : '<div class="tr-empty">Aucune cote en hausse pour l\'instant.</div>'}
+  </div>`;
+
+  const colDemand = `<div class="tr-col">
+    <div class="tr-h">🎯 Postes les plus demandés</div>
+    ${demandRows.length ? demandRows.map(([p,v])=>`<div class="tr-row">
+      <span class="tr-name">${POS_FR[p]||p}</span>
+      <span class="tr-badge hot">${v} offre${v>1?'s':''}</span>
+    </div>`).join('') : '<div class="tr-empty">Demande encore faible.</div>'}
+  </div>`;
+
+  const colScarce = `<div class="tr-col">
+    <div class="tr-h">💎 Postes les plus rares</div>
+    ${scarce.length ? scarce.map(s=>`<div class="tr-row">
+      <span class="tr-name">${POS_FR[s.pos]||s.pos}</span>
+      <span class="tr-badge rare">${s.free_count} libre${Number(s.free_count)>1?'s':''}</span>
+    </div>`).join('') : '<div class="tr-empty">Stock de joueurs libres confortable.</div>'}
+  </div>`;
+
+  box.innerHTML = `<div class="tr-title">📊 Tendances du marché</div>
+    <div class="tr-grid">${colWanted}${colRising}${colDemand}${colScarce}</div>`;
+  box.style.display='block';
 }
 
 // ---------- Checklist du jour (accueil) ----------
