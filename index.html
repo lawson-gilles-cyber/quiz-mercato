@@ -61,6 +61,30 @@
   html[data-theme="light"] .acard,
   html[data-theme="light"] .news,
   html[data-theme="light"] .card{box-shadow:0 1px 3px rgba(20,40,80,.06)}
+  /* Mode clair : le texte en gras codé "blanc" doit redevenir sombre
+     (il vit sur des surfaces claires, sinon il disparaît). */
+  html[data-theme="light"] .ob-step p b,
+  html[data-theme="light"] .ticker-item b,
+  html[data-theme="light"] .last-minute .lm-item b,
+  html[data-theme="light"] .speaker .sp-txt b,
+  html[data-theme="light"] .gz-row .gz-name b,
+  html[data-theme="light"] .lineup-alert .la-txt b,
+  html[data-theme="light"] .dc-label b,
+  html[data-theme="light"] .tr-row .tr-name b,
+  html[data-theme="light"] .cal-title,
+  html[data-theme="light"] .sr-pos .n,
+  html[data-theme="light"] .ach-name,
+  html[data-theme="light"] .gz-big{color:var(--chalk)!important}
+  /* Boutons dorés : au survol, ne pas virer au blanc (texte doré invisible) */
+  html[data-theme="light"] .bid-btn:hover{background:var(--transfer-deep);color:#fff}
+  /* Pastilles "live" (badge cloche) : garder un rouge lisible */
+  html[data-theme="light"] #bellBadge{color:#fff}
+  /* Le petit "·" doré du logo reste visible */
+  html[data-theme="light"] .logo b{color:#8a6508}
+  /* Lignes de prix / montants dorés : un or plus profond déjà géré par la
+     variable --transfer ; on renforce le contraste des titres clairs. */
+  html[data-theme="light"] h1 em,
+  html[data-theme="light"] .hero em{color:var(--transfer-deep)}
   ::selection{background:var(--transfer);color:#111}
 
   /* ---------- Pop-up d'accueil ---------- */
@@ -5282,7 +5306,11 @@ setInterval(()=>{
 // AVANT un éventuel thème personnalisé admin.
 const LIGHT_VARS = {
   '--pitch':'#ffffff', '--pitch-2':'#f3f6fb', '--line':'#d4dcea',
-  '--chalk':'#132036', '--muted':'#5f7190'
+  '--chalk':'#132036', '--muted':'#5f7190',
+  // Or assombri pour rester lisible sur fond clair (texte ET remplissage)
+  '--transfer':'#b8860b', '--transfer-deep':'#8a6508', '--gold-bright':'#9a7310',
+  // Rouge "live" un peu plus profond pour le contraste sur blanc
+  '--live':'#d63d30'
 };
 let COLOR_MODE = 'auto';
 let ADMIN_THEME = null;   // thème personnalisé admin (pour le re-poser en sombre)
