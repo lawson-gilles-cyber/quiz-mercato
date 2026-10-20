@@ -501,9 +501,9 @@
   <h2>Import CSV (plusieurs joueurs)</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:10px">Colle une liste de joueurs (depuis Excel/Sheets/Transfermarkt). Une ligne par joueur, colonnes séparées par <b>virgule</b> ou <b>point-virgule</b> :</p>
-    <p class="hint" style="margin-bottom:10px;font-family:'Space Mono';color:var(--transfer)">Prénom, Nom, Poste, Club, Championnat, Valeur(M€)</p>
-    <p class="hint" style="margin-bottom:10px">Poste : GK/DEF/MID/FWD ou Gardien/Défenseur/Milieu/Attaquant. Les joueurs déjà en base (même prénom+nom+club) sont ignorés.</p>
-    <textarea id="csvInput" rows="6" style="width:100%;font-family:'Space Mono';font-size:.82rem" placeholder="Kylian, Mbappé, FWD, Real Madrid, Liga, 180&#10;Thiago, Silva, DEF, Fluminense, Autre, 8"></textarea>
+    <p class="hint" style="margin-bottom:10px;font-family:'Space Mono';color:var(--transfer)">Prénom, Nom, Poste, Club, Championnat, Valeur(M€) [, Âge] [, Nationalité]</p>
+    <p class="hint" style="margin-bottom:10px">Poste : GK/DEF/MID/FWD ou Gardien/Défenseur/Milieu/Attaquant. Âge et Nationalité sont facultatifs. Les joueurs déjà en base (même prénom+nom+club) sont ignorés. ⚠️ Un championnat « Autre » ou vide est signalé : saisis le vrai championnat pour que la règle des 6 fonctionne.</p>
+    <textarea id="csvInput" rows="6" style="width:100%;font-family:'Space Mono';font-size:.82rem" placeholder="Kylian, Mbappé, FWD, Real Madrid, Liga, 180, 27, 🇫🇷&#10;Erling, Haaland, FWD, Manchester City, Premier League, 180"></textarea>
     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
       <button class="btn-ghost btn-sm" id="btnCsvPreview">Aperçu</button>
       <button class="btn-primary btn-sm" id="btnCsvImport" style="display:none">Importer les joueurs</button>
@@ -988,16 +988,23 @@ function parseCSV(text){
     // sépare par ; ou , (tolère les deux)
     const parts = line.split(/[;,]/).map(s=>s.trim());
     if(parts.length < 6) { rows.push({error:'colonnes manquantes', raw:line}); continue; }
-    const [first, name, posRaw, club, champ, valRaw] = parts;
+    // Colonnes : Prénom, Nom, Poste, Club, Championnat, Valeur[, Âge][, Nationalité]
+    const [first, name, posRaw, club, champ, valRaw, ageRaw, natRaw] = parts;
     const posKey = (posRaw||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s/g,'');
     const pos = POS_MAP[posKey] || (['GK','DEF','MID','FWD'].includes((posRaw||'').toUpperCase())?posRaw.toUpperCase():null);
     const val = parseFloat((valRaw||'').replace(',','.'));
+    const age = ageRaw!=null && ageRaw!=='' && !isNaN(parseInt(ageRaw,10)) ? parseInt(ageRaw,10) : null;
+    const nationality = (natRaw||'').trim() || null;
     const err = [];
     if(!first) err.push('prénom');
     if(!name) err.push('nom');
     if(!pos) err.push('poste');
     if(isNaN(val)) err.push('valeur');
-    rows.push({ first, name, pos, club, champ, val, error: err.length?('manque: '+err.join(', ')):null, raw:line });
+    // Avertissement (non bloquant) : championnat "Autre"/vide casse la règle des 6.
+    const champClean = (champ||'').trim();
+    const warn = (!champClean || /^autre$/i.test(champClean)) ? 'championnat « Autre » → saisis le vrai championnat (règle des 6)' : null;
+    rows.push({ first, name, pos, club, champ:champClean, val, age, nationality,
+      error: err.length?('manque: '+err.join(', ')):null, warn, raw:line });
   }
   return rows;
 }
@@ -1014,12 +1021,13 @@ if($('btnCsvPreview')) $('btnCsvPreview').onclick = ()=>{
   CSV_ROWS = rows;
   const ok = rows.filter(r=>!r.error), bad = rows.filter(r=>r.error);
   if(!rows.length){ $('csvPreview').innerHTML='<p class="hint">Rien à importer.</p>'; $('btnCsvImport').style.display='none'; return; }
+  const warned = ok.filter(r=>r.warn).length;
   $('csvPreview').innerHTML = `
-    <p class="hint" style="margin-bottom:8px"><b>${ok.length}</b> joueur(s) valides${bad.length?` · <span style="color:var(--live,#ef5350)">${bad.length} ligne(s) à corriger</span>`:''}</p>
-    <table style="width:100%;font-size:.82rem"><thead><tr><th>Prénom</th><th>Nom</th><th>Poste</th><th>Club</th><th>Champ.</th><th>Valeur</th><th></th></tr></thead><tbody>${
+    <p class="hint" style="margin-bottom:8px"><b>${ok.length}</b> joueur(s) valides${bad.length?` · <span style="color:var(--live,#ef5350)">${bad.length} ligne(s) à corriger</span>`:''}${warned?` · <span style="color:var(--transfer,#e0a106)">${warned} à championnat « Autre »</span>`:''}</p>
+    <table style="width:100%;font-size:.82rem"><thead><tr><th>Prénom</th><th>Nom</th><th>Poste</th><th>Club</th><th>Champ.</th><th>Âge</th><th>Nat.</th><th>Valeur</th><th></th></tr></thead><tbody>${
       rows.map(r=>r.error
-        ? `<tr style="color:var(--live,#ef5350)"><td colspan="6">${r.raw}</td><td>⚠️ ${r.error}</td></tr>`
-        : `<tr><td>${r.first}</td><td>${r.name}</td><td>${r.pos}</td><td>${r.club||'—'}</td><td>${r.champ||'—'}</td><td>${r.val} M€</td><td>✅</td></tr>`
+        ? `<tr style="color:var(--live,#ef5350)"><td colspan="8">${r.raw}</td><td>⚠️ ${r.error}</td></tr>`
+        : `<tr${r.warn?' style="color:var(--transfer,#e0a106)"':''}><td>${r.first}</td><td>${r.name}</td><td>${r.pos}</td><td>${r.club||'—'}</td><td>${r.champ||'—'}</td><td>${r.age??'—'}</td><td>${r.nationality||'—'}</td><td>${r.val} M€</td><td title="${r.warn||''}">${r.warn?'⚠️':'✅'}</td></tr>`
       ).join('')
     }</tbody></table>`;
   $('btnCsvImport').style.display = ok.length?'inline-block':'none';
@@ -1033,6 +1041,7 @@ if($('btnCsvImport')) $('btnCsvImport').onclick = async (e)=>{
     const { error } = await api.adminUpsertPlayer({
       first_name: r.first || null, name: r.name, position: r.pos,
       club: r.club || null, championship: r.champ || null,
+      age: r.age ?? null, nationality: r.nationality ?? null,
       value: Math.round(r.val * M)
     });
     if(error){
