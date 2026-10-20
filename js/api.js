@@ -387,6 +387,14 @@ export async function myTrades() {
 export async function acceptTrade(id){ return sb.rpc('qm_trade_accept', { p_trade_id: id }); }
 export async function refuseTrade(id){ return sb.rpc('qm_trade_refuse', { p_trade_id: id }); }
 export async function cancelTrade(id){ return sb.rpc('qm_trade_cancel', { p_trade_id: id }); }
+// Place de marché (vitrine des échanges)
+export async function setForTrade(playerId, on, price){
+  return sb.rpc('qm_set_for_trade', { p_player_id: playerId, p_on: on, p_price: (price ?? null) });
+}
+export async function marketListings(){
+  const { data } = await sb.rpc('qm_market_listings');
+  return data ?? [];
+}
 
 // ---------- PRÊTS DE JOUEURS (vague 2) ------------------------------
 export async function proposeLoan(l) {

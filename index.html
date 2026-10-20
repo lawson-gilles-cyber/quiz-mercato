@@ -85,6 +85,49 @@
      variable --transfer ; on renforce le contraste des titres clairs. */
   html[data-theme="light"] h1 em,
   html[data-theme="light"] .hero em{color:var(--transfer-deep)}
+
+  /* Recherche globale (palette de commandes) */
+  .search-overlay{position:fixed;inset:0;z-index:1100;background:rgba(5,10,22,.72);backdrop-filter:blur(4px);
+    display:flex;align-items:flex-start;justify-content:center;padding:70px 16px 16px;animation:wmFade .2s ease}
+  .search-box{width:100%;max-width:560px;background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,.5);overflow:hidden;animation:wmPop .25s cubic-bezier(.2,.9,.3,1.3)}
+  .search-inp{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+  .search-inp span{font-size:1.1rem}
+  .search-inp input{flex:1;background:none;border:none;outline:none;color:var(--chalk);font-size:1rem;font-family:inherit}
+  .search-results{max-height:50vh;overflow-y:auto}
+  .search-cat{font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;
+    font-size:.68rem;color:var(--muted);padding:10px 16px 4px}
+  .search-item{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;border-left:3px solid transparent}
+  .search-item:hover,.search-item.active{background:rgba(245,197,66,.08);border-left-color:var(--transfer)}
+  .search-ic{flex:0 0 auto;width:26px;text-align:center;font-size:1.05rem}
+  .search-main{flex:1;min-width:0}
+  .search-t{font-size:.92rem;color:var(--chalk);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .search-s{font-size:.75rem;color:var(--muted)}
+  .search-tag{flex:0 0 auto;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);
+    border:1px solid var(--line);border-radius:20px;padding:1px 8px;white-space:nowrap}
+  .search-empty{padding:22px 16px;text-align:center;color:var(--muted);font-size:.86rem}
+  .search-hint{padding:9px 16px;border-top:1px solid var(--line);font-size:.72rem;color:var(--muted);text-align:center}
+
+  /* Place de marché (vitrine) */
+  .mkt-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+  .mkt-row:first-child{border-top:none}
+  .bid-btn.trade-toggle{background:transparent;border:1px solid var(--transfer);color:var(--transfer)}
+  .bid-btn.trade-toggle.on{background:var(--transfer);color:var(--pitch)}
+
+  /* Mes statistiques */
+  .ms-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
+  .ms-kpi{background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
+  .ms-kpi .v{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.6rem;color:var(--transfer);line-height:1}
+  .ms-kpi .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:5px}
+  .ms-block{background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
+  .ms-h{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-weight:800;
+    font-size:1rem;margin-bottom:12px;color:var(--chalk)}
+  .ms-trow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line);font-size:.88rem}
+  .ms-trow:first-of-type{border-top:none}
+  .ms-trow .r{flex:0 0 auto;width:24px;color:var(--muted);font-family:'Space Mono',monospace;font-size:.8rem}
+  .ms-trow .n{flex:1;color:var(--chalk);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .ms-trow .p{flex:0 0 auto;font-family:'Space Mono',monospace;font-weight:700;color:var(--transfer)}
+  .ms-empty{color:var(--muted);font-size:.84rem;padding:4px 0}
   ::selection{background:var(--transfer);color:#111}
 
   /* ---------- Pop-up d'accueil ---------- */
@@ -866,6 +909,7 @@
         <button data-v="chat">💬 Chat</button>
         <button data-v="pronos">🎲 Pronos</button>
         <button data-v="achievements">🏅 Succès</button>
+        <button data-v="mystats">📊 Mes stats</button>
         <button data-v="gazette">📰 Journal</button>
         <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
@@ -875,6 +919,7 @@
   </nav>
   <div class="wallet" id="walletBox"><small><span class="lbl-long">💰 BUDGET DISPO</span><span class="lbl-short">💰 BUDGET</span></small><span id="wallet">—</span></div>
   <div class="wallet" id="salaryBox" style="display:none"><small><span class="lbl-long">⚖️ MASSE SALARIALE</span><span class="lbl-short">⚖️ SALAIRE</span></small><span id="walletSalary">—</span></div>
+  <button id="searchBtn" title="Recherche globale" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)">🔍</button>
   <button id="themeBtn" title="Thème clair / sombre / auto" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)">🌓</button>
   <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
   <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-left:10px">
@@ -884,6 +929,15 @@
   <button id="authBtn" style="font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;font-size:.78rem;background:var(--transfer);color:var(--pitch);border:none;padding:9px 14px;border-radius:8px;cursor:pointer;margin-left:10px">Connexion</button>
   <div id="notifPanel" style="display:none;position:absolute;top:60px;right:16px;width:320px;max-height:400px;overflow-y:auto;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:12px;z-index:50;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
 </header>
+
+<!-- Recherche globale (palette de commandes) -->
+<div id="searchOverlay" class="search-overlay" style="display:none">
+  <div class="search-box">
+    <div class="search-inp"><span>🔍</span><input id="searchInput" type="text" placeholder="Rechercher un joueur, une équipe, un onglet…" autocomplete="off"></div>
+    <div id="searchResults" class="search-results"></div>
+    <div class="search-hint">Entrée pour ouvrir · Échap pour fermer</div>
+  </div>
+</div>
 
 <!-- Modale d'authentification manager -->
 <div id="squadModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;padding:20px">
@@ -1014,6 +1068,20 @@
         <button id="btnDirectRecruit" class="bid-btn" style="width:100%;display:none">Recruter</button>
         <div id="directResult" style="margin-top:8px"></div>
       </div>
+    </div>
+
+    <!-- Place de marché (vitrine des échanges) -->
+    <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+        <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem">🏪 Place de marché</div>
+        <span id="marketCount" style="font-size:.78rem;color:var(--muted)"></span>
+      </div>
+      <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Les joueurs que les autres managers proposent à l'échange. Clique pour lancer une proposition.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input id="mktSearch" type="search" placeholder="🔍 Rechercher…" style="flex:1;min-width:150px;padding:8px 10px">
+        <select id="mktPos" style="padding:8px 10px"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
+      </div>
+      <div id="marketList"></div>
     </div>
 
     <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour dénicher des joueurs et proposer des échanges.</div>
@@ -1258,6 +1326,14 @@
   </section>
 
   <!-- PRONOSTICS -->
+  <!-- MES STATISTIQUES (bilan de performance) -->
+  <section class="view" id="mystats">
+    <div class="eyebrow">Mon bilan de performance</div>
+    <h1>Mes <em>stats</em></h1>
+    <div id="mystatsGate" style="display:none" class="empty">Connecte-toi pour voir tes statistiques.</div>
+    <div id="mystatsBody"></div>
+  </section>
+
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
   <section class="view" id="gazette">
     <div class="eyebrow">La gazette de la semaine</div>
@@ -1857,7 +1933,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','gazette','calendar','draft','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','gazette','calendar','draft','rules'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1875,7 +1951,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, draft:renderDraft};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -2011,8 +2087,9 @@ function playerCard(p){
       <div class="val">${fmtMoney(p.current_value)}<small>VALEUR DE MARCHÉ</small></div>
       ${scoutSheet(p)}
       ${(ME && p.owner_id===ME.id)
-        ? `<div class="owner">Ton joueur</div>
-           <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e">Libérer</button>
+        ? `<div class="owner">Ton joueur${p.for_trade?' · <span style="color:var(--transfer)">🏪 en vitrine</span>':''}</div>
+           <button class="bid-btn trade-toggle${p.for_trade?' on':''}" data-trade="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" data-on="${p.for_trade?1:0}" data-ask="${p.asking_price||''}" style="margin-top:6px">${p.for_trade?'🏪 Retirer de la vitrine':'🏪 Proposer à l\'échange'}</button>
+           <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e;margin-top:6px">Libérer</button>
            <button class="bid-btn" data-injury="${p.id}" data-iname="${(p.name||'').replace(/"/g,'&quot;')}" style="background:transparent;border:1px solid var(--line);color:var(--muted);margin-top:6px">Déclarer blessé</button>`
         : owned
           ? `<div class="owner">${ownerName?'Recruté par <b>'+ownerName+'</b>':'Indisponible'}</div>
@@ -2219,6 +2296,7 @@ function setupPlayerCheck(){
 }
 async function renderMarket(){
   setupPlayerCheck();            // « ce joueur est-il déjà pris ? » (tous)
+  renderMarketplace();           // place de marché (vitrine des échanges)
   if(!ME){
     $('tradeGate').style.display='block'; $('tradeUI').style.display='none';
     setupComparator(); setupDirectRecruit(); return;
@@ -2247,6 +2325,62 @@ async function renderMarket(){
   renderScoutList();
   renderLoans();
 }
+
+// ---------- Place de marché (vitrine des échanges) ----------
+let MARKET_LISTINGS = [];
+async function renderMarketplace(){
+  const list = $('marketList'); if(!list) return;
+  try { MARKET_LISTINGS = await api.marketListings(); } catch(e){ MARKET_LISTINGS = []; }
+  applyMarketFilters();
+}
+function applyMarketFilters(){
+  const list = $('marketList'); if(!list) return;
+  const q = ($('mktSearch')?.value||'').trim().toLowerCase();
+  const pos = $('mktPos')?.value||'';
+  // On n'affiche pas mes propres joueurs (is_mine) : on échange avec les autres.
+  let rows = (MARKET_LISTINGS||[]).filter(r=>!r.is_mine);
+  if(q)   rows = rows.filter(r=> (r.name||'').toLowerCase().includes(q) || (r.team_name||r.owner_name||'').toLowerCase().includes(q));
+  if(pos) rows = rows.filter(r=> r.pos===pos);
+
+  if($('marketCount')) $('marketCount').textContent = rows.length ? `${rows.length} joueur${rows.length>1?'s':''} en vitrine` : '';
+
+  if(!rows.length){
+    list.innerHTML = `<div class="empty" style="margin:0">Aucun joueur proposé à l'échange pour le moment${((MARKET_LISTINGS||[]).some(r=>r.is_mine))?' (hors tes propres joueurs)':''}.</div>`;
+    return;
+  }
+  const NC = {'rouge':'#e0574a','jaune':'#e0a800','vert-clair':'#7bc96f','vert-vif':'#4ade80'};
+  list.innerHTML = rows.map(r=>{
+    const ask = r.asking_price!=null ? `<span style="color:var(--transfer);font-weight:700">${fmtMoney(r.asking_price)}</span> <span style="color:var(--muted);font-size:.72rem">demandé</span>` : `<span style="color:var(--muted);font-size:.8rem">prix au feeling</span>`;
+    const dot = r.note_color ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${NC[r.note_color]||'var(--muted)'};margin-right:5px"></span>` : '';
+    return `<div class="mkt-row">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;color:var(--chalk);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${dot}${r.name} <span style="color:var(--muted);font-size:.74rem">${POS[r.pos]||r.pos}</span></div>
+        <div style="font-size:.78rem;color:var(--muted)">${r.club||'—'} · chez <b>${r.team_name||r.owner_name||'?'}</b></div>
+        <div style="font-size:.8rem;margin-top:3px">Valeur ${fmtMoney(r.current_value)} · ${ask}</div>
+      </div>
+      <button class="bid-btn" data-mkttrade="${r.owner_id}" data-player="${r.player_id}" style="flex:0 0 auto;width:auto;margin:0;padding:9px 14px;white-space:nowrap">Proposer un échange</button>
+    </div>`;
+  }).join('');
+  // Action : pré-ouvre le troc avec ce manager + ce joueur demandé
+  list.querySelectorAll('[data-mkttrade]').forEach(btn=>btn.onclick=()=>{
+    const ownerId = btn.dataset.mkttrade, pid = btn.dataset.player;
+    if(!ME){ $('authModal').style.display='flex'; return; }
+    const sel = $('tradeTarget');
+    if(sel){ sel.value = ownerId; sel.dispatchEvent(new Event('change')); }
+    // Pré-sélectionne le joueur demandé une fois l'effectif du manager chargé.
+    setTimeout(()=>{
+      if(typeof selAsk!=='undefined'){ try { selAsk.add(pid); } catch(e){} }
+      const pick = document.querySelector(`#theirPlayers [data-id="${pid}"]`);
+      if(pick){ pick.classList.add('on'); const cb=pick.querySelector('input'); if(cb) cb.checked=true; }
+      const sec = document.getElementById('tradeTarget'); if(sec) sec.scrollIntoView({behavior:'smooth',block:'center'});
+      if(typeof renderTradeSummary==='function') renderTradeSummary();
+    }, 400);
+    toast('Échange pré-rempli : ajoute ce que tu offres, puis envoie.','info',4000);
+  });
+}
+// Filtres de la place de marché
+if($('mktSearch')) $('mktSearch').addEventListener('input', applyMarketFilters);
+if($('mktPos')) $('mktPos').addEventListener('change', applyMarketFilters);
 
 // ---------- Prêts de joueurs ----------
 async function renderLoans(){
@@ -3626,6 +3760,26 @@ async function renderTeam(){
     toast('Déclaration envoyée. En attente de validation par l\'organisateur.','ok');
   });
 
+  // Toggle « proposer à l'échange » (vitrine)
+  document.querySelectorAll('#team [data-trade]').forEach(btn => btn.onclick = async () => {
+    const pid = btn.dataset.trade, name = btn.dataset.name||'ce joueur';
+    const isOn = btn.dataset.on==='1';
+    if(isOn){
+      const { error } = await api.setForTrade(pid, false, null);
+      if(error) return toast('Échec : '+error.message,'err');
+      toast(`${name} retiré de la vitrine.`,'info'); renderTeam();
+      return;
+    }
+    // Demande un prix indicatif (optionnel)
+    const ask = prompt(`Mettre ${name} en vitrine.\n\nPrix indicatif en M€ (laisse vide = « au feeling ») :`, btn.dataset.ask ? Math.round(Number(btn.dataset.ask)/1e6) : '');
+    if(ask === null) return;  // annulé
+    let price = null;
+    if(ask.trim()!==''){ const n=parseFloat(ask.replace(',','.')); if(isNaN(n)||n<0) return toast('Prix invalide.','err'); price=Math.round(n*1e6); }
+    const { error } = await api.setForTrade(pid, true, price);
+    if(error) return toast('Échec : '+error.message,'err');
+    toast(`${name} proposé à l'échange ✓`,'ok'); renderTeam();
+  });
+
   // Boutons "Libérer" (liste ET terrain, via délégation sur data-release)
   document.querySelectorAll('#team [data-release]').forEach(btn => btn.onclick = async () => {
     const pid = btn.dataset.release;
@@ -4945,6 +5099,79 @@ async function renderAchievements(){
     (todo.length ? `<div class="ach-grouptitle">🔒 À débloquer (${todo.length})</div><div class="ach-grid">${todo.map(card).join('')}</div>` : '');
 }
 
+// ---------- Mes statistiques (bilan de performance) ----------
+// Calcule, côté client, les points par journée, les meilleurs contributeurs
+// de l'effectif, la régularité de compo et le meilleur coup au mercato.
+async function renderMyStats(){
+  const gate=$('mystatsGate'), body=$('mystatsBody'); if(!body) return;
+  if(!ME){ if(gate) gate.style.display='block'; body.innerHTML=''; return; }
+  if(gate) gate.style.display='none';
+  body.innerHTML = '<div class="empty">Calcul de tes statistiques…</div>';
+
+  let teamId=null, mds=[], best=null;
+  try { teamId = await api.myTeamId(); } catch(e){}
+  try { mds = await api.listMatchdays(); } catch(e){}
+  try { best = await api.managerBestDeal(teamId||ME.id); } catch(e){}
+
+  // Journées clôturées (avec résultat), triées par numéro
+  const closed = (mds||[]).filter(m=>m.status==='closed').sort((a,b)=> (a.number||0)-(b.number||0));
+
+  // Récupère le détail de chaque journée (points + contributions par joueur)
+  const byMd = [];
+  const contrib = {};  // joueur -> total contribution
+  let fullCompos = 0;
+  for(const m of closed){
+    let bd = [];
+    try { bd = await api.lineupBreakdown(teamId||ME.id, m.id); } catch(e){}
+    const total = (bd||[]).reduce((s,x)=>s+Number(x.contribution||0),0);
+    byMd.push({ label: m.label||('J'+m.number), number:m.number, total });
+    if((bd||[]).length>=11) fullCompos++;
+    (bd||[]).forEach(x=>{ if(x.name) contrib[x.name] = (contrib[x.name]||0) + Number(x.contribution||0); });
+  }
+
+  const totalPts = byMd.reduce((s,x)=>s+x.total,0);
+  const playedMds = byMd.length;
+  const avg = playedMds ? totalPts/playedMds : 0;
+  const bestMd = byMd.slice().sort((a,b)=>b.total-a.total)[0];
+  const topPlayers = Object.entries(contrib).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // KPIs
+  const kpis = `<div class="ms-kpis">
+    <div class="ms-kpi"><div class="v">${Number(ME.season_points||0)}</div><div class="l">Points saison</div></div>
+    <div class="ms-kpi"><div class="v">${avg.toFixed(1)}</div><div class="l">Moyenne / journée</div></div>
+    <div class="ms-kpi"><div class="v">${playedMds}</div><div class="l">Journées jouées</div></div>
+    <div class="ms-kpi"><div class="v">${fullCompos}/${playedMds||0}</div><div class="l">Compos complètes</div></div>
+  </div>`;
+
+  // Courbe des points par journée (réutilise sparkline)
+  const curveData = byMd.map(x=>({ value:x.total }));
+  const curve = `<div class="ms-block">
+    <div class="ms-h">📈 Points par journée</div>
+    ${byMd.length>=2
+      ? `<div style="background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(curveData)}</div>
+         ${bestMd?`<div style="text-align:center;font-size:.82rem;color:var(--muted);margin-top:8px">Meilleure journée : <b style="color:var(--transfer)">${bestMd.label}</b> avec ${bestMd.total.toFixed(1)} pts</div>`:''}`
+      : '<div class="ms-empty">Il faut au moins 2 journées clôturées pour tracer la courbe.</div>'}
+  </div>`;
+
+  // Top contributeurs de l'effectif
+  const top = `<div class="ms-block">
+    <div class="ms-h">⭐ Tes meilleurs joueurs (saison)</div>
+    ${topPlayers.length
+      ? topPlayers.map(([name,pts],i)=>`<div class="ms-trow"><span class="r">${i+1}</span><span class="n">${name}</span><span class="p">${pts.toFixed(1)} pts</span></div>`).join('')
+      : '<div class="ms-empty">Aucune note enregistrée pour l\'instant.</div>'}
+  </div>`;
+
+  // Meilleur coup au mercato
+  const deal = (best && best.player_name) ? `<div class="ms-block">
+    <div class="ms-h">🚀 Ton meilleur coup au mercato</div>
+    <div style="font-size:.9rem"><b>${best.player_name}</b> — acheté ${fmtMoney(best.bought)}, vaut ${fmtMoney(best.current_value)}
+      <b style="color:${Number(best.gain)>=0?'#4ade80':'var(--live,#e0574a)'}">(${Number(best.gain)>=0?'+':''}${fmtMoney(best.gain)})</b></div>
+  </div>` : '';
+
+  body.innerHTML = kpis + curve + top + deal +
+    `<p style="text-align:center;color:var(--muted);font-size:.76rem;margin-top:8px">Statistiques calculées sur les journées clôturées.</p>`;
+}
+
 // ---------- Journal du mercato (gazette hebdo) ----------
 // Compile l'actu des 7 derniers jours à partir des données publiques :
 // plus gros transferts, qui a le plus dépensé, pépite la plus disputée, podium.
@@ -5354,8 +5581,105 @@ if($('themeBtn')) $('themeBtn').onclick = ()=>{
   toast(label, 'info', 2200);
 };
 
+// ---------- Recherche globale (palette de commandes) ----------
+// Cherche d'un coup : onglets, joueurs (fiche/enchère), équipes (profil).
+const SEARCH_VIEWS = [
+  {v:'home',ic:'🏠',t:'Accueil'},{v:'auctions',ic:'⚡',t:'Enchères'},{v:'market',ic:'🔁',t:'Marché / Dénicher'},
+  {v:'team',ic:'👥',t:'Mon équipe'},{v:'lineup',ic:'📋',t:'Compo'},{v:'rank',ic:'🏆',t:'Classement'},
+  {v:'bonus',ic:'💰',t:'Bonus'},{v:'penalty',ic:'🚫',t:'Pénalités'},{v:'feed',ic:'📰',t:'Actu'},
+  {v:'chat',ic:'💬',t:'Chat'},{v:'pronos',ic:'🎲',t:'Pronos'},{v:'achievements',ic:'🏅',t:'Succès'},
+  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'}
+];
+let SEARCH_MANAGERS = [];   // cache des équipes (chargé à la 1re ouverture)
+let SEARCH_IDX = 0;         // index du résultat sélectionné (clavier)
+let SEARCH_HITS = [];       // résultats courants
+
+function openSearch(){
+  const ov = $('searchOverlay'); if(!ov) return;
+  ov.style.display='flex';
+  const inp = $('searchInput'); inp.value=''; SEARCH_IDX=0;
+  renderSearch('');
+  setTimeout(()=>inp.focus(), 30);
+  // Charge les équipes une fois (pour la recherche de managers)
+  if(!SEARCH_MANAGERS.length){
+    api.leaderboard().then(ms=>{ SEARCH_MANAGERS = ms||[]; if($('searchOverlay').style.display==='flex') renderSearch($('searchInput').value); }).catch(()=>{});
+  }
+}
+function closeSearch(){ const ov=$('searchOverlay'); if(ov) ov.style.display='none'; }
+function searchNorm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+
+function buildSearchHits(q){
+  const nq = searchNorm(q);
+  const hits = [];
+  // Onglets
+  SEARCH_VIEWS.forEach(x=>{
+    if(!nq || searchNorm(x.t).includes(nq))
+      hits.push({ic:x.ic, t:x.t, s:'Onglet', tag:'Onglet', run:()=>goView(x.v)});
+  });
+  if(nq){
+    // Joueurs (cache PLAYERS)
+    (PLAYERS||[]).filter(p=>{
+      const full = searchNorm((p.first_name||'')+' '+(p.name||''));
+      return full.includes(nq) || searchNorm(p.club||'').includes(nq);
+    }).slice(0,8).forEach(p=>{
+      const full = ((p.first_name||'').trim()? p.first_name.trim()+' ':'')+(p.name||'');
+      const stLbl = p.status==='free'?'Libre':p.status==='locked'?'En enchère':p.status==='owned'?'Dans une équipe':'';
+      hits.push({ic:'⚽', t:full, s:`${p.club||'—'}${p.championship?' · '+p.championship:''}`, tag:stLbl||'Joueur',
+        run:()=>{ closeSearch();
+          if(p.status==='locked'){ goView('auctions'); setTimeout(()=>{ const bid=document.querySelector(`[data-bid="${p.id}"]`); if(bid){ bid.scrollIntoView({behavior:'smooth',block:'center'}); } else showPlayerCard(p.id); }, 150); }
+          else showPlayerCard(p.id);
+        }});
+    });
+    // Équipes / managers
+    (SEARCH_MANAGERS||[]).filter(m=> searchNorm((m.team_name||'')+' '+(m.display_name||'')).includes(nq))
+      .slice(0,6).forEach(m=>{
+        hits.push({ic:'🛡️', t:(m.team_name||m.display_name), s:`${m.season_points} pts`, tag:'Équipe',
+          run:()=>{ closeSearch(); if(typeof showManagerSquad==='function') showManagerSquad(m.id); }});
+      });
+  }
+  return hits;
+}
+function renderSearch(q){
+  const box = $('searchResults'); if(!box) return;
+  SEARCH_HITS = buildSearchHits(q);
+  if(SEARCH_IDX >= SEARCH_HITS.length) SEARCH_IDX = 0;
+  if(!SEARCH_HITS.length){ box.innerHTML = `<div class="search-empty">Aucun résultat pour « ${q} ».</div>`; return; }
+  // Groupe par catégorie
+  let lastTag = null, html = '';
+  SEARCH_HITS.forEach((h,i)=>{
+    const cat = h.tag==='Onglet'?'Onglets':(h.tag==='Équipe'?'Équipes':'Joueurs');
+    if(cat!==lastTag){ html += `<div class="search-cat">${cat}</div>`; lastTag=cat; }
+    html += `<div class="search-item${i===SEARCH_IDX?' active':''}" data-si="${i}">
+      <span class="search-ic">${h.ic}</span>
+      <span class="search-main"><div class="search-t">${h.t}</div>${h.s?`<div class="search-s">${h.s}</div>`:''}</span>
+      ${h.tag?`<span class="search-tag">${h.tag}</span>`:''}
+    </div>`;
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('[data-si]').forEach(el=>el.onclick=()=>{ const h=SEARCH_HITS[+el.dataset.si]; if(h) h.run(); closeSearch(); });
+}
+function wireSearch(){
+  if($('searchBtn')) $('searchBtn').onclick = openSearch;
+  const ov=$('searchOverlay'), inp=$('searchInput');
+  if(ov) ov.onclick=(e)=>{ if(e.target===ov) closeSearch(); };
+  if(inp){
+    inp.addEventListener('input', ()=>{ SEARCH_IDX=0; renderSearch(inp.value); });
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape'){ closeSearch(); return; }
+      if(e.key==='ArrowDown'){ e.preventDefault(); SEARCH_IDX=Math.min(SEARCH_HITS.length-1, SEARCH_IDX+1); renderSearch(inp.value); }
+      else if(e.key==='ArrowUp'){ e.preventDefault(); SEARCH_IDX=Math.max(0, SEARCH_IDX-1); renderSearch(inp.value); }
+      else if(e.key==='Enter'){ const h=SEARCH_HITS[SEARCH_IDX]; if(h){ h.run(); closeSearch(); } }
+    });
+  }
+  // Raccourci clavier Ctrl/Cmd + K
+  document.addEventListener('keydown', (e)=>{
+    if((e.ctrlKey||e.metaKey) && (e.key==='k'||e.key==='K')){ e.preventDefault(); openSearch(); }
+  });
+}
+
 async function init(){
   wireOnboarding();
+  wireSearch();                // recherche globale
   initColorScheme();           // mode clair/sombre avant tout
   // Thème personnalisé (couleurs admin) — appliqué en premier
   try { ADMIN_THEME = await api.getTheme(); api.applyTheme(ADMIN_THEME); } catch(e){ /* thème par défaut */ }
