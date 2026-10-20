@@ -1135,6 +1135,7 @@
           <label class="trade-l" style="margin-top:12px">Complément en cash (M€, optionnel)</label>
           <input id="tradeCash" type="number" placeholder="ex. 20 = tu paies · -20 = tu reçois" style="width:100%">
           <input id="tradeMsg" type="text" placeholder="Message (optionnel)" style="width:100%;margin-top:8px">
+          <div id="tradeSummary" style="display:none;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--pitch);font-size:.85rem"></div>
           <button id="btnPropose" class="bid-btn" style="margin-top:14px">Envoyer la proposition</button>
         </div>
       </div>
@@ -2369,6 +2370,7 @@ async function renderMarket(){
     : `<div class="empty">Tu ne possèdes aucun joueur à échanger.</div>`;
   bindPicks('myPlayers', selOffer);
   $('theirPlayers').innerHTML = `<div class="empty">Choisis un manager pour voir son effectif.</div>`;
+  renderTradeSummary();           // masque/réinitialise le résumé
 
   renderTradeList();
   renderScoutList();
@@ -2410,20 +2412,22 @@ function applyMarketFilters(){
       <button class="bid-btn" data-mkttrade="${r.owner_id}" data-player="${r.player_id}" style="flex:0 0 auto;width:auto;margin:0;padding:9px 14px;white-space:nowrap">Proposer un échange</button>
     </div>`;
   }).join('');
-  // Action : pré-ouvre le troc avec ce manager + ce joueur demandé
-  list.querySelectorAll('[data-mkttrade]').forEach(btn=>btn.onclick=()=>{
+  // Action : pré-ouvre le troc avec ce manager + ce joueur demandé.
+  // On attend vraiment le chargement de l'effectif (plus de setTimeout fragile).
+  list.querySelectorAll('[data-mkttrade]').forEach(btn=>btn.onclick=async ()=>{
     const ownerId = btn.dataset.mkttrade, pid = btn.dataset.player;
     if(!ME){ $('authModal').style.display='flex'; return; }
     const sel = $('tradeTarget');
-    if(sel){ sel.value = ownerId; sel.dispatchEvent(new Event('change')); }
-    // Pré-sélectionne le joueur demandé une fois l'effectif du manager chargé.
-    setTimeout(()=>{
-      if(typeof selAsk!=='undefined'){ try { selAsk.add(pid); } catch(e){} }
-      const pick = document.querySelector(`#theirPlayers [data-id="${pid}"]`);
-      if(pick){ pick.classList.add('on'); const cb=pick.querySelector('input'); if(cb) cb.checked=true; }
-      const sec = document.getElementById('tradeTarget'); if(sec) sec.scrollIntoView({behavior:'smooth',block:'center'});
-      if(typeof renderTradeSummary==='function') renderTradeSummary();
-    }, 400);
+    if(!sel){ return; }
+    sel.value = ownerId;
+    // Déclenche le chargement de l'effectif cible ET attend qu'il finisse.
+    await sel.onchange();
+    // L'effectif est maintenant rendu : on sélectionne le joueur demandé.
+    selAsk.add(pid);
+    const pick = $('theirPlayers').querySelector(`[data-id="${pid}"]`);
+    if(pick){ pick.classList.add('sel'); const cb=pick.querySelector('input'); if(cb) cb.checked=true; }
+    renderTradeSummary();
+    sel.scrollIntoView({behavior:'smooth',block:'center'});
     toast('Échange pré-rempli : ajoute ce que tu offres, puis envoie.','info',4000);
   });
 }
@@ -2684,21 +2688,52 @@ function bindPicks(containerId, set){
       const id=el.dataset.id;
       if(el.querySelector('input').checked){ set.add(id); el.classList.add('sel'); }
       else { set.delete(id); el.classList.remove('sel'); }
+      renderTradeSummary();
     };
   });
+}
+
+// Résumé vivant de l'échange : ce que je donne ↔ ce que je reçois, delta de
+// valeur et cash. Aide le manager à juger l'équilibre avant d'envoyer.
+function renderTradeSummary(){
+  const box = $('tradeSummary'); if(!box) return;
+  const find = (id)=> [...(TRADE_MINE||[]),...(TRADE_THEIRS||[])].find(p=>p.id===id);
+  const give = [...selOffer].map(find).filter(Boolean);
+  const get  = [...selAsk].map(find).filter(Boolean);
+  if(!give.length && !get.length){ box.style.display='none'; return; }
+  const sum = arr => arr.reduce((s,p)=>s+Number(p.current_value||0),0);
+  const giveVal = sum(give), getVal = sum(get);
+  const cashM = parseFloat($('tradeCash')?.value)||0;      // >0 : je paie ; <0 : je reçois
+  const cash  = Math.round(cashM*1e6);
+  // Mon bilan net = valeur reçue - valeur donnée - cash versé.
+  const net = getVal - giveVal - cash;
+  const line = arr => arr.length ? arr.map(p=>`${p.name} <span style="color:var(--muted)">(${POS[p.position]||''} · ${fmtMoney(p.current_value)})</span>`).join(', ') : '<span style="color:var(--muted)">rien</span>';
+  const netColor = net>0 ? 'var(--note-ok,#4ade80)' : (net<0 ? 'var(--transfer)' : 'var(--muted)');
+  const netLabel = net>0 ? 'tu gagnes en valeur' : (net<0 ? 'tu cèdes de la valeur' : 'équilibré');
+  box.style.display='block';
+  box.innerHTML = `
+    <div style="margin-bottom:6px"><b style="color:var(--transfer)">Tu donnes :</b> ${line(give)}</div>
+    <div style="margin-bottom:6px"><b style="color:var(--chalk)">Tu reçois :</b> ${line(get)}</div>
+    ${cashM ? `<div style="margin-bottom:6px;color:var(--muted)">${cashM>0?'Tu ajoutes':'Tu reçois'} <b>${fmtMoney(Math.abs(cash))}</b> en cash</div>`:''}
+    <div style="border-top:1px solid var(--line);margin-top:8px;padding-top:8px">
+      Bilan net : <b style="color:${netColor}">${net>=0?'+':''}${fmtMoney(net)}</b> <span style="color:var(--muted);font-size:.78rem">(${netLabel})</span>
+    </div>`;
 }
 
 // Charger l'effectif du manager cible
 $('tradeTarget').onchange = async ()=>{
   const tid = $('tradeTarget').value;
   selAsk.clear();
-  if(!tid){ $('theirPlayers').innerHTML=`<div class="empty">Choisis un manager.</div>`; return; }
+  if(!tid){ $('theirPlayers').innerHTML=`<div class="empty">Choisis un manager.</div>`; renderTradeSummary(); return; }
   TRADE_THEIRS = await api.myTeam(tid);
   $('theirPlayers').innerHTML = TRADE_THEIRS.length
     ? TRADE_THEIRS.map(p=>tradePick(p,'ask')).join('')
     : `<div class="empty">Ce manager n'a aucun joueur.</div>`;
   bindPicks('theirPlayers', selAsk);
+  renderTradeSummary();
 };
+// Le cash influe sur le bilan net : on rafraîchit le résumé en direct.
+if($('tradeCash')) $('tradeCash').addEventListener('input', renderTradeSummary);
 
 // Envoyer la proposition
 $('btnPropose').onclick = async (ev)=>{
@@ -2717,6 +2752,8 @@ $('btnPropose').onclick = async (ev)=>{
     if(error){ toast('Échec : '+error.message,'err'); return; }
     toast('Proposition envoyée !','ok');
     $('tradeCash').value=''; $('tradeMsg').value='';
+    selOffer.clear(); selAsk.clear();
+    renderTradeSummary();
     renderMarket();
   });
 };
