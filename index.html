@@ -1272,7 +1272,10 @@
         <div id="lineupInfo" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div>
       </div>
       <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Sélectionne exactement <b>11 titulaires</b> parmi ton effectif. Seuls ces 11 marquent des points cette journée, selon leurs performances réelles.</p>
-      <div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem;margin-bottom:12px">0 / 11 sélectionnés</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+        <div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 sélectionnés</div>
+        <button id="btnSuggestLineup" class="bid-btn" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem">🧩 Suggérer mon 11</button>
+      </div>
       <div id="lineupPlayers" class="grid"></div>
       <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
       <div id="lineupResult" style="margin-top:10px"></div>
@@ -4370,7 +4373,46 @@ function renderLineupPlayers(mine){
     renderLineupPlayers(mine);
     updateLineupCounter();
   });
+  // Bouton « Suggérer mon 11 »
+  const sb = $('btnSuggestLineup');
+  if(sb) sb.onclick = ()=> suggestLineup(mine);
   updateLineupCounter();
+}
+
+// Composition assistée : propose les 11 meilleurs en respectant une structure
+// réaliste. Classe par note (révélée pour tes joueurs), sinon par valeur.
+function suggestLineup(mine){
+  if(!mine || !mine.length){ toast('Ton effectif est vide.','err'); return; }
+  const score = p => (p.note!=null ? Number(p.note) : 0) * 1000 + Number(p.current_value||0)/1e6;
+  const byPos = {GK:[],DEF:[],MID:[],FWD:[]};
+  mine.forEach(p=>{ if(byPos[p.position]) byPos[p.position].push(p); });
+  for(const k in byPos) byPos[k].sort((a,b)=> score(b)-score(a));
+
+  // Cible 4-4-2, puis on complète/ajuste selon l'effectif réel.
+  const target = {GK:1, DEF:4, MID:4, FWD:2};
+  const chosen = [];
+  const take = (pos,n)=>{ for(let i=0;i<n && byPos[pos].length;i++){ const p=byPos[pos].shift(); if(p){ chosen.push(p); } } };
+  // 1) Au moins un gardien si dispo
+  take('GK', Math.min(target.GK, byPos.GK.length));
+  take('DEF', target.DEF);
+  take('MID', target.MID);
+  take('FWD', target.FWD);
+  // 2) Complète à 11 avec les meilleurs restants, tous postes confondus
+  if(chosen.length < 11){
+    const rest = [...byPos.GK, ...byPos.DEF, ...byPos.MID, ...byPos.FWD].sort((a,b)=> score(b)-score(a));
+    for(const p of rest){ if(chosen.length>=11) break; chosen.push(p); }
+  }
+  if(chosen.length < 11){
+    toast(`Tu n'as que ${chosen.length} joueur${chosen.length>1?'s':''} — recrute pour aligner 11 titulaires.`,'err',4000);
+  }
+  LINEUP_SELECTED = new Set(chosen.slice(0,11).map(p=>p.id));
+  renderLineupPlayers(mine);
+  updateLineupCounter();
+  const gk = chosen.filter(p=>p.position==='GK').length;
+  const df = chosen.filter(p=>p.position==='DEF').length;
+  const mf = chosen.filter(p=>p.position==='MID').length;
+  const fw = chosen.filter(p=>p.position==='FWD').length;
+  toast(`11 suggéré (${gk}-${df}-${mf}-${fw}). Ajuste si tu veux, puis valide.`,'ok',4000);
 }
 function updateLineupCounter(){
   const n = LINEUP_SELECTED.size;
