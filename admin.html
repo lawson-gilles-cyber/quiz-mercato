@@ -725,11 +725,19 @@
 
   <!-- Mode saison / archives -->
   <h2>Saisons & archives</h2>
-  <div class="card">
-    <p class="hint" style="margin-bottom:14px">Clôturer la saison archive le classement final et le palmarès, puis remet le jeu à zéro pour une nouvelle saison (les comptes managers et le catalogue de joueurs sont conservés). <b>Action irréversible</b> — fais un export avant.</p>
+  <div class="card" style="border:1px solid var(--live, #e0574a)">
+    <div style="font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1rem;color:var(--live,#e0574a);margin-bottom:8px">🔄 Remise à zéro (nouvelle saison)</div>
+    <p class="hint" style="margin-bottom:12px">Cette action <b>archive la saison en cours</b> (classement final + palmarès), puis <b>remet le jeu à zéro</b> :</p>
+    <ul class="hint" style="margin:0 0 14px 18px;line-height:1.8">
+      <li>Effectifs vidés, tous les joueurs redeviennent <b>libres</b> (valeur remise au départ).</li>
+      <li>Budgets remis à <b>800 M€</b>, points de classement à <b>0</b>.</li>
+      <li>Enchères, transferts, bonus, compositions, propositions, échanges : <b>effacés</b>.</li>
+      <li><b>Conservés</b> : les comptes managers/coachs et le catalogue de joueurs.</li>
+    </ul>
+    <p class="hint" style="margin-bottom:14px;color:var(--live,#e0574a)"><b>⚠️ Action IRRÉVERSIBLE.</b> Fais un export des données avant si tu veux garder une trace.</p>
     <div class="row c3" style="margin-bottom:14px;align-items:end">
-      <div><label>Nom de la saison (optionnel)</label><input id="seasonLabel" type="text" placeholder="ex. Saison 2026-2027"></div>
-      <div><button class="btn-danger" id="btnCloseSeason">🏁 Clôturer la saison</button></div>
+      <div><label>Nom de la saison à archiver (optionnel)</label><input id="seasonLabel" type="text" placeholder="ex. Saison 2026-2027"></div>
+      <div><button class="btn-danger" id="btnCloseSeason">🔄 Tout remettre à zéro</button></div>
     </div>
     <div id="seasonsList" style="margin-top:8px"></div>
   </div>
@@ -797,7 +805,7 @@ async function refreshGate(){
 // sections (voir le tri plus bas). Ordre demandé par Audrey (17/10).
 const ADMIN_TABS = [
   { id:'pilotage', label:'📊 Pilotage', titles:[
-      "Vue d'ensemble","Phase du mercato","Fenêtres de mercato","Tableau de bord financier"] },
+      "Vue d'ensemble","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
       "Historique des transactions","Libérations & pénalités","Historique des propositions"] },
@@ -805,7 +813,7 @@ const ADMIN_TABS = [
       "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
   { id:'managers', label:'👥 Managers', titles:[
       "Classement des managers","Ligues & divisions","Modération du chat","Récompenses de fin de saison",
-      "Défis & objectifs","Pronostics","Draft","Journées & Compositions","Saisons & archives"] },
+      "Défis & objectifs","Pronostics","Draft","Journées & Compositions"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
 ];
@@ -2533,11 +2541,21 @@ async function loadSeasons(){
 }
 if($('btnCloseSeason')) $('btnCloseSeason').onclick = async ()=>{
   const label = $('seasonLabel').value.trim() || null;
-  if(!confirm('CLÔTURER LA SAISON ?\n\nLe classement final et le palmarès seront archivés, PUIS le jeu sera remis à zéro (effectifs vidés, budgets et points remis à zéro, enchères/journées effacées).\n\nLes comptes managers et le catalogue de joueurs sont conservés.\n\nCette action est IRRÉVERSIBLE. As-tu fait un export avant ?')) return;
-  if(!confirm('Dernière confirmation : clôturer définitivement la saison ?')) return;
+  // Garde-fou 1 : récapitulatif + 1re confirmation
+  if(!confirm('🔄 REMISE À ZÉRO ?\n\nLe classement final et le palmarès seront ARCHIVÉS, PUIS le jeu sera remis à zéro :\n• effectifs vidés, joueurs tous libres\n• budgets remis à 800 M€, points à 0\n• enchères, transferts, bonus, compos, propositions effacés\n\nConservés : comptes managers/coachs + catalogue de joueurs.\n\nCette action est IRRÉVERSIBLE. As-tu fait un export avant ?')) return;
+  // Garde-fou 2 : taper un mot exact (évite le clic accidentel)
+  const typed = prompt('Confirmation finale.\n\nPour tout remettre à zéro, tape exactement :\n\nREMISE A ZERO');
+  if(typed === null) return;  // annulé
+  if(typed.trim().toUpperCase() !== 'REMISE A ZERO'){
+    toast('Texte incorrect : remise à zéro annulée (rien n\'a été modifié).','info',5000);
+    return;
+  }
+  const btn = $('btnCloseSeason'); const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Remise à zéro…';
   const r = await api.adminCloseSeason(label);
+  btn.disabled = false; btn.textContent = old;
   if(r.error) return toast(r.error.message,'err',6000);
-  toast('Saison clôturée et archivée. Nouvelle saison prête.','ok',5000);
+  toast('✅ Saison archivée et jeu remis à zéro. Nouvelle saison prête !','ok',5000);
   loadSeasons(); loadRanking(); loadOverview(); loadPlayers();
 };
 
