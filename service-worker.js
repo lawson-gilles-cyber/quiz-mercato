@@ -8,7 +8,7 @@
  * incrémenter CACHE_VERSION ci-dessous (v1 -> v2 -> v3...).
  * L'ancien cache est alors supprimé automatiquement.
  */
-const CACHE_VERSION = 'us-v54';
+const CACHE_VERSION = 'us-v55';
 const CACHE_NAME = 'ultimate-squad-' + CACHE_VERSION;
 
 // Coquille minimale mise en cache à l'installation (ouverture rapide hors-ligne).

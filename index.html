@@ -2043,14 +2043,60 @@ $('authBtn').onclick = ()=>{
     $('authModal').style.display='flex';
   }
 };
+
+// ---------- Lien d'invitation / parrainage ----------
+// Un manager (ou Audrey) partage un lien ?invite=<pseudo>. À l'ouverture, on
+// bascule le formulaire en mode inscription et on affiche qui invite. Aucune
+// donnée serveur n'est ajoutée : c'est un raccourci d'accueil, honnête et sans
+// promesse de récompense automatique.
+function setSignupMode(on){
+  signupMode = on;
+  $('authName').style.display = on?'block':'none';
+  $('authTeam').style.display = on?'block':'none';
+  $('authTitle').textContent = on?'Inscription manager':'Connexion manager';
+  $('doLogin').textContent = on?"Créer mon compte":"Se connecter";
+}
+function handleInviteLink(){
+  let from=null;
+  try { from = new URLSearchParams(location.search).get('invite'); } catch(e){}
+  if(from===null) return;            // pas un lien d'invitation
+  from = (from||'').trim();
+  // On n'ouvre l'accueil invité que si personne n'est déjà connecté. On ne
+  // dépend PAS du réseau : on lit la session persistée par Supabase dans
+  // localStorage (clé sb-...-auth-token). Comme ça le message d'accueil
+  // s'affiche instantanément, même avant la résolution de currentManager().
+  let hasSession = false;
+  try {
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && /^sb-.*-auth-token$/.test(k) && localStorage.getItem(k)){ hasSession = true; break; }
+    }
+  } catch(e){}
+  if(ME || hasSession) return;
+  $('authModal').style.display='flex';
+  setSignupMode(true);
+  const who = from && from.toLowerCase()!=='1' ? decodeURIComponent(from) : null;
+  authMsg(who ? `🎉 ${who} t'invite sur Ultimate Squad ! Crée ton équipe pour rejoindre le mercato.`
+              : `🎉 Tu es invité sur Ultimate Squad ! Crée ton équipe pour rejoindre le mercato.`, true);
+}
+// Construit le lien d'invitation du manager courant et le partage/copie.
+function shareInvite(pseudo){
+  const base = location.origin + location.pathname;
+  const url = base + '?invite=' + encodeURIComponent(pseudo || '1');
+  const txt = `Rejoins-moi sur Ultimate Squad, le mercato fantasy ! 👉 ${url}`;
+  if(navigator.share){
+    navigator.share({ title:'Ultimate Squad', text:txt, url }).catch(()=>{});
+    return;
+  }
+  const done = ()=> toast('Lien d\'invitation copié — colle-le dans WhatsApp 📲','ok',4000);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(()=>prompt('Copie ton lien d\'invitation :', url));
+  } else {
+    prompt('Copie ton lien d\'invitation :', url);
+  }
+}
 $('closeAuth').onclick = ()=> $('authModal').style.display='none';
-$('toggleSignup').onclick = ()=>{
-  signupMode = !signupMode;
-  $('authName').style.display = signupMode?'block':'none';
-  $('authTeam').style.display = signupMode?'block':'none';
-  $('authTitle').textContent = signupMode?'Inscription manager':'Connexion manager';
-  $('doLogin').textContent = signupMode?"Créer mon compte":"Se connecter";
-};
+$('toggleSignup').onclick = ()=> setSignupMode(!signupMode);
 function authMsg(txt, ok=false){
   const m=$('authMsg'); m.textContent=txt; m.style.display='block';
   m.style.background = ok?'rgba(74,222,128,.12)':'rgba(255,90,77,.12)';
@@ -4150,9 +4196,10 @@ async function showManagerSquad(mgrId){
   const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
 
-  // Bouton « Partager l'équipe » (image générée)
-  const shareHtml = prof ? `<div style="text-align:center;margin:4px 0 16px">
+  // Bouton « Partager l'équipe » (image générée) + « Inviter » (lien parrainage, moi seulement)
+  const shareHtml = prof ? `<div style="text-align:center;margin:4px 0 16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <button id="btnShareTeam" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">📲 Partager ${isMe?'mon équipe':'cette équipe'}</button>
+      ${isMe ? `<button id="btnInvite" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">🔗 Inviter un manager</button>` : ''}
     </div>` : '';
 
   $('squadModalBody').innerHTML = h2hHtml + statsHtml + badgesHtml + shareHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
@@ -4173,6 +4220,8 @@ async function showManagerSquad(mgrId){
       ]
     });
   };
+  const inviteBtn = $('btnInvite');
+  if(inviteBtn) inviteBtn.onclick = ()=> shareInvite((ME && ME.display_name) || entry.name || '');
 }
 
 // ---------- Mon activité (timeline personnelle) ----------
@@ -5722,11 +5771,12 @@ function wireSearch(){
 async function init(){
   wireOnboarding();
   wireSearch();                // recherche globale
+  handleInviteLink();          // accueil « invité » (lien de parrainage), sans dépendre du réseau
   initColorScheme();           // mode clair/sombre avant tout
   // Thème personnalisé (couleurs admin) — appliqué en premier
   try { ADMIN_THEME = await api.getTheme(); api.applyTheme(ADMIN_THEME); } catch(e){ /* thème par défaut */ }
   applyColorScheme();          // ré-applique (le mode clair prime sur l'admin)
-  ME = await api.currentManager();
+  try { ME = await api.currentManager(); } catch(e){ ME = null; /* réseau indispo : on continue en invité */ }
   if(ME){
     $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
     $('authBtn').textContent = 'Déconnexion';

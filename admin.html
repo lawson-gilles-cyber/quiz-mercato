@@ -325,6 +325,18 @@
     <div id="coachList"></div>
   </div>
 
+  <!-- Inviter des managers (lien de parrainage) -->
+  <h2>Inviter des managers</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Partage ce lien à tes futurs managers (WhatsApp, SMS…). En l'ouvrant, ils arrivent directement sur l'inscription, avec un message d'accueil. Rien n'est créé tant qu'ils ne valident pas leur compte.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input id="inviteLink" readonly style="flex:1;min-width:220px;font-family:'Space Mono';font-size:.82rem" value="">
+      <button class="btn-primary btn-sm" id="btnCopyInvite">📋 Copier</button>
+      <button class="btn-ghost btn-sm" id="btnShareInvite">📲 Partager</button>
+    </div>
+    <p class="hint" style="margin-top:8px">Astuce : remplace « admin » par le pseudo d'un manager pour un lien de parrainage à son nom.</p>
+  </div>
+
   <!-- Classement des managers -->
   <h2>Classement des managers</h2>
   <div class="card" style="margin-bottom:14px">
@@ -812,7 +824,7 @@ const ADMIN_TABS = [
   { id:'joueurs', label:'⚽ Joueurs', titles:[
       "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
   { id:'managers', label:'👥 Managers', titles:[
-      "Classement des managers","Ligues & divisions","Modération du chat","Récompenses de fin de saison",
+      "Inviter des managers","Classement des managers","Ligues & divisions","Modération du chat","Récompenses de fin de saison",
       "Défis & objectifs","Pronostics","Draft","Journées & Compositions"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
@@ -901,6 +913,28 @@ function makeSectionsCollapsible(){
   showTab(ADMIN_TABS.some(t=>t.id===saved) ? saved : 'pilotage');
 }
 if($('btnHealthcheck')) $('btnHealthcheck').onclick = ()=>loadHealthcheck();
+
+// ---------- Lien d'invitation (côté admin) ----------
+function appInviteUrl(pseudo){
+  // L'app joueur est à la racine (index.html), pas sur admin.html.
+  const base = location.origin + location.pathname.replace(/admin\.html$/,'').replace(/\/+$/,'/') ;
+  const root = base.endsWith('/') ? base : base + '/';
+  return root + '?invite=' + encodeURIComponent(pseudo || 'admin');
+}
+if($('inviteLink')) $('inviteLink').value = appInviteUrl('admin');
+if($('btnCopyInvite')) $('btnCopyInvite').onclick = ()=>{
+  const url = $('inviteLink').value;
+  const done = ()=> showMsg($('msg2')||$('msg'),'Lien copié — colle-le dans WhatsApp.',true);
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(url).then(done).catch(()=>{ $('inviteLink').select(); document.execCommand('copy'); done(); });
+  } else { $('inviteLink').select(); document.execCommand('copy'); done(); }
+};
+if($('btnShareInvite')) $('btnShareInvite').onclick = ()=>{
+  const url = $('inviteLink').value;
+  const txt = `Rejoins Ultimate Squad, le mercato fantasy ! 👉 ${url}`;
+  if(navigator.share) navigator.share({ title:'Ultimate Squad', text:txt, url }).catch(()=>{});
+  else if($('btnCopyInvite')) $('btnCopyInvite').click();
+};
 
 $('btnLogin').onclick = async () => {
   const { error } = await api.signIn($('email').value.trim(), $('password').value);
