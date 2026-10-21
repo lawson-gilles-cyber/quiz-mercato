@@ -4263,7 +4263,36 @@ async function renderVersus(){
       ${cell(x,y,'salary_total',fmtMoney)}${cell(y,x,'salary_total',fmtMoney)}
     </tr>`;
   }).join('');
-  box.innerHTML = `
+  // --- Verdict synthétique : qui part favori ? ---
+  const totA = byBucket(sa,'TOTAL'), totB = byBucket(sb2,'TOTAL');
+  let verdictHtml = '';
+  if(totA && totB){
+    const valA=Number(totA.value_total||0), valB=Number(totB.value_total||0);
+    const ratA=Number(totA.avg_rating||0), ratB=Number(totB.avg_rating||0);
+    const nA=Number(totA.players||0), nB=Number(totB.players||0);
+    // Score composite simple : valeur (normalisée) + note moyenne pondérée.
+    let pts=0; // >0 favorise A, <0 favorise B
+    if(valA!==valB) pts += valA>valB ? 1 : -1;
+    if(ratA!==ratB) pts += ratA>ratB ? 1 : -1;
+    if(nA!==nB)     pts += nA>nB ? 0.5 : -0.5;
+    const favName = pts>0 ? nameA : (pts<0 ? nameB : null);
+    const headline = favName
+      ? `<b style="color:var(--transfer)">${favName}</b> part légèrement favori`
+      : `Les deux effectifs sont <b>au coude-à-coude</b>`;
+    const bestA = totA.best_player ? `${totA.best_player} (${fmtMoney(totA.best_value)})` : '—';
+    const bestB = totB.best_player ? `${totB.best_player} (${fmtMoney(totB.best_value)})` : '—';
+    verdictHtml = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.1),transparent);border:1px solid var(--transfer);border-radius:12px;padding:14px 16px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Saira Condensed',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:.82rem;margin-bottom:8px">
+        <span>⚔️ ${nameA}</span><span style="color:var(--muted)">face-à-face</span><span>${nameB}</span>
+      </div>
+      <div style="text-align:center;font-size:.9rem;margin-bottom:10px">${headline}</div>
+      <div style="display:flex;gap:10px;font-size:.78rem;color:var(--muted)">
+        <div style="flex:1">💎 Pièce maîtresse : <b style="color:var(--chalk)">${bestA}</b></div>
+        <div style="flex:1;text-align:right">💎 Pièce maîtresse : <b style="color:var(--chalk)">${bestB}</b></div>
+      </div>
+    </div>`;
+  }
+  box.innerHTML = verdictHtml + `
     <div style="overflow-x:auto">
     <table style="width:100%;font-size:.82rem;min-width:560px">
       <thead>
