@@ -362,6 +362,10 @@ export async function adminBulkValues(data) {
 export async function adminOpenAuction(playerId) {
   return sb.rpc('qm_admin_open_auction', { p_player_id: playerId });
 }
+// Enchère « éclair » : durée courte choisie (heures).
+export async function adminOpenAuctionDuration(playerId, hours) {
+  return sb.rpc('qm_admin_open_auction_duration', { p_player_id: playerId, p_hours: hours });
+}
 export async function adminSetPhase(phase) {
   return sb.rpc('qm_admin_set_phase', { p_phase: phase });
 }

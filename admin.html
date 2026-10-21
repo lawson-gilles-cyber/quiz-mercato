@@ -1235,6 +1235,7 @@ function renderPlayerRows(){
         <button class="btn-ghost btn-sm" data-attr="${p.id}">Note / Critères</button>
         ${p.status==='free'
           ? `<button class="btn-primary btn-sm" data-open="${p.id}">Ouvrir enchère</button>
+             <button class="btn-ghost btn-sm" data-flash="${p.id}" data-fname="${(p.name||'').replace(/"/g,'&quot;')}" title="Enchère éclair : durée courte choisie (2h, 6h…)">⚡ Éclair</button>
              <button class="btn-ghost btn-sm" data-sched="${p.id}" data-sname="${(p.name||'').replace(/"/g,'&quot;')}" title="Programmer la mise aux enchères pour plus tard">🗓️ Programmer</button>
              <button class="btn-danger" data-del="${p.id}">Suppr.</button>`
           : `<span class="hint">verrouillé</span>`}
@@ -1254,6 +1255,17 @@ function renderPlayerRows(){
     const { error } = await api.adminOpenAuction(b.dataset.open);
     if(error) return showMsg($('msg2'), error.message);
     showMsg($('msg2'), 'Enchère ouverte (48 h).', true); loadPlayers();
+  });
+  // Enchère éclair : on demande une durée courte (heures), puis on ouvre.
+  $('playerRows').querySelectorAll('[data-flash]').forEach(b=>b.onclick = async ()=>{
+    const name = b.dataset.fname || 'ce joueur';
+    const raw = prompt(`Enchère éclair de « ${name} ».\nDurée en heures (ex. 2, 6, 12) :`, '6');
+    if(raw===null) return;
+    const h = parseInt(raw, 10);
+    if(isNaN(h) || h < 1 || h > 48) return showMsg($('msg2'),'Durée invalide : entre 1 et 48 heures.');
+    const { error } = await api.adminOpenAuctionDuration(b.dataset.flash, h);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), `Enchère éclair ouverte (${h} h).`, true); loadPlayers();
   });
   // Programmer une enchère : on demande une date/heure future, puis on planifie.
   $('playerRows').querySelectorAll('[data-sched]').forEach(b=>b.onclick = async ()=>{

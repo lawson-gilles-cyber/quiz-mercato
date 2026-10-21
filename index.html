@@ -3095,8 +3095,9 @@ function acard(a, status){
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
   }
   const urgentCls = (status==='live' && new Date(a.ends_at)-new Date() > 0 && new Date(a.ends_at)-new Date() < LAST_MIN_MS) ? ' urgent' : '';
-  return `<div class="acard${urgentCls}" data-acard="${a.id||''}">
-    <div class="photo">${photo}<span class="tag t-${status}">${tag}</span></div>
+  const flashBadge = a.flash ? `<span class="tag" style="background:var(--transfer);color:var(--pitch);font-weight:800;top:auto;bottom:8px;left:8px">⚡ ÉCLAIR</span>` : '';
+  return `<div class="acard${urgentCls}${a.flash?' flash':''}" data-acard="${a.id||''}">
+    <div class="photo">${photo}<span class="tag t-${status}">${tag}</span>${flashBadge}</div>
     <div class="info">
       <div class="title" data-player="${p.id}" style="cursor:pointer" title="Voir la fiche & la courbe de valeur">${playerName(p)||'—'} <span style="color:var(--muted);font-size:.7rem">📈</span></div>
       <div class="nick">${POS[p.position]??''}</div>
