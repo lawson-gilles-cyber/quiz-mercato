@@ -299,6 +299,15 @@ export async function publicSettings() {
   const { data } = await sb.rpc('qm_public_settings');
   return (data && data[0]) ? data[0] : null;
 }
+// ---------- Annonce / message de l'organisation ----------
+export async function getAnnouncement() {
+  const { data } = await sb.rpc('qm_announcement');
+  const row = (data && data[0]) ? data[0] : null;
+  return (row && row.text) ? row : null;   // null si pas d'annonce / expirée
+}
+export async function adminSetAnnouncement(text, untilISO) {
+  return sb.rpc('qm_admin_set_announcement', { p_text: text ?? null, p_until: untilISO ?? null });
+}
 // Commentaires sur les transferts (chambrage)
 export async function postComment(transferId, body) {
   return sb.rpc('qm_post_comment', { p_transfer_id: transferId, p_body: body });

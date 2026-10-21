@@ -982,6 +982,9 @@
 </div>
 
 <main>
+  <!-- Annonce de l'organisation (publiée par l'admin) -->
+  <div id="orgAnnounce" style="display:none"></div>
+
   <!-- Bandeau fenêtre de mercato (compte à rebours) -->
   <div id="mercatoBanner" style="display:none"></div>
 
@@ -4726,6 +4729,30 @@ async function loadMercatoWindow(){
   catch(e){ MERCATO_WINDOW = null; }
   renderMercatoBanner();
 }
+// Annonce de l'organisation : bandeau en haut de l'accueil, publié par l'admin.
+async function renderAnnouncement(){
+  const box = $('orgAnnounce'); if(!box) return;
+  let a = null;
+  try { a = await api.getAnnouncement(); } catch(e){ a = null; }
+  if(!a || !a.text){ box.style.display='none'; box.innerHTML=''; return; }
+  const esc = s => String(s).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  let sub = '';
+  if(a.until){
+    const d = new Date(a.until);
+    sub = `<div style="font-size:.74rem;color:var(--muted);margin-top:3px">Jusqu'au ${d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})} à ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</div>`;
+  }
+  box.style.display='block';
+  box.style.cssText = 'display:block;background:linear-gradient(135deg,rgba(245,197,66,.14),transparent);border:1px solid var(--transfer);border-radius:10px;padding:12px 16px;margin-bottom:14px';
+  box.innerHTML = `<div style="display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:1.1rem;flex:0 0 auto">📣</span>
+      <div style="flex:1">
+        <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.68rem;color:var(--transfer);font-weight:700;margin-bottom:2px">Annonce de l'organisation</div>
+        <div style="font-size:.9rem;color:var(--chalk);line-height:1.45">${esc(a.text)}</div>
+        ${sub}
+      </div>
+    </div>`;
+}
+
 function renderMercatoBanner(){
   const box = $('mercatoBanner'); if(!box) return;
   const w = MERCATO_WINDOW;
@@ -6035,6 +6062,7 @@ async function init(){
   }
   await loadPlayers();
   loadMercatoWindow();
+  renderAnnouncement();        // annonce de l'organisation (bandeau accueil)
   renderHome();
   renderMarket();
   renderAuctions();

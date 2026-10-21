@@ -263,6 +263,22 @@
     <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
   </div>
 
+  <!-- Annonce aux joueurs -->
+  <h2>📣 Annonce aux joueurs</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:12px">Publie un message affiché en haut de l'accueil de tous les joueurs (ex. « Mercato ouvert ce soir 20h ! »). Laisse la date vide pour une annonce permanente, ou fixe une expiration : le bandeau disparaît tout seul après.</p>
+    <div id="annonceCurrent" style="display:none;margin-bottom:12px"></div>
+    <label>Message</label>
+    <textarea id="annonceText" rows="2" maxlength="280" style="width:100%" placeholder="ex. Clôture des enchères dans 2h — dépêchez-vous !"></textarea>
+    <div class="row c3" style="margin-top:10px;align-items:end">
+      <div><label>Expire le (optionnel)</label><input id="annonceUntil" type="datetime-local" style="width:100%"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn-primary" id="btnAnnoncePublish">Publier</button>
+        <button class="btn-ghost" id="btnAnnonceClear">Retirer</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Tableau de bord financier -->
   <h2>💰 Tableau de bord financier</h2>
   <div id="financeGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px">
@@ -833,7 +849,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin(); renderAdminFaq();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -844,7 +860,7 @@ async function refreshGate(){
 // sections (voir le tri plus bas). Ordre demandé par Audrey (17/10).
 const ADMIN_TABS = [
   { id:'pilotage', label:'📊 Pilotage', titles:[
-      "Vue d'ensemble","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
+      "Vue d'ensemble","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
       "Historique des transactions","Libérations & pénalités","Historique des propositions"] },
@@ -2781,6 +2797,44 @@ function renderAdminFaq(){
   });
 }
 if(document.getElementById('afaqSearch')) document.getElementById('afaqSearch').addEventListener('input', renderAdminFaq);
+
+// ---------- Annonce aux joueurs (admin) ----------
+async function loadAnnonce(){
+  const box = $('annonceCurrent'); if(!box) return;
+  let a = null;
+  try { a = await api.getAnnouncement(); } catch(e){
+    box.style.display='block';
+    box.innerHTML = '<p class="hint">Passe le script 107 (annonce) pour activer cette section.</p>';
+    return;
+  }
+  if(!a || !a.text){ box.style.display='none'; box.innerHTML=''; if($('annonceText')) $('annonceText').value=''; return; }
+  const until = a.until ? new Date(a.until) : null;
+  const sub = until ? ` · expire le ${until.toLocaleDateString('fr-FR')} à ${until.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : ' · permanente';
+  box.style.display='block';
+  box.innerHTML = `<div style="background:rgba(245,197,66,.1);border:1px solid var(--transfer,#e0a106);border-radius:8px;padding:10px 12px;font-size:.86rem">
+      📣 <b>En ligne :</b> ${a.text.replace(/[<>]/g,'')}<span style="color:var(--muted)">${sub}</span></div>`;
+  // Pré-remplit le formulaire pour édition rapide.
+  if($('annonceText')) $('annonceText').value = a.text;
+}
+if($('btnAnnoncePublish')) $('btnAnnoncePublish').onclick = async ()=>{
+  const txt = ($('annonceText').value||'').trim();
+  if(!txt) return showMsg($('msg')||$('msg2'),'Écris un message avant de publier.');
+  const raw = $('annonceUntil').value;        // datetime-local ou vide
+  const untilISO = raw ? new Date(raw).toISOString() : null;
+  if(raw && new Date(raw) <= new Date()) return showMsg($('msg')||$('msg2'),'La date d\'expiration doit être dans le futur.');
+  const { error } = await api.adminSetAnnouncement(txt, untilISO);
+  if(error) return showMsg($('msg')||$('msg2'), error.message);
+  showMsg($('msg')||$('msg2'),'Annonce publiée.',true);
+  loadAnnonce();
+};
+if($('btnAnnonceClear')) $('btnAnnonceClear').onclick = async ()=>{
+  if(!confirm('Retirer l\'annonce affichée aux joueurs ?')) return;
+  const { error } = await api.adminSetAnnouncement(null, null);
+  if(error) return showMsg($('msg')||$('msg2'), error.message);
+  showMsg($('msg')||$('msg2'),'Annonce retirée.',true);
+  $('annonceText').value=''; if($('annonceUntil')) $('annonceUntil').value='';
+  loadAnnonce();
+};
 
 // ---------- PWA : enregistrement du service worker ----------
 if ('serviceWorker' in navigator) {
