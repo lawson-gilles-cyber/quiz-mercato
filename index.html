@@ -794,6 +794,18 @@
   .rule-ul li{color:var(--chalk);font-size:.92rem;line-height:1.6;padding-left:20px;position:relative;margin-bottom:6px}
   .rule-ul li::before{content:'▸';color:var(--transfer);position:absolute;left:0}
   :focus-visible{outline:2px solid var(--transfer);outline-offset:2px}
+  /* FAQ (accordéon) */
+  .faq-group-h{font-family:'Archivo';font-weight:800;font-size:.82rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--transfer);margin:22px 0 8px}
+  .faq-group-h:first-child{margin-top:0}
+  .faq-item{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--pitch-2);overflow:hidden}
+  .faq-q{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:none;cursor:pointer;color:var(--chalk);font-family:'Archivo Narrow';font-weight:700;font-size:.98rem;padding:13px 15px}
+  .faq-q:hover{color:var(--transfer)}
+  .faq-q .faq-chevron{flex:0 0 auto;color:var(--muted);transition:transform .2s ease;font-size:.9rem}
+  .faq-item.open .faq-q .faq-chevron{transform:rotate(90deg);color:var(--transfer)}
+  .faq-a{max-height:0;overflow:hidden;transition:max-height .25s ease;color:var(--chalk);font-size:.9rem;line-height:1.6}
+  .faq-item.open .faq-a{max-height:600px}
+  .faq-a-inner{padding:0 15px 14px}
+  .faq-a b{color:var(--transfer)}
 
   /* ===== UX : Toasts ===== */
   #toastWrap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom));z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(92vw,420px);pointer-events:none}
@@ -914,6 +926,7 @@
         <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
         <button data-v="rules">Règlement</button>
+        <button data-v="faq">❓ FAQ</button>
       </div>
     </div>
   </nav>
@@ -1475,7 +1488,7 @@
       <div class="rule-block">
         <h3 class="rule-h">4. Les enchères</h3>
         <ul class="rule-ul">
-          <li>Une enchère dure <b>48 heures fixes</b> (jamais prolongée).</li>
+          <li>Une enchère dure <b>48 heures fixes</b> (jamais prolongée). En <b>fin de mercato (J13-J14)</b>, la durée passe à <b>24 heures</b> pour accélérer la clôture.</li>
           <li><b>Pas de mise minimum</b> selon le prix du joueur : moins de 20 M€ → +1 M€ · 20 à 50 M€ → +2 M€ · 50 à 100 M€ → +3 M€ · 100 à 180 M€ → +4 M€ · 180 M€ et plus → +5 M€.</li>
           <li><b>Plafond d'enchère</b> : aucune offre ne peut dépasser <b>la valeur du joueur × 1,5</b> (ex. Mbappé 180 M€ → plafond 270 M€).</li>
           <li><b>PASS limités</b> : 3 offres maximum par joueur.</li>
@@ -1496,6 +1509,8 @@
       <div class="rule-block">
         <h3 class="rule-h">6. Rythme du mercato</h3>
         <ul class="rule-ul">
+          <li>Le mercato d'été dure <b>14 jours</b> au total.</li>
+          <li>Les enchères se tiennent sur les <b>12 premiers jours</b> (fenêtres de 48h), puis les <b>2 derniers jours (J13-J14)</b> en fenêtres de 24h.</li>
           <li>3 achats maximum par jour et par manager.</li>
           <li>6 enchères actives maximum sur la plateforme.</li>
           <li>2 propositions de joueurs recommandées par jour (rappel, non bloquant).</li>
@@ -1542,7 +1557,7 @@
       <div class="rule-block">
         <h3 class="rule-h">13. Les deux mercatos</h3>
         <ul class="rule-ul">
-          <li><b>Mercato d'été</b> (initial) puis <b>mercato d'hiver</b> (fin janvier). Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de joueur.</li>
+          <li><b>Mercato d'été</b> (initial, 14 jours) puis <b>mercato d'hiver</b> (fin janvier). Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de joueur.</li>
           <li><b>Recrutement direct (remplacement d'un blessé)</b> : réservé au <b>mercato d'hiver</b>. Si un de tes joueurs est blessé, tu le déclares, l'admin valide, puis tu peux le remplacer gratuitement par un joueur libre, <b>sans enchère</b>. En dehors de ce cas, le recrutement direct est fermé. Les règles d'effectif et de masse salariale s'appliquent au remplaçant.</li>
         </ul>
       </div>
@@ -1617,6 +1632,17 @@
         <h3 class="rule-h">23. Le draft (mode secondaire, optionnel)</h3>
         <p class="rule-p">Par défaut, la saison s'ouvre <b>aux enchères</b> : ce sont elles qui départagent au mérite les coachs qui visent le même joueur. Le <b>draft</b> est un mode <b>alternatif</b> que l'organisateur peut lancer ponctuellement (saison détente, dépannage) : chacun pioche à son tour un joueur libre, attribué gratuitement, selon un ordre <b>serpent</b> (1→N puis N→1). Il n'est pas activé par défaut.</p>
       </div>
+    </div>
+  </section>
+
+  <!-- FAQ / FOIRE AUX QUESTIONS -->  <section class="view" id="faq">
+    <div class="eyebrow">Foire aux questions · tout ce qu'on nous demande</div>
+    <h1>La <em>FAQ</em></h1>
+    <div style="max-width:760px">
+      <input id="faqSearch" type="search" placeholder="🔍 Rechercher une question (ex. « enchère », « blessé », « coach »)…" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:11px 13px;border-radius:10px;margin-bottom:8px;font-family:inherit">
+      <div id="faqCount" style="font-size:.82rem;color:var(--muted);margin-bottom:14px"></div>
+      <div id="faqList"></div>
+      <p class="rule-p" style="color:var(--muted);margin-top:18px">Une question qui n'est pas ici ? Pose-la dans le <b>chat de ligue</b> ou à l'organisateur. Pour le détail des règles, voir le <b>Règlement</b>.</p>
     </div>
   </section>
 </main>
@@ -1937,7 +1963,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','gazette','calendar','draft','rules'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','gazette','calendar','draft','rules','faq'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1955,7 +1981,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -3532,6 +3558,140 @@ setInterval(()=>{
 
 // ---------- Règles vivantes (barèmes en vigueur, tirés de la base) ----------
 let LIVE_RULES_DONE = false;
+// ---------- FAQ (Foire aux questions) ----------
+// Base de questions/réponses, regroupées par thème. Les réponses renvoient
+// aux règles officielles ; en cas de doute, le Règlement fait foi.
+const FAQ_DATA = [
+  ['Démarrer', [
+    ['Comment je commence à jouer ?',
+     "Crée ton compte (Connexion → S’inscrire), choisis un pseudo et le nom de ton équipe. Tu démarres avec un <b>budget transfert de 800 M€</b>. Pendant le mercato, tu recrutes tes joueurs aux enchères pour constituer un effectif de <b>21 joueurs</b>."],
+    ['Quelle est la différence entre le Manager et le Coach ?',
+     "Chaque équipe est un duo. Le <b>Manager</b> gère l’argent et recrute aux enchères ; le <b>Coach</b> aligne chaque semaine les <b>11 titulaires</b> qui rapportent les points. Les deux partagent la même équipe."],
+    ['Le coach doit-il créer son propre compte ?',
+     "Oui. Le coach crée d’abord son propre compte comme tout le monde, puis l’organisateur le <b>relie</b> à l’équipe qu’il coache. À partir de là, il accède à la composition de cette équipe."],
+    ['Il y a un guide pour débuter ?',
+     "Oui : le <b>Guide de démarrage</b> (depuis l’accueil) t’explique en quelques étapes illustrées comment faire ta première enchère, suivre le classement et composer ton équipe."],
+  ]],
+  ['Enchères', [
+    ['Combien de temps dure une enchère ?',
+     "<b>48 heures fixes</b>, jamais prolongée. En <b>fin de mercato (J13-J14)</b>, la durée passe à <b>24 heures</b> pour accélérer la clôture."],
+    ['Quelle est la mise minimum ?',
+     "Elle dépend du prix du joueur : moins de 20 M€ → +1 M€ · 20-50 M€ → +2 M€ · 50-100 M€ → +3 M€ · 100-180 M€ → +4 M€ · 180 M€ et + → +5 M€."],
+    ['Y a-t-il un plafond d’enchère ?',
+     "Oui : aucune offre ne peut dépasser <b>la valeur du joueur × 1,5</b>. Exemple : un joueur à 180 M€ a un plafond de 270 M€."],
+    ['Puis-je enchérir autant que je veux sur un joueur ?',
+     "Non : <b>3 offres maximum (PASS)</b> par joueur, avec un <b>délai de 2h</b> entre deux de tes offres sur le même joueur."],
+    ['Pourquoi je ne peux plus faire de première offre ?',
+     "Aucune <b>première offre</b> n’est permise dans les <b>6 dernières heures</b> d’une enchère. Et dans la <b>phase finale</b> (2 dernières heures), seuls les managers déjà engagés peuvent remettre une offre, une seule chacun."],
+    ['Qu’est-ce que l’enchère automatique (proxy) ?',
+     "Tu fixes un <b>montant maximum</b> et le système surenchérit pour toi, par paliers, juste ce qu’il faut pour rester en tête — sans dépasser ton max, le plafond du joueur ni ton budget. Tu peux la désactiver quand tu veux."],
+    ['Je peux annuler une offre ?',
+     "Non. Toute offre engage : si tu gagnes, tu paies. Ton budget est <b>bloqué</b> dès que tu mènes une enchère."],
+    ['Combien d’enchères puis-je mener en même temps ?',
+     "Tu peux <b>mener 6 enchères à la fois</b> au maximum. Si quelqu’un te dépasse sur l’une, elle libère aussitôt une place."],
+  ]],
+  ['Budget, taxes & salaires', [
+    ['J’ai deux budgets, quelle est la différence ?',
+     "Le <b>budget transfert</b> (800 M€ au départ) sert à acheter des joueurs. La <b>masse salariale</b> est une limite à ne pas dépasser : chaque joueur a un salaire selon sa valeur, et la somme des salaires de ton effectif doit rester sous le plafond."],
+    ['Quelle est la taxe d’entrée ?',
+     "<b>3 M€</b> pour entrer sur une enchère que tu n’as pas dénichée toi-même. Le dénicheur du joueur en est exempté. Il n’y a pas de commission d’achat aux enchères."],
+    ['Pourquoi mon budget est bloqué alors que je n’ai rien acheté ?',
+     "Parce que tu <b>mènes</b> une ou plusieurs enchères : le montant de ta meilleure offre est réservé tant que l’enchère n’est pas finie. Si on te dépasse, il se débloque."],
+  ]],
+  ['Dénicher & proposer', [
+    ['Comment proposer un joueur qui n’est pas dans la liste ?',
+     "Depuis l’onglet Marché / Dénicher, tu <b>proposes</b> le joueur (nom, poste, club, championnat, valeur). L’organisateur <b>valide</b> puis <b>publie</b> le joueur aux enchères. Tu ne peux jamais publier toi-même."],
+    ['Qu’est-ce que je gagne à dénicher un joueur ?',
+     "Si l’organisateur publie ton joueur et qu’un <b>autre</b> manager le remporte, tu touches le <b>bonus dénicheur : 10 % du prix final</b> (plafonné à 20 M€, max 2 bonus par jour). Si tu le gagnes toi-même, pas de bonus."],
+    ['Je dois mettre le vrai championnat ?',
+     "Oui. Évite « Autre » : indique le <b>vrai championnat</b>, sinon certaines règles et bonus (comme la diversité) ne s’appliquent pas correctement."],
+  ]],
+  ['Échanges, prêts & libérations', [
+    ['Comment échanger un joueur avec un autre manager ?',
+     "Depuis la <b>place de marché</b> (vitrine), clique « Proposer un échange » sur le joueur convoité : choisis ce que tu offres, ajuste un éventuel complément en cash, et envoie. L’autre manager accepte ou refuse. L’échange doit respecter l’effectif et la masse salariale des deux côtés."],
+    ['Comment mettre un de mes joueurs à l’échange ?',
+     "Sur la fiche d’un joueur que tu possèdes, « Proposer à l’échange » le place en <b>vitrine</b> avec un prix indicatif. Les autres managers peuvent alors te faire une proposition."],
+    ['Comment fonctionne un prêt ?',
+     "Tu prêtes un joueur pour <b>1 à 60 jours</b>, avec indemnité optionnelle. Pendant le prêt, l’<b>emprunteur</b> aligne le joueur et porte son salaire ; le retour est automatique à l’échéance. Une <b>option d’achat</b> ou un <b>prêt ferme</b> peuvent être prévus."],
+    ['Que se passe-t-il si je libère un joueur ?',
+     "Il retourne sur le marché et tu es remboursé d’une partie du prix d’achat. Pénalité progressive : 15 % (24-48h), 10 % (48h-7j), 5 % (+7j). Détention minimale <b>24h</b>, maximum <b>2 libérations par 7 jours</b>."],
+  ]],
+  ['Points, compo & classement', [
+    ['Comment je gagne des points au classement ?',
+     "Uniquement par les <b>performances réelles</b> de tes 11 titulaires. La note de chaque titulaire est pondérée par son temps de jeu (0-19 min → 0 %, 20-39 → 50 %, 40-59 → 75 %, 60 min et + → 100 %). La somme des 11 notes pondérées = tes points de la journée."],
+    ['Qui choisit les 11 titulaires ?',
+     "Le <b>Coach</b>, depuis l’onglet Compo. Le bouton <b>« Suggérer mon 11 »</b> propose automatiquement une équipe équilibrée (1 gardien, défenseurs, milieux, attaquants) classée par note — à ajuster ensuite si tu veux."],
+    ['Pourquoi je ne vois pas la note exacte d’un joueur ?',
+     "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
+    ['Je peux transformer mon budget en points (ou l’inverse) ?',
+     "Oui. En fin de mercato d’été : <b>budget → points</b> (10 M€ = 1 point, max 200 M€). Au mercato d’hiver : <b>points → budget</b> (1 point = 10 M€, max 200 points) — mais ces points quittent ton classement, c’est un pari."],
+  ]],
+  ['Bonus', [
+    ['Les bonus donnent des points ?',
+     "Non : les bonus donnent du <b>budget</b>, pas des points de classement."],
+    ['Quels sont les bonus de construction ?',
+     "<b>9 joueurs</b> avant la fin du 5ᵉ jour → +10 M€ · <b>14 joueurs</b> avant le 8ᵉ jour → +15 M€ · <b>18 joueurs</b> avant le 11ᵉ jour → +25 M€ · effectif de <b>10 clubs différents</b> ou plus → +25 M€."],
+    ['Qu’est-ce que le « coup de poker » ?',
+     "Un bonus si tu es <b>seul enchérisseur</b> sur un gros joueur : ≥30 M€ → +15 M€, ≥60 M€ → +30 M€, ≥80 M€ → +40 M€, ≥100 M€ → +50 M€. Aussi : enchère remportée face à <b>5+ managers</b> → +25 M€, ou remportée à <b>≥100 M€</b> → +15 M€. Un seul bonus poker par enchère (le plus avantageux)."],
+    ['Qu’est-ce que le bonus « journée complète » ?',
+     "Si tu recrutes 3 joueurs le même jour : <b>3 postes différents</b> → +30 M€, ou <b>3 au même poste</b> → +20 M€."],
+  ]],
+  ['Calendrier & mercatos', [
+    ['Combien de temps dure le mercato ?',
+     "Le mercato d’été dure <b>14 jours</b>. Les enchères se tiennent sur les 12 premiers jours (48h), puis J13-J14 en fenêtres de 24h."],
+    ['Y a-t-il un mercato d’hiver ?',
+     "Oui, fin janvier. Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de joueur."],
+    ['Un joueur blessé, je fais quoi ?',
+     "Tu le déclares blessé ; l’organisateur valide. Le <b>recrutement direct</b> (remplacement gratuit, sans enchère) est réservé au <b>mercato d’hiver</b> et respecte les règles d’effectif et de salaire."],
+  ]],
+  ['Compte & technique', [
+    ['L’appli ne se met pas à jour / affiche une vieille version ?',
+     "Recharge en forçant le cache : sur PC, <b>Ctrl+Maj+R</b>. Sur mobile, ferme complètement l’appli puis rouvre-la. La nouvelle version se charge alors."],
+    ['Je reçois des notifications même appli fermée ?',
+     "Les rappels et alertes s’affichent surtout quand l’appli est <b>ouverte</b>. Pense à l’ouvrir régulièrement en fin d’enchère pour ne rien manquer."],
+    ['Comment inviter d’autres managers ?',
+     "Depuis ton profil d’équipe, « Inviter un manager » génère un <b>lien</b> à partager (WhatsApp, SMS…). En l’ouvrant, la personne arrive directement sur l’inscription."],
+    ['Je peux passer l’appli en mode clair ?',
+     "Oui : le bouton 🌓 en haut bascule entre mode clair, sombre et automatique."],
+  ]],
+];
+let FAQ_OPEN = new Set();   // ids ouverts (persistance visuelle pendant la session)
+function faqNorm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function renderFaq(){
+  const list = $('faqList'); if(!list) return;
+  const q = faqNorm($('faqSearch')?.value||'');
+  let shown = 0, total = 0;
+  const html = FAQ_DATA.map((grp,gi)=>{
+    const [theme, items] = grp;
+    const rows = items.map((it,ii)=>{
+      total++;
+      const id = gi+'-'+ii;
+      const hay = faqNorm(it[0]+' '+it[1]);
+      if(q && !hay.includes(q)) return '';
+      shown++;
+      const open = (q || FAQ_OPEN.has(id)) ? ' open' : '';
+      return `<div class="faq-item${open}" data-faq="${id}">
+        <button class="faq-q" data-faqtoggle="${id}"><span>${it[0]}</span><span class="faq-chevron">▸</span></button>
+        <div class="faq-a"><div class="faq-a-inner">${it[1]}</div></div>
+      </div>`;
+    }).join('');
+    if(!rows.trim()) return '';
+    return `<div class="faq-group"><div class="faq-group-h">${theme}</div>${rows}</div>`;
+  }).join('');
+  list.innerHTML = html || `<p class="rule-p" style="color:var(--muted)">Aucune question ne correspond à « ${($('faqSearch')?.value||'').replace(/[<>]/g,'')} ».</p>`;
+  if($('faqCount')) $('faqCount').textContent = q ? `${shown} réponse${shown>1?'s':''} sur ${total}` : `${total} questions`;
+  // Accordéon
+  list.querySelectorAll('[data-faqtoggle]').forEach(btn=>btn.onclick=()=>{
+    const id = btn.dataset.faqtoggle;
+    const item = list.querySelector(`.faq-item[data-faq="${id}"]`);
+    if(!item) return;
+    const nowOpen = !item.classList.contains('open');
+    item.classList.toggle('open', nowOpen);
+    if(nowOpen) FAQ_OPEN.add(id); else FAQ_OPEN.delete(id);
+  });
+}
+if($('faqSearch')) $('faqSearch').addEventListener('input', renderFaq);
+
 async function renderLiveRules(){
   const box = $('liveRules'); if(!box) return;
   const s = await api.publicSettings().catch(()=>null);
@@ -3547,7 +3707,7 @@ async function renderLiveRules(){
     bonusInner += `<ul class="rule-ul">
       <li><b>Journée complète</b> : 3 postes différents → +${m(s.full_day_bonus)} M€ · 3 même poste → +${m(s.same_pos_bonus)} M€</li>
       <li><b>Dénicheur</b> : 10 % du prix, plafonné à ${m(s.scout_cap)} M€, max ${s.scout_daily_max}/jour</li>
-      <li><b>Construction</b> : 11 j → +${m(s.build_11_bonus)} M€ · 15 j → +${m(s.build_15_bonus)} M€ · 19 j → +${m(s.build_19_bonus)} M€ · 10 clubs → +${m(s.build_clubs_bonus)} M€</li>
+      <li><b>Construction</b> : 9 joueurs (avant J5) → +${m(s.build_11_bonus)} M€ · 14 joueurs (avant J8) → +${m(s.build_15_bonus)} M€ · 18 joueurs (avant J11) → +${m(s.build_19_bonus)} M€ · 10 clubs → +${m(s.build_clubs_bonus)} M€</li>
       <li><b>Coup de poker</b> (seul enchérisseur) : ≥${m(s.poker_s1_threshold)}M → +${m(s.poker_s1_bonus)}M · ≥${m(s.poker_s2_threshold)}M → +${m(s.poker_s2_bonus)}M · ≥${m(s.poker_s3_threshold)}M → +${m(s.poker_s3_bonus)}M · ≥${m(s.poker_s4_threshold)}M → +${m(s.poker_s4_bonus)}M</li>
       <li>5+ managers → +${m(s.poker_crowd_bonus)} M€ · remportée à ≥${m(s.poker_bigprice_threshold)}M → +${m(s.poker_bigprice_bonus)} M€</li>
     </ul>`;
@@ -5716,7 +5876,7 @@ const SEARCH_VIEWS = [
   {v:'team',ic:'👥',t:'Mon équipe'},{v:'lineup',ic:'📋',t:'Compo'},{v:'rank',ic:'🏆',t:'Classement'},
   {v:'bonus',ic:'💰',t:'Bonus'},{v:'penalty',ic:'🚫',t:'Pénalités'},{v:'feed',ic:'📰',t:'Actu'},
   {v:'chat',ic:'💬',t:'Chat'},{v:'pronos',ic:'🎲',t:'Pronos'},{v:'achievements',ic:'🏅',t:'Succès'},
-  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'}
+  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'faq',ic:'❓',t:'FAQ'}
 ];
 let SEARCH_MANAGERS = [];   // cache des équipes (chargé à la 1re ouverture)
 let SEARCH_IDX = 0;         // index du résultat sélectionné (clavier)
