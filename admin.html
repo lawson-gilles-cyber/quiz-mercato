@@ -96,6 +96,18 @@
   .phase-btns{display:flex;gap:10px;flex-wrap:wrap}
   .phase-current{font-family:'Space Mono';color:var(--transfer)}
   .hint{color:var(--muted);font-size:.8rem;margin-top:6px}
+  /* FAQ admin (accordéon) */
+  .afaq-group-h{font-weight:800;font-size:.78rem;text-transform:uppercase;letter-spacing:1px;color:var(--transfer);margin:18px 0 6px}
+  .afaq-group-h:first-child{margin-top:0}
+  .afaq-item{border:1px solid var(--line);border-radius:8px;margin-bottom:7px;overflow:hidden}
+  .afaq-q{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:none;cursor:pointer;color:var(--chalk);font-weight:700;font-size:.9rem;padding:11px 13px}
+  .afaq-q:hover{color:var(--transfer)}
+  .afaq-chev{color:var(--muted);transition:transform .2s ease;flex:0 0 auto}
+  .afaq-item.open .afaq-chev{transform:rotate(90deg);color:var(--transfer)}
+  .afaq-a{max-height:0;overflow:hidden;transition:max-height .25s ease;font-size:.86rem;line-height:1.55;color:var(--muted)}
+  .afaq-item.open .afaq-a{max-height:700px}
+  .afaq-a-inner{padding:0 13px 12px}
+  .afaq-a b{color:var(--chalk)}
   a{color:var(--transfer)}
   /* Toasts admin (feedback visible où que soit le scroll) */
   #toastWrap{position:fixed;left:50%;transform:translateX(-50%);bottom:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(92vw,460px);pointer-events:none}
@@ -760,6 +772,15 @@
     <div id="seasonsList" style="margin-top:8px"></div>
   </div>
 
+  <!-- FAQ ADMIN -->
+  <h2>❓ FAQ admin</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:10px">Aide-mémoire pour l'organisation : comment gérer les enchères, valider les joueurs, piloter le mercato, régler les barèmes et dépanner.</p>
+    <input id="afaqSearch" type="search" placeholder="🔍 Rechercher (ex. « enchère », « coach », « reset », « barème »)…" style="width:100%;margin-bottom:8px">
+    <div id="afaqCount" style="font-size:.82rem;color:var(--muted);margin-bottom:12px"></div>
+    <div id="afaqList"></div>
+  </div>
+
 </main>
 
 <script type="module">
@@ -812,7 +833,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin(); renderAdminFaq();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -834,6 +855,8 @@ const ADMIN_TABS = [
       "Défis & objectifs","Pronostics","Draft","Journées & Compositions"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
+  { id:'aide', label:'❓ Aide', titles:[
+      "FAQ admin"] },
 ];
 function tabForTitle(title){
   // On retire les emojis/symboles de préfixe pour comparer sur le texte réel.
@@ -2659,6 +2682,105 @@ if($('btnCloseSeason')) $('btnCloseSeason').onclick = async ()=>{
 
 // ---------- Init ----------
 refreshGate();
+
+// ---------- FAQ admin (aide-mémoire organisation) ----------
+const ADMIN_FAQ = [
+  ['Enchères', [
+    ['Comment mettre un joueur aux enchères ?',
+     "Onglet <b>Joueurs → « Joueurs en base »</b>. Sur un joueur libre, clique <b>« Ouvrir enchère »</b> : elle démarre immédiatement (48h, ou 24h en fin de mercato) et apparaît en « En direct » côté joueurs."],
+    ['Comment programmer une enchère pour plus tard ?',
+     "Même écran, bouton <b>« 🗓️ Programmer »</b> : saisis la date et l'heure de démarrage. Le joueur reste libre d'ici là, et l'enchère démarre automatiquement à l'heure prévue. Tu retrouves et peux annuler les enchères planifiées dans « 🔁 Marché → Enchères programmées »."],
+    ['La colonne « Programmées » côté joueur reste vide, pourquoi ?',
+     "Elle n'affiche quelque chose que si tu as planifié au moins une enchère (bouton « Programmer »). Sans programmation, elle est normalement vide. Vérifie aussi que le script des enchères programmées et son cron ont bien été passés."],
+    ['Une enchère est bloquée / ne se termine pas ?',
+     "Les enchères se clôturent via un balayage automatique (cron, chaque minute). Si rien ne bouge, vérifie dans Supabase que le job <b>sweep-qm_auctions</b> est actif (table cron.job). Tu peux aussi intervenir manuellement depuis « 🔁 Marché »."],
+  ]],
+  ['Joueurs & propositions', [
+    ['Comment ajouter plusieurs joueurs d’un coup ?',
+     "Onglet <b>Joueurs → « Import CSV »</b> : colle une liste (Prénom, Nom, Poste, Club, Championnat, Valeur, et en option Âge et Nationalité). Fais « Aperçu » pour vérifier, puis « Importer ». Les doublons sont ignorés."],
+    ['Comment valider un joueur proposé par un manager ?',
+     "Onglet <b>Marché → « Validation du marché »</b>. Le parcours est : le manager <b>déniche</b> → tu <b>valides</b> (tu reconnais le joueur) → tu <b>publies</b> (mise aux enchères). Tu ne peux pas valider ta propre proposition."],
+    ['Un joueur a « Autre » comme championnat, c’est grave ?',
+     "Oui, à corriger : la règle des 6 par championnat et certains bonus ne fonctionnent pas sur « Autre ». À l'import comme à la validation, saisis le <b>vrai championnat</b>. L'aperçu d'import signale les lignes « Autre » en orange."],
+    ['À quoi sert la double approbation des propositions ?',
+     "Quand une équipe a un coach, une proposition de joueur passe en <b>brouillon</b> jusqu'à l'accord du binôme, puis devient <b>soumise</b>. Une équipe sans coach soumet directement. Tu vois les statuts dans « Validation du marché »."],
+  ]],
+  ['Managers & coachs', [
+    ['Comment un coach rejoint-il une équipe ?',
+     "Le coach <b>crée d'abord son propre compte</b> (comme un manager). Ensuite, tu le <b>relies</b> à l'équipe qu'il coache depuis la gestion des coachs. Il accède alors à la composition de cette équipe."],
+    ['Comment inviter de nouveaux managers ?',
+     "Onglet <b>Managers → « Inviter des managers »</b> : copie ou partage le lien d'invitation (WhatsApp, SMS…). En l'ouvrant, la personne arrive directement sur l'inscription. Tu peux remplacer « admin » par un pseudo pour un lien de parrainage."],
+    ['Comment modérer le chat ?',
+     "Onglet <b>Managers → « Modération du chat »</b> : tu peux <b>réduire au silence</b> un manager ou réactiver sa parole. Les comptes admin et coach ne figurent pas dans la liste."],
+    ['Comment gérer les divisions (montée/descente) ?',
+     "Onglet <b>Managers → « Ligues & divisions »</b> : répartis les managers par division et applique la montée/descente en fin de saison. Le classement s'affiche alors par division."],
+  ]],
+  ['Pilotage du mercato', [
+    ['Comment ouvrir ou fermer le mercato ?',
+     "Onglet <b>Pilotage → « Phase du mercato »</b> : passe la phase en <b>ouvert</b> (enchères et propositions possibles), <b>fermé</b> ou <b>figé</b>. Hors mercato ouvert, les managers ne peuvent ni enchérir ni proposer."],
+    ['Comment définir les dates des mercatos ?',
+     "Onglet <b>Pilotage → « Fenêtres de mercato »</b> : crée les fenêtres d'été et d'hiver avec leurs dates d'ouverture et de fermeture. Le mercato d'été dure 14 jours (enchères 48h puis 24h en J13-J14)."],
+    ['Comment valider le remplacement d’un joueur blessé ?',
+     "Onglet <b>Joueurs → « Blessures à valider »</b> : en validant, tu autorises le remplacement gratuit (sans enchère) pendant le mercato d'hiver. Tu peux aussi rejeter la déclaration."],
+    ['Comment générer un récap de journée ?',
+     "Onglet <b>Config → « Récap de journée »</b> : génère un résumé (mouvements, classement) à copier/partager, avec option image. Pratique pour animer le groupe WhatsApp."],
+  ]],
+  ['Barèmes & réglages', [
+    ['Comment changer un montant de bonus ou une limite ?',
+     "Onglet <b>Config → « Éditeur de barèmes »</b> : tous les réglages (bonus, taxes, salaires, limites du marché, calendrier, objectif de propositions…) sont modifiables ici. Modifie puis « Enregistrer les barèmes »."],
+    ['L’objectif de propositions affiche un mauvais chiffre ?',
+     "C'est le réglage <b>« Objectif de propositions / jour »</b> (éditeur de barèmes). C'est un rappel non bloquant. Mets la valeur voulue et enregistre."],
+    ['Comment changer les couleurs / l’apparence du site ?',
+     "Onglet <b>Config → « Apparence du site »</b> : ajuste le thème (couleurs). Si un changement n'apparaît pas côté joueur, demande un rechargement forcé (Ctrl+Maj+R)."],
+    ['Comment exporter les données ?',
+     "Onglet <b>Config → « Export »</b> : récupère les données de la saison (classement, transferts…). À faire <b>avant</b> toute remise à zéro si tu veux garder une trace."],
+  ]],
+  ['Fin de saison & dépannage', [
+    ['Comment remettre le jeu à zéro pour une nouvelle saison ?',
+     "Onglet <b>Pilotage → « Saisons & archives »</b>, bouton <b>« Tout remettre à zéro »</b> (saisie de confirmation demandée). Ça archive la saison (classement + palmarès) puis repart à neuf : joueurs libres, budgets à 800 M€, points à 0. Les comptes et le catalogue sont conservés. <b>Action irréversible</b> — exporte avant."],
+    ['Erreur « UPDATE requires a WHERE clause » au reset ?',
+     "C'est une sécurité de la base (pg-safeupdate) qui bloquait un ancien script. Passe le script correctif <b>104_fix_reset_where.sql</b> dans Supabase et le bouton fonctionnera."],
+    ['Une section admin affiche « passe le script… » ?',
+     "Cette fonctionnalité a besoin d'un script SQL non encore exécuté. Passe le script correspondant dans l'éditeur SQL de Supabase (dossier db/), puis recharge la page admin."],
+    ['Un changement n’apparaît pas côté joueurs ?',
+     "C'est souvent le cache. Demande un rechargement forcé : <b>Ctrl+Maj+R</b> sur PC, ou fermer/rouvrir l'appli sur mobile. Côté admin, recharge aussi la page."],
+  ]],
+];
+let AFAQ_OPEN = new Set();
+function afaqNorm(s){ return (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,''); }
+function renderAdminFaq(){
+  const list = document.getElementById('afaqList'); if(!list) return;
+  const q = afaqNorm((document.getElementById('afaqSearch')||{}).value||'');
+  let shown=0, total=0;
+  const html = ADMIN_FAQ.map((grp,gi)=>{
+    const [theme, items] = grp;
+    const rows = items.map((it,ii)=>{
+      total++;
+      const id = gi+'-'+ii;
+      if(q && !afaqNorm(it[0]+' '+it[1]).includes(q)) return '';
+      shown++;
+      const open = (q || AFAQ_OPEN.has(id)) ? ' open' : '';
+      return `<div class="afaq-item${open}" data-afaq="${id}">
+        <button class="afaq-q" data-afaqtoggle="${id}"><span>${it[0]}</span><span class="afaq-chev">▸</span></button>
+        <div class="afaq-a"><div class="afaq-a-inner">${it[1]}</div></div>
+      </div>`;
+    }).join('');
+    if(!rows.trim()) return '';
+    return `<div>${`<div class="afaq-group-h">${theme}</div>`}${rows}</div>`;
+  }).join('');
+  list.innerHTML = html || '<p class="hint">Aucune question ne correspond à ta recherche.</p>';
+  const cnt = document.getElementById('afaqCount');
+  if(cnt) cnt.textContent = q ? `${shown} réponse(s) sur ${total}` : `${total} questions`;
+  list.querySelectorAll('[data-afaqtoggle]').forEach(btn=>btn.onclick=()=>{
+    const id = btn.dataset.afaqtoggle;
+    const item = list.querySelector(`.afaq-item[data-afaq="${id}"]`);
+    if(!item) return;
+    const nowOpen = !item.classList.contains('open');
+    item.classList.toggle('open', nowOpen);
+    if(nowOpen) AFAQ_OPEN.add(id); else AFAQ_OPEN.delete(id);
+  });
+}
+if(document.getElementById('afaqSearch')) document.getElementById('afaqSearch').addEventListener('input', renderAdminFaq);
 
 // ---------- PWA : enregistrement du service worker ----------
 if ('serviceWorker' in navigator) {
