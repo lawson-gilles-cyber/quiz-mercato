@@ -79,6 +79,22 @@ export async function listPlayers(filters = {}) {
   return rows;
 }
 
+// ---------- Enchères programmées (planifiées pour plus tard) ----------
+export async function listScheduledAuctions() {
+  const { data, error } = await sb.from('qm_auctions')
+    .select('*, player:qm_players(*)')
+    .eq('status', 'scheduled')
+    .order('starts_at', { ascending: true });
+  if (error) { console.warn('listScheduledAuctions:', error.message); return []; }
+  return data ?? [];
+}
+export async function scheduleAuction(playerId, startsAtISO) {
+  return sb.rpc('qm_admin_schedule_auction', { p_player_id: playerId, p_starts_at: startsAtISO });
+}
+export async function cancelScheduledAuction(auctionId) {
+  return sb.rpc('qm_admin_cancel_scheduled', { p_auction_id: auctionId });
+}
+
 export async function listOpenAuctions() {
   // Requête principale ROBUSTE : enchères + joueur (jointure sûre) uniquement.
   // On évite les jointures top_bidder/bids qui peuvent casser toute la requête.

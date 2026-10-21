@@ -3052,6 +3052,12 @@ function acard(a, status){
         <button class="bid-btn${quickBtn?' secondary':''}" data-bid="${p.id}" style="flex:1 1 auto;min-width:0;margin-top:0">${quickBtn?'Offre…':'Enchérir'}</button>
         <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:0 0 auto;width:44px;padding:0;margin-top:0">📜</button>
       </div>`;
+  } else if(status==='scheduled'){
+    // Enchère planifiée : on montre quand elle démarre (date + heure).
+    const st = a.starts_at ? new Date(a.starts_at) : null;
+    const when = st ? st.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' à '+st.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+    bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span></div>
+      <div class="clock safe" style="margin-top:6px">🗓️ Démarre le ${when}</div>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
@@ -3127,6 +3133,8 @@ async function renderAuctions(){
   const now = new Date();
   AUC_LIVE = open.filter(a=> new Date(a.ends_at) > now);
   AUC_BUCKETS = {scheduled:[], ended:[], transferred:[]};
+  // Enchères programmées (planifiées par l'organisateur pour plus tard)
+  AUC_BUCKETS.scheduled = await api.listScheduledAuctions().catch(()=>[]);
   const { data: transfers } = await sb.from('qm_transfers')
     .select('*, player:qm_players(*)').order('created_at',{ascending:false}).limit(10);
   AUC_BUCKETS.transferred = (transfers??[]).map(t=>({player:t.player, current_price:t.price, created_at:t.created_at}));
