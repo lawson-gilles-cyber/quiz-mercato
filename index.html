@@ -2279,26 +2279,47 @@ async function setupComparator(){
     renderComparator(players);
   };
 }
+// Rang « qualité » d'une couleur de note, pour comparer sans note exacte.
+const NOTE_RANK = {'rouge':1,'jaune':2,'vert-clair':3,'vert-vif':4};
 function renderComparator(players){
   if(CMP_SELECTED.length===0){ $('cmpResult').innerHTML=''; return; }
   const salaryOf = (v)=>{ v=Number(v); if(v<20e6)return 1e6; if(v<50e6)return 3e6; if(v<100e6)return 6e6; if(v<180e6)return 10e6; return 15e6; };
-  const cols = CMP_SELECTED.map(p=>{
+  const ps = CMP_SELECTED;
+  // Valeur « qualité » pour chaque joueur : note exacte si connue, sinon rang couleur.
+  const quality = p => (p.note!=null) ? Number(p.note) : (NOTE_RANK[p.note_color]||0)*20;
+  // Meilleure valeur par critère (pour surligner en doré). dir: 'max' ou 'min'.
+  const bestOf = (key, dir) => {
+    const vals = ps.map(key).filter(v=>v!=null && !isNaN(v));
+    if(!vals.length) return null;
+    return dir==='min' ? Math.min(...vals) : Math.max(...vals);
+  };
+  const bQual  = bestOf(quality, 'max');
+  const bVal   = bestOf(p=>Number(p.current_value), 'max');
+  const bSal   = bestOf(p=>salaryOf(p.current_value), 'min');   // salaire bas = mieux
+  const bDem   = bestOf(p=>Number(p.demand_score||0), 'max');
+  const win = (v,b)=> (b!=null && v===b && ps.length>1) ? 'color:var(--transfer);font-weight:800' : 'font-weight:700';
+  const cols = ps.map(p=>{
     const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
     const noteTxt = (p.note!=null) ? p.note+'/100' : (color?color.label:'—');
     const barC = color?color.c:'#ccc';
-    return `<div style="flex:1;min-width:110px;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;position:relative">
+    const sal = salaryOf(p.current_value);
+    const dem = Number(p.demand_score||0);
+    const q = quality(p);
+    const row = (lbl, val, style)=> `<div style="font-size:.68rem;color:var(--muted);margin-top:7px">${lbl}</div><div style="font-family:'Saira',sans-serif;${style||'font-weight:700'}">${val}</div>`;
+    return `<div style="flex:1;min-width:130px;background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:12px;position:relative">
       <button onclick="cmpRemove('${p.id}')" style="position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;border:none;background:var(--live);color:#fff;font-size:.8rem;cursor:pointer;line-height:1">×</button>
-      <div style="font-family:'Archivo';font-weight:800;font-size:.92rem;margin-bottom:2px">${p.name}</div>
-      <div style="font-size:.72rem;color:var(--muted);margin-bottom:8px">${POS[p.position]} · ${p.club||'—'}</div>
-      <div style="font-size:.7rem;color:var(--muted)">Note</div>
-      <div style="font-family:'Saira';font-weight:700;color:${barC};margin-bottom:6px">${noteTxt}</div>
-      <div style="font-size:.7rem;color:var(--muted)">Valeur</div>
-      <div style="font-family:'Saira';font-weight:700;margin-bottom:6px">${fmtMoney(p.current_value)}</div>
-      <div style="font-size:.7rem;color:var(--muted)">Salaire estimé</div>
-      <div style="font-family:'Saira';font-weight:700;color:var(--transfer)">${fmtMoney(salaryOf(p.current_value))}</div>
+      <div style="font-family:'Archivo',sans-serif;font-weight:800;font-size:.92rem;margin-bottom:2px;padding-right:18px">${p.name}</div>
+      <div style="font-size:.72rem;color:var(--muted)">${POS[p.position]} · ${p.club||'—'}</div>
+      ${row('Qualité', `<span style="color:${barC}">${noteTxt}</span>`, win(q,bQual))}
+      ${row('Valeur', fmtMoney(p.current_value), win(Number(p.current_value),bVal))}
+      ${row('Salaire estimé', fmtMoney(sal), win(sal,bSal))}
+      ${row('Demande', dem>0?('🔥 '+dem):'—', win(dem,bDem))}
+      ${row('Âge', p.age?p.age+' ans':'—', '')}
+      ${row('Nationalité', p.nationality||'—', '')}
     </div>`;
   }).join('');
-  $('cmpResult').innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap">${cols}</div>`;
+  const legend = ps.length>1 ? `<p style="font-size:.72rem;color:var(--muted);margin-top:8px">En doré : le meilleur sur chaque ligne (salaire : le plus bas gagne). La qualité compare la note exacte si tu possèdes le joueur, sinon le niveau de couleur.</p>` : '';
+  $('cmpResult').innerHTML = `<div style="display:flex;gap:10px;flex-wrap:wrap;overflow-x:auto">${cols}</div>${legend}`;
 }
 window.cmpRemove = (id)=>{ CMP_SELECTED = CMP_SELECTED.filter(p=>p.id!==id); renderComparator(); };
 
