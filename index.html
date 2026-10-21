@@ -3079,6 +3079,53 @@ let AUC_BUCKETS = {};    // les autres colonnes
 let AUC_WATCH = new Set(); // ids d'enchères suivies par le manager courant
 const LAST_MIN_MS = 5*60*1000;  // seuil « dernière minute » : 5 minutes
 
+// ---------- Alertes « enchère suivie bientôt finie » ----------
+// Pour chaque enchère SUIVIE (ou que je mène), on génère une alerte « à traiter »
+// quand il reste ~30 min puis ~10 min. Dédoublonné par (enchère, seuil) en
+// localStorage pour ne pas re-alerter. Purement côté client (pas de push serveur).
+const WATCH_THRESHOLDS = [
+  { key:'30', ms:30*60*1000, label:'30 min' },
+  { key:'10', ms:10*60*1000, label:'10 min' },
+];
+function watchAlertedSet(){
+  try { return new Set(JSON.parse(localStorage.getItem('us_watch_alerted')||'[]')); }
+  catch(e){ return new Set(); }
+}
+function watchAlertedSave(set){
+  try { localStorage.setItem('us_watch_alerted', JSON.stringify([...set].slice(-400))); } catch(e){}
+}
+// Reconstruit WATCH_NOTIFS à partir des enchères en direct qui me concernent et
+// entrent dans une fenêtre de fin. Renvoie true si une NOUVELLE alerte est née.
+function checkWatchEndings(auctions){
+  if(!ME) return false;
+  const now = Date.now();
+  const alerted = watchAlertedSet();
+  let fresh = false;
+  const live = (auctions||[]).filter(a=> a.player && aucConcernsMe(a) && new Date(a.ends_at)>now);
+  // On ne garde, par enchère, que le seuil le plus urgent encore valable.
+  const notifs = [];
+  for(const a of live){
+    const left = new Date(a.ends_at) - now;
+    // seuil franchi = il reste MOINS que le seuil (mais l'enchère n'est pas finie)
+    const crossed = WATCH_THRESHOLDS.filter(t=> left <= t.ms);
+    if(!crossed.length) continue;
+    const t = crossed[crossed.length-1];   // le plus petit seuil franchi (le plus urgent)
+    const dedup = 'us_watch_alerted';       // (marqueur, inutilisé ici)
+    const stamp = a.id+':'+t.key;
+    const lead = (a.top_bidder_id||a.top_bidder?.id) === ME.id;
+    notifs.push({
+      kind:'watch_ending',
+      title: lead ? 'Ton enchère se termine' : 'Enchère suivie bientôt finie',
+      detail: `${a.player.name} — ${fmtMoney(a.current_price)} · reste ~${t.label}${lead?' · tu mènes':''}`,
+      ref: a.id, pid: a.player.id, created_at: new Date(a.ends_at).toISOString()
+    });
+    if(!alerted.has(stamp)){ alerted.add(stamp); fresh = true; }
+  }
+  WATCH_NOTIFS = notifs;
+  if(fresh) watchAlertedSave(alerted);
+  return fresh;
+}
+
 // Une enchère « me concerne » si je mène OU si je la suis (watchlist).
 function aucConcernsMe(a){
   if(!ME) return false;
@@ -3135,6 +3182,8 @@ async function renderAuctions(){
   AUC_WATCH = ME ? await api.myWatchlist().catch(()=>new Set()) : new Set();
   const now = new Date();
   AUC_LIVE = open.filter(a=> new Date(a.ends_at) > now);
+  // Alertes « enchère suivie bientôt finie » : met à jour le centre de notifs.
+  if(checkWatchEndings(AUC_LIVE)) loadNotifications(); else updateNotifBadge();
   AUC_BUCKETS = {scheduled:[], ended:[], transferred:[]};
   // Enchères programmées (planifiées par l'organisateur pour plus tard)
   AUC_BUCKETS.scheduled = await api.listScheduledAuctions().catch(()=>[]);
@@ -6108,6 +6157,8 @@ setInterval(async ()=>{
     const now = new Date();
     AUC_LIVE = open.filter(a=> new Date(a.ends_at) > now);
     renderLastMinute();
+    // Alerte « enchère suivie bientôt finie » même hors de l'onglet Enchères.
+    if(checkWatchEndings(AUC_LIVE)) loadNotifications();
   } catch(e){ /* silencieux : best-effort */ }
 }, 45000);
 
@@ -6126,9 +6177,13 @@ function notifReadSet(){
 function notifReadSave(set){
   try { localStorage.setItem('us_notif_read', JSON.stringify([...set].slice(-300))); } catch(e){}
 }
+// Alertes locales « enchère suivie bientôt finie » (générées côté client).
+let WATCH_NOTIFS = [];
 async function loadNotifications(){
   if(!ME) return;
-  NOTIFS = await api.myNotifications();
+  const server = await api.myNotifications();
+  // On place les alertes « à traiter » locales (fins d'enchères suivies) en tête.
+  NOTIFS = [...WATCH_NOTIFS, ...server];
   updateNotifBadge();
   maybeSystemNotify(NOTIFS);
   // Si le panneau est ouvert, on le rafraîchit en direct.
@@ -6178,15 +6233,18 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won'];
-  const fresh = list.filter(n=> PUSH_KINDS.includes(n.kind) && n.ref && !seen.has(n.kind+':'+n.ref));
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending'];
+  // Clé de dédoublonnage : pour watch_ending, on distingue les seuils (le detail
+  // change « reste ~30 min » / « ~10 min »), sinon un seul rappel par enchère.
+  const seenKey = n => n.kind==='watch_ending' ? (n.kind+':'+n.ref+':'+(n.detail||'')) : (n.kind+':'+n.ref);
+  const fresh = list.filter(n=> PUSH_KINDS.includes(n.kind) && n.ref && !seen.has(seenKey(n)));
   fresh.slice(0,3).forEach(n=>{
     try {
-      const nn = new Notification('Ultimate Squad — '+n.title, { body: n.detail, icon: 'icon-192.png', tag: n.kind+':'+n.ref });
+      const nn = new Notification('Ultimate Squad — '+n.title, { body: n.detail, icon: 'icon-192.png', tag: seenKey(n) });
       nn.onclick = ()=>{ window.focus(); nn.close(); };
     } catch(e){}
   });
-  list.forEach(n=>{ if(n.ref) seen.add(n.kind+':'+n.ref); });
+  list.forEach(n=>{ if(n.ref) seen.add(seenKey(n)); });
   notifSeenSave(seen);
 }
 
@@ -6245,19 +6303,20 @@ function remCheck(){
 setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'⚠️', trade:'🔄', winning:'✅',
   proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
-  auction_won:'🏆', bonus:'💰'};
+  auction_won:'🏆', bonus:'💰', watch_ending:'⏰'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
-  auction_won:'#4ade80', bonus:'var(--transfer)'};
+  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
-  proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer'
+  proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
+  watch_ending:'Enchérir'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending']);
 function notifTodoCount(){
   const read = notifReadSet();
   return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
@@ -6269,6 +6328,7 @@ function notifAction(n){
     case 'outbid':
     case 'winning':
     case 'auction_won':
+    case 'watch_ending':
       goView('auctions');
       // Repère la carte de l'enchère (ref = id enchère) et ouvre l'offre.
       if(n.ref) setTimeout(()=>{
@@ -6276,7 +6336,7 @@ function notifAction(n){
         if(card){
           card.scrollIntoView({behavior:'smooth',block:'center'});
           const bid = card.querySelector('[data-bid]');
-          if(bid && n.kind==='outbid') bid.click();
+          if(bid && (n.kind==='outbid' || n.kind==='watch_ending')) bid.click();
         }
       }, 160);
       break;
