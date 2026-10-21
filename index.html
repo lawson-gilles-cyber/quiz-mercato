@@ -926,6 +926,7 @@
         <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
         <button data-v="rules">Règlement</button>
+        <button data-v="records">🏆 Records</button>
         <button data-v="faq">❓ FAQ</button>
       </div>
     </div>
@@ -1648,6 +1649,13 @@
       <p class="rule-p" style="color:var(--muted);margin-top:18px">Une question qui n'est pas ici ? Pose-la dans le <b>chat de ligue</b> ou à l'organisateur. Pour le détail des règles, voir le <b>Règlement</b>.</p>
     </div>
   </section>
+
+  <!-- MUR DES RECORDS / TEMPLE DE LA RENOMMÉE -->  <section class="view" id="records">
+    <div class="eyebrow">Temple de la renommée · saison en cours</div>
+    <h1>Le <em>mur des records</em></h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:18px">Les faits marquants du mercato, mis à jour en direct. À toi d'écrire ton nom dessus.</p>
+    <div id="recordsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px"></div>
+  </section>
 </main>
 
 <script type="module">
@@ -1966,7 +1974,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','gazette','calendar','draft','rules','faq'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','gazette','calendar','draft','rules','faq','records'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -1984,7 +1992,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -3753,6 +3761,45 @@ function renderFaq(){
   });
 }
 if($('faqSearch')) $('faqSearch').addEventListener('input', renderFaq);
+
+// ---------- Mur des records (temple de la renommée) ----------
+const RECORD_META = {
+  biggest_buy:   { ic:'💰', label:'Plus grosse enchère',    money:true,  suffix:'' },
+  top_scout:     { ic:'🕵️', label:'Meilleur dénicheur',      money:true,  suffix:'de bonus' },
+  top_bonus:     { ic:'🎁', label:'Roi des bonus',           money:true,  suffix:'cumulés' },
+  biggest_squad: { ic:'👥', label:'Plus gros effectif',      money:false, suffix:'joueurs' },
+  richest_squad: { ic:'💎', label:'Effectif le plus cher',   money:true,  suffix:'' },
+  most_trades:   { ic:'🔄', label:'Roi des échanges',        money:false, suffix:'échanges' },
+  leader:        { ic:'👑', label:'En tête du classement',   money:false, suffix:'pts' },
+};
+const RECORD_ORDER = ['leader','biggest_buy','top_scout','richest_squad','biggest_squad','most_trades','top_bonus'];
+async function renderRecords(){
+  const grid = $('recordsGrid'); if(!grid) return;
+  grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:20px">Chargement…</div>';
+  let recs = [];
+  try { recs = await api.seasonRecords(); } catch(e){ recs = []; }
+  const byKey = {};
+  recs.forEach(r=>{ byKey[r.rec_key] = r; });
+  const cards = RECORD_ORDER.map(key=>{
+    const meta = RECORD_META[key]; if(!meta) return '';
+    const r = byKey[key];
+    const has = r && r.holder && Number(r.value)>0;
+    const val = has ? (meta.money ? fmtMoney(Number(r.value)) : String(r.value)) : '—';
+    const holder = has ? r.holder : 'À conquérir';
+    const sub = has ? (r.detail ? r.detail : (meta.suffix||'')) : 'Personne pour l\'instant';
+    return `<div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:16px;border-top:3px solid var(--transfer)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+          <span style="font-size:1.4rem">${meta.ic}</span>
+          <span style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:var(--muted);font-weight:700">${meta.label}</span>
+        </div>
+        <div style="font-family:'Saira Condensed','Anton',sans-serif;font-weight:800;font-size:1.6rem;line-height:1;color:${has?'var(--transfer)':'var(--muted)'}">${val} <span style="font-size:.85rem;color:var(--muted);font-weight:600">${has?(meta.suffix||''):''}</span></div>
+        <div style="margin-top:8px;font-size:.9rem;color:var(--chalk);font-weight:700">${holder}</div>
+        ${has && r.detail ? `<div style="font-size:.78rem;color:var(--muted);margin-top:2px">${r.detail}</div>`:''}
+        ${!has ? `<div style="font-size:.78rem;color:var(--muted);margin-top:2px">${sub}</div>`:''}
+      </div>`;
+  }).join('');
+  grid.innerHTML = cards || '<div class="hint" style="grid-column:1/-1;text-align:center;padding:20px">Aucun record pour le moment — le mercato ne fait que commencer !</div>';
+}
 
 async function renderLiveRules(){
   const box = $('liveRules'); if(!box) return;
@@ -5991,7 +6038,7 @@ const SEARCH_VIEWS = [
   {v:'team',ic:'👥',t:'Mon équipe'},{v:'lineup',ic:'📋',t:'Compo'},{v:'rank',ic:'🏆',t:'Classement'},
   {v:'bonus',ic:'💰',t:'Bonus'},{v:'penalty',ic:'🚫',t:'Pénalités'},{v:'feed',ic:'📰',t:'Actu'},
   {v:'chat',ic:'💬',t:'Chat'},{v:'pronos',ic:'🎲',t:'Pronos'},{v:'achievements',ic:'🏅',t:'Succès'},
-  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'faq',ic:'❓',t:'FAQ'}
+  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'records',ic:'🏆',t:'Mur des records'},{v:'faq',ic:'❓',t:'FAQ'}
 ];
 let SEARCH_MANAGERS = [];   // cache des équipes (chargé à la 1re ouverture)
 let SEARCH_IDX = 0;         // index du résultat sélectionné (clavier)

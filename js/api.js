@@ -300,6 +300,11 @@ export async function publicSettings() {
   return (data && data[0]) ? data[0] : null;
 }
 // ---------- Annonce / message de l'organisation ----------
+// ---------- Mur des records (temple de la renommée) ----------
+export async function seasonRecords() {
+  const { data } = await sb.rpc('qm_season_records');
+  return data ?? [];
+}
 export async function getAnnouncement() {
   const { data } = await sb.rpc('qm_announcement');
   const row = (data && data[0]) ? data[0] : null;
