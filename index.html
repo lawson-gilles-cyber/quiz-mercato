@@ -6078,13 +6078,27 @@ async function loadNotifications(){
   if($('notifPanel') && $('notifPanel').style.display==='block') renderNotifPanel();
 }
 // Badge : compte les notifs NON LUES, hors "winning" (rappel permanent positif).
+// Si des notifs sont « à traiter » (action attendue), le badge les met en avant
+// (rouge vif + nombre) ; sinon il reste discret pour les infos non lues.
 function updateNotifBadge(){
   const read = notifReadSet();
   const count = NOTIFS.filter(n=> n.kind!=='winning' && !read.has(notifKey(n))).length;
+  const todo = notifTodoCount();
   const badge = $('bellBadge');
   if(!badge) return;
-  if(count>0){ badge.textContent = count>99?'99+':count; badge.style.display='block'; }
-  else badge.style.display='none';
+  if(todo>0){
+    badge.textContent = todo>99?'99+':todo;
+    badge.style.display='block';
+    badge.style.background = 'var(--live)';
+    badge.title = `${todo} notification(s) à traiter`;
+  } else if(count>0){
+    badge.textContent = count>99?'99+':count;
+    badge.style.display='block';
+    badge.style.background = 'var(--muted)';
+    badge.title = `${count} notification(s) non lue(s)`;
+  } else {
+    badge.style.display='none';
+  }
 }
 
 // ---------- Notifications système locales (navigateur) ----------
@@ -6184,6 +6198,13 @@ const NOTIF_ACTION_LABEL = {
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer'
 };
+// Notifs « à traiter » : elles demandent une décision/action du manager,
+// par opposition aux notifs d'information (tu as gagné, bonus crédité…).
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes']);
+function notifTodoCount(){
+  const read = notifReadSet();
+  return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
+}
 // Action profonde : amène au bon endroit ET ouvre la bonne chose si possible.
 function notifAction(n){
   const panel = $('notifPanel'); if(panel) panel.style.display='none';
@@ -6223,30 +6244,62 @@ function renderNotifPanel(){
   const panel = $('notifPanel'); if(!panel) return;
   const read = notifReadSet();
   const unread = NOTIFS.filter(n=> n.kind!=='winning' && !read.has(notifKey(n))).length;
+  const todo = notifTodoCount();
   const items = NOTIFS.length
-    ? NOTIFS.map(n=>{
+    ? NOTIFS.map((n,idx)=>{
         const isRead = read.has(notifKey(n));
         const act = NOTIF_ACTION_LABEL[n.kind];
-        return `<div class="notif-item" data-nkey="${notifKey(n).replace(/"/g,'&quot;')}"
-            style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);cursor:pointer;opacity:${isRead?'.55':'1'}">
+        const isTodo = NOTIF_TODO.has(n.kind) && !isRead;
+        // Échange reçu : boutons Accepter / Refuser directement dans la cloche.
+        const tradeBtns = (n.kind==='trade' && n.ref && !isRead)
+          ? `<div style="display:flex;gap:6px;margin-top:7px">
+               <button class="bid-btn" data-ntrade-ok="${n.ref}" style="width:auto;margin:0;padding:5px 12px;font-size:.74rem">✅ Accepter</button>
+               <button class="bid-btn" data-ntrade-ko="${n.ref}" style="width:auto;margin:0;padding:5px 12px;font-size:.74rem;background:#7a2e2e">✖ Refuser</button>
+             </div>`
+          : '';
+        return `<div class="notif-item" data-nkey="${notifKey(n).replace(/"/g,'&quot;')}" data-nidx="${idx}"
+            style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);cursor:pointer;opacity:${isRead?'.55':'1'};${isTodo?'border-left:3px solid var(--live);background:rgba(255,90,77,.05)':''}">
           <span>${NOTIF_ICONS[n.kind]||'•'}</span>
           <div style="flex:1">
-            <div style="font-size:.85rem;font-weight:700;color:${NOTIF_COLORS[n.kind]||'var(--chalk)'}">${n.title}</div>
+            <div style="font-size:.85rem;font-weight:700;color:${NOTIF_COLORS[n.kind]||'var(--chalk)'}">${isTodo?'🔴 ':''}${n.title}</div>
             <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div>
-            ${act?`<div style="font-size:.74rem;color:var(--transfer);margin-top:4px;font-weight:700">${act} ▸</div>`:''}
+            ${tradeBtns}
+            ${act && !tradeBtns?`<div style="font-size:.74rem;color:var(--transfer);margin-top:4px;font-weight:700">${act} ▸</div>`:''}
           </div>
         </div>`;}).join('')
     : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
+  const todoChip = todo>0 ? ` <span style="color:var(--live)">· ${todo} à traiter</span>` : '';
   const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 10px;border-bottom:1px solid var(--line);margin-bottom:6px">
-      <span style="font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.9rem">Notifications${unread>0?` <span style="color:var(--live)">(${unread})</span>`:''}</span>
+      <span style="font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.9rem">Notifications${unread>0?` <span style="color:var(--muted)">(${unread})</span>`:''}${todoChip}</span>
       ${NOTIFS.some(n=>n.kind!=='winning') ? `<button id="notifReadAll" style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:.72rem">Tout marquer lu</button>` : ''}
     </div>`;
   panel.innerHTML = header + `<div id="pushHeader" style="padding:0 0 10px"></div>` + items;
   renderPushToggle();
-  // Clic sur une notif → action profonde + marquage lu
-  panel.querySelectorAll('[data-nkey]').forEach((el,i)=>el.onclick=(ev)=>{
+  // Boutons Accepter / Refuser d'un échange (dans la cloche) — priment sur le
+  // clic de navigation de la notif (stopPropagation).
+  panel.querySelectorAll('[data-ntrade-ok]').forEach(b=>b.onclick=async(ev)=>{
     ev.stopPropagation();
-    const n = NOTIFS[i];
+    b.disabled = true;
+    const { error } = await api.acceptTrade(b.dataset.ntradeOk);
+    if(error){ b.disabled=false; toast('Échec : '+error.message,'err',4000); return; }
+    toast('Échange accepté ✅','ok',3000);
+    await loadNotifications(); renderNotifPanel();
+    if(CURRENT_VIEW==='market') renderMarket();
+  });
+  panel.querySelectorAll('[data-ntrade-ko]').forEach(b=>b.onclick=async(ev)=>{
+    ev.stopPropagation();
+    b.disabled = true;
+    const { error } = await api.refuseTrade(b.dataset.ntradeKo);
+    if(error){ b.disabled=false; toast('Échec : '+error.message,'err',4000); return; }
+    toast('Échange refusé.','info',3000);
+    await loadNotifications(); renderNotifPanel();
+    if(CURRENT_VIEW==='market') renderMarket();
+  });
+  // Clic sur une notif → action profonde + marquage lu
+  panel.querySelectorAll('[data-nkey]').forEach(el=>el.onclick=(ev)=>{
+    ev.stopPropagation();
+    const n = NOTIFS[Number(el.dataset.nidx)];
+    if(!n) return;
     const r = notifReadSet(); r.add(notifKey(n)); notifReadSave(r); updateNotifBadge();
     notifAction(n);
   });
