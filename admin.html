@@ -263,6 +263,13 @@
     <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
   </div>
 
+  <!-- Santé du mercato (alertes) -->
+  <h2>🩺 Santé du mercato</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:10px">Les points qui demandent peut-être ton attention, en un coup d'œil.</p>
+    <div id="healthAlerts"><p class="hint">Analyse…</p></div>
+  </div>
+
   <!-- Annonce aux joueurs -->
   <h2>📣 Annonce aux joueurs</h2>
   <div class="card">
@@ -849,7 +856,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHealth();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -860,7 +867,7 @@ async function refreshGate(){
 // sections (voir le tri plus bas). Ordre demandé par Audrey (17/10).
 const ADMIN_TABS = [
   { id:'pilotage', label:'📊 Pilotage', titles:[
-      "Vue d'ensemble","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
+      "Vue d'ensemble","Santé du mercato","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
       "Historique des transactions","Libérations & pénalités","Historique des propositions"] },
@@ -1590,6 +1597,59 @@ $('btnCreateWindow').onclick = async ()=>{
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
 // Vue d'ensemble : chiffres clés du jeu
+// ---------- Santé du mercato : alertes actionnables ----------
+async function loadHealth(){
+  const box = $('healthAlerts'); if(!box) return;
+  let auctions = [], o = null;
+  try { [auctions, o] = await Promise.all([api.listOpenAuctions(), api.adminOverview()]); }
+  catch(e){ box.innerHTML = '<p class="hint">Analyse indisponible.</p>'; return; }
+  const now = Date.now();
+  const H1 = 3600*1000, H2 = 2*3600*1000;
+  const live = (auctions||[]).filter(a=> a.player && new Date(a.ends_at)>now);
+  // 1) Enchères finissant dans <1h SANS aucune offre reçue.
+  const noBidSoon = live.filter(a=> (new Date(a.ends_at)-now)<H1 && !(Number(a.interest)>0));
+  // 2) Enchères en phase finale (<2h) avec au moins une offre.
+  const finalPhase = live.filter(a=> (new Date(a.ends_at)-now)<H2 && Number(a.interest)>0);
+  // 3) Incohérence : marché fermé mais enchères en cours.
+  const marketClosedButLive = o && !o.market_open && live.length>0;
+
+  const fmtLeft = ms => { const m=Math.floor(ms/60000); return m>=60?Math.floor(m/60)+'h '+(m%60)+'m':m+' min'; };
+  const alerts = [];
+  if(noBidSoon.length){
+    alerts.push({ sev:'warn', icon:'⚠️',
+      title:`${noBidSoon.length} enchère(s) finissent bientôt sans aucune offre`,
+      detail: noBidSoon.slice(0,5).map(a=>`${a.player.name} (reste ${fmtLeft(new Date(a.ends_at)-now)})`).join(', ')
+            + (noBidSoon.length>5?'…':'') });
+  }
+  if(o && Number(o.proposals_pending)>0){
+    alerts.push({ sev:'act', icon:'📋', title:`${o.proposals_pending} proposition(s) à valider`, detail:'Onglet Marché → Validation du marché.' });
+  }
+  if(o && Number(o.proposals_approved)>0){
+    alerts.push({ sev:'act', icon:'📣', title:`${o.proposals_approved} proposition(s) approuvée(s) à publier`, detail:'Publie-les pour les mettre aux enchères.' });
+  }
+  if(o && Number(o.injuries_pending)>0){
+    alerts.push({ sev:'warn', icon:'🏥', title:`${o.injuries_pending} blessure(s) à valider`, detail:'Onglet Joueurs → Blessures à valider.' });
+  }
+  if(marketClosedButLive){
+    alerts.push({ sev:'warn', icon:'🔴', title:'Marché fermé alors que des enchères sont en cours', detail:'Vérifie la phase du mercato si c\'est involontaire.' });
+  }
+  if(finalPhase.length){
+    alerts.push({ sev:'info', icon:'⏳', title:`${finalPhase.length} enchère(s) en phase finale (<2h)`, detail: finalPhase.slice(0,5).map(a=>a.player.name).join(', ') + (finalPhase.length>5?'…':'') });
+  }
+
+  if(!alerts.length){
+    box.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted)">✅ Rien à signaler — le mercato tourne bien.</div>';
+    return;
+  }
+  const col = { warn:'var(--danger,#e0574a)', act:'var(--transfer,#e0a106)', info:'var(--muted)' };
+  box.innerHTML = alerts.map(a=>`
+    <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-left:3px solid ${col[a.sev]};background:var(--card2,#101d38);border-radius:8px;margin-bottom:8px">
+      <span style="font-size:1.1rem">${a.icon}</span>
+      <div><div style="font-weight:700;font-size:.9rem;color:${col[a.sev]}">${a.title}</div>
+        <div class="hint" style="margin-top:2px">${a.detail}</div></div>
+    </div>`).join('');
+}
+
 async function loadOverview(){
   const grid = $('overviewGrid'); if(!grid) return;
   const o = await api.adminOverview();
