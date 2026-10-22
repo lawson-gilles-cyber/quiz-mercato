@@ -1051,7 +1051,7 @@
     <!-- Tendances du marché (ce qui bouge) -->
     <div id="marketTrends" class="trends" style="display:none"></div>
     <div id="challengesWrap" style="margin-top:26px;display:none">
-      <div class="eyebrow" style="margin-bottom:12px">🎯 Défis de la semaine</div>
+      <div class="eyebrow" style="margin-bottom:12px">🎯 Objectifs & défis</div>
       <div id="challengesList"></div>
     </div>
     <div style="margin-top:26px">
@@ -5198,18 +5198,26 @@ async function renderChallenges(){
     if(c.kind==='spend_min') return fmtMoney(c.progress);
     return c.progress;
   };
-  $('challengesList').innerHTML = list.map(c=>{
+  // Un défi « du jour » = fenêtre courte (se termine dans ≤ 26h). On le met en avant.
+  const now = Date.now();
+  const sorted = [...list].sort((a,b)=> new Date(a.ends_at)-new Date(b.ends_at));
+  $('challengesList').innerHTML = sorted.map(c=>{
     const pct = Math.min(100, Math.round(Number(c.progress)/Number(c.target)*100));
-    const left = new Date(c.ends_at)-new Date();
+    const left = new Date(c.ends_at)-now;
+    const isDaily = left>0 && left <= 26*3600*1000;
     const days = Math.max(0, Math.ceil(left/86400000));
+    const hours = Math.max(0, Math.ceil(left/3600000));
+    const timeLbl = isDaily ? `⏳ ${hours} h` : `⏳ ${days} j`;
     let action;
     if(c.claimed) action = `<span style="color:#4ade80;font-size:.8rem;font-weight:700">✓ Récompense obtenue</span>`;
     else if(c.done) action = `<button class="bid-btn" data-claim="${c.id}" style="font-size:.76rem;padding:5px 12px;margin:0">Réclamer ${fmtMoney(c.reward)}</button>`;
     else action = `<span style="color:var(--muted);font-size:.78rem">Récompense : <b style="color:var(--transfer)">${fmtMoney(c.reward)}</b></span>`;
-    return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--pitch-2)">
+    const border = isDaily ? 'border:1px solid var(--transfer);box-shadow:0 0 0 1px rgba(245,197,66,.15)' : 'border:1px solid var(--line)';
+    const badge = isDaily ? `<span style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.62rem;font-weight:800;color:var(--pitch);background:var(--transfer);padding:2px 7px;border-radius:5px">🎯 Objectif du jour</span>` : '';
+    return `<div style="${border};border-radius:10px;padding:12px 14px;margin-bottom:10px;background:var(--pitch-2)">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="font-weight:700;font-size:.9rem">${c.label}</span>
-        <span style="font-size:.72rem;color:var(--muted)">⏳ ${days} j</span>
+        <span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-weight:700;font-size:.9rem">${c.label}</span>${badge}</span>
+        <span style="font-size:.72rem;color:${isDaily?'var(--transfer)':'var(--muted)'};font-weight:${isDaily?'700':'400'}">${timeLbl}</span>
       </div>
       <div style="height:8px;background:var(--pitch);border-radius:5px;overflow:hidden;margin:8px 0">
         <div style="height:100%;width:${pct}%;background:${c.done?'#4ade80':'var(--transfer)'};transition:width .3s"></div>

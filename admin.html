@@ -451,9 +451,12 @@
     <div class="row c3" style="margin-bottom:10px">
       <div><label>Libellé affiché</label><input id="chalLabel" type="text" placeholder="Recrute 3 joueurs cette semaine"></div>
       <div><label>Récompense (M€)</label><input id="chalReward" type="number" min="0" value="10"></div>
-      <div><label>Durée (jours)</label><input id="chalDays" type="number" min="1" value="7"></div>
+      <div><label>Durée (jours)</label><input id="chalDays" type="number" min="1" value="7"><small class="hint" style="display:block">1 = objectif du jour (24h)</small></div>
     </div>
-    <button class="btn-primary btn-sm" id="btnCreateChallenge">Créer le défi</button>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary btn-sm" id="btnCreateChallenge">Créer le défi</button>
+      <button class="btn-ghost btn-sm" id="btnCreateDaily" title="Crée un défi express valable 24h">🎯 Défi du jour (24h)</button>
+    </div>
     <div id="chalList" style="margin-top:16px"></div>
   </div>
 
@@ -1750,12 +1753,12 @@ async function loadChallenges(){
     showMsg($('msg2'),'Défi mis à jour.',true); loadChallenges();
   });
 }
-if($('btnCreateChallenge')) $('btnCreateChallenge').onclick = async ()=>{
+async function createChallenge(forceDays){
   const kind = $('chalKind').value;
   const label = $('chalLabel').value.trim();
   const targetRaw = parseFloat($('chalTarget').value);
   const rewardM = parseFloat($('chalReward').value)||0;
-  const days = parseInt($('chalDays').value,10)||7;
+  const days = forceDays || (parseInt($('chalDays').value,10)||7);
   if(!label) return showMsg($('msg2'),'Donne un libellé au défi.');
   if(isNaN(targetRaw) || targetRaw<=0) return showMsg($('msg2'),'Cible invalide.');
   // Pour spend_min, la cible est en M€ -> euros ; sinon c'est un nombre
@@ -1765,9 +1768,11 @@ if($('btnCreateChallenge')) $('btnCreateChallenge').onclick = async ()=>{
     kind, label, param_text, param_num, reward: Math.round(rewardM*1e6), days
   });
   if(error) return showMsg($('msg2'), error.message);
-  showMsg($('msg2'),'Défi créé.',true);
+  showMsg($('msg2'), forceDays===1?'Défi du jour créé (24h).':'Défi créé.', true);
   $('chalLabel').value=''; loadChallenges();
-};
+}
+if($('btnCreateChallenge')) $('btnCreateChallenge').onclick = ()=> createChallenge();
+if($('btnCreateDaily')) $('btnCreateDaily').onclick = ()=> createChallenge(1);
 
 // ---------- Éditeur de barèmes ----------
 // Groupes de réglages : [clé, libellé, type]  (type: 'money' en M€, 'int', 'hours')
