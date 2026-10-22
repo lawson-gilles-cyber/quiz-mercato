@@ -418,6 +418,11 @@ export async function myTrades() {
   const { data } = await sb.rpc('qm_my_trades');
   return data ?? [];
 }
+// Journal public des échanges conclus (acceptés).
+export async function tradesLog(limit = 50) {
+  const { data } = await sb.rpc('qm_trades_log', { p_limit: limit });
+  return data ?? [];
+}
 export async function acceptTrade(id){ return sb.rpc('qm_trade_accept', { p_trade_id: id }); }
 export async function refuseTrade(id){ return sb.rpc('qm_trade_refuse', { p_trade_id: id }); }
 export async function cancelTrade(id){ return sb.rpc('qm_trade_cancel', { p_trade_id: id }); }

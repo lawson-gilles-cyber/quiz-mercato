@@ -1332,6 +1332,13 @@
   <section class="view" id="feed">
     <div class="eyebrow">Le marché en direct</div>
     <h1>L'<em>actu</em> du mercato</h1>
+
+    <!-- Journal des échanges entre managers -->
+    <details id="tradesLogWrap" style="margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:var(--pitch-2);overflow:hidden">
+      <summary style="cursor:pointer;padding:12px 16px;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1rem;color:var(--chalk)">🤝 Journal des échanges</summary>
+      <div id="tradesLogList" style="padding:4px 16px 14px"></div>
+    </details>
+
     <div id="feedList"></div>
     <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les derniers mouvements de tous les managers : recrutements, échanges, libérations.</p>
   </section>
@@ -5348,7 +5355,32 @@ function reactionSVG(kind, size=22){
   }
 }
 
+// Journal des échanges conclus entre managers (transparence + chambrage).
+async function renderTradesLog(){
+  const box = $('tradesLogList'); if(!box) return;
+  let log = [];
+  try { log = await api.tradesLog(50); } catch(e){ log = []; }
+  if(!log.length){
+    box.innerHTML = '<p class="hint" style="margin:6px 0">Aucun échange conclu pour le moment.</p>';
+    return;
+  }
+  box.innerHTML = log.map(t=>{
+    const d = t.resolved_at ? new Date(t.resolved_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '';
+    const fromGives = t.from_gives || '—';
+    const toGives = t.to_gives || '—';
+    const cash = Number(t.cash_from_to||0);
+    let cashTxt = '';
+    if(cash>0)      cashTxt = ` <span style="color:var(--muted)">+ ${fmtMoney(cash)} de ${t.from_team}</span>`;
+    else if(cash<0) cashTxt = ` <span style="color:var(--muted)">+ ${fmtMoney(-cash)} de ${t.to_team}</span>`;
+    return `<div style="border-top:1px solid var(--line);padding:9px 0;font-size:.86rem">
+        <div style="display:flex;justify-content:space-between;gap:8px"><b style="color:var(--chalk)">${t.from_team}</b> <span style="color:var(--muted);font-size:.74rem">${d}</span></div>
+        <div style="color:var(--muted);margin:2px 0"><span style="color:#e0574a">cède</span> ${fromGives} <span style="color:var(--transfer)">↔</span> <span style="color:#4ade80">reçoit</span> ${toGives} <span style="color:var(--muted)">(de ${t.to_team})</span>${cashTxt}</div>
+      </div>`;
+  }).join('');
+}
+
 async function renderFeed(){
+  renderTradesLog();
   const moves = await api.recentTransfers(30);
   if(!moves.length){
     $('feedList').innerHTML = `<div class="empty">Aucun mouvement pour l'instant. Le mercato va s'animer !</div>`;
