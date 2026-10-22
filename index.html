@@ -4892,29 +4892,62 @@ function renderMercatoBanner(){
   const now = new Date();
   const closes = w.closes_at ? new Date(w.closes_at) : null;
   const opens = w.opens_at ? new Date(w.opens_at) : null;
-  let msg;
+
+  // Mon effectif (compté depuis PLAYERS déjà chargé, sans requête).
+  const SQUAD_TARGET = 21;
+  let myCount = null, missing = null;
+  if(ME && typeof PLAYERS!=='undefined' && Array.isArray(PLAYERS)){
+    myCount = PLAYERS.filter(p=> p.owner_id===ME.id).length;
+    missing = Math.max(0, SQUAD_TARGET - myCount);
+  }
+  // Rappel d'effectif, plus pressant à l'approche de la clôture.
+  const squadNudge = (days)=>{
+    if(missing==null || missing===0) return '';
+    const who = missing>1 ? `il te manque ${missing} joueurs` : `il te manque 1 joueur`;
+    return ` · <span style="opacity:.95">${who} pour compléter ton effectif (${myCount}/${SQUAD_TARGET})</span>`;
+  };
+
+  let msg, level = 'ok';   // ok | soon | urgent
   if(opens && now < opens){
     msg = `🗓️ <b>${w.label}</b> — ouvre dans <b>${fmtCountdown(opens-now)}</b>`;
   } else if(closes){
     const left = closes-now;
-    const urgent = left < 24*3600*1000;
-    msg = `${urgent?'🔥':'🟢'} <b>${w.label}</b> — ferme dans <b data-mercato-countdown="${w.closes_at}">${fmtCountdown(left)}</b>`;
+    const D1 = 24*3600*1000, D3 = 3*D1;
+    const cd = `<b data-mercato-countdown="${w.closes_at}">${fmtCountdown(left)}</b>`;
+    if(left < D1){
+      level = 'urgent';
+      msg = `🔥 <b>Dernières heures !</b> ${w.label} ferme dans ${cd}${squadNudge(0)}`;
+    } else if(left < D3){
+      level = 'soon';
+      const d = Math.ceil(left/D1);
+      msg = `⏳ <b>Plus que ${d} jour${d>1?'s':''} !</b> ${w.label} ferme dans ${cd}${squadNudge(d)}`;
+    } else {
+      msg = `🟢 <b>${w.label}</b> — ferme dans ${cd}${squadNudge(99)}`;
+    }
   } else {
     msg = `🟢 <b>${w.label}</b> — ouvert`;
   }
-  const urgent = closes && (closes-now) < 24*3600*1000 && now >= (opens||now);
+  const palette = {
+    ok:     ['rgba(74,222,128,.1)',  '#4ade80',            '#4ade80'],
+    soon:   ['rgba(245,197,66,.14)', 'var(--transfer)',    'var(--chalk)'],
+    urgent: ['rgba(224,87,74,.14)',  'var(--live,#e0574a)','var(--live,#e0574a)'],
+  }[level];
   box.style.display='block';
-  box.style.cssText = `display:block;background:${urgent?'rgba(224,87,74,.12)':'rgba(74,222,128,.1)'};border:1px solid ${urgent?'var(--live,#e0574a)':'#4ade80'};border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:.88rem;color:${urgent?'var(--live,#e0574a)':'#4ade80'};text-align:center`;
+  box.style.cssText = `display:block;background:${palette[0]};border:1px solid ${palette[1]};border-radius:10px;padding:11px 16px;margin-bottom:18px;font-size:.88rem;color:${palette[2]};text-align:center;line-height:1.5`;
   box.innerHTML = msg;
 }
-// Rafraîchit le compte à rebours du bandeau chaque minute (texte seul, pas de requête)
+// Rafraîchit le compte à rebours du bandeau chaque minute (texte seul, pas de requête).
+// On re-rend le bandeau entier régulièrement pour que les paliers (J-3, J-1,
+// dernières heures) et le message s'adaptent avec le temps.
 setInterval(()=>{
   const el = document.querySelector('[data-mercato-countdown]');
   if(el){
     const left = new Date(el.dataset.mercatoCountdown) - new Date();
     el.textContent = fmtCountdown(left);
-    if(left<=0) loadMercatoWindow();  // fenêtre fermée : on recharge l'état
+    if(left<=0){ loadMercatoWindow(); return; }
   }
+  // Re-rendu du bandeau (léger, données en mémoire) pour les transitions de palier.
+  if(MERCATO_WINDOW) renderMercatoBanner();
 }, 60000);
 
 // ---------- Page d'accueil dynamique ----------
