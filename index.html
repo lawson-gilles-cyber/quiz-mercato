@@ -674,6 +674,11 @@
   .pitch-count{position:relative;z-index:1;text-align:center;font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.66rem;color:rgba(255,255,255,.6);margin-bottom:8px}
   /* Espace d'échange */
   .trade-compose{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  /* Formulaire « Dénicher un joueur » : responsive, pas de débordement mobile */
+  .scout-grid{display:grid;grid-template-columns:1.3fr 1.6fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
+  .scout-grid > button{width:100%}
+  @media(max-width:860px){ .scout-grid{grid-template-columns:1fr 1fr} .scout-grid > button{grid-column:1/-1} }
+  @media(max-width:480px){ .scout-grid{grid-template-columns:1fr} }
   .trade-col,.trade-mid{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:18px}
   .trade-head,.trade-l{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;font-size:.72rem;color:var(--muted);display:block;margin-bottom:10px}
   .trade-players{display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto}
@@ -1109,7 +1114,7 @@
         <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:6px">Dénicher un joueur</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Propose un joueur à mettre aux enchères. Si l'admin valide et qu'un <b>autre</b> manager le remporte, tu gagnes un bonus de budget. (Max 3 propositions en attente.)</p>
         <div id="proposalReminder" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:10px;font-size:.85rem"></div>
-        <div style="display:grid;grid-template-columns:1.3fr 1.6fr 1fr 1fr 1fr 1fr auto;gap:10px;align-items:end">
+        <div class="scout-grid">
           <div><label class="trade-l">Prénom</label><input id="scoutFirst" placeholder="ex. Thiago" style="width:100%"></div>
           <div><label class="trade-l">Nom de famille</label><input id="scoutName" placeholder="ex. Silva" style="width:100%"></div>
           <div><label class="trade-l">Poste</label><select id="scoutPos" style="width:100%">
