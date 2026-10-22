@@ -923,7 +923,7 @@
         <button data-v="penalty">Pénalités</button>
         <button data-v="rank">Classement</button>
         <button data-v="feed">Actu</button>
-        <button data-v="chat">💬 Chat</button>
+        <button data-v="chat" id="chatMenuBtn">💬 Chat <span id="chatMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
         <button data-v="pronos">🎲 Pronos</button>
         <button data-v="achievements">🏅 Succès</button>
         <button data-v="mystats">📊 Mes stats</button>
@@ -5435,14 +5435,64 @@ async function renderCommentBox(box, tid){
 // ---------- Chat de ligue ----------
 let CHAT_CHANNEL = null;
 let CHAT_BOUND = false;
+
+// ---------- Chat : signalement des nouveaux messages ----------
+// On garde en local l'horodatage du dernier message LU. Les messages plus
+// récents (venant d'un AUTRE manager) comptent comme non lus → pastille sur
+// l'onglet Chat + signalement dans le centre de notifications.
+function chatSeenGet(){ try { return Number(localStorage.getItem('us_chat_seen')||0); } catch(e){ return 0; } }
+function chatSeenSave(ts){ try { localStorage.setItem('us_chat_seen', String(ts)); } catch(e){} }
+function markChatRead(){
+  // Marque tout comme lu à l'instant présent.
+  chatSeenSave(Date.now());
+  CHAT_NOTIF = [];
+  updateChatBadge(0);
+}
+function updateChatBadge(n){
+  const badge = $('chatMenuBadge');
+  if(badge){
+    if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+    else badge.style.display='none';
+  }
+  // Pastille pulsante sur le bouton Chat et sur l'onglet « Plus ».
+  const chatBtn = $('chatMenuBtn');
+  if(chatBtn) chatBtn.classList.toggle('live-pulse', n>0);
+  const more = $('tabMore');
+  // L'onglet Plus pulse s'il y a du non-lu chat ET qu'on n'est pas déjà dessus.
+  if(more && CURRENT_VIEW!=='chat') more.classList.toggle('live-pulse', n>0);
+}
+// Récupère les messages récents, calcule le non-lu et met à jour pastille + notif.
+async function refreshChatBadge(){
+  if(!ME) return;
+  let msgs = [];
+  try { msgs = await api.chatRecent(40); } catch(e){ return; }
+  const seen = chatSeenGet();
+  // Non lus = messages d'un AUTRE que moi, plus récents que mon dernier passage.
+  const unread = msgs.filter(m=> !m.is_mine && new Date(m.created_at).getTime() > seen);
+  const n = unread.length;
+  updateChatBadge(n);
+  if(n>0){
+    const last = unread[unread.length-1];
+    const who = last.author || 'Un manager';
+    CHAT_NOTIF = [{
+      kind:'chat',
+      title: n>1 ? `${n} nouveaux messages dans le chat` : `Nouveau message de ${who}`,
+      detail: (last.body||'').slice(0,80).replace(/</g,'&lt;'),
+      ref: 'chat', created_at: last.created_at
+    }];
+  } else {
+    CHAT_NOTIF = [];
+  }
+}
+
 async function renderChat(){
   if(!ME){ $('chatGate').style.display='block'; $('chatUI').style.display='none'; return; }
   $('chatGate').style.display='none'; $('chatUI').style.display='block';
   await loadChatMessages();
-  // Abonnement temps réel (une seule fois)
-  if(!CHAT_CHANNEL){
-    try { CHAT_CHANNEL = api.subscribeChat(()=>{ if(CURRENT_VIEW==='chat') loadChatMessages(true); }); } catch(e){}
-  }
+  // On est sur le chat : tout est lu, on efface la pastille et le signalement.
+  markChatRead();
+  if(typeof loadNotifications==='function') loadNotifications();
+  // L'abonnement temps réel est global (startChatRealtime), déjà actif.
   // Câblage input/envoi (une seule fois)
   if(!CHAT_BOUND){
     CHAT_BOUND = true;
@@ -6190,9 +6240,26 @@ async function init(){
   renderMarket();
   renderAuctions();
   startRealtime();
+  if(ME){ startChatRealtime(); refreshChatBadge().then(()=>{ if(CHAT_NOTIF.length){ loadNotifications(); } }); }
   refreshDraftMenu();
   if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
   remCheck();                     // déclenche les rappels échus au démarrage
+}
+
+// ---------- Temps réel : chat de ligue (pastille même hors de l'onglet) ----------
+function startChatRealtime(){
+  if(CHAT_CHANNEL || !ME) return;
+  try {
+    CHAT_CHANNEL = api.subscribeChat(async ()=>{
+      if(CURRENT_VIEW==='chat'){
+        await loadChatMessages(true);
+        markChatRead();
+      } else {
+        await refreshChatBadge();
+        if(CHAT_NOTIF.length){ updateNotifBadge(); if($('notifPanel') && $('notifPanel').style.display==='block') renderNotifPanel(); maybeSystemNotify([...CHAT_NOTIF]); }
+      }
+    });
+  } catch(e){ /* Realtime indisponible : l'app fonctionne quand même */ }
 }
 
 // ---------- Temps réel : la salle des enchères se met à jour seule ----------
@@ -6253,11 +6320,13 @@ function notifReadSave(set){
 }
 // Alertes locales « enchère suivie bientôt finie » (générées côté client).
 let WATCH_NOTIFS = [];
+// Signalement local « nouveaux messages dans le chat » (0 ou 1 entrée).
+let CHAT_NOTIF = [];
 async function loadNotifications(){
   if(!ME) return;
   const server = await api.myNotifications();
-  // On place les alertes « à traiter » locales (fins d'enchères suivies) en tête.
-  NOTIFS = [...WATCH_NOTIFS, ...server];
+  // On place les signalements locaux (chat, fins d'enchères suivies) en tête.
+  NOTIFS = [...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
   updateNotifBadge();
   maybeSystemNotify(NOTIFS);
   // Si le panneau est ouvert, on le rafraîchit en direct.
@@ -6307,10 +6376,10 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending'];
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat'];
   // Clé de dédoublonnage : pour watch_ending, on distingue les seuils (le detail
   // change « reste ~30 min » / « ~10 min »), sinon un seul rappel par enchère.
-  const seenKey = n => n.kind==='watch_ending' ? (n.kind+':'+n.ref+':'+(n.detail||'')) : (n.kind+':'+n.ref);
+  const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
   const fresh = list.filter(n=> PUSH_KINDS.includes(n.kind) && n.ref && !seen.has(seenKey(n)));
   fresh.slice(0,3).forEach(n=>{
     try {
@@ -6331,7 +6400,7 @@ async function askNotifPermission(){
 }
 // Rafraîchit les notifications toutes les 60 s (pour les notifs système
 // même quand l'utilisateur ne fait rien).
-setInterval(()=>{ if(ME) loadNotifications(); }, 60000);
+setInterval(async ()=>{ if(!ME) return; if(CURRENT_VIEW!=='chat') await refreshChatBadge(); loadNotifications(); }, 60000);
 
 // ---------- Rappels programmés (notifications locales) ----------
 // Les rappels sont vérifiés tant que l'app est ouverte (onglet ou PWA). Il ne
@@ -6377,20 +6446,20 @@ function remCheck(){
 setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'⚠️', trade:'🔄', winning:'✅',
   proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
-  auction_won:'🏆', bonus:'💰', watch_ending:'⏰'};
+  auction_won:'🏆', bonus:'💰', watch_ending:'⏰', chat:'💬'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
-  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)'};
+  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
-  watch_ending:'Enchérir'
+  watch_ending:'Enchérir', chat:'Ouvrir le chat'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat']);
 function notifTodoCount(){
   const read = notifReadSet();
   return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
@@ -6426,6 +6495,9 @@ function notifAction(n){
       break;
     case 'bonus':
       goView('bonus');
+      break;
+    case 'chat':
+      goView('chat');
       break;
     default:
       goView('home');
