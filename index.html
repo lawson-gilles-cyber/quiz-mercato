@@ -1342,6 +1342,7 @@
     <h1>Le <em>chat</em> de la ligue</h1>
     <div id="chatGate" style="display:none" class="empty">Connecte-toi pour participer au chat.</div>
     <div id="chatUI" style="display:none">
+      <div id="chatPinned" style="display:none;margin-bottom:12px"></div>
       <div id="chatMessages" style="height:min(55vh,460px);overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--pitch-2);margin-bottom:12px;display:flex;flex-direction:column;gap:8px"></div>
       <div style="display:flex;gap:8px">
         <input id="chatInput" type="text" maxlength="500" placeholder="Ton message…" style="flex:1" autocomplete="off">
@@ -5488,6 +5489,7 @@ async function refreshChatBadge(){
 async function renderChat(){
   if(!ME){ $('chatGate').style.display='block'; $('chatUI').style.display='none'; return; }
   $('chatGate').style.display='none'; $('chatUI').style.display='block';
+  loadChatPinned();
   await loadChatMessages();
   // On est sur le chat : tout est lu, on efface la pastille et le signalement.
   markChatRead();
@@ -5512,14 +5514,17 @@ async function loadChatMessages(keepScroll){
   const box = $('chatMessages'); if(!box) return;
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
   const msgs = await api.chatRecent(80);
+  const isAdmin = !!(ME && ME.is_admin);
   box.innerHTML = msgs.length ? msgs.map(m=>{
     const t = new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     const col = m.color || 'var(--transfer)';
     const name = m.is_admin ? `${m.author} <span style="color:var(--transfer);font-size:.68rem">ADMIN</span>` : m.author;
-    const canDel = m.is_mine || (ME && ME.is_admin);
+    const canDel = m.is_mine || isAdmin;
     const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
+    // Épingler : réservé à l'admin.
+    const pin = isAdmin ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none">📌</a>` : '';
     return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
-      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${del}</div>
+      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${pin}${del}</div>
       <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
     </div>`;
   }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
@@ -5530,7 +5535,42 @@ async function loadChatMessages(keepScroll){
     if(error) return toast(error.message,'err');
     loadChatMessages(true);
   });
+  // Épingler / désépingler (admin)
+  box.querySelectorAll('[data-chatpin]').forEach(a=>a.onclick=async(ev)=>{
+    ev.preventDefault();
+    const { error } = await api.adminPinMessage(a.dataset.chatpin, a.dataset.on==='1');
+    if(error) return toast(error.message,'err');
+    toast(a.dataset.on==='1'?'Message épinglé 📌':'Message désépinglé','ok');
+    loadChatPinned(); loadChatMessages(true);
+  });
   if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
+}
+
+// Affiche la bannière du message épinglé (consigne de l'orga).
+async function loadChatPinned(){
+  const box = $('chatPinned'); if(!box) return;
+  let p = null;
+  try { p = await api.chatPinned(); } catch(e){ p = null; }
+  if(!p || !p.body){ box.style.display='none'; box.innerHTML=''; return; }
+  const isAdmin = !!(ME && ME.is_admin);
+  const unpin = isAdmin ? `<a href="#" id="chatUnpin" data-id="${p.id}" style="color:var(--muted);font-size:.74rem;text-decoration:none;white-space:nowrap">Retirer ✕</a>` : '';
+  box.style.display='block';
+  box.innerHTML = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.14),transparent);border:1px solid var(--transfer);border-radius:10px;padding:11px 14px;display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:1.05rem">📌</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.66rem;color:var(--transfer);font-weight:700;margin-bottom:2px">Épinglé par ${p.author||'l\'organisation'}</div>
+        <div style="font-size:.88rem;color:var(--chalk);word-break:break-word">${(p.body||'').replace(/</g,'&lt;')}</div>
+      </div>
+      ${unpin}
+    </div>`;
+  const un = $('chatUnpin');
+  if(un) un.onclick = async (ev)=>{
+    ev.preventDefault();
+    const { error } = await api.adminPinMessage(un.dataset.id, false);
+    if(error) return toast(error.message,'err');
+    toast('Message désépinglé','ok');
+    loadChatPinned(); loadChatMessages(true);
+  };
 }
 
 // ---------- Succès / trophées ----------
@@ -6252,6 +6292,7 @@ function startChatRealtime(){
   try {
     CHAT_CHANNEL = api.subscribeChat(async ()=>{
       if(CURRENT_VIEW==='chat'){
+        loadChatPinned();
         await loadChatMessages(true);
         markChatRead();
       } else {

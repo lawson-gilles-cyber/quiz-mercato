@@ -694,6 +694,14 @@ export async function chatRecent(limit = 60) {
 export async function chatDelete(id) {
   return sb.rpc('qm_chat_delete', { p_id: id });
 }
+// Message épinglé (consigne de l'orga).
+export async function chatPinned() {
+  const { data } = await sb.rpc('qm_chat_pinned');
+  return (data && data[0]) ? data[0] : null;
+}
+export async function adminPinMessage(id, on) {
+  return sb.rpc('qm_admin_pin_message', { p_id: id, p_on: on });
+}
 export async function adminSetMute(managerId, muted) {
   return sb.rpc('qm_admin_set_mute', { p_manager_id: managerId, p_muted: muted });
 }
