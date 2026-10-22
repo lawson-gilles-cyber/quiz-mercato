@@ -2314,7 +2314,7 @@ function renderComparator(players){
     const row = (lbl, val, style)=> `<div style="font-size:.68rem;color:var(--muted);margin-top:7px">${lbl}</div><div style="font-family:'Saira',sans-serif;${style||'font-weight:700'}">${val}</div>`;
     return `<div style="flex:1;min-width:130px;background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:12px;position:relative">
       <button onclick="cmpRemove('${p.id}')" style="position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:50%;border:none;background:var(--live);color:#fff;font-size:.8rem;cursor:pointer;line-height:1">×</button>
-      <div style="font-family:'Archivo',sans-serif;font-weight:800;font-size:.92rem;margin-bottom:2px;padding-right:18px">${p.name}</div>
+      <div data-playercard="${p.id}" title="Voir la fiche & la courbe de valeur" style="cursor:pointer;font-family:'Archivo',sans-serif;font-weight:800;font-size:.92rem;margin-bottom:2px;padding-right:18px">${p.name} <span style="color:var(--muted);font-size:.7rem">📈</span></div>
       <div style="font-size:.72rem;color:var(--muted)">${POS[p.position]} · ${p.club||'—'}</div>
       ${row('Qualité', `<span style="color:${barC}">${noteTxt}</span>`, win(q,bQual))}
       ${row('Valeur', fmtMoney(p.current_value), win(Number(p.current_value),bVal))}
@@ -2395,8 +2395,8 @@ function setupPlayerCheck(){
     };
     out.innerHTML = `<div style="display:flex;flex-direction:column;gap:6px">${hits.map(p=>{
       const full = ((p.first_name||'').trim()? p.first_name.trim()+' ' : '')+(p.name||'');
-      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:var(--pitch);border:1px solid var(--line)">
-        <span style="font-size:.88rem"><b>${full}</b> <span style="color:var(--muted);font-size:.78rem">${p.club||'—'}${p.championship?' · '+p.championship:''}</span></span>
+      return `<div data-playercard="${p.id}" title="Voir la fiche & la courbe de valeur" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:8px;background:var(--pitch);border:1px solid var(--line)">
+        <span style="font-size:.88rem"><b>${full}</b> <span style="color:var(--muted);font-size:.72rem">📈</span> <span style="color:var(--muted);font-size:.78rem">${p.club||'—'}${p.championship?' · '+p.championship:''}</span></span>
         ${chip(p.status)}
       </div>`;
     }).join('')}</div>`;
@@ -3618,7 +3618,10 @@ async function showPlayerCard(playerId){
 // Délégation : clic sur un nom de joueur (carte d'enchère) ouvre sa fiche
 document.addEventListener('click', e=>{
   const t = e.target.closest('.title[data-player]');
-  if(t){ e.stopPropagation(); showPlayerCard(t.dataset.player); }
+  if(t){ e.stopPropagation(); showPlayerCard(t.dataset.player); return; }
+  // Autres emplacements (recherche marché, comparateur…) : data-playercard
+  const pc = e.target.closest('[data-playercard]');
+  if(pc){ e.stopPropagation(); showPlayerCard(pc.dataset.playercard); }
 });
 
 // Câblage des filtres (une seule fois)
