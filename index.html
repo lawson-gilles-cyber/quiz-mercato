@@ -3154,14 +3154,14 @@ function acard(a, status){
     const atCap = cap && price>=cap;
     // Bouton rapide seulement si je ne mène pas déjà et qu'on n'est pas au plafond.
     const quickBtn = (ME && !iLead && !atCap)
-      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:0 0 auto;margin-top:0;white-space:nowrap">⚡ ${fmtMoney(next)}</button>`
+      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:1 1 auto;min-width:0;margin-top:0;white-space:nowrap">⚡ ${fmtMoney(next)}</button>`
       : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span style="display:flex;gap:6px;align-items:center">${interestTag}${star}</span></div>
       <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
-      <div style="display:flex;gap:6px;margin-top:10px;width:100%;min-width:0">
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%;min-width:0">
         ${quickBtn}
         <button class="bid-btn${quickBtn?' secondary':''}" data-bid="${p.id}" style="flex:1 1 auto;min-width:0;margin-top:0">${quickBtn?'Offre…':'Enchérir'}</button>
-        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:0 0 auto;width:44px;padding:0;margin-top:0">📜</button>
+        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:1 0 100%;min-width:0;padding:8px;margin-top:0">📜 Journal des offres</button>
       </div>`;
   } else if(status==='scheduled'){
     // Enchère planifiée : on montre quand elle démarre (date + heure).
