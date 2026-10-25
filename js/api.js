@@ -418,6 +418,11 @@ export async function listManagers() {
   const { data } = await sb.from('qm_managers').select('id, display_name, team_name, is_admin, coach_of').order('display_name');
   return data ?? [];
 }
+// Suppression définitive d'un manager (admin) : libère ses joueurs, bloque s'il
+// mène une enchère en cours, puis efface le compte (auth + données liées).
+export async function adminDeleteManager(managerId) {
+  return sb.rpc('qm_admin_delete_manager', { p_manager_id: managerId });
+}
 export async function proposeTrade(t) {
   return sb.rpc('qm_trade_propose', {
     p_to_manager: t.to_manager,

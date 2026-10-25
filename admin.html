@@ -430,6 +430,17 @@
     <button class="btn-ghost btn-sm" id="btnClearChat" style="margin-top:12px">🗑 Vider tout le chat</button>
   </div>
 
+  <!-- Supprimer un manager -->
+  <h2>🗑 Supprimer un manager</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:8px;padding:8px 10px;background:rgba(224,87,74,.12);border-radius:8px;color:var(--chalk)">⚠️ <b>Action définitive.</b> Supprime le compte du manager et toutes ses données de jeu (offres, compositions, cartes, bonus, paris…). Ses <b>joueurs retournent au marché</b> (libres, à leur valeur de base). Le compte de connexion est <b>effacé</b> : la personne ne pourra plus se reconnecter.</p>
+    <p class="hint" style="margin-bottom:12px">Si le manager <b>mène une enchère en cours</b>, clôture ou annule d'abord cette enchère (onglet « Enchères »), sinon la suppression sera refusée. Les comptes <b>admin</b> ne sont pas supprimables ici.</p>
+    <div class="row c2" style="align-items:end">
+      <div><label>Manager à supprimer</label><select id="delmgr_select"><option value="">— manager —</option></select></div>
+      <div><button class="btn-danger" id="btnDeleteManager">Supprimer définitivement</button></div>
+    </div>
+  </div>
+
   <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
   <h2>Récompenses de fin de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -890,7 +901,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHealth();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHealth();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -2216,6 +2227,31 @@ if($('btnClearChat')) $('btnClearChat').onclick = async ()=>{
   showMsg($('msg2'), `Chat vidé (${data} message(s) supprimé(s)).`, true);
 };
 
+// ---------- Suppression d'un manager ----------
+async function loadDeleteManagerSelect(){
+  const sel = $('delmgr_select'); if(!sel) return;
+  const mgrs = (await api.listManagers()).filter(m=>!m.is_admin && !m.coach_of);
+  sel.innerHTML = '<option value="">— manager —</option>' +
+    mgrs.map(m=>`<option value="${m.id}">${m.team_name ? m.team_name+' — ' : ''}${m.display_name}</option>`).join('');
+}
+if($('btnDeleteManager')) $('btnDeleteManager').onclick = async ()=>{
+  const sel = $('delmgr_select'); const id = sel.value;
+  if(!id){ return showMsg($('msg2'), 'Choisis d’abord un manager.'); }
+  const name = sel.options[sel.selectedIndex].text;
+  // Double garde-fou : confirmation + saisie explicite du mot SUPPRIMER.
+  if(!confirm(`Supprimer définitivement « ${name} » ?\n\nSes joueurs retournent au marché et son compte est effacé. Action irréversible.`)) return;
+  const typed = prompt(`Pour confirmer la suppression de « ${name} », tape : SUPPRIMER`);
+  if((typed||'').trim().toUpperCase() !== 'SUPPRIMER'){ return showMsg($('msg2'), 'Suppression annulée.'); }
+  const { data, error } = await api.adminDeleteManager(id);
+  if(error) return showMsg($('msg2'), error.message);
+  const r = Array.isArray(data) ? data[0] : data;
+  const freed = r && typeof r.released_players === 'number' ? r.released_players : 0;
+  showMsg($('msg2'), `« ${r?.deleted_name || name} » supprimé. ${freed} joueur(s) remis au marché.`, true);
+  loadDeleteManagerSelect(); loadMuteList();
+  if(typeof loadPlayers === 'function') loadPlayers();
+  if(typeof loadRanking === 'function') loadRanking();
+};
+
 // ---------- Ligues / divisions ----------
 async function loadDivisions(){
   if(!$('divList')) return;
@@ -2888,6 +2924,8 @@ const ADMIN_FAQ = [
      "Onglet <b>Managers → « Inviter des managers »</b> : copie ou partage le lien d'invitation (WhatsApp, SMS…). En l'ouvrant, la personne arrive directement sur l'inscription. Tu peux remplacer « admin » par un pseudo pour un lien de parrainage."],
     ['Comment modérer le chat ?',
      "Onglet <b>Managers → « Modération du chat »</b> : tu peux <b>réduire au silence</b> un manager ou réactiver sa parole. Les comptes admin et coach ne figurent pas dans la liste."],
+    ['Comment supprimer définitivement un manager ?',
+     "Onglet <b>Managers → « 🗑 Supprimer un manager »</b> : choisis le manager et confirme (double validation + saisie du mot SUPPRIMER). Ses <b>joueurs retournent au marché</b> (libres, valeur de base) et son <b>compte de connexion est effacé</b>. Si le manager <b>mène une enchère en cours</b>, clôture ou annule-la d'abord, sinon la suppression est refusée. Les comptes <b>admin</b> ne sont pas supprimables (retire-leur d'abord les droits si besoin). <b>Action irréversible.</b> Nécessite le script <b>120_supprimer_manager.sql</b>."],
     ['Comment gérer les divisions (montée/descente) ?',
      "Onglet <b>Managers → « Ligues & divisions »</b> : répartis les managers par division et applique la montée/descente en fin de saison. Le classement s'affiche alors par division."],
   ]],
