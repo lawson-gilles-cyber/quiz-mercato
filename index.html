@@ -4826,17 +4826,23 @@ async function loadLineupForMatchday(mdId){
     if(bd.length){
       const total = bd.reduce((s,x)=>s+Number(x.contribution),0);
       const hasSub = bd.some(x=>x.is_sub);
+      const hasPending = bd.some(x=>x.is_pending) || md.provisional;
+      const provBadge = hasPending
+        ? `<div style="display:inline-block;background:rgba(245,197,66,.14);border:1px solid var(--transfer);color:var(--transfer);border-radius:8px;padding:4px 10px;font-size:.76rem;font-weight:700;margin-bottom:10px">⏳ Points provisoires — certains matchs ne sont pas encore joués ou renseignés</div>`
+        : '';
       $('lineupBreakdown').innerHTML = `<div class="eyebrow" style="margin-bottom:12px">Résultat de la journée</div>
-        <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer);margin-bottom:14px">${total.toFixed(2)} points</div>
+        ${provBadge}
+        <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer);margin-bottom:14px">${total.toFixed(2)} points${hasPending?' <span style="font-size:.8rem;color:var(--muted)">(provisoire)</span>':''}</div>
         <table style="width:100%"><thead><tr><th>Joueur</th><th>Note</th><th>Min.</th><th>Poids</th><th>Points</th></tr></thead><tbody>${
           bd.map(x=>{
             const subTag = x.is_sub ? ` <span style="color:#5fd0e0;font-size:.68rem;white-space:nowrap">🪑 entré pour ${x.replaces_name||'—'}</span>` : '';
-            return `<tr><td><b>${x.name}</b>${subTag}</td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
-            <td style="color:var(--muted)">${x.minutes!=null?x.minutes+"'":'—'}</td>
+            const pendTag = x.is_pending ? ` <span style="color:var(--transfer);font-size:.68rem;white-space:nowrap">⏳ en attente (match reporté / non renseigné)</span>` : '';
+            return `<tr><td><b>${x.name}</b>${subTag}${pendTag}</td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
+            <td style="color:var(--muted)">${x.minutes!=null?x.minutes+"'":(x.is_pending?'⏳':'—')}</td>
             <td style="font-size:.8rem;color:var(--muted)">${x.weight_pct!=null?x.weight_pct+'%':'—'}</td>
             <td style="font-family:'Saira';font-weight:700">${Number(x.contribution).toFixed(2)}</td></tr>`;
           }).join('')
-        }</tbody></table>${hasSub?'<p class="hint" style="font-size:.76rem;margin-top:8px">🪑 Un réserviste est entré automatiquement à la place d\'un titulaire qui n\'a pas joué.</p>':''}`;
+        }</tbody></table>${hasSub?'<p class="hint" style="font-size:.76rem;margin-top:8px">🪑 Un réserviste est entré automatiquement à la place d\'un titulaire qui n\'a pas joué.</p>':''}${hasPending?'<p class="hint" style="font-size:.76rem;margin-top:4px">⏳ Les points seront recalculés automatiquement dès que les minutes manquantes seront renseignées.</p>':''}`;
     }
   } else {
     $('lineupBreakdown').innerHTML = '';

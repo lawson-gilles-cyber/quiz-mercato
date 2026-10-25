@@ -1057,6 +1057,11 @@ export async function scoringProgress(matchdayId) {
 }
 
 // ---------- VAGUE 3 : Points & classement par journée -------------
+// Journal des remplacements d'une journée (admin).
+export async function matchdaySubs(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_matchday_subs', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
 export async function lineupBreakdown(managerId, matchdayId) {
   const { data } = await sb.rpc('qm_lineup_breakdown', { p_manager: managerId, p_matchday_id: matchdayId });
   return data ?? [];

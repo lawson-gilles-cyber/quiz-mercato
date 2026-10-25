@@ -511,6 +511,13 @@
     <div id="scoreResult" style="margin-top:10px"></div>
   </div>
 
+  <!-- Journal des remplacements (réservistes entrés) -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="font-weight:800;margin-bottom:8px">🪑 Journal des remplacements</div>
+    <p class="hint" style="margin-bottom:10px">Pour la journée sélectionnée ci-dessus : titulaires absents remplacés automatiquement par un réserviste. Utile pour les vérifications et les contestations.</p>
+    <div id="subsJournal"><p class="hint">Sélectionne une journée pour voir les remplacements.</p></div>
+  </div>
+
   <!-- Ajouter un joueur -->
   <!-- Blessures à valider -->
   <h2>Blessures à valider</h2>
@@ -2397,8 +2404,28 @@ async function loadScoringMatchdays(){
     return;
   }
   $('scoreMatchday').innerHTML = scoring.map(m=>`<option value="${m.id}">${m.label||('Journée '+m.number)}</option>`).join('');
-  $('scoreMatchday').onchange = ()=>loadScoringPlayers($('scoreMatchday').value);
+  $('scoreMatchday').onchange = ()=>{ loadScoringPlayers($('scoreMatchday').value); loadSubsJournal($('scoreMatchday').value); };
   loadScoringPlayers($('scoreMatchday').value);
+  loadSubsJournal($('scoreMatchday').value);
+}
+
+// Journal des remplacements de la journée sélectionnée.
+async function loadSubsJournal(mdId){
+  const box = $('subsJournal'); if(!box) return;
+  if(!mdId){ box.innerHTML = '<p class="hint">Sélectionne une journée.</p>'; return; }
+  let subs = [];
+  try { subs = await api.matchdaySubs(mdId); }
+  catch(e){ box.innerHTML = '<p class="hint">Passe le script 117b pour activer le journal.</p>'; return; }
+  if(!subs.length){ box.innerHTML = '<p class="hint">Aucun remplacement sur cette journée.</p>'; return; }
+  box.innerHTML = `<table style="width:100%;font-size:.86rem"><thead><tr><th>Équipe</th><th>Sorti</th><th>Entré</th><th>Motif</th><th>Points</th></tr></thead><tbody>${
+    subs.map(s=>`<tr>
+      <td>${s.team||'—'}</td>
+      <td style="color:var(--danger,#e0574a)">${s.out_name||'—'}</td>
+      <td style="color:var(--ok,#4ade80)">${s.in_name||'—'}</td>
+      <td style="font-size:.8rem;color:var(--muted)">${s.reason||''}</td>
+      <td class="val">${Number(s.points_in||0).toFixed(2)}</td>
+    </tr>`).join('')
+  }</tbody></table>`;
 }
 
 async function loadScoringPlayers(mdId){
@@ -2440,6 +2467,7 @@ async function saveScores(mdId){
   if(r.error){ $('scoreResult').innerHTML = `<span style="color:var(--danger,#e0574a)">${r.error.message}</span>`; return; }
   $('scoreResult').innerHTML = `<span style="color:#2e7d46">✓ ${r.data} note(s) enregistrée(s).</span>`;
   loadScoringPlayers(mdId);
+  loadSubsJournal(mdId);   // les remplacements ont pu changer (recalcul auto)
 }
 
 $('btnBonusSettings').onclick = async () => {
