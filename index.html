@@ -1065,6 +1065,13 @@
     <div class="eyebrow">Marché · dénicher & échanger</div>
     <h1>Le <em>marché</em></h1>
 
+    <!-- Agents libres (joueurs libérés) -->
+    <div id="freeAgentsWrap" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:8px">🆓 Agents libres</div>
+      <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Des joueurs libérés par leurs managers. Après <b>24h de visibilité</b>, le <b>premier</b> qui réclame le recrute <b>gratuitement</b> (seul le salaire compte dans ta masse salariale).</p>
+      <div id="freeAgentsList"></div>
+    </div>
+
     <!-- Vérifier si un joueur est déjà dans le jeu (avant de le dénicher) -->
     <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
       <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">🔎 Ce joueur est-il déjà pris ?</div>
@@ -1559,6 +1566,7 @@
           <li>Tu peux libérer un joueur après <b>24h</b> de détention : il retourne sur le marché et tu récupères une partie de son prix.</li>
           <li><b>Pénalité progressive</b> : 15 % (24-48h), 10 % (48h-7j), 5 % (+7j).</li>
           <li>Maximum <b>2 libérations par période de 7 jours</b>. Une erreur de recrutement a un coût — réfléchis avant d'enchérir.</li>
+          <li><b>Agent libre</b> : un joueur libéré devient <b>agent libre</b>. Il est visible 24h (le temps que tout le monde le repère), puis le <b>premier manager</b> qui le réclame le recrute <b>gratuitement</b> (aucun frais de transfert) — seul son salaire compte dans ta masse salariale. Tu le trouves dans la section « 🆓 Agents libres » du Marché.</li>
         </ul>
       </div>
       <div class="rule-block">
@@ -2420,6 +2428,7 @@ function setupPlayerCheck(){
 async function renderMarket(){
   setupPlayerCheck();            // « ce joueur est-il déjà pris ? » (tous)
   renderMarketplace();           // place de marché (vitrine des échanges)
+  renderFreeAgents();            // agents libres (joueurs libérés)
   if(!ME){
     $('tradeGate').style.display='block'; $('tradeUI').style.display='none';
     setupComparator(); setupDirectRecruit(); return;
@@ -2457,6 +2466,60 @@ async function renderMarketplace(){
   try { MARKET_LISTINGS = await api.marketListings(); } catch(e){ MARKET_LISTINGS = []; }
   applyMarketFilters();
 }
+
+// ---------- Agents libres (joueurs libérés, recrutement gratuit) ----------
+let FREE_AGENTS = [];
+function faClock(sec){
+  sec = Math.max(0, Math.floor(sec));
+  const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60), s=sec%60;
+  return h>0 ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s).padStart(2,'0')}s`;
+}
+async function renderFreeAgents(){
+  const wrap = $('freeAgentsWrap'); if(!wrap) return;
+  try { FREE_AGENTS = await api.freeAgents(); } catch(e){ FREE_AGENTS = []; }
+  if(!FREE_AGENTS.length){ wrap.style.display='none'; return; }
+  wrap.style.display='block';
+  const NC = {'rouge':'#e0574a','jaune':'#e0a800','vert-clair':'#7bc96f','vert-vif':'#4ade80'};
+  const box = $('freeAgentsList');
+  box.innerHTML = FREE_AGENTS.map(a=>{
+    const dot = a.note_color ? `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${NC[a.note_color]||'var(--muted)'};margin-right:5px"></span>` : '';
+    const claimable = a.claimable;
+    const right = claimable
+      ? (ME ? `<button class="bid-btn" data-claimfa="${a.player_id}" style="flex:0 0 auto;width:auto;margin:0;padding:9px 14px;white-space:nowrap">Réclamer (gratuit)</button>`
+            : `<span style="color:var(--muted);font-size:.8rem">Connecte-toi pour réclamer</span>`)
+      : `<span class="fa-countdown" data-until="${a.free_agent_until}" style="color:var(--transfer);font-size:.82rem;white-space:nowrap">🕓 dispo dans ${faClock(a.seconds_left)}</span>`;
+    return `<div class="mkt-row" style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--line)">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;color:var(--chalk);overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-playercard="${a.player_id}">${dot}${a.name} <span style="color:var(--muted);font-size:.74rem">${POS[a.pos]||a.pos} · 📈</span></div>
+        <div style="font-size:.78rem;color:var(--muted)">${a.club||'—'} · valeur ${fmtMoney(a.current_value)} · salaire ${fmtMoney(a.salary)}</div>
+      </div>
+      ${right}
+    </div>`;
+  }).join('');
+  // Boutons Réclamer
+  box.querySelectorAll('[data-claimfa]').forEach(btn=>btn.onclick=async()=>{
+    btn.disabled = true; const old = btn.textContent; btn.textContent='⏳…';
+    const { error } = await api.claimFreeAgent(btn.dataset.claimfa);
+    if(error){ btn.disabled=false; btn.textContent=old; toast('Échec : '+error.message,'err',4500); return; }
+    toast('Agent libre recruté gratuitement ! 🆓','ok',4000);
+    ME = await api.currentManager();
+    if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
+    await loadPlayers();
+    renderFreeAgents();
+  });
+}
+// Compte à rebours vivant des agents libres (passe « dispo » à échéance).
+setInterval(()=>{
+  const els = document.querySelectorAll('.fa-countdown[data-until]');
+  if(!els.length) return;
+  let anyDue = false;
+  els.forEach(el=>{
+    const left = (new Date(el.dataset.until) - new Date())/1000;
+    if(left<=0){ anyDue = true; }
+    else el.textContent = '🕓 dispo dans ' + faClock(left);
+  });
+  if(anyDue && CURRENT_VIEW==='market') renderFreeAgents();  // re-rend pour afficher le bouton
+}, 1000);
 function applyMarketFilters(){
   const list = $('marketList'); if(!list) return;
   const q = ($('mktSearch')?.value||'').trim().toLowerCase();
@@ -3725,6 +3788,8 @@ const FAQ_DATA = [
      "Tu prêtes un joueur pour <b>1 à 60 jours</b>, avec indemnité optionnelle. Pendant le prêt, l’<b>emprunteur</b> aligne le joueur et porte son salaire ; le retour est automatique à l’échéance. Une <b>option d’achat</b> ou un <b>prêt ferme</b> peuvent être prévus."],
     ['Que se passe-t-il si je libère un joueur ?',
      "Il retourne sur le marché et tu es remboursé d’une partie du prix d’achat. Pénalité progressive : 15 % (24-48h), 10 % (48h-7j), 5 % (+7j). Détention minimale <b>24h</b>, maximum <b>2 libérations par 7 jours</b>."],
+    ['C’est quoi un « agent libre » ?',
+     "Un joueur <b>libéré</b> par un manager devient <b>agent libre</b>. Il est visible 24h (le temps que tout le monde le voie), puis le <b>premier</b> qui le réclame le recrute <b>gratuitement</b> — pas de frais de transfert, seul son salaire compte dans ta masse salariale. Ça se passe dans la section « 🆓 Agents libres » du Marché, où un compte à rebours indique quand il devient réclamable."],
   ]],
   ['Points, compo & classement', [
     ['Comment je gagne des points au classement ?',

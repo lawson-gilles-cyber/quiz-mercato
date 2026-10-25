@@ -1088,6 +1088,14 @@ export async function adminSetWindowActive(windowId, active) {
 export async function directRecruit(playerId) {
   return sb.rpc('qm_direct_recruit', { p_player_id: playerId });
 }
+// ---------- Agents libres (joueurs libérés, recrutement gratuit) ----------
+export async function freeAgents() {
+  const { data } = await sb.rpc('qm_free_agents');
+  return data ?? [];
+}
+export async function claimFreeAgent(playerId) {
+  return sb.rpc('qm_claim_free_agent', { p_player_id: playerId });
+}
 
 // ---------- VAGUE 3 temps 2 : Points->budget & récompenses --------
 export async function convertPointsToBudget(points) {
