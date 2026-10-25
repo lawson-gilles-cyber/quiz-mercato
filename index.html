@@ -1294,9 +1294,11 @@
         <select id="lineupMatchday" style="width:100%;padding:9px;margin-top:6px"></select>
         <div id="lineupInfo" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Sélectionne exactement <b>11 titulaires</b> parmi ton effectif. Seuls ces 11 marquent des points cette journée, selon leurs performances réelles.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:8px">Sélectionne exactement <b>11 titulaires</b> parmi ton effectif. Seuls ces 11 marquent des points, selon leurs performances réelles.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Tu peux aussi désigner jusqu'à <b>3 réservistes</b> (bouton 🪑 Banc) : si un titulaire ne joue pas du tout, le premier réserviste disponible <b>du même poste</b> le remplace automatiquement. L'ordre R1 → R2 → R3 est leur priorité.</p>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-        <div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 sélectionnés</div>
+        <div><div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 titulaires</div>
+          <div id="benchCounter" style="font-size:.8rem;color:var(--muted)">0 / 3 réservistes</div></div>
         <button id="btnSuggestLineup" class="bid-btn" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem">🧩 Suggérer mon 11</button>
       </div>
       <div id="lineupPlayers" class="grid"></div>
@@ -4638,6 +4640,7 @@ async function renderMyActivity(){
 
 // ---------- Composition (11 titulaires) ----------
 let LINEUP_SELECTED = new Set();
+let LINEUP_BENCH = [];   // réservistes ORDONNÉS (R1, R2, R3) — l'ordre = priorité
 let LINEUP_MDS = [];
 // Garde-fou pré-clôture : alerte si la compo n'est pas complète pour une
 // journée ouverte. Urgence selon la proximité de la date limite.
@@ -4736,6 +4739,7 @@ async function loadLineupForMatchday(mdId){
   // Ma compo existante pour cette journée
   const existing = await api.myLineup(mdId);
   LINEUP_SELECTED = new Set(existing?.player_ids || []);
+  LINEUP_BENCH = Array.isArray(existing?.bench_ids) ? [...existing.bench_ids] : [];
 
   if(existing?.reconducted){
     $('lineupResult').innerHTML = `<span style="color:var(--transfer)">Compo reconduite de la journée précédente — modifie-la si tu veux.</span>`;
@@ -4756,14 +4760,18 @@ async function loadLineupForMatchday(mdId){
     const bd = await api.lineupBreakdown(teamId, mdId);
     if(bd.length){
       const total = bd.reduce((s,x)=>s+Number(x.contribution),0);
+      const hasSub = bd.some(x=>x.is_sub);
       $('lineupBreakdown').innerHTML = `<div class="eyebrow" style="margin-bottom:12px">Résultat de la journée</div>
         <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer);margin-bottom:14px">${total.toFixed(2)} points</div>
         <table style="width:100%"><thead><tr><th>Joueur</th><th>Note</th><th>Min.</th><th>Poids</th><th>Points</th></tr></thead><tbody>${
-          bd.map(x=>`<tr><td><b>${x.name}</b></td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
+          bd.map(x=>{
+            const subTag = x.is_sub ? ` <span style="color:#5fd0e0;font-size:.68rem;white-space:nowrap">🪑 entré pour ${x.replaces_name||'—'}</span>` : '';
+            return `<tr><td><b>${x.name}</b>${subTag}</td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
             <td style="color:var(--muted)">${x.minutes!=null?x.minutes+"'":'—'}</td>
             <td style="font-size:.8rem;color:var(--muted)">${x.weight_pct!=null?x.weight_pct+'%':'—'}</td>
-            <td style="font-family:'Saira';font-weight:700">${Number(x.contribution).toFixed(2)}</td></tr>`).join('')
-        }</tbody></table>`;
+            <td style="font-family:'Saira';font-weight:700">${Number(x.contribution).toFixed(2)}</td></tr>`;
+          }).join('')
+        }</tbody></table>${hasSub?'<p class="hint" style="font-size:.76rem;margin-top:8px">🪑 Un réserviste est entré automatiquement à la place d\'un titulaire qui n\'a pas joué.</p>':''}`;
     }
   } else {
     $('lineupBreakdown').innerHTML = '';
@@ -4775,22 +4783,47 @@ function renderLineupPlayers(mine){
   mine.sort((a,b)=>(POSORDER[a.position]-POSORDER[b.position]) || Number(b.current_value)-Number(a.current_value));
   $('lineupPlayers').innerHTML = mine.map(p=>{
     const on = LINEUP_SELECTED.has(p.id);
-    return `<div class="lineup-pick ${on?'on':''}" data-lp="${p.id}" style="cursor:pointer;border:2px solid ${on?'var(--transfer)':'var(--line)'};border-radius:10px;padding:10px;background:${on?'rgba(224,168,0,.08)':'var(--pitch-2)'};transition:.15s">
-      <div style="display:flex;justify-content:space-between;align-items:center">
+    const benchIdx = LINEUP_BENCH.indexOf(p.id);     // -1 si pas réserviste
+    const isBench = benchIdx >= 0;
+    const border = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--line)');
+    const bg = on ? 'rgba(224,168,0,.08)' : (isBench ? 'rgba(95,208,224,.08)' : 'var(--pitch-2)');
+    const mark = on ? '✓' : (isBench ? ('R'+(benchIdx+1)) : '+');
+    const markCol = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--muted)');
+    // Bouton banc : ajoute/retire le joueur des réservistes (si pas titulaire).
+    const benchBtn = `<button class="lp-bench" data-bench="${p.id}" style="margin-top:8px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;border:1px solid ${isBench?'#5fd0e0':'var(--line)'};background:${isBench?'rgba(95,208,224,.12)':'transparent'};color:${isBench?'#5fd0e0':'var(--muted)'}">${isBench?('🪑 Réserviste R'+(benchIdx+1)+' — retirer'):'🪑 Mettre au banc'}</button>`;
+    return `<div class="lineup-pick ${on?'on':''}" style="border:2px solid ${border};border-radius:10px;padding:10px;background:${bg};transition:.15s">
+      <div data-lp="${p.id}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
         <div><span style="font-family:'Archivo Narrow';font-size:.68rem;text-transform:uppercase;color:var(--muted)">${POS[p.position]}</span>
           <div style="font-weight:700;font-size:.9rem">${p.name}</div>
           <div style="font-size:.72rem;color:var(--muted)">${p.club||'—'}</div></div>
-        <div style="font-size:1.3rem">${on?'✓':'+'}</div>
+        <div style="font-size:1.2rem;font-weight:800;color:${markCol}">${mark}</div>
       </div>
+      ${benchBtn}
     </div>`;
   }).join('') || `<div class="empty">Ton effectif est vide. Recrute des joueurs d'abord.</div>`;
 
+  // Clic sur la carte = (dé)sélectionner titulaire
   $('lineupPlayers').querySelectorAll('[data-lp]').forEach(el=>el.onclick=()=>{
     const id = el.dataset.lp;
-    if(LINEUP_SELECTED.has(id)) LINEUP_SELECTED.delete(id);
+    if(LINEUP_SELECTED.has(id)){ LINEUP_SELECTED.delete(id); }
     else {
+      if(LINEUP_BENCH.includes(id)){ toast('Ce joueur est au banc. Retire-le du banc pour le titulariser.','info',3500); return; }
       if(LINEUP_SELECTED.size>=11){ toast('11 titulaires maximum. Retire-en un d\'abord.','err'); return; }
       LINEUP_SELECTED.add(id);
+    }
+    renderLineupPlayers(mine);
+    updateLineupCounter();
+  });
+  // Bouton « Banc » = (dé)sélectionner réserviste (ordonné)
+  $('lineupPlayers').querySelectorAll('[data-bench]').forEach(el=>el.onclick=(ev)=>{
+    ev.stopPropagation();
+    const id = el.dataset.bench;
+    const idx = LINEUP_BENCH.indexOf(id);
+    if(idx>=0){ LINEUP_BENCH.splice(idx,1); }   // retirer (les suivants remontent)
+    else {
+      if(LINEUP_SELECTED.has(id)){ toast('Ce joueur est titulaire. Retire-le des titulaires d\'abord.','info',3500); return; }
+      if(LINEUP_BENCH.length>=3){ toast('3 réservistes maximum.','err'); return; }
+      LINEUP_BENCH.push(id);
     }
     renderLineupPlayers(mine);
     updateLineupCounter();
@@ -4828,6 +4861,8 @@ function suggestLineup(mine){
     toast(`Tu n'as que ${chosen.length} joueur${chosen.length>1?'s':''} — recrute pour aligner 11 titulaires.`,'err',4000);
   }
   LINEUP_SELECTED = new Set(chosen.slice(0,11).map(p=>p.id));
+  // Un joueur suggéré comme titulaire ne peut pas rester au banc.
+  LINEUP_BENCH = LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id));
   renderLineupPlayers(mine);
   updateLineupCounter();
   const gk = chosen.filter(p=>p.position==='GK').length;
@@ -4839,14 +4874,18 @@ function suggestLineup(mine){
 function updateLineupCounter(){
   const n = LINEUP_SELECTED.size;
   const c = $('lineupCounter');
-  c.textContent = `${n} / 11 sélectionnés`;
-  c.style.color = n===11 ? '#4ade80' : (n>11?'var(--live)':'var(--chalk)');
+  if(c){ c.textContent = `${n} / 11 titulaires`; c.style.color = n===11 ? '#4ade80' : (n>11?'var(--live)':'var(--chalk)'); }
+  const b = $('benchCounter');
+  if(b){ b.textContent = `${LINEUP_BENCH.length} / 3 réservistes`; }
 }
 async function saveLineup(mdId){
   if(LINEUP_SELECTED.size!==11){ toast('Il faut exactement 11 titulaires.','err'); return; }
-  const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED));
+  // Sécurité : un réserviste ne doit pas être aussi titulaire.
+  const bench = LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id));
+  const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED), bench);
   if(error){ $('lineupResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
-  $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée !</span>`;
+  const bTxt = bench.length ? ` (+ ${bench.length} réserviste${bench.length>1?'s':''})` : '';
+  $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée${bTxt} !</span>`;
 }
 
 // ---------- Bandeau fenêtre de mercato (compte à rebours) ----------

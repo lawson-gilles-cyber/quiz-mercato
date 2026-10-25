@@ -1027,8 +1027,12 @@ export async function myTeamId() {
   const { data } = await sb.rpc('qm_my_team_id');
   return data ?? null;
 }
-export async function setLineup(matchdayId, playerIds) {
-  return sb.rpc('qm_set_lineup', { p_matchday_id: matchdayId, p_player_ids: playerIds });
+export async function setLineup(matchdayId, playerIds, benchIds) {
+  return sb.rpc('qm_set_lineup', {
+    p_matchday_id: matchdayId,
+    p_player_ids: playerIds,
+    p_bench_ids: benchIds || []
+  });
 }
 export async function myLineup(matchdayId) {
   const { data } = await sb.rpc('qm_my_lineup', { p_matchday_id: matchdayId });
