@@ -2927,6 +2927,8 @@ const ADMIN_FAQ = [
   ['Joueurs & propositions', [
     ['Comment ajouter plusieurs joueurs d’un coup ?',
      "Onglet <b>Joueurs → « Import CSV »</b> : colle une liste (Prénom, Nom, Poste, Club, Championnat, Valeur, et en option Âge et Nationalité). Fais « Aperçu » pour vérifier, puis « Importer ». Les doublons sont ignorés."],
+    ['Un même joueur est apparu deux fois (ex. « KOUNDE » et « Koundé ») ?',
+     "C'était un défaut d'anti-doublon : la casse et le découpage prénom/nom pouvaient créer deux fiches du même joueur, donc deux enchères possibles. Corrigé par le script <b>123_verrou_doublon_casse.sql</b> : la détection se fait désormais sur le <b>nom complet + club</b> normalisés (sans casse ni accents), un <b>verrou en base</b> empêche toute recréation, et les doublons déjà présents sont fusionnés (fiche la plus ancienne ou possédée conservée). Passe aussi <b>122_anti_double_enchere.sql</b> pour purger les enchères fantômes restantes."],
     ['Comment valider un joueur proposé par un manager ?',
      "Onglet <b>Marché → « Validation du marché »</b>. Le parcours est : le manager <b>déniche</b> → tu <b>valides</b> (tu reconnais le joueur) → tu <b>publies</b> (mise aux enchères). Tu ne peux pas valider ta propre proposition."],
     ['Un joueur a « Autre » comme championnat, c’est grave ?',
