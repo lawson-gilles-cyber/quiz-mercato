@@ -101,7 +101,11 @@
   .s-free{background:rgba(74,222,128,.12);color:var(--ok)}
   .s-owned{background:rgba(143,167,154,.15);color:var(--muted)}
   .s-locked{background:rgba(255,213,74,.12);color:var(--transfer)}
-  .actions{display:flex;gap:6px;justify-content:flex-end}
+  .actions{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+  /* La colonne d'actions ne doit pas étirer le tableau au-delà de l'écran :
+     on la borne et on laisse les boutons passer à la ligne. */
+  table.sticky-first td:last-child{max-width:260px}
+  table.sticky-first td:last-child .actions{max-width:260px;margin-left:auto}
   .hidden{display:none!important}
   .phase-btns{display:flex;gap:10px;flex-wrap:wrap}
   .phase-current{font-family:'Space Mono';color:var(--transfer)}
