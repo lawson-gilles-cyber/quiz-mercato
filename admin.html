@@ -700,6 +700,16 @@
       <p class="hint">Le manager choisi ne paiera pas les 3 M€ sur ce joueur précis.</p>
     </div>
 
+    <!-- Annuler une enchère en cours -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>⚠️ Annuler une enchère en cours (ouverte par erreur)</label>
+      <div class="row c3" style="margin-top:6px;margin-bottom:6px">
+        <div style="grid-column:span 2"><select id="ca_auction"><option value="">— enchère ouverte —</option></select></div>
+        <div><button class="btn-danger" id="btnCancelAuction" style="width:100%">Annuler l'enchère</button></div>
+      </div>
+      <p class="hint">Le joueur redevient libre, le budget bloqué du meneur est remboursé (il ne paie rien), et l'enchère est annulée. À utiliser uniquement pour corriger une erreur.</p>
+    </div>
+
     <!-- Forcer un bonus dénicheur -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
       <label>Forcer un bonus dénicheur (10 % du prix, plafonné à 20 M€)</label>
@@ -1537,14 +1547,16 @@ async function loadAdminTools(){
   $('ex_manager').innerHTML = mgrOpts;
   $('sb_manager').innerHTML = mgrOpts;
 
-  // Enchères ouvertes pour l'exemption de taxe.
+  // Enchères ouvertes (exemption de taxe + annulation).
   const aucs = await api.listOpenAuctions();
-  $('ex_auction').innerHTML = '<option value="">— enchère ouverte —</option>' +
+  const aucOpts = '<option value="">— enchère ouverte —</option>' +
     (aucs||[]).map(a=>{
       const nm = (a.player && a.player.name) ? a.player.name : (a.player_name || 'Joueur');
       const px = a.current_price ? ' ('+(Number(a.current_price)/1e6)+' M€)' : '';
       return `<option value="${a.id}">${nm}${px}</option>`;
     }).join('');
+  $('ex_auction').innerHTML = aucOpts;
+  if($('ca_auction')) $('ca_auction').innerHTML = aucOpts;
 }
 
 $('btnCreditBudget').onclick = async ()=>{
@@ -1566,6 +1578,18 @@ $('btnExemptTax').onclick = async ()=>{
   const r = await api.adminExemptEntryTax(auc, mgr);
   if(r.error) return showMsg($('msg2'), r.error.message);
   showMsg($('msg2'), 'Manager exempté de la taxe sur cette enchère.', true);
+};
+
+if($('btnCancelAuction')) $('btnCancelAuction').onclick = async ()=>{
+  const auc = $('ca_auction').value;
+  if(!auc) return showMsg($('msg2'),'Choisis une enchère en cours à annuler.');
+  const label = $('ca_auction').selectedOptions[0].textContent;
+  if(!confirm(`Annuler l'enchère « ${label} » ?\n\nLe joueur redeviendra libre et le budget bloqué du meneur sera remboursé. Action irréversible.`)) return;
+  const r = await api.adminCancelAuction(auc);
+  if(r.error) return showMsg($('msg2'), r.error.message);
+  showMsg($('msg2'), 'Enchère annulée : joueur libéré, meneur remboursé.', true);
+  loadAdminTools && loadAdminTools();   // recharge les listes d'enchères ouvertes
+  loadPlayers();
 };
 
 $('btnForceScout').onclick = async ()=>{

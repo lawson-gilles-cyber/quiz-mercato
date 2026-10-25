@@ -94,6 +94,10 @@ export async function scheduleAuction(playerId, startsAtISO) {
 export async function cancelScheduledAuction(auctionId) {
   return sb.rpc('qm_admin_cancel_scheduled', { p_auction_id: auctionId });
 }
+// Annuler une enchère EN COURS (admin, avec remboursement du meneur).
+export async function adminCancelAuction(auctionId) {
+  return sb.rpc('qm_admin_cancel_auction', { p_auction_id: auctionId });
+}
 
 export async function listOpenAuctions() {
   // Requête principale ROBUSTE : enchères + joueur (jointure sûre) uniquement.
