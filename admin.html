@@ -2599,18 +2599,25 @@ async function loadProposalHistory(){
 // ---------- Enchères programmées (admin) ----------
 async function loadScheduled(){
   const box = $('schedList'); if(!box) return;
+  // Filet de sécurité : démarre les enchères programmées dues (si le cron
+  // n'a pas tourné). Celles démarrées quittent la liste automatiquement.
+  try { await api.sweepDueAuctions(); } catch(e){}
   let list = [];
   try { list = await api.listScheduledAuctions(); }
   catch(e){ box.innerHTML = '<p class="hint">Passe le script des enchères programmées (106) pour activer cette section.</p>'; return; }
   if(!list.length){ box.innerHTML = '<p class="hint">Aucune enchère programmée pour le moment.</p>'; return; }
+  const now = Date.now();
   box.innerHTML = `<table style="width:100%;font-size:.86rem"><thead><tr><th>Joueur</th><th>Démarre le</th><th></th></tr></thead><tbody>${
     list.map(a=>{
       const p = a.player || {};
       const st = a.starts_at ? new Date(a.starts_at) : null;
+      const overdue = st && st.getTime() <= now;
       const when = st ? st.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' à '+st.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
-      return `<tr><td><b>${p.name||'?'}</b> <span style="color:var(--muted)">${p.club||''}</span></td>
+      const lateTag = overdue ? ` <span class="status s-closed" style="color:var(--danger,#e0574a)" title="L'heure de démarrage est dépassée">⏰ en retard</span>` : '';
+      const startBtn = overdue ? `<button class="btn-primary btn-sm" data-startsched="${a.id}">Démarrer maintenant</button> ` : '';
+      return `<tr><td><b>${p.name||'?'}</b> <span style="color:var(--muted)">${p.club||''}</span>${lateTag}</td>
         <td>${when}</td>
-        <td><button class="btn-danger btn-sm" data-cancelsched="${a.id}">Annuler</button></td></tr>`;
+        <td>${startBtn}<button class="btn-danger btn-sm" data-cancelsched="${a.id}">Annuler</button></td></tr>`;
     }).join('')
   }</tbody></table>`;
   box.querySelectorAll('[data-cancelsched]').forEach(b=>b.onclick=async()=>{
@@ -2618,6 +2625,12 @@ async function loadScheduled(){
     const { error } = await api.cancelScheduledAuction(b.dataset.cancelsched);
     if(error) return showMsg($('msg2'), error.message);
     showMsg($('msg2'),'Enchère programmée annulée.',true);
+    loadScheduled(); loadPlayers();
+  });
+  box.querySelectorAll('[data-startsched]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminStartScheduled(b.dataset.startsched);
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'),'Enchère démarrée — elle est maintenant « En direct ».',true);
     loadScheduled(); loadPlayers();
   });
 }
@@ -2849,6 +2862,10 @@ const ADMIN_FAQ = [
      "Elle n'affiche quelque chose que si tu as planifié au moins une enchère (bouton « Programmer »). Sans programmation, elle est normalement vide. Vérifie aussi que le script des enchères programmées et son cron ont bien été passés."],
     ['Une enchère est bloquée / ne se termine pas ?',
      "Les enchères se clôturent via un balayage automatique (cron, chaque minute). Si rien ne bouge, vérifie dans Supabase que le job <b>sweep-qm_auctions</b> est actif (table cron.job). Tu peux aussi intervenir manuellement depuis « 🔁 Marché »."],
+    ['Comment annuler une enchère EN COURS (ouverte par erreur) ?',
+     "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« ⚠️ Annuler une enchère en cours »</b> : choisis l'enchère, confirme. Le joueur redevient libre, le budget bloqué du meneur est remboursé (il ne paie rien), l'enchère est annulée. On ne peut pas « modifier » une enchère en place : on l'annule puis on la relance correctement."],
+    ['Une enchère programmée ne démarre pas à l’heure prévue ?',
+     "Elle doit démarrer via le cron <b>start-qm_scheduled</b> (chaque minute). S'il n'est pas planifié, les enchères programmées restent coincées. Correctif : passe le script <b>119</b> (il (re)planifie le cron et ajoute un filet de sécurité). En attendant, va dans « 🔁 Marché → Enchères programmées » : les enchères en retard affichent un bouton <b>« Démarrer maintenant »</b>."],
   ]],
   ['Joueurs & propositions', [
     ['Comment ajouter plusieurs joueurs d’un coup ?',

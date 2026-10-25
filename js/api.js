@@ -98,6 +98,15 @@ export async function cancelScheduledAuction(auctionId) {
 export async function adminCancelAuction(auctionId) {
   return sb.rpc('qm_admin_cancel_auction', { p_auction_id: auctionId });
 }
+// Déclenche le démarrage des enchères programmées dues (filet de sécurité).
+export async function sweepDueAuctions() {
+  const { data } = await sb.rpc('qm_sweep_due_auctions');
+  return data ?? 0;
+}
+// Forcer le démarrage d'une enchère programmée précise (admin).
+export async function adminStartScheduled(auctionId) {
+  return sb.rpc('qm_admin_start_scheduled', { p_auction_id: auctionId });
+}
 
 export async function listOpenAuctions() {
   // Requête principale ROBUSTE : enchères + joueur (jointure sûre) uniquement.

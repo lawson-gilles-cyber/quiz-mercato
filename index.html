@@ -1523,6 +1523,7 @@
           <li><b>Phase finale</b> (2 dernières heures) : seuls les managers déjà engagés peuvent jouer, chacun une seule offre — pas de guerre d'enchères sans fin.</li>
           <li>Tu ne peux <b>mener que 6 enchères à la fois</b>. Si on te dépasse sur l'une d'elles, elle libère aussitôt une place — tu peux entrer ailleurs.</li>
           <li>Toute offre engage : si tu gagnes, tu paies. Pas d'annulation. Ton budget est bloqué dès que tu mènes.</li>
+          <li><b>Annulation par l'organisateur</b> : en cas d'erreur (mauvais joueur, mauvaise valeur, doublon…), l'organisateur peut <b>annuler une enchère en cours</b>. Le joueur redevient alors libre et le budget bloqué du meneur est intégralement remboursé (personne ne paie). Une enchère ne peut pas être « modifiée » en place : on l'annule puis on la relance correctement.</li>
         </ul>
       </div>
       <div class="rule-block">
@@ -3293,7 +3294,9 @@ async function renderAuctions(){
   // Alertes « enchère suivie bientôt finie » : met à jour le centre de notifs.
   if(checkWatchEndings(AUC_LIVE)) loadNotifications(); else updateNotifBadge();
   AUC_BUCKETS = {scheduled:[], ended:[], transferred:[]};
-  // Enchères programmées (planifiées par l'organisateur pour plus tard)
+  // Filet de sécurité : démarre les enchères programmées dont l'heure est
+  // passée (si le cron n'a pas tourné), puis charge la liste restante.
+  if(ME){ try { await api.sweepDueAuctions(); } catch(e){} }
   AUC_BUCKETS.scheduled = await api.listScheduledAuctions().catch(()=>[]);
   const { data: transfers } = await sb.from('qm_transfers')
     .select('*, player:qm_players(*)').order('created_at',{ascending:false}).limit(10);
