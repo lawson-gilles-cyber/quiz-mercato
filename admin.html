@@ -365,7 +365,7 @@
     <div id="mdList" style="margin-top:16px"></div>
   </div>
   <div class="card" style="margin-bottom:14px">
-    <p class="hint" style="margin-bottom:12px"><b>Associer un Coach à une équipe.</b> Le Coach est un compte séparé qui alignera les 11 titulaires de l'équipe choisie.</p>
+    <p class="hint" style="margin-bottom:12px"><b>Associer un Coach à une équipe.</b> Le Coach est un compte séparé qui alignera les 11 titulaires de l'équipe choisie. <b>Important :</b> tant qu'un coach n'est pas associé ici, il compte comme un manager à part entière — avec son <b>propre budget de 800 M€</b> et sa ligne au classement. Une fois associé, le duo ne partage qu'<b>un seul budget</b> (celui du Manager) : le coach ne peut plus enchérir, il ne fait qu'aligner la compo.</p>
     <div class="row c3" style="margin-bottom:12px">
       <div><label>Compte Coach</label><select id="coachAccount"></select></div>
       <div><label>Équipe à coacher</label><select id="coachTeam"></select></div>
@@ -2435,12 +2435,29 @@ async function loadCoaches(){
   $('coachAccount').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
   $('coachTeam').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
   const coaches = managers.filter(m=>m.is_coach && m.coach_of);
-  $('coachList').innerHTML = coaches.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Coach</th><th>Équipe coachée</th><th></th></tr></thead><tbody>${
+  const coachTable = coaches.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Coach</th><th>Équipe coachée</th><th></th></tr></thead><tbody>${
     coaches.map(c=>{
       const team = managers.find(m=>m.id===c.coach_of);
       return `<tr><td>${c.display_name}</td><td>${team?team.display_name:'?'}</td><td><button class="btn-danger btn-sm" data-uncoach="${c.id}">Retirer</button></td></tr>`;
     }).join('')
   }</tbody></table>` : `<p class="hint" style="margin-top:8px">Aucun coach associé.</p>`;
+  // Repérage des comptes non associés : chacun porte son propre budget de 800 M€.
+  // S'ils forment des doublons d'équipe (même nom ou nom proche), ce sont
+  // probablement des seconds comptes à associer en coach.
+  const norm = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+  const standalone = managers.filter(m=>!m.is_admin && !m.is_coach && !m.coach_of);
+  const byName = {};
+  standalone.forEach(m=>{ const k = norm(m.team_name||m.display_name); (byName[k]=byName[k]||[]).push(m); });
+  const dupGroups = Object.values(byName).filter(g=>g.length>1);
+  let warn = '';
+  if(dupGroups.length){
+    warn = `<div style="margin-top:14px;padding:10px 12px;background:rgba(224,87,74,.12);border-radius:8px">
+      <p class="hint" style="margin:0 0 6px;color:var(--chalk)">⚠️ <b>Comptes en double détectés</b> — chacun possède son propre budget (800 M€). Si l'un des deux est le <b>coach</b>, associe-le à l'équipe principale ci-dessus pour ne garder qu'un seul budget.</p>
+      <ul style="margin:6px 0 0;padding-left:18px;font-size:.84rem;color:var(--muted)">
+        ${dupGroups.map(g=>`<li><b>${(g[0].team_name||g[0].display_name)}</b> : ${g.map(m=>m.display_name).join(' · ')}</li>`).join('')}
+      </ul></div>`;
+  }
+  $('coachList').innerHTML = coachTable + warn;
   $('coachList').querySelectorAll('[data-uncoach]').forEach(b=>b.onclick=async()=>{
     const r = await api.adminUnassignCoach(b.dataset.uncoach);
     if(r.error) return showMsg($('msg2'),r.error.message);
@@ -2920,6 +2937,8 @@ const ADMIN_FAQ = [
   ['Managers & coachs', [
     ['Comment un coach rejoint-il une équipe ?',
      "Le coach <b>crée d'abord son propre compte</b> (comme un manager). Ensuite, tu le <b>relies</b> à l'équipe qu'il coache depuis la gestion des coachs. Il accède alors à la composition de cette équipe."],
+    ['Le coach et le manager ont chacun 800 M€ : comment n’avoir qu’un seul budget ?',
+     "C'est normal <b>tant que le coach n'est pas associé</b> : un compte non relié compte comme un manager à part entière (son propre budget, sa ligne au classement). <b>Associe le coach à son équipe</b> (onglet <b>Managers → « Associer un Coach »</b>) : dès lors le duo ne partage qu'<b>un seul budget</b> (celui du Manager), le coach <b>ne peut plus enchérir</b> (il n'aligne que la compo), et il disparaît du classement et du tableau financier. Le bloc « Comptes en double détectés » t'indique les comptes à associer. Nécessite le script <b>121_coach_ne_depense_pas.sql</b> pour bloquer techniquement les enchères d'un coach."],
     ['Comment inviter de nouveaux managers ?',
      "Onglet <b>Managers → « Inviter des managers »</b> : copie ou partage le lien d'invitation (WhatsApp, SMS…). En l'ouvrant, la personne arrive directement sur l'inscription. Tu peux remplacer « admin » par un pseudo pour un lien de parrainage."],
     ['Comment modérer le chat ?',
