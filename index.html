@@ -1510,7 +1510,7 @@
           <li>Une enchère dure <b>48 heures fixes</b> (jamais prolongée). En <b>fin de mercato (J13-J14)</b>, la durée passe à <b>24 heures</b> pour accélérer la clôture.</li>
           <li><b>Pas de mise minimum</b> selon le prix du joueur : moins de 20 M€ → +1 M€ · 20 à 50 M€ → +2 M€ · 50 à 100 M€ → +3 M€ · 100 à 180 M€ → +4 M€ · 180 M€ et plus → +5 M€.</li>
           <li><b>Plafond d'enchère</b> : aucune offre ne peut dépasser <b>la valeur du joueur × 1,5</b> (ex. Mbappé 180 M€ → plafond 270 M€).</li>
-          <li><b>PASS limités</b> : 3 offres maximum par joueur.</li>
+          <li><b>PASS limités</b> : 3 offres maximum par joueur. Cette limite inclut les offres passées par l'<b>enchère automatique</b> : manuelles et automatiques comptent ensemble.</li>
           <li><b>Délai de 2h</b> entre deux de tes offres sur un même joueur.</li>
           <li>Aucune <b>première offre</b> possible dans les <b>6 dernières heures</b>.</li>
           <li><b>Phase finale</b> (2 dernières heures) : seuls les managers déjà engagés peuvent jouer, chacun une seule offre — pas de guerre d'enchères sans fin.</li>
@@ -1601,7 +1601,7 @@
 
       <div class="rule-block">
         <h3 class="rule-h">16. Enchère automatique (proxy)</h3>
-        <p class="rule-p">Dans la fenêtre d'enchère, tu peux fixer un <b>montant maximum</b>. Le système surenchérit alors pour toi, par paliers, juste ce qu'il faut pour rester en tête — sans jamais dépasser ton max, le plafond du joueur (prix × 1,5) ni ton budget disponible. Deux enchères automatiques se répondent entre elles jusqu'à ce que l'une atteigne sa limite. Tu peux la désactiver à tout moment.</p>
+        <p class="rule-p">Dans la fenêtre d'enchère, tu peux fixer un <b>montant maximum</b>. Le système surenchérit alors pour toi, par paliers, juste ce qu'il faut pour rester en tête — sans jamais dépasser ton max, le plafond du joueur (prix × 1,5) ni ton budget disponible. Deux enchères automatiques se répondent entre elles jusqu'à ce que l'une atteigne sa limite. <b>L'enchère automatique respecte aussi la limite de 3 PASS</b> : chaque offre qu'elle place compte comme une offre manuelle, et elle s'arrête quand tu as atteint 3 offres sur ce joueur. Tu peux la désactiver à tout moment.</p>
       </div>
 
       <div class="rule-block">
@@ -3688,11 +3688,11 @@ const FAQ_DATA = [
     ['Y a-t-il un plafond d’enchère ?',
      "Oui : aucune offre ne peut dépasser <b>la valeur du joueur × 1,5</b>. Exemple : un joueur à 180 M€ a un plafond de 270 M€."],
     ['Puis-je enchérir autant que je veux sur un joueur ?',
-     "Non : <b>3 offres maximum (PASS)</b> par joueur, avec un <b>délai de 2h</b> entre deux de tes offres sur le même joueur."],
+     "Non : <b>3 offres maximum (PASS)</b> par joueur, avec un <b>délai de 2h</b> entre deux de tes offres sur le même joueur. Cette limite de 3 inclut les offres de ton <b>enchère automatique</b> (manuelles + automatiques comptent ensemble)."],
     ['Pourquoi je ne peux plus faire de première offre ?',
      "Aucune <b>première offre</b> n’est permise dans les <b>6 dernières heures</b> d’une enchère. Et dans la <b>phase finale</b> (2 dernières heures), seuls les managers déjà engagés peuvent remettre une offre, une seule chacun."],
     ['Qu’est-ce que l’enchère automatique (proxy) ?',
-     "Tu fixes un <b>montant maximum</b> et le système surenchérit pour toi, par paliers, juste ce qu’il faut pour rester en tête — sans dépasser ton max, le plafond du joueur ni ton budget. Tu peux la désactiver quand tu veux."],
+     "Tu fixes un <b>montant maximum</b> et le système surenchérit pour toi, par paliers, juste ce qu’il faut pour rester en tête — sans dépasser ton max, le plafond du joueur ni ton budget. Elle <b>respecte la limite de 3 PASS</b> : chaque offre qu’elle place compte, et elle s’arrête quand tu as fait 3 offres sur ce joueur. Tu peux la désactiver quand tu veux."],
     ['Je peux annuler une offre ?',
      "Non. Toute offre engage : si tu gagnes, tu paies. Ton budget est <b>bloqué</b> dès que tu mènes une enchère."],
     ['Combien d’enchères puis-je mener en même temps ?',
