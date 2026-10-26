@@ -155,6 +155,18 @@ export async function myTeam(managerId) {
   return data ?? [];
 }
 
+// Recherche de joueurs par nom (pour le sélecteur d'alerte, etc.).
+export async function searchPlayersByName(q, limit = 8) {
+  const term = (q || '').trim();
+  if (term.length < 2) return [];
+  const { data } = await sb.from('qm_players')
+    .select('id, name, first_name, club, position, current_value')
+    .ilike('name', `%${term}%`)
+    .order('current_value', { ascending: false })
+    .limit(limit);
+  return data ?? [];
+}
+
 export async function leaderboard() {
   // division_id peut ne pas encore exister (script 80 non passé) : on retente sans.
   let { data, error } = await sb.from('qm_managers')
@@ -230,6 +242,24 @@ export async function myWatchlist() {
   const { data } = await sb.rpc('qm_my_watchlist');
   // renvoie un Set d'IDs d'enchères suivies, pratique pour l'affichage
   return new Set((data ?? []).map(r => r.auction_id));
+}
+
+// ---------- Alertes personnalisées (push ciblé) ----------
+// Crée une alerte : kind 'player' (p_player_id requis) ou 'position' (p_position requis).
+export async function alertCreate({ kind, playerId = null, position = null, maxPrice }) {
+  return sb.rpc('qm_alert_create', {
+    p_kind: kind,
+    p_player_id: playerId,
+    p_position: position,
+    p_max_price: maxPrice,
+  });
+}
+export async function myAlerts() {
+  const { data } = await sb.rpc('qm_my_alerts');
+  return data ?? [];
+}
+export async function alertDelete(alertId) {
+  return sb.rpc('qm_alert_delete', { p_alert_id: alertId });
 }
 
 // ---------- ADMIN (RPC réservées, contrôle is_admin côté serveur) ----

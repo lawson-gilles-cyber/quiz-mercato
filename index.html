@@ -927,6 +927,7 @@
         <button data-v="pronos">🎲 Pronos</button>
         <button data-v="achievements">🏅 Succès</button>
         <button data-v="mystats">📊 Mes stats</button>
+        <button data-v="alerts">🔔 Mes alertes</button>
         <button data-v="gazette">📰 Journal</button>
         <button data-v="calendar">📅 Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
@@ -1681,6 +1682,51 @@
     <p style="color:var(--muted);max-width:640px;margin-bottom:18px">Les faits marquants du mercato, mis à jour en direct. À toi d'écrire ton nom dessus.</p>
     <div id="recordsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px"></div>
   </section>
+
+  <!-- MES ALERTES (watchlist enrichie) -->
+  <section class="view" id="alerts">
+    <div class="eyebrow">Notifications ciblées · ne rate plus une bonne affaire</div>
+    <h1>Mes <em>alertes</em></h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:18px">Crée des alertes et reçois une notification dès qu'une enchère correspond à tes critères. Pense à <b>activer les notifications</b> du site pour les recevoir même l'appli fermée.</p>
+
+    <div class="rule-block" style="max-width:640px;margin-bottom:18px">
+      <h3 class="rule-h" style="margin-bottom:12px">Nouvelle alerte</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px">Type d'alerte</label>
+          <select id="al_kind" style="width:100%;padding:10px">
+            <option value="player">Un joueur précis</option>
+            <option value="position">Tous les joueurs d'un poste</option>
+          </select>
+        </div>
+        <div id="al_player_wrap">
+          <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px">Joueur</label>
+          <input id="al_player_search" type="text" placeholder="Tape un nom…" autocomplete="off" style="width:100%;padding:10px">
+          <div id="al_player_results" style="margin-top:4px"></div>
+          <input id="al_player_id" type="hidden">
+          <div id="al_player_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+        </div>
+        <div id="al_position_wrap" style="display:none">
+          <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px">Poste</label>
+          <select id="al_position" style="width:100%;padding:10px">
+            <option value="GK">Gardien</option>
+            <option value="DEF">Défenseur</option>
+            <option value="MID">Milieu</option>
+            <option value="FWD">Attaquant</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px">Prévenir si le prix de départ est ≤ (en M€)</label>
+          <input id="al_max_price" type="number" min="1" step="1" placeholder="ex. 50" style="width:100%;padding:10px">
+        </div>
+        <button class="bid-btn" id="al_create" style="margin-top:4px">Créer l'alerte</button>
+        <div id="al_msg" style="font-size:.85rem;min-height:1em"></div>
+      </div>
+    </div>
+
+    <h3 class="rule-h" style="max-width:640px;margin-bottom:10px">Mes alertes actives</h3>
+    <div id="al_list" style="max-width:640px"></div>
+  </section>
 </main>
 
 <script type="module">
@@ -1999,7 +2045,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','gazette','calendar','draft','rules','faq','records'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','alerts','gazette','calendar','draft','rules','faq','records'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -2017,7 +2063,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -3766,6 +3812,8 @@ const FAQ_DATA = [
      "Non. Toute offre engage : si tu gagnes, tu paies. Ton budget est <b>bloqué</b> dès que tu mènes une enchère."],
     ['Combien d’enchères puis-je mener en même temps ?',
      "Tu peux <b>mener 6 enchères à la fois</b> au maximum. Si quelqu’un te dépasse sur l’une, elle libère aussitôt une place."],
+    ['Comment être prévenu d’une bonne affaire ?',
+     "Va dans <b>Plus ⋮ → « 🔔 Mes alertes »</b>. Tu peux créer une alerte sur <b>un joueur précis</b> ou sur <b>tout un poste</b>, avec un <b>seuil de prix</b> : dès qu’une enchère s’ouvre à un prix de départ sous ton seuil, tu reçois une notification. Pense à <b>activer les notifications</b> du site pour les recevoir même l’appli fermée."],
   ]],
   ['Budget, taxes & salaires', [
     ['J’ai deux budgets, quelle est la différence ?',
@@ -3910,6 +3958,88 @@ async function renderRecords(){
       </div>`;
   }).join('');
   grid.innerHTML = cards || '<div class="hint" style="grid-column:1/-1;text-align:center;padding:20px">Aucun record pour le moment — le mercato ne fait que commencer !</div>';
+}
+
+// ---------- Mes alertes (watchlist enrichie) ----------
+const POS_FR_ALERT = {GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'};
+let AL_WIRED = false;
+async function renderAlerts(){
+  const kindSel = $('al_kind'); if(!kindSel) return;
+  if(!AL_WIRED){ wireAlertsForm(); AL_WIRED = true; }
+  await loadMyAlerts();
+}
+function wireAlertsForm(){
+  const kindSel = $('al_kind');
+  const syncKind = ()=>{
+    const k = kindSel.value;
+    $('al_player_wrap').style.display  = k==='player'   ? '' : 'none';
+    $('al_position_wrap').style.display = k==='position' ? '' : 'none';
+  };
+  kindSel.onchange = syncKind; syncKind();
+
+  // Recherche joueur (autocomplétion simple)
+  const search = $('al_player_search');
+  let alSearchT = null;
+  search.oninput = ()=>{
+    clearTimeout(alSearchT);
+    const q = search.value;
+    alSearchT = setTimeout(async ()=>{
+      const box = $('al_player_results');
+      if((q||'').trim().length < 2){ box.innerHTML=''; return; }
+      let res = [];
+      try { res = await api.searchPlayersByName(q); } catch(e){}
+      box.innerHTML = res.map(p=>`<button type="button" class="bid-btn ghost" data-pid="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" style="display:block;width:100%;text-align:left;margin:3px 0;padding:7px 10px;font-size:.84rem">${p.name} <span style="color:var(--muted)">· ${p.club||'—'} · ${POS_FR_ALERT[p.position]||p.position}</span></button>`).join('')
+        || '<div class="hint" style="font-size:.8rem;padding:4px">Aucun joueur trouvé.</div>';
+      box.querySelectorAll('[data-pid]').forEach(b=>b.onclick=()=>{
+        $('al_player_id').value = b.dataset.pid;
+        $('al_player_chosen').textContent = '✓ ' + b.dataset.pname;
+        $('al_player_results').innerHTML = '';
+        search.value = b.dataset.pname;
+      });
+    }, 250);
+  };
+
+  $('al_create').onclick = async ()=>{
+    const msg = $('al_msg'); msg.textContent=''; msg.style.color='var(--live)';
+    const kind = kindSel.value;
+    const maxM = parseFloat($('al_max_price').value);
+    if(!maxM || maxM <= 0){ msg.textContent='Indique un seuil de prix valide.'; return; }
+    const payload = { kind, maxPrice: Math.round(maxM*1000000) };
+    if(kind==='player'){
+      const pid = $('al_player_id').value;
+      if(!pid){ msg.textContent='Choisis un joueur.'; return; }
+      payload.playerId = pid;
+    } else {
+      payload.position = $('al_position').value;
+    }
+    const { error } = await api.alertCreate(payload);
+    if(error){ msg.textContent = error.message; return; }
+    msg.style.color='var(--transfer)'; msg.textContent='Alerte créée ✓';
+    // reset
+    $('al_max_price').value=''; $('al_player_id').value=''; $('al_player_chosen').textContent=''; $('al_player_search').value='';
+    loadMyAlerts();
+  };
+}
+async function loadMyAlerts(){
+  const list = $('al_list'); if(!list) return;
+  let alerts = [];
+  try { alerts = await api.myAlerts(); } catch(e){ list.innerHTML='<p class="hint">Passe le script des alertes pour activer cette section.</p>'; return; }
+  if(!alerts.length){ list.innerHTML='<p class="hint">Aucune alerte pour le moment. Crée-en une ci-dessus.</p>'; return; }
+  list.innerHTML = alerts.map(a=>{
+    const cible = a.kind==='player'
+      ? `<b>${a.player_name||'Joueur supprimé'}</b>`
+      : `Tous les <b>${POS_FR_ALERT[a.pos]||a.pos}s</b>`;
+    const seuil = (Number(a.max_price)/1000000);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
+      <div style="font-size:.9rem">🔔 ${cible} <span style="color:var(--muted)">— enchère ≤ ${seuil} M€</span></div>
+      <button class="bid-btn ghost" data-delalert="${a.id}" style="flex:0 0 auto;width:auto;padding:6px 12px;margin-top:0;font-size:.8rem">Supprimer</button>
+    </div>`;
+  }).join('');
+  list.querySelectorAll('[data-delalert]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.alertDelete(b.dataset.delalert);
+    if(error) return;
+    loadMyAlerts();
+  });
 }
 
 async function renderLiveRules(){
@@ -6347,6 +6477,7 @@ const SEARCH_VIEWS = [
   {v:'team',ic:'👥',t:'Mon équipe'},{v:'lineup',ic:'📋',t:'Compo'},{v:'rank',ic:'🏆',t:'Classement'},
   {v:'bonus',ic:'💰',t:'Bonus'},{v:'penalty',ic:'🚫',t:'Pénalités'},{v:'feed',ic:'📰',t:'Actu'},
   {v:'chat',ic:'💬',t:'Chat'},{v:'pronos',ic:'🎲',t:'Pronos'},{v:'achievements',ic:'🏅',t:'Succès'},
+  {v:'alerts',ic:'🔔',t:'Mes alertes'},
   {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'records',ic:'🏆',t:'Mur des records'},{v:'faq',ic:'❓',t:'FAQ'}
 ];
 let SEARCH_MANAGERS = [];   // cache des équipes (chargé à la 1re ouverture)
