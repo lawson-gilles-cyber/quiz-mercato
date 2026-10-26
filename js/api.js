@@ -320,6 +320,16 @@ export async function managerMercatoSummary(managerId) {
   const { data } = await sb.rpc('qm_manager_mercato_summary', { p_manager_id: managerId });
   return (data && data[0]) ? data[0] : null;
 }
+
+// Comparateur avant enchère : joueur visé + mes joueurs au même poste.
+export async function compareTarget(playerId) {
+  const { data } = await sb.rpc('qm_player_compare_target', { p_player_id: playerId });
+  return (data && data[0]) ? data[0] : null;
+}
+export async function mySquadAtPosition(playerId) {
+  const { data } = await sb.rpc('qm_my_squad_at_position', { p_player_id: playerId });
+  return data ?? [];
+}
 // Divisions (vague 4)
 export async function divisionsList() {
   const { data } = await sb.rpc('qm_divisions_list');
