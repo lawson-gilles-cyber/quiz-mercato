@@ -315,6 +315,11 @@ export async function managerBestDeal(managerId) {
   const { data } = await sb.rpc('qm_manager_best_deal', { p_manager_id: managerId });
   return (data && data[0]) ? data[0] : null;
 }
+// Bilan de fin de mercato (carte récap partageable).
+export async function managerMercatoSummary(managerId) {
+  const { data } = await sb.rpc('qm_manager_mercato_summary', { p_manager_id: managerId });
+  return (data && data[0]) ? data[0] : null;
+}
 // Divisions (vague 4)
 export async function divisionsList() {
   const { data } = await sb.rpc('qm_divisions_list');

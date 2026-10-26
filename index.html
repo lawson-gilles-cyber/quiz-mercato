@@ -1376,6 +1376,13 @@
     <h1>Mes <em>stats</em></h1>
     <div id="mystatsGate" style="display:none" class="empty">Connecte-toi pour voir tes statistiques.</div>
     <div id="mystatsBody"></div>
+
+    <!-- Bilan de fin de mercato (carte partageable) -->
+    <div id="bilanWrap" style="margin-top:24px">
+      <h3 class="rule-h" style="margin-bottom:12px">🏁 Mon bilan de mercato</h3>
+      <div id="bilanCard" style="max-width:520px"></div>
+      <button class="bid-btn" id="bilanShare" style="max-width:520px;margin-top:12px;display:none">📤 Partager mon bilan</button>
+    </div>
   </section>
 
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
@@ -6059,6 +6066,85 @@ async function renderMyStats(){
 
   body.innerHTML = kpis + curve + top + deal +
     `<p style="text-align:center;color:var(--muted);font-size:.76rem;margin-top:8px">Statistiques calculées sur les journées clôturées.</p>`;
+
+  renderBilan(teamId||ME.id);
+}
+
+// ---------- Bilan de fin de mercato (carte partageable) ----------
+let BILAN_DATA = null;
+async function renderBilan(managerId){
+  const card = $('bilanCard'), btn = $('bilanShare');
+  if(!card) return;
+  card.innerHTML = '<div class="empty">Calcul du bilan…</div>';
+  let b = null;
+  try { b = await api.managerMercatoSummary(managerId); } catch(e){}
+  if(!b){ card.innerHTML = '<p class="hint">Bilan indisponible (passe le script du bilan de mercato).</p>'; if(btn) btn.style.display='none'; return; }
+  BILAN_DATA = b;
+  const M = v => fmtMoney(Number(v||0));
+  const line = (label, val, accent) => `<div style="display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--line)">
+    <span style="color:var(--muted);font-size:.86rem">${label}</span>
+    <span style="font-family:'Space Mono',monospace;font-weight:700;${accent?`color:${accent}`:''}">${val}</span></div>`;
+  const gainCol = Number(b.best_gain)>=0 ? '#4ade80' : 'var(--live,#e0574a)';
+  card.innerHTML = `
+    <div style="background:linear-gradient(135deg,rgba(224,168,0,.1),transparent);border:1px solid var(--transfer);border-radius:14px;padding:18px 20px">
+      <div style="font-family:'Archivo';font-weight:900;font-size:1.1rem">${b.team_name||'Mon équipe'}</div>
+      <div style="color:var(--muted);font-size:.8rem;margin-bottom:12px">Bilan de mercato · ${b.manager_name||''}</div>
+      ${line('Rang de mercato', `#${b.mercato_rank||'—'} / ${b.managers_total||'—'}`, 'var(--transfer)')}
+      ${line('Effectif constitué', `${b.squad_count||0} / 21 joueurs`)}
+      ${line('Valeur de l\'effectif', M(b.squad_value))}
+      ${line('Total dépensé au marché', M(b.market_spent))}
+      ${line('Budget restant', M(b.budget_remaining))}
+      ${line('Masse salariale', M(b.salary_total))}
+      ${line('Points de classement', `${b.season_points||0} pts`)}
+      ${b.best_player ? line('🏆 Meilleur coup', `${b.best_player} (${Number(b.best_gain)>=0?'+':''}${M(b.best_gain)})`, gainCol) : ''}
+      ${b.top_player ? line('💸 Plus grosse dépense', `${b.top_player} (${M(b.top_price)})`) : ''}
+    </div>`;
+  if(btn){ btn.style.display='block'; btn.onclick = ()=>shareBilan(b); }
+}
+// Dessin de la carte bilan (image 1080×1350, couleurs de l'équipe).
+function drawBilanCard(ctx, b){
+  const W=1080,H=1350;
+  const col = (MY_TEAM_COLORS && MY_TEAM_COLORS.primary) ? MY_TEAM_COLORS.primary : '#0f1d38';
+  const col2 = (MY_TEAM_COLORS && MY_TEAM_COLORS.secondary) ? MY_TEAM_COLORS.secondary : '#f5c542';
+  const g = ctx.createLinearGradient(0,0,W,H); g.addColorStop(0,col); g.addColorStop(1,'#0a1428');
+  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+  const rg = ctx.createRadialGradient(W/2,300,60,W/2,300,640);
+  rg.addColorStop(0,hexA(col2,.2)); rg.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=rg; ctx.fillRect(0,0,W,H);
+  ctx.textAlign='left'; ctx.fillStyle=col2; ctx.font='bold 44px Arial';
+  ctx.fillText('ULTIMATE SQUAD', 70, 100);
+  ctx.fillStyle='rgba(255,255,255,.7)'; ctx.font='26px Arial';
+  ctx.fillText('BILAN DE MERCATO', 70, 138);
+  ctx.textAlign='center'; ctx.fillStyle='#fff'; ctx.font='bold 70px Arial';
+  wrapText(ctx, b.team_name||'Mon équipe', W/2, 250, W-140, 76);
+  ctx.fillStyle=col2; ctx.font='bold 120px Arial';
+  ctx.fillText('#'+(b.mercato_rank||'—'), W/2, 430);
+  ctx.fillStyle='rgba(255,255,255,.65)'; ctx.font='32px Arial';
+  ctx.fillText('rang de mercato sur '+(b.managers_total||'—')+' équipes', W/2, 480);
+  // Stats en lignes
+  const M = v => (Number(v||0)/1000000).toLocaleString('fr-FR')+' M€';
+  const rows = [
+    ['Effectif', (b.squad_count||0)+' / 21'],
+    ['Valeur effectif', M(b.squad_value)],
+    ['Dépensé au marché', M(b.market_spent)],
+    ['Budget restant', M(b.budget_remaining)],
+    ['Points', (b.season_points||0)+' pts'],
+  ];
+  if(b.best_player) rows.push(['Meilleur coup', b.best_player+' ('+(Number(b.best_gain)>=0?'+':'')+M(b.best_gain)+')']);
+  let y=620;
+  for(const [k,v] of rows){
+    ctx.textAlign='left'; ctx.fillStyle='rgba(255,255,255,.6)'; ctx.font='34px Arial';
+    ctx.fillText(k, 90, y);
+    ctx.textAlign='right'; ctx.fillStyle='#fff'; ctx.font='bold 38px Arial';
+    ctx.fillText(String(v), W-90, y);
+    y += 86;
+  }
+  ctx.textAlign='center'; ctx.fillStyle='rgba(255,255,255,.45)'; ctx.font='26px Arial';
+  ctx.fillText('quiz-mercato.pages.dev', W/2, 1300);
+}
+async function shareBilan(b){
+  return shareCanvas(drawBilanCard, b, (b.team_name||'bilan')+'-mercato',
+    `${b.team_name||'Mon équipe'} — #${b.mercato_rank||''} au mercato Ultimate Squad`);
 }
 
 // ---------- Journal du mercato (gazette hebdo) ----------
