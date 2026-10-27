@@ -5243,6 +5243,94 @@ async function renderHommage(){
     </div>`;
   const b = box.querySelector('#honorCardBtn');
   if(b) b.onclick = ()=>{ if(typeof showPlayerCard==='function') showPlayerCard(b.dataset.player); };
+
+  // Petit lancement festif (confettis + pop-up), une fois par 24h / appareil.
+  maybeCelebrateHonor(h);
+}
+
+// Clé de throttle liée au titre + joueur : un nouvel hommage relance la fête.
+function honorCelebKey(h){
+  return 'us_honor_celebrated_' + encodeURIComponent((h.title||'') + '|' + (h.player_id||''));
+}
+function maybeCelebrateHonor(h){
+  if(CURRENT_VIEW && CURRENT_VIEW !== 'home') return;   // seulement sur l'accueil
+  let last = 0;
+  try { last = Number(localStorage.getItem(honorCelebKey(h))||0); } catch(e){}
+  if(Date.now() - last < 24*3600*1000) return;          // déjà fêté dans les 24h
+  try { localStorage.setItem(honorCelebKey(h), String(Date.now())); } catch(e){}
+  launchConfetti(2600);
+  setTimeout(()=>showHonorPopup(h), 350);
+}
+
+// Confettis dorés : canvas plein écran, auto-destruction après `duration` ms.
+function launchConfetti(duration){
+  duration = duration || 2500;
+  const cv = document.createElement('canvas');
+  cv.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9998';
+  document.body.appendChild(cv);
+  const ctx = cv.getContext('2d');
+  const dpr = Math.min(window.devicePixelRatio||1, 2);
+  const resize = ()=>{ cv.width = innerWidth*dpr; cv.height = innerHeight*dpr; };
+  resize();
+  const cols = ['#f5c542','#e0a800','#ffe79a','#fff6d6','#d4a017'];
+  const N = Math.min(140, Math.floor(innerWidth/9));
+  const parts = Array.from({length:N}, ()=>({
+    x: Math.random()*cv.width,
+    y: -Math.random()*cv.height*0.4,
+    r: (4 + Math.random()*6) * dpr,
+    vx: (-1 + Math.random()*2) * dpr,
+    vy: (2 + Math.random()*4) * dpr,
+    rot: Math.random()*Math.PI,
+    vr: (-0.2 + Math.random()*0.4),
+    col: cols[Math.floor(Math.random()*cols.length)]
+  }));
+  const start = performance.now();
+  let raf = 0;
+  const tick = (now)=>{
+    const t = now - start;
+    ctx.clearRect(0,0,cv.width,cv.height);
+    const fade = t > duration ? Math.max(0, 1 - (t-duration)/600) : 1;
+    for(const p of parts){
+      p.x += p.vx; p.y += p.vy; p.vy += 0.03*dpr; p.rot += p.vr;
+      if(p.y > cv.height + 20) { p.y = -20; p.vy = (2+Math.random()*4)*dpr; p.x = Math.random()*cv.width; }
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+      ctx.fillStyle = p.col;
+      ctx.fillRect(-p.r/2, -p.r/2, p.r, p.r*0.5);
+      ctx.restore();
+    }
+    if(t < duration + 600){ raf = requestAnimationFrame(tick); }
+    else { cancelAnimationFrame(raf); cv.remove(); window.removeEventListener('resize', resize); }
+  };
+  window.addEventListener('resize', resize);
+  raf = requestAnimationFrame(tick);
+}
+
+// Pop-up d'hommage (réutilise l'overlay/modal existant).
+function showHonorPopup(h){
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  if(!ov || !md) return;
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const name = h.player_name ? esc(h.player_name) : '';
+  md.innerHTML = `
+    <div style="text-align:center;padding:6px 2px">
+      <div style="font-size:3rem;line-height:1">🏆</div>
+      <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.3rem;margin-top:4px">${esc(h.title)}</div>
+      ${name ? `<div style="font-size:1.05rem;color:var(--chalk);font-weight:700;margin-top:6px">${name}${h.player_club?` · ${esc(h.player_club)}`:''}</div>` : ''}
+      <p style="color:var(--muted);font-size:.88rem;margin:10px 0 0">Félicitations à ${name||'ce joueur'} pour cette distinction. 🎉</p>
+    </div>
+    <div class="ux-actions" style="justify-content:center">
+      ${h.player_id ? `<button class="ux-ok" data-honorcard style="background:var(--transfer);color:var(--pitch);border:none">Voir sa fiche</button>` : ''}
+      <button class="ux-cancel" data-no>Fermer</button>
+    </div>`;
+  ov.classList.add('show');
+  const close = ()=>ov.classList.remove('show');
+  md.querySelector('[data-no]').onclick = close;
+  ov.onclick = (e)=>{ if(e.target===ov) close(); };
+  const hc = md.querySelector('[data-honorcard]');
+  if(hc) hc.onclick = ()=>{ close(); if(typeof showPlayerCard==='function') showPlayerCard(h.player_id); };
 }
 
 function renderMercatoBanner(){
