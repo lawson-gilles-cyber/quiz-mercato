@@ -508,6 +508,24 @@ export async function marketListings(){
   const { data } = await sb.rpc('qm_market_listings');
   return data ?? [];
 }
+// Offres directes sur la vitrine (cash et/ou un joueur).
+export async function listingMakeOffer({ listedPlayerId, offerPlayerId = null, cash = 0, message = null }){
+  return sb.rpc('qm_listing_make_offer', {
+    p_listed_player_id: listedPlayerId, p_offer_player_id: offerPlayerId,
+    p_cash: cash, p_message: message,
+  });
+}
+export async function listingOffersReceived(){
+  const { data } = await sb.rpc('qm_listing_offers_received');
+  return data ?? [];
+}
+export async function listingOffersSent(){
+  const { data } = await sb.rpc('qm_listing_offers_sent');
+  return data ?? [];
+}
+export async function listingAcceptOffer(tradeId){
+  return sb.rpc('qm_listing_accept_offer', { p_trade_id: tradeId });
+}
 
 // ---------- PRÊTS DE JOUEURS (vague 2) ------------------------------
 export async function proposeLoan(l) {

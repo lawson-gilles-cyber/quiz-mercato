@@ -1118,6 +1118,12 @@
       <div id="marketList"></div>
     </div>
 
+    <!-- Offres reçues sur mes joueurs en vitrine -->
+    <div id="offersReceivedCard" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--transfer);border-radius:14px;padding:18px;margin-bottom:26px">
+      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">📥 Offres reçues sur tes joueurs</div>
+      <div id="offersReceivedList"></div>
+    </div>
+
     <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour dénicher des joueurs et proposer des échanges.</div>
 
     <div id="tradeUI" style="display:none">
@@ -2524,6 +2530,52 @@ async function renderMarketplace(){
   const list = $('marketList'); if(!list) return;
   try { MARKET_LISTINGS = await api.marketListings(); } catch(e){ MARKET_LISTINGS = []; }
   applyMarketFilters();
+  renderOffersReceived();
+}
+
+// Offres reçues sur mes joueurs en vitrine (groupées par joueur).
+async function renderOffersReceived(){
+  const card = $('offersReceivedCard'), box = $('offersReceivedList');
+  if(!card || !box) return;
+  if(!ME){ card.style.display='none'; return; }
+  let offers = [];
+  try { offers = await api.listingOffersReceived(); } catch(e){ card.style.display='none'; return; }
+  if(!offers.length){ card.style.display='none'; box.innerHTML=''; return; }
+  card.style.display='block';
+  // Groupe par joueur convoité.
+  const groups = {};
+  offers.forEach(o=>{ (groups[o.listed_player_id] = groups[o.listed_player_id] || {name:o.listed_name, items:[]}).items.push(o); });
+  box.innerHTML = Object.values(groups).map(g=>{
+    const rows = g.items.map(o=>{
+      const parts = [];
+      if(o.cash && Number(o.cash)>0) parts.push(`💶 <b>${fmtMoney(o.cash)}</b>`);
+      if(o.offer_player_id) parts.push(`🔁 <b>${o.offer_name}</b>${o.offer_value?` <span style="color:var(--muted);font-size:.74rem">(${fmtMoney(o.offer_value)})</span>`:''}`);
+      const content = parts.join(' + ') || '—';
+      const msg = o.message ? `<div style="font-size:.76rem;color:var(--muted);font-style:italic;margin-top:2px">« ${String(o.message).replace(/[<>]/g,'')} »</div>` : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:.86rem">${content}</div>
+          <div style="font-size:.74rem;color:var(--muted)">par <b>${o.from_team||o.from_name||'?'}</b></div>${msg}
+        </div>
+        <button class="bid-btn" data-acceptoffer="${o.trade_id}" style="flex:0 0 auto;width:auto;margin:0;padding:7px 14px;white-space:nowrap">Accepter</button>
+      </div>`;
+    }).join('');
+    return `<div style="margin-bottom:12px">
+      <div style="font-weight:700;color:var(--chalk);margin-bottom:2px">🏪 ${g.name} <span style="color:var(--muted);font-size:.76rem">· ${g.items.length} offre${g.items.length>1?'s':''}</span></div>
+      ${rows}
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-acceptoffer]').forEach(btn=>btn.onclick=async()=>{
+    if(!confirm('Accepter cette offre ? L\'échange sera conclu et les autres offres sur ce joueur seront refusées.')) return;
+    btn.disabled=true; const old=btn.textContent; btn.textContent='⏳…';
+    const { error } = await api.listingAcceptOffer(btn.dataset.acceptoffer);
+    if(error){ btn.disabled=false; btn.textContent=old; toast('Échec : '+error.message,'err',4500); return; }
+    toast('Échange conclu ! 🤝','ok',4000);
+    ME = await api.currentManager();
+    if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
+    await loadPlayers();
+    renderMarketplace();
+  });
 }
 
 // ---------- Agents libres (joueurs libérés, recrutement gratuit) ----------
@@ -2604,9 +2656,17 @@ function applyMarketFilters(){
         <div style="font-size:.78rem;color:var(--muted)">${r.club||'—'} · chez <b>${r.team_name||r.owner_name||'?'}</b></div>
         <div style="font-size:.8rem;margin-top:3px">Valeur ${fmtMoney(r.current_value)} · ${ask}</div>
       </div>
-      <button class="bid-btn" data-mkttrade="${r.owner_id}" data-player="${r.player_id}" style="flex:0 0 auto;width:auto;margin:0;padding:9px 14px;white-space:nowrap">Proposer un échange</button>
+      <div style="display:flex;flex-direction:column;gap:6px;flex:0 0 auto">
+        <button class="bid-btn" data-quickoffer="${r.player_id}" data-name="${(r.name||'').replace(/"/g,'&quot;')}" data-ask="${r.asking_price||''}" data-team="${(r.team_name||r.owner_name||'').replace(/"/g,'&quot;')}" style="width:auto;margin:0;padding:9px 14px;white-space:nowrap">💶 Faire une offre</button>
+        <button class="bid-btn ghost" data-mkttrade="${r.owner_id}" data-player="${r.player_id}" style="width:auto;margin:0;padding:7px 14px;white-space:nowrap;font-size:.78rem">Échange détaillé</button>
+      </div>
     </div>`;
   }).join('');
+  // Offre rapide (cash et/ou un joueur) directement sur la vitrine.
+  list.querySelectorAll('[data-quickoffer]').forEach(btn=>btn.onclick=()=>{
+    if(!ME){ $('authModal').style.display='flex'; return; }
+    openQuickOffer(btn.dataset.quickoffer, btn.dataset.name, btn.dataset.ask, btn.dataset.team);
+  });
   // Action : pré-ouvre le troc avec ce manager + ce joueur demandé.
   // On attend vraiment le chargement de l'effectif (plus de setTimeout fragile).
   list.querySelectorAll('[data-mkttrade]').forEach(btn=>btn.onclick=async ()=>{
@@ -2626,6 +2686,52 @@ function applyMarketFilters(){
     toast('Échange pré-rempli : ajoute ce que tu offres, puis envoie.','info',4000);
   });
 }
+// ---------- Offre rapide sur la vitrine (cash et/ou un joueur) ----------
+function openQuickOffer(playerId, playerName, ask, teamName){
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  if(!ov || !md) return;
+  const mine = (typeof TRADE_MINE!=='undefined' && TRADE_MINE) ? TRADE_MINE : [];
+  const askTxt = ask ? `Prix indicatif : <b>${fmtMoney(Number(ask))}</b>` : 'Pas de prix indicatif';
+  md.innerHTML = `
+    <h3>Faire une offre</h3>
+    <p style="margin:0 0 4px"><b>${playerName}</b> <span class="hint">chez ${teamName||'?'}</span></p>
+    <p class="hint" style="margin:0 0 12px">${askTxt}. Propose du budget, un de tes joueurs, ou les deux.</p>
+    <label style="display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px">💶 Budget proposé (M€)</label>
+    <input id="qoCash" type="number" min="0" step="1" placeholder="ex. 30" class="ux-bid-input" style="width:100%">
+    <label style="display:block;font-size:.8rem;color:var(--muted);margin:10px 0 4px">🔁 + un de tes joueurs (optionnel)</label>
+    <select id="qoPlayer" style="width:100%;padding:10px">
+      <option value="">— aucun —</option>
+      ${mine.map(p=>`<option value="${p.id}">${playerName2(p)} · ${POS[p.position]||p.position} · ${fmtMoney(p.current_value)}</option>`).join('')}
+    </select>
+    <input id="qoMessage" type="text" maxlength="140" placeholder="Petit mot (optionnel)" style="width:100%;margin-top:10px;padding:10px">
+    <div id="qoMsg" style="font-size:.82rem;min-height:1em;margin-top:8px;color:var(--live)"></div>
+    <div class="ux-actions">
+      <button class="ux-cancel" data-no>Annuler</button>
+      <button class="ux-ok" data-yes style="background:var(--transfer);color:var(--pitch);border:none">Envoyer l'offre</button>
+    </div>`;
+  ov.classList.add('show');
+  const close = ()=>ov.classList.remove('show');
+  md.querySelector('[data-no]').onclick = close;
+  ov.onclick = (e)=>{ if(e.target===ov) close(); };
+  md.querySelector('[data-yes]').onclick = async (e)=>{
+    const msgBox = md.querySelector('#qoMsg');
+    const cashM = parseFloat(md.querySelector('#qoCash').value);
+    const offerPlayerId = md.querySelector('#qoPlayer').value || null;
+    const cash = (!isNaN(cashM) && cashM>0) ? Math.round(cashM*1000000) : 0;
+    if(cash===0 && !offerPlayerId){ msgBox.textContent='Propose au moins du budget ou un joueur.'; return; }
+    const message = (md.querySelector('#qoMessage').value||'').trim() || null;
+    await withLoading(e.target, async ()=>{
+      const { error } = await api.listingMakeOffer({ listedPlayerId: playerId, offerPlayerId, cash, message });
+      if(error){ msgBox.textContent = error.message; return; }
+      close();
+      toast('Offre envoyée ! Le propriétaire la verra dans ses offres reçues.','ok',4000);
+    });
+  };
+}
+// Alias robuste pour le nom (certains contextes utilisent playerName()).
+function playerName2(p){ return (typeof playerName==='function') ? playerName(p) : (p.name||'Joueur'); }
+
 // Filtres de la place de marché
 if($('mktSearch')) $('mktSearch').addEventListener('input', applyMarketFilters);
 if($('mktPos')) $('mktPos').addEventListener('change', applyMarketFilters);
@@ -3921,9 +4027,11 @@ const FAQ_DATA = [
   ]],
   ['Échanges, prêts & libérations', [
     ['Comment échanger un joueur avec un autre manager ?',
-     "Depuis la <b>place de marché</b> (vitrine), clique « Proposer un échange » sur le joueur convoité : choisis ce que tu offres, ajuste un éventuel complément en cash, et envoie. L’autre manager accepte ou refuse. L’échange doit respecter l’effectif et la masse salariale des deux côtés."],
+     "Depuis la <b>place de marché</b> (vitrine), deux options sur le joueur convoité : <b>« 💶 Faire une offre »</b> pour une offre rapide (du budget et/ou un de tes joueurs), ou <b>« Échange détaillé »</b> pour composer un troc complet. L’autre manager accepte ou refuse. L’échange respecte l’effectif et la masse salariale des deux côtés, et une commission d’échange s’applique."],
     ['Comment mettre un de mes joueurs à l’échange ?',
-     "Sur la fiche d’un joueur que tu possèdes, « Proposer à l’échange » le place en <b>vitrine</b> avec un prix indicatif. Les autres managers peuvent alors te faire une proposition."],
+     "Sur la fiche d’un joueur que tu possèdes, « Proposer à l’échange » le place en <b>vitrine</b> avec un prix indicatif. Les autres managers peuvent alors te faire des offres."],
+    ['J’ai reçu plusieurs offres sur un même joueur : comment choisir ?',
+     "Dans la <b>place de marché</b>, un encart <b>« 📥 Offres reçues sur tes joueurs »</b> regroupe toutes les offres par joueur, côte à côte (budget et/ou joueur proposé, + petit mot). Clique <b>« Accepter »</b> sur la meilleure : l’échange est conclu et les autres offres sur ce joueur sont automatiquement refusées."],
     ['Comment fonctionne un prêt ?',
      "Tu prêtes un joueur pour <b>1 à 60 jours</b>, avec indemnité optionnelle. Pendant le prêt, l’<b>emprunteur</b> aligne le joueur et porte son salaire ; le retour est automatique à l’échéance. Une <b>option d’achat</b> ou un <b>prêt ferme</b> peuvent être prévus."],
     ['Que se passe-t-il si je libère un joueur ?',
