@@ -294,6 +294,11 @@ export async function adminManagerSquad(managerId) {
   return data ?? [];
 }
 // ---------- Profil public d'un manager ----------------------------
+// Classement avec évolution ▲▼ depuis la dernière journée clôturée.
+export async function rankingWithTrend() {
+  const { data } = await sb.rpc('qm_ranking_with_trend');
+  return data ?? [];
+}
 export async function managerPublicCard(managerId) {
   const { data } = await sb.rpc('qm_manager_public_card', { p_manager_id: managerId });
   return (data && data[0]) ? data[0] : null;
