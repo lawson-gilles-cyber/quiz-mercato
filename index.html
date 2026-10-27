@@ -4527,13 +4527,62 @@ async function renderMyLedger(){
 // Bilan de l'effectif : complétude (x/21), répartition par poste, et nombre
 // de joueurs par championnat (avec alerte à l'approche de la règle des 6).
 const SQUAD_TARGET = 21, CHAMP_MAX = 6;
-function renderSquadReport(mine){
+// Limites et minimums conseillés par poste (pour pouvoir aligner un 11 valide).
+const POS_MAX = {GK:2, DEF:7, MID:7, FWD:5};
+const POS_MIN = {GK:1, DEF:3, MID:3, FWD:1};   // minimum pour composer un 11 crédible
+const POS_LABEL = {GK:'gardien', DEF:'défenseur', MID:'milieu', FWD:'attaquant'};
+function renderSquadReport(mine, dash){
   const box = $('squadReport'); if(!box) return;
   if(!mine || !mine.length){ box.style.display='none'; box.innerHTML=''; return; }
 
   // Répartition par poste
   const byPos = {GK:0, DEF:0, MID:0, FWD:0};
   mine.forEach(p=>{ if(byPos[p.position]!==undefined) byPos[p.position]++; });
+
+  // ----- Checklist d'objectifs de recrutement -----
+  const items = [];
+  // 1) Minimums par poste pour pouvoir aligner un 11.
+  ['GK','DEF','MID','FWD'].forEach(pos=>{
+    const have = byPos[pos], min = POS_MIN[pos], lbl = POS_LABEL[pos];
+    if(have < min){
+      const miss = min - have;
+      items.push({ st:'ko', txt:`Recrute ${miss} ${lbl}${miss>1?'s':''} de plus (tu as ${have}, minimum conseillé ${min})` });
+    }
+  });
+  // 2) Pouvoir aligner 11 titulaires.
+  if(mine.length < 11){
+    items.push({ st:'ko', txt:`Il te faut au moins <b>11 joueurs</b> pour aligner une compo (tu en as ${mine.length})` });
+  }
+  // 3) Proximité des maximums par poste (info).
+  ['GK','DEF','MID','FWD'].forEach(pos=>{
+    const have = byPos[pos], max = POS_MAX[pos];
+    if(have >= max) items.push({ st:'warn', txt:`${POS_LABEL[pos].charAt(0).toUpperCase()+POS_LABEL[pos].slice(1)}s au maximum (${have}/${max}) — tu ne peux plus en recruter` });
+  });
+  // 4) Masse salariale.
+  if(dash && Number(dash.salary_cap)>0){
+    const salPct = Math.round(Number(dash.salary_used)/Number(dash.salary_cap)*100);
+    if(salPct >= 90) items.push({ st:'ko', txt:`Masse salariale à <b>${salPct}%</b> du plafond — libère ou échange avant d'acheter` });
+    else if(salPct >= 75) items.push({ st:'warn', txt:`Masse salariale à ${salPct}% — tu approches du plafond` });
+  }
+  // 5) Effectif complet.
+  if(mine.length >= SQUAD_TARGET) items.push({ st:'ok', txt:`Effectif au complet (${mine.length}/${SQUAD_TARGET}) 🎉` });
+  else if(mine.length >= 14) items.push({ st:'ok', txt:`Bon effectif (${mine.length}/${SQUAD_TARGET}) — tu peux viser le banc complet` });
+
+  // Si tout est bon et effectif suffisant, message positif.
+  const hasProblem = items.some(i=>i.st!=='ok');
+  if(!hasProblem && mine.length>=11){
+    items.unshift({ st:'ok', txt:`Ton effectif est équilibré et prêt à aligner un 11 ✅` });
+  }
+  const stIcon = {ok:'✅', warn:'⚠️', ko:'❗'};
+  const stCol = {ok:'#4ade80', warn:'var(--transfer)', ko:'var(--live,#e0574a)'};
+  const checklistHtml = `
+    <div class="sr-title" style="margin-top:4px">🎯 Objectifs de recrutement</div>
+    <ul style="list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:6px">
+      ${items.map(i=>`<li style="display:flex;gap:8px;align-items:flex-start;font-size:.86rem">
+        <span style="flex:0 0 auto">${stIcon[i.st]}</span>
+        <span style="color:${i.st==='ok'?'var(--muted)':'var(--chalk)'}">${i.txt}</span>
+      </li>`).join('')}
+    </ul>`;
 
   // Répartition par championnat (ignore les sans-championnat)
   const byChamp = {};
@@ -4545,6 +4594,7 @@ function renderSquadReport(mine){
   const posCell = (key,label)=>`<div class="sr-pos"><div class="n">${byPos[key]}</div><div class="l">${label}</div></div>`;
 
   box.innerHTML =
+    checklistHtml +
     `<div class="sr-title">📋 Bilan de mon effectif</div>`+
     `<div class="sr-barwrap">
        <div class="sr-barlabel"><span>Complétude</span><span><b>${n}</b> / ${SQUAD_TARGET} joueurs</span></div>
@@ -4612,8 +4662,8 @@ async function renderTeam(){
   $('teamPts').innerHTML=`<b>${ME.season_points}</b>`;
   $('teamGrid').innerHTML = mine.length? mine.map(playerCard).join('')
     : `<div class="empty" style="grid-column:1/-1">Ton effectif est vide. Direction le mercato pour recruter.</div>`;
-  // Bilan de l'effectif (complétude, postes, championnats)
-  renderSquadReport(mine);
+  // Bilan de l'effectif (complétude, postes, championnats) + objectifs
+  renderSquadReport(mine, dash);
   // Relevé personnel (achats, ventes, bonus, taxes…)
   renderMyLedger();
   // Vue terrain
