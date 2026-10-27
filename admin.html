@@ -769,6 +769,25 @@
       <p class="hint">Possible <b>uniquement si personne n'a encore enchéri</b>. Corrige le prix de départ de l'enchère <b>et</b> la valeur de base du joueur. Si une offre existe déjà, annule l'enchère ci-dessus puis relance-la au bon prix.</p>
     </div>
 
+    <!-- Corriger le poste d'un joueur (même détenu) -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>🧭 Corriger le poste d'un joueur (même déjà détenu)</label>
+      <input id="pos_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
+      <div id="pos_results" style="margin-top:4px"></div>
+      <input id="pos_player_id" type="hidden">
+      <div id="pos_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+      <div class="row c2" style="margin-top:8px;align-items:end">
+        <div><label>Nouveau poste</label>
+          <select id="pos_new" style="width:100%">
+            <option value="GK">Gardien</option><option value="DEF">Défenseur</option>
+            <option value="MID">Milieu</option><option value="FWD">Attaquant</option>
+          </select>
+        </div>
+        <div><button class="btn-primary" id="btnFixPosition" style="width:100%">Corriger le poste</button></div>
+      </div>
+      <p class="hint">Fonctionne même si le joueur est <b>déjà acheté</b>. La note Mercato se recalcule selon le nouveau poste. Si ça déséquilibre l'effectif du possesseur (ex. trop d'attaquants), c'est signalé mais pas bloqué.</p>
+    </div>
+
     <!-- Forcer un bonus dénicheur -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
       <label>Forcer un bonus dénicheur (10 % du prix, plafonné à 20 M€)</label>
@@ -1665,6 +1684,45 @@ if($('btnFixAuctionPrice')) $('btnFixAuctionPrice').onclick = async ()=>{
   $('fix_price').value='';
   loadAdminTools && loadAdminTools();
   loadPlayers();
+};
+
+// Corriger le poste d'un joueur (recherche + sélection).
+(function wirePositionFix(){
+  const search = $('pos_search'); if(!search) return;
+  let t = null;
+  search.oninput = ()=>{
+    clearTimeout(t); const q = search.value;
+    t = setTimeout(async ()=>{
+      const box = $('pos_results');
+      if((q||'').trim().length < 2){ box.innerHTML=''; return; }
+      let res = [];
+      try { res = await api.searchPlayersByName(q); } catch(e){}
+      const POSFR = {GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'};
+      box.innerHTML = res.map(p=>`<button type="button" class="btn-ghost btn-sm" data-pid="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" data-ppos="${p.position}" style="display:block;width:100%;text-align:left;margin:3px 0">${p.name} <span style="color:var(--muted)">· ${p.club||'—'} · actuellement ${POSFR[p.position]||p.position}</span></button>`).join('')
+        || '<p class="hint" style="font-size:.8rem">Aucun joueur trouvé.</p>';
+      box.querySelectorAll('[data-pid]').forEach(b=>b.onclick=()=>{
+        $('pos_player_id').value = b.dataset.pid;
+        $('pos_chosen').textContent = `✓ ${b.dataset.pname} (actuellement ${({GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'})[b.dataset.ppos]||b.dataset.ppos})`;
+        $('pos_results').innerHTML = '';
+        search.value = b.dataset.pname;
+      });
+    }, 250);
+  };
+})();
+if($('btnFixPosition')) $('btnFixPosition').onclick = async ()=>{
+  const pid = $('pos_player_id').value;
+  if(!pid) return showMsg($('msg2'),'Choisis d’abord un joueur.');
+  const newPos = $('pos_new').value;
+  const POSFR = {GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'};
+  if(!confirm(`Corriger le poste de ce joueur en « ${POSFR[newPos]} » ?\n\nFonctionne même s'il est déjà détenu. La note se recalcule selon le nouveau poste.`)) return;
+  const { data, error } = await api.adminSetPosition(pid, newPos);
+  if(error) return showMsg($('msg2'), error.message);
+  const r = Array.isArray(data) ? data[0] : data;
+  let msg = `Poste corrigé : ${r?.player_name||'joueur'} → ${POSFR[newPos]}.`;
+  if(r && r.over_limit){ msg += ` ⚠️ ${r.owner_name||'Le possesseur'} a maintenant ${r.count_at_pos} ${POSFR[newPos].toLowerCase()}s (max ${r.limit_at_pos}).`; }
+  showMsg($('msg2'), msg, true);
+  $('pos_player_id').value=''; $('pos_chosen').textContent=''; $('pos_search').value='';
+  loadPlayers(); if(typeof loadAdminActions==='function') loadAdminActions();
 };
 
 $('btnForceScout').onclick = async ()=>{
@@ -2983,6 +3041,8 @@ const ADMIN_FAQ = [
      "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« ⚠️ Annuler une enchère en cours »</b> : choisis l'enchère, confirme. Le joueur redevient libre, le budget bloqué du meneur est remboursé (il ne paie rien), l'enchère est annulée. On ne peut pas « modifier » une enchère en place : on l'annule puis on la relance correctement."],
     ['Le dénicheur a mis une mauvaise valeur : comment corriger le prix ?',
      "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« 🔧 Corriger le prix de départ d'une enchère »</b> : choisis l'enchère, saisis le bon prix (M€), confirme. Ça corrige le prix de départ <b>et</b> la valeur de base du joueur. Possible <b>uniquement si personne n'a encore enchéri</b> — sinon annule l'enchère (remboursement) puis relance-la au bon prix. Nécessite le script <b>132</b>."],
+    ['Un joueur a le mauvais poste (ex. défenseur mis en attaquant) : comment corriger ?',
+     "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« 🧭 Corriger le poste d'un joueur »</b> : cherche le joueur, choisis le bon poste, confirme. Ça <b>fonctionne même s'il est déjà acheté</b>, et la note Mercato se recalcule selon le nouveau poste. Si ça déséquilibre l'effectif du possesseur (ex. trop d'attaquants), c'est signalé mais pas bloqué. Annulable via le journal des actions. Nécessite le script <b>136</b>."],
     ['Une enchère programmée ne démarre pas à l’heure prévue ?',
      "Elle doit démarrer via le cron <b>start-qm_scheduled</b> (chaque minute). S'il n'est pas planifié, les enchères programmées restent coincées. Correctif : passe le script <b>119</b> (il (re)planifie le cron et ajoute un filet de sécurité). En attendant, va dans « 🔁 Marché → Enchères programmées » : les enchères en retard affichent un bouton <b>« Démarrer maintenant »</b>."],
   ]],

@@ -102,6 +102,10 @@ export async function adminCancelAuction(auctionId) {
 export async function adminFixAuctionPrice(auctionId, newPrice) {
   return sb.rpc('qm_admin_fix_auction_price', { p_auction_id: auctionId, p_new_price: newPrice });
 }
+// Corriger le poste d'un joueur (même détenu).
+export async function adminSetPosition(playerId, position) {
+  return sb.rpc('qm_admin_set_position', { p_player_id: playerId, p_position: position });
+}
 // Déclenche le démarrage des enchères programmées dues (filet de sécurité).
 export async function sweepDueAuctions() {
   const { data } = await sb.rpc('qm_sweep_due_auctions');
