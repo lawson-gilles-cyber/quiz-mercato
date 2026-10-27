@@ -300,6 +300,32 @@
     </div>
   </div>
 
+  <!-- Hommage / distinction (ex. Ballon d'Or) -->
+  <h2>🏆 Hommage à un joueur</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:12px">Mets un joueur à l'honneur (ex. Ballon d'Or) : une <b>bannière festive</b> apparaît en haut de l'accueil et un <b>badge</b> sur sa fiche. Laisse la date vide pour un hommage permanent, ou fixe une fin : il disparaît tout seul après.</p>
+    <div id="honorCurrent" style="display:none;margin-bottom:12px"></div>
+    <div class="row c2" style="margin-bottom:10px">
+      <div>
+        <label>Titre de la distinction</label>
+        <input id="honorTitle" type="text" maxlength="60" placeholder="ex. Ballon d'Or 2026" style="width:100%">
+      </div>
+      <div>
+        <label>Expire le (optionnel)</label>
+        <input id="honorUntil" type="datetime-local" style="width:100%">
+      </div>
+    </div>
+    <label>Joueur mis à l'honneur</label>
+    <input id="honorPlayerSearch" type="text" placeholder="Tape un nom…" autocomplete="off" style="width:100%">
+    <div id="honorPlayerResults" style="margin-top:4px"></div>
+    <input id="honorPlayerId" type="hidden">
+    <div id="honorPlayerChosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn-primary" id="btnHonorPublish">Mettre à l'honneur</button>
+      <button class="btn-ghost" id="btnHonorClear">Retirer l'hommage</button>
+    </div>
+  </div>
+
   <!-- Tableau de bord financier -->
   <h2>💰 Tableau de bord financier</h2>
   <div id="financeGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px">
@@ -901,7 +927,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHealth();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadHealth();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -3053,6 +3079,69 @@ if($('btnAnnonceClear')) $('btnAnnonceClear').onclick = async ()=>{
   showMsg($('msg')||$('msg2'),'Annonce retirée.',true);
   $('annonceText').value=''; if($('annonceUntil')) $('annonceUntil').value='';
   loadAnnonce();
+};
+
+// ---------- Hommage à un joueur (admin) ----------
+async function loadHonor(){
+  const box = $('honorCurrent'); if(!box) return;
+  let h = null;
+  try { h = await api.getHonor(); } catch(e){
+    box.style.display='block';
+    box.innerHTML = '<p class="hint">Passe le script 129 (hommage) pour activer cette section.</p>';
+    return;
+  }
+  if(!h || !h.title){ box.style.display='none'; box.innerHTML=''; return; }
+  const until = h.until ? new Date(h.until) : null;
+  const sub = until ? ` · jusqu'au ${until.toLocaleDateString('fr-FR')} à ${until.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : ' · permanent';
+  box.style.display='block';
+  box.innerHTML = `<div style="background:rgba(245,197,66,.1);border:1px solid var(--transfer,#e0a106);border-radius:8px;padding:10px 12px;font-size:.86rem">
+      🏆 <b>À l'honneur :</b> ${String(h.title).replace(/[<>]/g,'')}${h.player_name?` — <b>${String(h.player_name).replace(/[<>]/g,'')}</b>`:''}<span style="color:var(--muted)">${sub}</span></div>`;
+  if($('honorTitle')) $('honorTitle').value = h.title;
+  if(h.player_id && $('honorPlayerId')){ $('honorPlayerId').value = h.player_id; $('honorPlayerChosen').textContent = h.player_name ? '✓ '+h.player_name : ''; }
+}
+// Recherche joueur (autocomplétion) pour l'hommage.
+(function wireHonorSearch(){
+  const search = $('honorPlayerSearch'); if(!search) return;
+  let t = null;
+  search.oninput = ()=>{
+    clearTimeout(t);
+    const q = search.value;
+    t = setTimeout(async ()=>{
+      const box = $('honorPlayerResults');
+      if((q||'').trim().length < 2){ box.innerHTML=''; return; }
+      let res = [];
+      try { res = await api.searchPlayersByName(q); } catch(e){}
+      box.innerHTML = res.map(p=>`<button type="button" class="btn-ghost btn-sm" data-pid="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" style="display:block;width:100%;text-align:left;margin:3px 0">${p.name} <span style="color:var(--muted)">· ${p.club||'—'}</span></button>`).join('')
+        || '<p class="hint" style="font-size:.8rem">Aucun joueur trouvé.</p>';
+      box.querySelectorAll('[data-pid]').forEach(b=>b.onclick=()=>{
+        $('honorPlayerId').value = b.dataset.pid;
+        $('honorPlayerChosen').textContent = '✓ ' + b.dataset.pname;
+        $('honorPlayerResults').innerHTML = '';
+        search.value = b.dataset.pname;
+      });
+    }, 250);
+  };
+})();
+if($('btnHonorPublish')) $('btnHonorPublish').onclick = async ()=>{
+  const title = ($('honorTitle').value||'').trim();
+  if(!title) return showMsg($('msg')||$('msg2'),'Indique le titre de la distinction.');
+  const playerId = $('honorPlayerId').value || null;
+  const raw = $('honorUntil').value;
+  const untilISO = raw ? new Date(raw).toISOString() : null;
+  if(raw && new Date(raw) <= new Date()) return showMsg($('msg')||$('msg2'),'La date de fin doit être dans le futur.');
+  const { error } = await api.adminSetHonor({ active:true, title, playerId, untilISO });
+  if(error) return showMsg($('msg')||$('msg2'), error.message);
+  showMsg($('msg')||$('msg2'),'Hommage mis en ligne.',true);
+  loadHonor();
+};
+if($('btnHonorClear')) $('btnHonorClear').onclick = async ()=>{
+  if(!confirm('Retirer l\'hommage affiché aux joueurs ?')) return;
+  const { error } = await api.adminSetHonor({ active:false, title:null, playerId:null, untilISO:null });
+  if(error) return showMsg($('msg')||$('msg2'), error.message);
+  showMsg($('msg')||$('msg2'),'Hommage retiré.',true);
+  $('honorTitle').value=''; $('honorPlayerId').value=''; $('honorPlayerChosen').textContent=''; $('honorPlayerSearch').value='';
+  if($('honorUntil')) $('honorUntil').value='';
+  loadHonor();
 };
 
 // ---------- PWA : enregistrement du service worker ----------

@@ -371,6 +371,17 @@ export async function getAnnouncement() {
 export async function adminSetAnnouncement(text, untilISO) {
   return sb.rpc('qm_admin_set_announcement', { p_text: text ?? null, p_until: untilISO ?? null });
 }
+// Hommage / distinction (ex. Ballon d'Or) — bannière accueil + badge fiche.
+export async function getHonor() {
+  const { data } = await sb.rpc('qm_honor');
+  const row = (data && data[0]) ? data[0] : null;
+  return (row && row.title) ? row : null;   // null si pas d'hommage / expiré
+}
+export async function adminSetHonor({ active, title, playerId = null, untilISO = null }) {
+  return sb.rpc('qm_admin_set_honor', {
+    p_active: active, p_title: title ?? null, p_player_id: playerId, p_until: untilISO ?? null,
+  });
+}
 // Commentaires sur les transferts (chambrage)
 export async function postComment(transferId, body) {
   return sb.rpc('qm_post_comment', { p_transfer_id: transferId, p_body: body });

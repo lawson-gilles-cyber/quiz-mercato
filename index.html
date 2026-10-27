@@ -767,6 +767,7 @@
   .acard .clock.hot{color:var(--live);animation:clockPulse 1s ease-in-out infinite}
   .acard .clock.over{color:var(--muted)}
   @keyframes clockPulse{0%,100%{opacity:1}50%{opacity:.45}}
+  @keyframes honorShine{0%{background-position:200% 0}100%{background-position:-200% 0}}
   .col-empty{color:var(--muted);font-size:.8rem;text-align:center;padding:20px 6px;font-style:italic}
   @media(max-width:900px){.kanban{grid-template-columns:1fr 1fr}}
   @media(max-width:560px){.kanban{grid-template-columns:1fr}}
@@ -991,6 +992,9 @@
 <main>
   <!-- Annonce de l'organisation (publiée par l'admin) -->
   <div id="orgAnnounce" style="display:none"></div>
+
+  <!-- Hommage / distinction (ex. Ballon d'Or) -->
+  <div id="hommageBanner" style="display:none"></div>
 
   <!-- Bandeau fenêtre de mercato (compte à rebours) -->
   <div id="mercatoBanner" style="display:none"></div>
@@ -3786,9 +3790,14 @@ async function showPlayerCard(playerId){
   const deltaTxt = delta==null ? '' :
     `<span style="color:${delta>=0?'#4ade80':'#e0574a'};font-size:.84rem">${delta>=0?'▲':'▼'} ${fmtMoney(Math.abs(delta))} depuis le début</span>`;
   const name = p.name ? (playerName ? playerName(p) : p.name) : 'Joueur';
+  // Badge d'hommage (ex. Ballon d'Or) si ce joueur est le distingué du moment.
+  const honorBadge = (HONOR_CACHE && HONOR_CACHE.player_id === playerId)
+    ? `<div style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,197,66,.28),rgba(224,168,0,.1));border:1px solid var(--transfer);border-radius:20px;padding:4px 12px;margin:0 0 10px;font-family:'Archivo Narrow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:.74rem;color:var(--transfer)">🏆 ${String(HONOR_CACHE.title).replace(/[<>&]/g,'')}</div>`
+    : '';
   md.innerHTML = `
     <h3>${name}</h3>
     <div class="hint" style="margin:0 0 10px">${p.club||''}${p.position?' · '+(POS[p.position]||p.position):''}${p.current_value!=null?' · '+fmtMoney(p.current_value):''}</div>
+    ${honorBadge}
     ${valueForMoney(p)}
     <div style="font-weight:800;font-size:.9rem;margin-bottom:6px">💓 Forme récente</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">${formWidget(form)}</div>
@@ -5208,6 +5217,32 @@ async function renderAnnouncement(){
         ${sub}
       </div>
     </div>`;
+}
+
+let HONOR_CACHE = null;   // hommage en cours (pour badge fiche), rafraîchi par renderHommage
+async function renderHommage(){
+  const box = $('hommageBanner'); if(!box) return;
+  let h = null;
+  try { h = await api.getHonor(); } catch(e){ h = null; }
+  HONOR_CACHE = (h && h.title) ? h : null;
+  if(!h || !h.title){ box.style.display='none'; box.innerHTML=''; return; }
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const name = h.player_name ? esc(h.player_name) : null;
+  const sub = name
+    ? `<div style="font-size:.86rem;color:var(--chalk);margin-top:2px"><b>${name}</b>${h.player_club?` · ${esc(h.player_club)}`:''}</div>`
+    : '';
+  box.style.display='block';
+  box.style.cssText = 'display:block;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(245,197,66,.28),rgba(224,168,0,.08));border:1px solid var(--transfer);border-radius:12px;padding:14px 18px;margin-bottom:14px;text-align:center';
+  box.innerHTML = `
+    <div style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.22) 50%,transparent 70%);background-size:200% 100%;animation:honorShine 3.2s linear infinite;pointer-events:none"></div>
+    <div style="position:relative">
+      <div style="font-size:1.6rem;line-height:1">🏆</div>
+      <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.05rem;letter-spacing:.3px;margin-top:2px">${esc(h.title)}</div>
+      ${sub}
+      ${name ? `<button class="bid-btn ghost" id="honorCardBtn" data-player="${h.player_id}" style="width:auto;margin-top:10px;padding:6px 14px;font-size:.8rem">Voir sa fiche</button>` : ''}
+    </div>`;
+  const b = box.querySelector('#honorCardBtn');
+  if(b) b.onclick = ()=>{ if(typeof showPlayerCard==='function') showPlayerCard(b.dataset.player); };
 }
 
 function renderMercatoBanner(){
@@ -6755,6 +6790,7 @@ async function init(){
   await loadPlayers();
   loadMercatoWindow();
   renderAnnouncement();        // annonce de l'organisation (bandeau accueil)
+  renderHommage();             // hommage / distinction (bandeau accueil)
   renderHome();
   renderMarket();
   renderAuctions();
