@@ -2923,8 +2923,13 @@ async function renderScoutList(){
   el.innerHTML = draftsHtml + (props.length? '<div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">Mes propositions de joueurs :</div>' : '') +
     props.map(p=>{
       const name = p.player_name || 'joueur existant';
-      const reason = (p.status==='needs_changes' && p.decision_reason)
-        ? `<div style="font-size:.75rem;color:var(--live);margin-top:2px">✏️ ${p.decision_reason}</div>` : '';
+      // Motif affiché à la fois pour « à corriger » ET pour « refusé ».
+      const esc = s => String(s).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+      let reason = '';
+      if(p.decision_reason && (p.status==='needs_changes' || p.status==='rejected')){
+        const ic = p.status==='rejected' ? '🚫 Motif du refus' : '✏️ À corriger';
+        reason = `<div style="font-size:.76rem;color:var(--live);margin-top:3px;padding:6px 9px;background:rgba(224,87,74,.1);border-left:3px solid var(--live);border-radius:6px"><b>${ic} :</b> ${esc(p.decision_reason)}</div>`;
+      }
       const fixBtn = (p.status==='needs_changes')
         ? `<button class="bid-btn" data-fix="${p.id}" style="font-size:.72rem;padding:3px 8px;margin-top:4px">Corriger & resoumettre</button>` : '';
       return `<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:.85rem">

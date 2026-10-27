@@ -2872,10 +2872,14 @@ async function loadProposals(){
     toast('Correction demandée au manager.','ok'); loadProposals();
   });
   tbody.querySelectorAll('[data-reject]').forEach(b=>b.onclick=async()=>{
-    const reason = prompt('Motif du refus (optionnel, visible par le manager) :') || null;
+    let reason = (prompt('Motif du refus (recommandé — il s\'affiche chez le manager) :') || '').trim();
+    if(!reason){
+      if(!confirm('Refuser SANS motif ? Le manager ne saura pas pourquoi. Clique sur Annuler pour saisir un motif.')) return;
+      reason = null;
+    }
     const { error } = await api.adminRejectProposal(b.dataset.reject, reason);
     if(error){ toast(error.message,'err',5000); loadProposals(); return; }
-    toast('Proposition refusée.','ok'); loadProposals();
+    toast(reason ? 'Proposition refusée (motif transmis au manager).' : 'Proposition refusée.','ok'); loadProposals();
   });
 }
 
