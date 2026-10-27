@@ -996,6 +996,9 @@
   <!-- Hommage / distinction (ex. Ballon d'Or) -->
   <div id="hommageBanner" style="display:none"></div>
 
+  <!-- Récap quotidien « Ce qui s'est passé » (accueil) -->
+  <div id="dailyRecap" style="display:none"></div>
+
   <!-- Bandeau fenêtre de mercato (compte à rebours) -->
   <div id="mercatoBanner" style="display:none"></div>
 
@@ -5356,6 +5359,54 @@ async function renderHommage(){
   maybeCelebrateHonor(h);
 }
 
+// ---------- Récap quotidien « Ce qui s'est passé » ----------
+function recapDayKey(){
+  const d = new Date();
+  return 'us_recap_seen_' + d.getFullYear() + '-' + (d.getMonth()+1) + '-' + d.getDate();
+}
+async function renderDailyRecap(force){
+  const box = $('dailyRecap'); if(!box) return;
+  // Affiché une fois par jour (sauf ouverture manuelle « force »).
+  if(!force){
+    let seen = false;
+    try { seen = localStorage.getItem(recapDayKey()) === '1'; } catch(e){}
+    if(seen){ box.style.display='none'; return; }
+  }
+  let r = null;
+  try { r = await api.recap(24); } catch(e){ r = null; }
+  if(!r){ box.style.display='none'; return; }
+  const moves = Number(r.moves_count||0);
+  const newAuc = Number(r.new_auctions||0);
+  // Rien à raconter ? On n'affiche pas (sauf ouverture manuelle).
+  if(!force && moves===0 && newAuc===0){ box.style.display='none'; try{localStorage.setItem(recapDayKey(),'1');}catch(e){} return; }
+
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const lines = [];
+  if(newAuc>0) lines.push(`🏷️ <b>${newAuc}</b> nouvelle${newAuc>1?'s':''} enchère${newAuc>1?'s':''} ouverte${newAuc>1?'s':''}`);
+  if(moves>0) lines.push(`🔁 <b>${moves}</b> mouvement${moves>1?'s':''} (achats, échanges, libérations)`);
+  if(r.biggest && r.biggest.player){
+    lines.push(`💸 Plus gros transfert : <b>${esc(r.biggest.player)}</b>${r.biggest.to?` → ${esc(r.biggest.to)}`:''}${r.biggest.price?` (${fmtMoney(r.biggest.price)})`:''}`);
+  }
+  if(Number(r.active_managers||0)>0) lines.push(`👥 <b>${r.active_managers}</b> manager${Number(r.active_managers)>1?'s':''} actif${Number(r.active_managers)>1?'s':''}`);
+  const leader = (Array.isArray(r.top) && r.top[0]) ? r.top[0] : null;
+  if(leader) lines.push(`🥇 En tête : <b>${esc(leader.team||leader.name)}</b> (${leader.points||0} pts)`);
+
+  box.style.display='block';
+  box.style.cssText = 'display:block;background:linear-gradient(135deg,rgba(90,150,255,.12),transparent);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px';
+  box.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:var(--transfer);font-weight:700">📅 Ce qui s'est passé (24h)</div>
+      <button id="recapClose" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:0 2px">✕</button>
+    </div>
+    <ul style="margin:0;padding-left:2px;list-style:none;display:flex;flex-direction:column;gap:5px">
+      ${lines.map(l=>`<li style="font-size:.86rem;color:var(--chalk)">${l}</li>`).join('')}
+    </ul>`;
+  const cl = box.querySelector('#recapClose');
+  if(cl) cl.onclick = ()=>{ box.style.display='none'; try{localStorage.setItem(recapDayKey(),'1');}catch(e){} };
+  // Marque comme vu pour aujourd'hui (affichage auto une fois par jour).
+  if(!force){ try{localStorage.setItem(recapDayKey(),'1');}catch(e){} }
+}
+
 // Clé de throttle liée au titre + joueur : un nouvel hommage relance la fête.
 function honorCelebKey(h){
   return 'us_honor_celebrated_' + encodeURIComponent((h.title||'') + '|' + (h.player_id||''));
@@ -6987,6 +7038,7 @@ async function init(){
   loadMercatoWindow();
   renderAnnouncement();        // annonce de l'organisation (bandeau accueil)
   renderHommage();             // hommage / distinction (bandeau accueil)
+  renderDailyRecap();          // récap quotidien « ce qui s'est passé » (accueil)
   renderHome();
   renderMarket();
   renderAuctions();
