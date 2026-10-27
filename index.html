@@ -744,21 +744,40 @@
   .col.ended .col-head h3{color:var(--muted)}
   .col.transferred .col-head h3{color:var(--transfer)}
 
-  .acard{background:var(--pitch);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px;transition:.15s}
-  .acard:hover{border-color:var(--transfer)}
-  .acard .photo{height:140px;background:linear-gradient(135deg,#16294a,#0a1428);
+  .acard{background:linear-gradient(180deg,var(--pitch-2,#101d38),var(--pitch));border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+  .acard:hover{border-color:var(--transfer);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.28)}
+  /* Avec photo : grand visuel. Sans photo : bandeau compact (pas de grand vide). */
+  .acard .photo{height:132px;background:radial-gradient(120% 100% at 50% 0%,#1a2f52,#0a1428);
     display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+  .acard.nophoto .photo{height:66px}
   .acard .photo img{max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain}
   .acard .photo .ph-icon{font-size:2rem;opacity:.25}
+  /* Monogramme (initiales) quand il n'y a pas de photo */
+  .acard .mono{font-family:'Archivo',sans-serif;font-weight:900;font-size:1.5rem;letter-spacing:.5px;
+    width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+    color:#fff;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)}
+  .acard .mono.pos-gk{background:rgba(245,197,66,.16);border-color:rgba(245,197,66,.4);color:#ffe79a}
+  .acard .mono.pos-def{background:rgba(90,150,255,.16);border-color:rgba(90,150,255,.4);color:#bcd2ff}
+  .acard .mono.pos-mid{background:rgba(74,222,128,.14);border-color:rgba(74,222,128,.4);color:#bbf3cf}
+  .acard .mono.pos-fwd{background:rgba(224,87,74,.16);border-color:rgba(224,87,74,.4);color:#ffc2bb}
   .acard .tag{position:absolute;top:8px;left:8px;font-family:'Archivo Narrow';text-transform:uppercase;
-    letter-spacing:1px;font-size:.65rem;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(12,31,23,.85)}
+    letter-spacing:1px;font-size:.64rem;font-weight:700;padding:3px 9px;border-radius:6px;background:rgba(10,20,40,.82);backdrop-filter:blur(2px)}
   .tag.t-live{color:var(--live)} .tag.t-scheduled{color:var(--muted)}
   .tag.t-ended{color:var(--chalk)} .tag.t-transferred{color:var(--transfer)}
   .acard .info{padding:12px 14px}
-  .acard .title{font-family:'Archivo';font-weight:800;font-size:1rem;line-height:1.15;letter-spacing:-.3px}
+  .acard .title{font-family:'Archivo';font-weight:800;font-size:1.02rem;line-height:1.15;letter-spacing:-.3px}
   .acard .nick{color:var(--muted);font-size:.76rem;margin-top:2px}
-  .acard .line{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px}
-  .acard .price{font-family:'Space Mono';font-weight:700;color:var(--transfer);font-size:1.05rem}
+  /* Ligne méta : chip de poste coloré + club */
+  .acard .acard-meta{display:flex;align-items:center;gap:7px;margin-top:5px;flex-wrap:wrap}
+  .acard .pos-chip{font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:.8px;
+    font-size:.64rem;font-weight:700;padding:2px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1)}
+  .acard .pos-chip.pos-gk{background:rgba(245,197,66,.14);border-color:rgba(245,197,66,.35);color:#ffe79a}
+  .acard .pos-chip.pos-def{background:rgba(90,150,255,.14);border-color:rgba(90,150,255,.35);color:#bcd2ff}
+  .acard .pos-chip.pos-mid{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.35);color:#bbf3cf}
+  .acard .pos-chip.pos-fwd{background:rgba(224,87,74,.14);border-color:rgba(224,87,74,.35);color:#ffc2bb}
+  .acard .acard-club{font-size:.74rem;color:var(--muted)}
+  .acard .line{display:flex;justify-content:space-between;align-items:baseline;margin-top:11px}
+  .acard .price{font-family:'Space Mono';font-weight:700;color:var(--transfer);font-size:1.12rem}
   .acard .interest{font-family:'Archivo Narrow';font-size:.72rem;color:var(--muted);background:var(--pitch-2);padding:2px 7px;border-radius:10px}
   .acard .date{font-family:'Space Mono';color:var(--muted);font-size:.7rem}
   .acard .clock{font-family:'Space Mono';font-size:.78rem;margin-top:8px;font-weight:700}
@@ -3317,10 +3336,24 @@ function fmtClock(ms){
   const s=Math.floor(ms/1000), h=Math.floor(s/3600), m=Math.floor(s%3600/60), sec=s%60;
   return h>0?`${h}h ${String(m).padStart(2,'0')}m`:`${m}m ${String(sec).padStart(2,'0')}s`;
 }
+// Initiales d'un joueur pour le monogramme (ex. « Jules Koundé » → « JK »).
+function playerInitials(p){
+  const full = ((p.first_name? p.first_name+' ':'') + (p.name||'')).trim();
+  const parts = full.split(/\s+/).filter(Boolean);
+  if(!parts.length) return '?';
+  const a = parts[0][0] || '';
+  const b = parts.length>1 ? parts[parts.length-1][0] : '';
+  return (a+b).toUpperCase();
+}
 function acard(a, status){
   const tag={scheduled:'Programmée',live:'En direct',ended:'Terminée',transferred:'Transféré'}[status];
   const p = a.player || {};
-  const photo = p.photo_url ? `<img src="${p.photo_url}" alt="${p.name}">` : `<span class="ph-icon">🖼</span>`;
+  const posClass = 'pos-'+(p.position||'').toLowerCase();
+  // Avec photo : on la montre en grand. Sans photo : monogramme compact (pas de grand vide).
+  const hasPhoto = !!p.photo_url;
+  const photo = hasPhoto
+    ? `<img src="${p.photo_url}" alt="${p.name}">`
+    : `<span class="mono ${posClass}">${playerInitials(p)}</span>`;
   let bottom;
   if(status==='live'){
     const left = new Date(a.ends_at) - new Date();
@@ -3362,11 +3395,13 @@ function acard(a, status){
   }
   const urgentCls = (status==='live' && new Date(a.ends_at)-new Date() > 0 && new Date(a.ends_at)-new Date() < LAST_MIN_MS) ? ' urgent' : '';
   const flashBadge = a.flash ? `<span class="tag" style="background:var(--transfer);color:var(--pitch);font-weight:800;top:auto;bottom:8px;left:8px">⚡ ÉCLAIR</span>` : '';
-  return `<div class="acard${urgentCls}${a.flash?' flash':''}" data-acard="${a.id||''}">
+  const posChip = p.position ? `<span class="pos-chip ${posClass}">${POS[p.position]??p.position}</span>` : '';
+  const club = p.club ? `<span class="acard-club">${p.club}</span>` : '';
+  return `<div class="acard${urgentCls}${a.flash?' flash':''}${hasPhoto?'':' nophoto'}" data-acard="${a.id||''}">
     <div class="photo">${photo}<span class="tag t-${status}">${tag}</span>${flashBadge}</div>
     <div class="info">
       <div class="title" data-player="${p.id}" style="cursor:pointer" title="Voir la fiche & la courbe de valeur">${playerName(p)||'—'} <span style="color:var(--muted);font-size:.7rem">📈</span></div>
-      <div class="nick">${POS[p.position]??''}</div>
+      <div class="acard-meta">${posChip}${club}</div>
       ${bottom}
     </div></div>`;
 }
