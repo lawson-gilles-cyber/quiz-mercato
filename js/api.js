@@ -98,6 +98,10 @@ export async function cancelScheduledAuction(auctionId) {
 export async function adminCancelAuction(auctionId) {
   return sb.rpc('qm_admin_cancel_auction', { p_auction_id: auctionId });
 }
+// Corriger le prix de départ d'une enchère (si aucune offre encore).
+export async function adminFixAuctionPrice(auctionId, newPrice) {
+  return sb.rpc('qm_admin_fix_auction_price', { p_auction_id: auctionId, p_new_price: newPrice });
+}
 // Déclenche le démarrage des enchères programmées dues (filet de sécurité).
 export async function sweepDueAuctions() {
   const { data } = await sb.rpc('qm_sweep_due_auctions');
