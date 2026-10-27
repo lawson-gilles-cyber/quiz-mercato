@@ -735,8 +735,19 @@
 
   /* ---------- Salle des enchères : Kanban (façon Audrey) ---------- */
   .kanban{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;align-items:start}
-  .col{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-height:120px}
-  .col-head{display:flex;align-items:center;gap:8px;margin-bottom:14px}
+  .col{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:14px;min-height:120px;display:flex;flex-direction:column}
+  /* Zone des cartes : défile DANS la colonne (plafonnée), colonnes alignées en haut.
+     Fini le défilement de toute la page pour suivre « En direct ». */
+  #k-scheduled,#k-live,#k-ended,#k-transferred{
+    max-height:min(72vh,760px);overflow-y:auto;overflow-x:hidden;
+    padding-right:4px;margin-right:-4px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  #k-scheduled::-webkit-scrollbar,#k-live::-webkit-scrollbar,#k-ended::-webkit-scrollbar,#k-transferred::-webkit-scrollbar{width:7px}
+  #k-scheduled::-webkit-scrollbar-thumb,#k-live::-webkit-scrollbar-thumb,#k-ended::-webkit-scrollbar-thumb,#k-transferred::-webkit-scrollbar-thumb{background:var(--line);border-radius:10px}
+  .col-head{display:flex;align-items:center;gap:8px;margin-bottom:14px;flex:0 0 auto}
+  /* Indice visuel qu'il y a d'autres cartes plus bas (fondu en bas de colonne). */
+  .col{position:relative}
+  .col.has-more::after{content:'';position:absolute;left:1px;right:1px;bottom:1px;height:34px;pointer-events:none;
+    border-radius:0 0 var(--r) var(--r);background:linear-gradient(transparent,var(--pitch-2))}
   .col-head h3{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;font-size:.9rem;font-weight:700}
   .col-count{font-family:'Space Mono';font-size:.72rem;background:var(--line);color:var(--chalk);
     padding:2px 8px;border-radius:20px}
@@ -789,7 +800,12 @@
   @keyframes honorShine{0%{background-position:200% 0}100%{background-position:-200% 0}}
   .col-empty{color:var(--muted);font-size:.8rem;text-align:center;padding:20px 6px;font-style:italic}
   @media(max-width:900px){.kanban{grid-template-columns:1fr 1fr}}
-  @media(max-width:560px){.kanban{grid-template-columns:1fr}}
+  @media(max-width:560px){
+    .kanban{grid-template-columns:1fr}
+    /* Colonnes empilées : on laisse la page défiler normalement (pas de cap interne). */
+    #k-scheduled,#k-live,#k-ended,#k-transferred{max-height:none;overflow:visible;margin-right:0;padding-right:0}
+    .col.has-more::after{display:none}
+  }
 
   /* ---------- Classement ---------- */
   /* Garde anti-débordement horizontal sur mobile */
@@ -3531,8 +3547,9 @@ async function renderAuctions(){
     $('k-'+status).innerHTML = list.length? list.map(a=>acard(a,status)).join('')
       : `<div class="col-empty">Aucune</div>`;
   }
-  applyAucFilters();  // remplit la colonne "live" selon les filtres
+  applyAucFilters();  // remplit la colonne "live" selon les filtres (+ updateColsHasMore)
   updateSpeaker(open, transfers||[]);  // commentaire live du marché
+  updateColsHasMore();
 }
 
 // ---------- Fil speaker : commentaire live du marché ----------
@@ -3641,6 +3658,25 @@ function applyAucFilters(){
   document.querySelectorAll('#k-live [data-journal]').forEach(btn=>
     btn.onclick = ()=> showAuctionJournal(btn.dataset.journal));
   renderLastMinute();
+  updateColsHasMore();
+}
+
+// Affiche le fondu « d'autres cartes plus bas » sur les colonnes qui débordent.
+function updateColsHasMore(){
+  ['scheduled','live','ended','transferred'].forEach(s=>{
+    const body = $('k-'+s); if(!body) return;
+    const col = body.closest('.col'); if(!col) return;
+    const overflow = body.scrollHeight - body.clientHeight > 8;
+    const atBottom = body.scrollTop + body.clientHeight >= body.scrollHeight - 8;
+    col.classList.toggle('has-more', overflow && !atBottom);
+    if(!body.dataset.scrollBound){
+      body.dataset.scrollBound = '1';
+      body.addEventListener('scroll', ()=>{
+        const atB = body.scrollTop + body.clientHeight >= body.scrollHeight - 8;
+        col.classList.toggle('has-more', (body.scrollHeight - body.clientHeight > 8) && !atB);
+      });
+    }
+  });
 }
 
 // Journal des offres d'une enchère (modale)
