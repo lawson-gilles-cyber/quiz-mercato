@@ -3692,10 +3692,16 @@ async function renderCompareBox(box, playerId){
 
   const tNote = Number(target.rating||0);
   const posFR = {GK:'gardiens',DEF:'défenseurs',MID:'milieux',FWD:'attaquants'}[target.pos] || 'joueurs';
-  const row = (name, note, val, sal, isTarget)=>`
+  const formChip = (f)=>{
+    if(f==null) return `<span title="Pas encore noté" style="font-size:.72rem;color:var(--muted)">—</span>`;
+    const v = Number(f);
+    return `<span title="Forme : moyenne des 5 dernières notes" style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;padding:2px 5px;border-radius:6px;font-family:'Space Mono',monospace;font-weight:700;font-size:.74rem;color:#0a1428;background:${ratingColor(v)}">${v.toFixed(1)}</span>`;
+  };
+  const row = (name, note, val, sal, form, isTarget)=>`
     <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;${isTarget?'background:rgba(224,168,0,.12);border:1px solid var(--transfer)':''}">
       <span style="flex:0 0 42px;text-align:center;font-family:'Space Mono',monospace;font-weight:700;color:#0a1428;background:${qmNoteColor(note)};border-radius:6px;padding:3px 0">${note}</span>
       <span style="flex:1 1 auto;min-width:0;font-size:.84rem;${isTarget?'font-weight:700':''};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${name}${isTarget?' <span style="color:var(--transfer);font-size:.72rem">(visé)</span>':''}</span>
+      <span style="flex:0 0 auto">${formChip(form)}</span>
       <span style="flex:0 0 auto;font-size:.76rem;color:var(--muted);font-family:'Space Mono',monospace">${fmtMoney(val)}</span>
     </div>`;
 
@@ -3711,8 +3717,9 @@ async function renderCompareBox(box, playerId){
   }
 
   box.innerHTML = verdict +
-    row(target.name, tNote, target.value, target.salary, true) +
-    (mine.length ? `<div style="font-size:.74rem;color:var(--muted);margin:8px 0 4px">Tes ${posFR} (note · valeur) :</div>` + mine.map(p=>row(p.name, Number(p.rating), p.value, p.salary, false)).join('') : '');
+    row(target.name, tNote, target.value, target.salary, target.form, true) +
+    (mine.length ? `<div style="font-size:.74rem;color:var(--muted);margin:8px 0 4px">Tes ${posFR} — <b>note Mercato</b> · <b>forme</b> (5 dern.) · valeur :</div>` + mine.map(p=>row(p.name, Number(p.rating), p.value, p.salary, p.form, false)).join('') : '')+
+    `<p style="font-size:.7rem;color:var(--muted);margin-top:8px">Pastille de gauche = note Mercato (qualité). Pastille de droite = forme récente (moyenne des 5 dernières notes jouées).</p>`;
 }
 
 function ratingColor(r){
