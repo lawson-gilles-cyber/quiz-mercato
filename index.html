@@ -5682,6 +5682,14 @@ function showHonorPopup(h){
   if(hc) hc.onclick = ()=>{ close(); if(typeof showPlayerCard==='function') showPlayerCard(h.player_id); };
 }
 
+// Le mercato est-il fermé maintenant ? (fenêtre absente ou date de fermeture passée)
+function marketIsClosedNow(){
+  const w = MERCATO_WINDOW;
+  if(!w || !w.id) return true;
+  if(w.opens_at && new Date() < new Date(w.opens_at)) return true;   // pas encore ouvert
+  if(w.closes_at && new Date() >= new Date(w.closes_at)) return true; // déjà fermé
+  return false;
+}
 function renderMercatoBanner(){
   const box = $('mercatoBanner'); if(!box) return;
   const w = MERCATO_WINDOW;
@@ -5789,8 +5797,8 @@ async function renderHome(){
     HOME_NEXT_START = next.created_at || null;
     updateHomeClock();
   } else {
-    $('homeNextClock').textContent = '—';
-    $('homeNextLabel').textContent = 'aucune enchère en cours';
+    $('homeNextClock').textContent = marketIsClosedNow() ? '🔒' : '—';
+    $('homeNextLabel').textContent = marketIsClosedNow() ? 'mercato terminé' : 'aucune enchère en cours';
     HOME_NEXT_END = null; HOME_NEXT_START = null;
     setCountdownRing(0, false);
   }
@@ -6106,7 +6114,8 @@ function updateHomeClock(){
     return;
   }
   $('homeNextClock').textContent = fmtClock(left);
-  $('homeNextLabel').textContent = 'prochaine clôture';
+  // Mercato fermé mais des enchères tournent encore : on le précise.
+  $('homeNextLabel').textContent = marketIsClosedNow() ? 'dernières enchères en cours' : 'prochaine clôture';
   // Fraction restante : temps restant / durée totale de l'enchère.
   let frac;
   if(HOME_NEXT_START){
