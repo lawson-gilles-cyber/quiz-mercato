@@ -605,6 +605,14 @@ export async function marketIsOpen() {
 export async function adminSetMarketOpen(isoDate) {
   return sb.rpc('qm_admin_set_market_open', { p_opens_at: isoDate });
 }
+// Dates d'ouverture/fermeture du mercato (lecture + réglage admin).
+export async function marketDates() {
+  const { data } = await sb.rpc('qm_market_dates');
+  return (data && data[0]) ? data[0] : null;
+}
+export async function adminSetMarketDates(opensISO, closesISO) {
+  return sb.rpc('qm_admin_set_market_dates', { p_opens_at: opensISO ?? null, p_closes_at: closesISO ?? null });
+}
 export async function estimateTradeCommissions(tradeId) {
   const { data } = await sb.rpc('qm_estimate_trade_commissions', { p_trade_id: tradeId });
   return (data && data[0]) ? data[0] : { from_pays:0, to_pays:0, from_gets:0, to_gets:0 };

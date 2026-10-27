@@ -5716,7 +5716,11 @@ function renderMercatoBanner(){
     const left = closes-now;
     const D1 = 24*3600*1000, D3 = 3*D1;
     const cd = `<b data-mercato-countdown="${w.closes_at}">${fmtCountdown(left)}</b>`;
-    if(left < D1){
+    if(left <= 0){
+      // Date de fermeture dépassée : le mercato d'été est clos.
+      level = 'urgent';
+      msg = `🔒 <b>${w.label} terminé.</b> Les enchères et propositions sont fermées.`;
+    } else if(left < D1){
       level = 'urgent';
       msg = `🔥 <b>Dernières heures !</b> ${w.label} ferme dans ${cd}${squadNudge(0)}`;
     } else if(left < D3){

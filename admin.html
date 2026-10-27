@@ -383,6 +383,20 @@
     </div>
     <button class="btn-primary btn-sm" id="btnCreateWindow">Créer la fenêtre</button>
     <div id="winList" style="margin-top:16px"></div>
+
+    <!-- Dates du mercato : le VRAI verrou (ouverture/fermeture) -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>🗓️ Dates du mercato (verrou réel — bloque enchères & propositions)</label>
+      <p class="hint" style="margin:6px 0 10px">Ces dates déterminent concrètement si le marché est <b>ouvert ou fermé</b> pour tous. Laisse un champ vide = pas de borne de ce côté.</p>
+      <div id="marketDatesStatus" style="margin-bottom:10px"></div>
+      <div class="row c3" style="margin-bottom:8px;align-items:end">
+        <div><label>Ouverture</label><input id="md_opens" type="datetime-local" style="width:100%"></div>
+        <div><label>Fermeture</label><input id="md_closes" type="datetime-local" style="width:100%"></div>
+        <div style="display:flex;gap:8px"><button class="btn-primary" id="btnSetMarketDates" style="flex:1">Enregistrer</button></div>
+      </div>
+      <button class="btn-danger btn-sm" id="btnCloseMarketNow">⛔ Fermer le mercato maintenant</button>
+      <p class="hint" style="margin-top:8px">« Fermer maintenant » bloque immédiatement les nouvelles offres et propositions. Les enchères déjà en cours se terminent normalement à leur échéance.</p>
+    </div>
   </div>
 
   <!-- Journées & Compositions (Vague 3) -->
@@ -964,7 +978,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadAdminActions(); loadHealth();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadAdminActions(); loadHealth();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1782,6 +1796,49 @@ $('btnCreateWindow').onclick = async ()=>{
   if(r.error) return showMsg($('msg2'),r.error.message);
   showMsg($('msg2'),'Fenêtre créée.',true);
   $('winOpens').value=''; $('winCloses').value=''; loadWindows();
+};
+
+// ---------- Dates du mercato (verrou réel) ----------
+// Convertit une date ISO en valeur pour <input datetime-local> (heure locale).
+function toLocalInput(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  const pad = n => String(n).padStart(2,'0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+async function loadMarketDates(){
+  const box = $('marketDatesStatus'); if(!box) return;
+  let md = null;
+  try { md = await api.marketDates(); } catch(e){
+    box.innerHTML = '<p class="hint">Passe le script 137 (dates de mercato) pour activer cette section.</p>'; return;
+  }
+  if(!md){ box.innerHTML=''; return; }
+  const open = md.is_open;
+  const fmt = iso => iso ? new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+  box.innerHTML = `<div style="padding:8px 12px;border-radius:8px;background:${open?'rgba(74,222,128,.12)':'rgba(224,87,74,.12)'};border-left:3px solid ${open?'#4ade80':'var(--live,#e0574a)'};font-size:.86rem">
+    Marché actuellement <b style="color:${open?'#4ade80':'var(--live,#e0574a)'}">${open?'OUVERT':'FERMÉ'}</b>
+    · ouverture : <b>${fmt(md.opens_at)}</b> · fermeture : <b>${fmt(md.closes_at)}</b></div>`;
+  if($('md_opens'))  $('md_opens').value  = toLocalInput(md.opens_at);
+  if($('md_closes')) $('md_closes').value = toLocalInput(md.closes_at);
+}
+if($('btnSetMarketDates')) $('btnSetMarketDates').onclick = async ()=>{
+  const opens  = $('md_opens').value  ? new Date($('md_opens').value).toISOString()  : null;
+  const closes = $('md_closes').value ? new Date($('md_closes').value).toISOString() : null;
+  if(opens && closes && new Date(closes) <= new Date(opens)) return showMsg($('msg2'),'La fermeture doit être après l\'ouverture.');
+  const { error } = await api.adminSetMarketDates(opens, closes);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),'Dates du mercato enregistrées.',true);
+  loadMarketDates(); loadWindows();
+};
+if($('btnCloseMarketNow')) $('btnCloseMarketNow').onclick = async ()=>{
+  if(!confirm('Fermer le mercato MAINTENANT ?\n\nLes nouvelles offres et propositions seront bloquées immédiatement. Les enchères en cours se termineront normalement.')) return;
+  const nowISO = new Date().toISOString();
+  // Conserve l'ouverture courante, met la fermeture à maintenant.
+  let md = null; try { md = await api.marketDates(); } catch(e){}
+  const { error } = await api.adminSetMarketDates(md ? md.opens_at : null, nowISO);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),'Mercato fermé. Les nouvelles enchères sont bloquées.',true);
+  loadMarketDates(); loadWindows();
 };
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
