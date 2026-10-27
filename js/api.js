@@ -294,6 +294,10 @@ export async function adminManagerSquad(managerId) {
   return data ?? [];
 }
 // ---------- Profil public d'un manager ----------------------------
+export async function managerPublicCard(managerId) {
+  const { data } = await sb.rpc('qm_manager_public_card', { p_manager_id: managerId });
+  return (data && data[0]) ? data[0] : null;
+}
 export async function managerProfile(managerId) {
   const { data } = await sb.rpc('qm_manager_profile', { p_manager_id: managerId });
   return (data && data[0]) ? data[0] : null;

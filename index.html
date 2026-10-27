@@ -3936,7 +3936,10 @@ document.addEventListener('click', e=>{
   if(t){ e.stopPropagation(); showPlayerCard(t.dataset.player); return; }
   // Autres emplacements (recherche marché, comparateur…) : data-playercard
   const pc = e.target.closest('[data-playercard]');
-  if(pc){ e.stopPropagation(); showPlayerCard(pc.dataset.playercard); }
+  if(pc){ e.stopPropagation(); showPlayerCard(pc.dataset.playercard); return; }
+  // Nom de manager cliquable (chat, actu, transferts…) → ouvre son profil.
+  const mp = e.target.closest('[data-mgrprofile]');
+  if(mp){ e.stopPropagation(); if(typeof showManagerSquad==='function') showManagerSquad(mp.dataset.mgrprofile); }
 });
 
 // Câblage des filtres (une seule fois)
@@ -4045,6 +4048,8 @@ const FAQ_DATA = [
   ['Points, compo & classement', [
     ['Comment je gagne des points au classement ?',
      "Uniquement par les <b>performances réelles</b> de tes 11 titulaires. La note de chaque titulaire est pondérée par son temps de jeu (0-19 min → 0 %, 20-39 → 50 %, 40-59 → 75 %, 60 min et + → 100 %). La somme des 11 notes pondérées = tes points de la journée."],
+    ['Comment voir le profil d’un autre manager ?',
+     "Clique sur un <b>nom d’équipe dans le classement</b>, ou sur le <b>pseudo d’un manager dans le chat</b> : son profil s’ouvre (stats, palmarès, badges, bilan, historique, effectif, et le tête-à-tête avec toi). Depuis un profil, le bouton <b>« 🔗 Lien du profil »</b> copie ou partage un lien direct que tu peux envoyer sur WhatsApp."],
     ['Qui choisit les 11 titulaires ?',
      "Le <b>Coach</b>, depuis l’onglet Compo. Le bouton <b>« Suggérer mon 11 »</b> propose automatiquement une équipe équilibrée (1 gardien, défenseurs, milieux, attaquants) classée par note — à ajuster ensuite si tu veux."],
     ['Pourquoi je ne vois pas la note exacte d’un joueur ?',
@@ -4847,13 +4852,37 @@ async function renderVersus(){
     <p class="hint" style="font-size:.74rem;margin-top:8px">En doré : la meilleure des deux valeurs sur chaque ligne.</p>`;
 }
 let RANK_TEAMS = {};
+// Construit l'entrée profil à la volée si elle n'est pas déjà en cache
+// (ex. ouverture depuis le chat, l'actu, un transfert, ou un lien partagé).
+async function ensureRankEntry(mgrId){
+  if(RANK_TEAMS[mgrId]) return RANK_TEAMS[mgrId];
+  let card = null, squad = [];
+  try { [card, squad] = await Promise.all([
+    api.managerPublicCard(mgrId),
+    api.publicSquad(mgrId).catch(()=>[])
+  ]); } catch(e){}
+  if(!card) return null;
+  // Normalise l'effectif pour buildPitch (position, id).
+  const team = (squad||[]).map(p=>({
+    id: p.player_id, name: p.name, first_name: p.first_name,
+    position: p.pos, club: p.club, current_value: p.current_value
+  }));
+  const entry = {
+    name: card.team_name || card.display_name,
+    team,
+    colors: card.color_primary ? { primary: card.color_primary, secondary: card.color_secondary } : null
+  };
+  RANK_TEAMS[mgrId] = entry;
+  return entry;
+}
 async function showManagerSquad(mgrId){
-  const entry = RANK_TEAMS[mgrId];
-  if(!entry) return;
   const modal = $('squadModal');
-  $('squadModalTitle').textContent = `Profil de ${entry.name}`;
+  $('squadModalTitle').textContent = 'Profil';
   $('squadModalBody').innerHTML = `<div class="empty">Chargement…</div>`;
   modal.style.display='flex';
+  const entry = await ensureRankEntry(mgrId);
+  if(!entry){ $('squadModalBody').innerHTML = `<div class="empty">Profil indisponible.</div>`; return; }
+  $('squadModalTitle').textContent = `Profil de ${entry.name}`;
 
   // Synthèse + palmarès + badges + historique enrichi (en parallèle)
   const isMe = ME && mgrId === ME.id;
@@ -4969,9 +4998,10 @@ async function showManagerSquad(mgrId){
   const pitchHtml = entry.team && entry.team.length ? buildPitch(entry.team, true, entry.colors)
     : `<div class="empty">Effectif vide.</div>`;
 
-  // Bouton « Partager l'équipe » (image générée) + « Inviter » (lien parrainage, moi seulement)
+  // Bouton « Partager l'équipe » (image générée) + « Lien du profil » + « Inviter » (moi seulement)
   const shareHtml = prof ? `<div style="text-align:center;margin:4px 0 16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
       <button id="btnShareTeam" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">📲 Partager ${isMe?'mon équipe':'cette équipe'}</button>
+      <button id="btnShareProfile" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">🔗 Lien du profil</button>
       ${isMe ? `<button id="btnInvite" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">🔗 Inviter un manager</button>` : ''}
     </div>` : '';
 
@@ -4995,6 +5025,21 @@ async function showManagerSquad(mgrId){
   };
   const inviteBtn = $('btnInvite');
   if(inviteBtn) inviteBtn.onclick = ()=> shareInvite((ME && ME.display_name) || entry.name || '');
+  const shareProfBtn = $('btnShareProfile');
+  if(shareProfBtn) shareProfBtn.onclick = ()=> shareProfileLink(mgrId, entry.name);
+}
+
+// Partage un lien direct vers un profil (?profile=<id>).
+function shareProfileLink(mgrId, teamName){
+  const url = location.origin + location.pathname + '?profile=' + encodeURIComponent(mgrId);
+  const txt = `Le profil de ${teamName||'cette équipe'} sur Ultimate Squad`;
+  if(navigator.share){
+    navigator.share({ title:'Ultimate Squad', text:txt, url }).catch(()=>{});
+  } else if(navigator.clipboard){
+    navigator.clipboard.writeText(url).then(()=>toast('Lien du profil copié !','ok',3000)).catch(()=>toast(url,'info',6000));
+  } else {
+    toast(url,'info',6000);
+  }
 }
 
 // ---------- Mon activité (timeline personnelle) ----------
@@ -6199,7 +6244,10 @@ async function loadChatMessages(keepScroll){
   box.innerHTML = msgs.length ? msgs.map(m=>{
     const t = new Date(m.created_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
     const col = m.color || 'var(--transfer)';
-    const name = m.is_admin ? `${m.author} <span style="color:var(--transfer);font-size:.68rem">ADMIN</span>` : m.author;
+    const authorClickable = (m.manager_id && !m.is_admin)
+      ? `<span data-mgrprofile="${m.manager_id}" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">${m.author}</span>`
+      : m.author;
+    const name = m.is_admin ? `${m.author} <span style="color:var(--transfer);font-size:.68rem">ADMIN</span>` : authorClickable;
     const canDel = m.is_mine || isAdmin;
     const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
     // Épingler : réservé à l'admin.
@@ -7047,6 +7095,17 @@ async function init(){
   refreshDraftMenu();
   if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
   remCheck();                     // déclenche les rappels échus au démarrage
+  openProfileFromUrl();           // ?profile=<id> → ouvre directement le profil
+}
+
+// Ouvre le profil d'un manager si l'URL contient ?profile=<id>.
+function openProfileFromUrl(){
+  let pid = null;
+  try { pid = new URLSearchParams(location.search).get('profile'); } catch(e){}
+  if(!pid) return;
+  // Nettoie l'URL pour ne pas rouvrir à chaque rechargement.
+  try { const u = new URL(location.href); u.searchParams.delete('profile'); history.replaceState(null,'',u); } catch(e){}
+  setTimeout(()=>{ if(typeof showManagerSquad==='function') showManagerSquad(pid); }, 300);
 }
 
 // ---------- Temps réel : chat de ligue (pastille même hors de l'onglet) ----------
