@@ -399,6 +399,17 @@ export async function adminSetHonor({ active, title, playerId = null, untilISO =
     p_active: active, p_title: title ?? null, p_player_id: playerId, p_until: untilISO ?? null,
   });
 }
+// Message de remerciement / fin de phase de test — bannière + pop-up.
+export async function getThanks() {
+  const { data } = await sb.rpc('qm_thanks');
+  const row = (data && data[0]) ? data[0] : null;
+  return (row && row.title) ? row : null;
+}
+export async function adminSetThanks({ active, title, body = null, untilISO = null }) {
+  return sb.rpc('qm_admin_set_thanks', {
+    p_active: active, p_title: title ?? null, p_body: body ?? null, p_until: untilISO ?? null,
+  });
+}
 // Commentaires sur les transferts (chambrage)
 export async function postComment(transferId, body) {
   return sb.rpc('qm_post_comment', { p_transfer_id: transferId, p_body: body });

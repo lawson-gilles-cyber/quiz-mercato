@@ -1031,6 +1031,9 @@
   <!-- Hommage / distinction (ex. Ballon d'Or) -->
   <div id="hommageBanner" style="display:none"></div>
 
+  <!-- Message de remerciement / fin de phase de test -->
+  <div id="thanksBanner" style="display:none"></div>
+
   <!-- Récap quotidien « Ce qui s'est passé » (accueil) -->
   <div id="dailyRecap" style="display:none"></div>
 
@@ -5682,6 +5685,58 @@ function showHonorPopup(h){
   if(hc) hc.onclick = ()=>{ close(); if(typeof showPlayerCard==='function') showPlayerCard(h.player_id); };
 }
 
+// ---------- Message de remerciement / fin de phase de test ----------
+let THANKS_CACHE = null;
+async function renderThanks(){
+  const box = $('thanksBanner'); if(!box) return;
+  let t = null;
+  try { t = await api.getThanks(); } catch(e){ t = null; }
+  THANKS_CACHE = (t && t.title) ? t : null;
+  if(!t || !t.title){ box.style.display='none'; box.innerHTML=''; return; }
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const bodyHtml = t.body ? `<div style="font-size:.9rem;color:var(--chalk);line-height:1.5;margin-top:4px">${esc(t.body)}</div>` : '';
+  box.style.display='block';
+  box.style.cssText = 'display:block;position:relative;overflow:hidden;background:linear-gradient(135deg,rgba(245,197,66,.26),rgba(74,222,128,.08));border:1px solid var(--transfer);border-radius:12px;padding:16px 18px;margin-bottom:14px;text-align:center';
+  box.innerHTML = `
+    <div style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.2) 50%,transparent 70%);background-size:200% 100%;animation:honorShine 3.4s linear infinite;pointer-events:none"></div>
+    <div style="position:relative">
+      <div style="font-size:1.6rem;line-height:1">🎉</div>
+      <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.1rem;letter-spacing:.3px;margin-top:2px">${esc(t.title)}</div>
+      ${bodyHtml}
+    </div>`;
+  // Célébration (confettis + pop-up) une fois par 24h / appareil.
+  maybeCelebrateThanks(t);
+}
+function thanksCelebKey(t){ return 'us_thanks_celebrated_' + encodeURIComponent((t.title||'') + '|' + (t.until||'')); }
+function maybeCelebrateThanks(t){
+  if(CURRENT_VIEW && CURRENT_VIEW !== 'home') return;
+  let last = 0;
+  try { last = Number(localStorage.getItem(thanksCelebKey(t))||0); } catch(e){}
+  if(Date.now() - last < 24*3600*1000) return;
+  try { localStorage.setItem(thanksCelebKey(t), String(Date.now())); } catch(e){}
+  if(typeof launchConfetti==='function') launchConfetti(3000);
+  setTimeout(()=>showThanksPopup(t), 350);
+}
+function showThanksPopup(t){
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  if(!ov || !md) return;
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  md.innerHTML = `
+    <div style="text-align:center;padding:6px 2px">
+      <div style="font-size:3rem;line-height:1">🎉</div>
+      <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.3rem;margin-top:4px">${esc(t.title)}</div>
+      ${t.body ? `<p style="color:var(--chalk);font-size:.92rem;margin:12px 0 0;line-height:1.55">${esc(t.body)}</p>` : ''}
+    </div>
+    <div class="ux-actions" style="justify-content:center">
+      <button class="ux-ok" data-no style="background:var(--transfer);color:var(--pitch);border:none">Merci à vous 🙌</button>
+    </div>`;
+  ov.classList.add('show');
+  const close = ()=>ov.classList.remove('show');
+  md.querySelector('[data-no]').onclick = close;
+  ov.onclick = (e)=>{ if(e.target===ov) close(); };
+}
+
 // Le mercato est-il fermé maintenant ? (fenêtre absente ou date de fermeture passée)
 function marketIsClosedNow(){
   const w = MERCATO_WINDOW;
@@ -7244,6 +7299,7 @@ async function init(){
   loadMercatoWindow();
   renderAnnouncement();        // annonce de l'organisation (bandeau accueil)
   renderHommage();             // hommage / distinction (bandeau accueil)
+  renderThanks();              // message de remerciement / fin de test (accueil)
   renderDailyRecap();          // récap quotidien « ce qui s'est passé » (accueil)
   renderHome();
   renderMarket();

@@ -326,6 +326,23 @@
     </div>
   </div>
 
+  <!-- Message de remerciement / fin de phase de test -->
+  <h2>🎉 Message de remerciement</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:12px">Affiche un message chaleureux (ex. fin de la phase de test, remerciements) : une <b>bannière festive</b> en haut de l'accueil et une <b>pop-up avec confettis</b> à la première visite. Laisse la date vide pour un message permanent.</p>
+    <div id="thanksCurrent" style="display:none;margin-bottom:12px"></div>
+    <div class="row c2" style="margin-bottom:10px">
+      <div><label>Titre</label><input id="thanksTitle" type="text" maxlength="80" placeholder="ex. Merci d'avoir testé Ultimate Squad !" style="width:100%"></div>
+      <div><label>Expire le (optionnel)</label><input id="thanksUntil" type="datetime-local" style="width:100%"></div>
+    </div>
+    <label>Message (texte)</label>
+    <textarea id="thanksBody" rows="3" maxlength="500" style="width:100%" placeholder="ex. Merci à tous pour votre participation à cette phase de test ! Vos retours vont nous aider à améliorer le jeu. La vraie saison arrive bientôt…"></textarea>
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button class="btn-primary" id="btnThanksPublish">Afficher le message</button>
+      <button class="btn-ghost" id="btnThanksClear">Retirer le message</button>
+    </div>
+  </div>
+
   <!-- Journal des actions admin + annulation -->
   <h2>↩️ Journal des actions (annulation)</h2>
   <div class="card" style="margin-bottom:14px">
@@ -978,7 +995,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadAdminActions(); loadHealth();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -3301,6 +3318,45 @@ if($('btnHonorClear')) $('btnHonorClear').onclick = async ()=>{
   $('honorTitle').value=''; $('honorPlayerId').value=''; $('honorPlayerChosen').textContent=''; $('honorPlayerSearch').value='';
   if($('honorUntil')) $('honorUntil').value='';
   loadHonor();
+};
+
+// ---------- Message de remerciement (admin) ----------
+async function loadThanks(){
+  const box = $('thanksCurrent'); if(!box) return;
+  let t = null;
+  try { t = await api.getThanks(); } catch(e){
+    box.style.display='block';
+    box.innerHTML = '<p class="hint">Passe le script 138 (message de remerciement) pour activer cette section.</p>';
+    return;
+  }
+  if(!t || !t.title){ box.style.display='none'; box.innerHTML=''; return; }
+  const until = t.until ? new Date(t.until) : null;
+  const sub = until ? ` · jusqu'au ${until.toLocaleDateString('fr-FR')} à ${until.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}` : ' · permanent';
+  box.style.display='block';
+  box.innerHTML = `<div style="background:rgba(245,197,66,.1);border:1px solid var(--transfer,#e0a106);border-radius:8px;padding:10px 12px;font-size:.86rem">
+      🎉 <b>En ligne :</b> ${String(t.title).replace(/[<>]/g,'')}<span style="color:var(--muted)">${sub}</span></div>`;
+  if($('thanksTitle')) $('thanksTitle').value = t.title;
+  if($('thanksBody'))  $('thanksBody').value  = t.body || '';
+}
+if($('btnThanksPublish')) $('btnThanksPublish').onclick = async ()=>{
+  const title = ($('thanksTitle').value||'').trim();
+  if(!title) return showMsg($('msg')||$('msg2'),'Indique un titre.');
+  const body = ($('thanksBody').value||'').trim() || null;
+  const raw = $('thanksUntil').value;
+  const untilISO = raw ? new Date(raw).toISOString() : null;
+  if(raw && new Date(raw) <= new Date()) return showMsg($('msg')||$('msg2'),'La date de fin doit être dans le futur.');
+  const { error } = await api.adminSetThanks({ active:true, title, body, untilISO });
+  if(error) return showMsg($('msg')||$('msg2'), error.message);
+  showMsg($('msg')||$('msg2'),'Message de remerciement en ligne.',true);
+  loadThanks();
+};
+if($('btnThanksClear')) $('btnThanksClear').onclick = async ()=>{
+  if(!confirm('Retirer le message de remerciement ?')) return;
+  const { error } = await api.adminSetThanks({ active:false, title:null, body:null, untilISO:null });
+  if(error) return showMsg($('msg')||$('msg2'), error.message);
+  showMsg($('msg')||$('msg2'),'Message retiré.',true);
+  $('thanksTitle').value=''; $('thanksBody').value=''; if($('thanksUntil')) $('thanksUntil').value='';
+  loadThanks();
 };
 
 // ---------- Journal des actions admin + annulation ----------
