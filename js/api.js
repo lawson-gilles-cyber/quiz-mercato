@@ -89,7 +89,7 @@ export async function listScheduledAuctions() {
   return data ?? [];
 }
 export async function scheduleAuction(playerId, startsAtISO) {
-  return sb.rpc('qm_admin_schedule_auction', { p_player_id: playerId, p_starts_at: startsAtISO });
+  return sb.rpc('qm_admin_schedule_auction_logged', { p_player_id: playerId, p_starts_at: startsAtISO });
 }
 export async function cancelScheduledAuction(auctionId) {
   return sb.rpc('qm_admin_cancel_scheduled', { p_auction_id: auctionId });
@@ -430,18 +430,18 @@ export async function managerBadges(managerId) {
   return data ?? [];
 }
 export async function adminSetValue(id, value) {
-  return sb.rpc('qm_admin_set_value', { p_id: id, p_value: value });
+  return sb.rpc('qm_admin_set_value_logged', { p_id: id, p_value: value });
 }
 export async function adminBulkValues(data) {
   // data : [{name, value}, ...]
   return sb.rpc('qm_admin_bulk_values', { p_data: data });
 }
 export async function adminOpenAuction(playerId) {
-  return sb.rpc('qm_admin_open_auction', { p_player_id: playerId });
+  return sb.rpc('qm_admin_open_auction_logged', { p_player_id: playerId });
 }
 // Enchère « éclair » : durée courte choisie (heures).
 export async function adminOpenAuctionDuration(playerId, hours) {
-  return sb.rpc('qm_admin_open_auction_duration', { p_player_id: playerId, p_hours: hours });
+  return sb.rpc('qm_admin_open_auction_duration_logged', { p_player_id: playerId, p_hours: hours });
 }
 export async function adminSetPhase(phase) {
   return sb.rpc('qm_admin_set_phase', { p_phase: phase });
@@ -892,7 +892,7 @@ export async function adminAllBonuses() {
   return data ?? [];
 }
 export async function adminAwardQuiz(managerId, points) {
-  return sb.rpc('qm_admin_award_quiz', { p_manager_id: managerId, p_points: points });
+  return sb.rpc('qm_admin_award_quiz_logged', { p_manager_id: managerId, p_points: points });
 }
 export async function adminSetBonusSettings(fullDay, quizRate) {
   return sb.rpc('qm_admin_set_bonus_settings', { p_full_day: fullDay, p_quiz_rate: quizRate });
@@ -1221,7 +1221,15 @@ export async function adminCrownChampion() {
 
 // ---------- Outils admin : fonds / taxe / bonus dénicheur ---------
 export async function adminCreditBudget(managerId, amount, reason) {
-  return sb.rpc('qm_admin_credit_budget', { p_manager_id: managerId, p_amount: amount, p_reason: reason ?? null });
+  return sb.rpc('qm_admin_credit_budget_logged', { p_manager_id: managerId, p_amount: amount, p_reason: reason ?? null });
+}
+// Journal des actions admin + annulation (undo).
+export async function adminActionsRecent(limit = 50) {
+  const { data } = await sb.rpc('qm_admin_actions_recent', { p_limit: limit });
+  return data ?? [];
+}
+export async function adminUndo(actionId) {
+  return sb.rpc('qm_admin_undo', { p_action_id: actionId });
 }
 export async function adminExemptEntryTax(auctionId, managerId) {
   return sb.rpc('qm_admin_exempt_entry_tax', { p_auction_id: auctionId, p_manager_id: managerId });

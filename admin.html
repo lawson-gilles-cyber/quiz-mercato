@@ -326,6 +326,13 @@
     </div>
   </div>
 
+  <!-- Journal des actions admin + annulation -->
+  <h2>↩️ Journal des actions (annulation)</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Historique des actions admin réversibles (crédits, ouvertures d'enchères, corrections de valeur). Tu peux <b>annuler</b> une action tant qu'elle est réversible — pratique en cas de fausse manip.</p>
+    <div id="adminActionsList"><p class="hint">Chargement…</p></div>
+  </div>
+
   <!-- Tableau de bord financier -->
   <h2>💰 Tableau de bord financier</h2>
   <div id="financeGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px">
@@ -938,7 +945,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadHealth();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadAdminActions(); loadHealth();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1330,13 +1337,13 @@ function renderPlayerRows(){
     if(isNaN(v) || v<0){ showMsg($('msg2'),'Valeur invalide.'); return; }
     const { error } = await api.adminSetValue(inp.dataset.val, v);
     if(error){ showMsg($('msg2'), error.message); return; }
-    showMsg($('msg2'),'Valeur mise à jour.',true);
+    showMsg($('msg2'),'Valeur mise à jour.',true); loadAdminActions();
   });
 
   $('playerRows').querySelectorAll('[data-open]').forEach(b=>b.onclick = async ()=>{
     const { error } = await api.adminOpenAuction(b.dataset.open);
     if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Enchère ouverte (48 h).', true); loadPlayers();
+    showMsg($('msg2'), 'Enchère ouverte (48 h).', true); loadPlayers(); loadAdminActions();
   });
   // Enchère éclair : on demande une durée courte (heures), puis on ouvre.
   $('playerRows').querySelectorAll('[data-flash]').forEach(b=>b.onclick = async ()=>{
@@ -1347,7 +1354,7 @@ function renderPlayerRows(){
     if(isNaN(h) || h < 1 || h > 48) return showMsg($('msg2'),'Durée invalide : entre 1 et 48 heures.');
     const { error } = await api.adminOpenAuctionDuration(b.dataset.flash, h);
     if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), `Enchère éclair ouverte (${h} h).`, true); loadPlayers();
+    showMsg($('msg2'), `Enchère éclair ouverte (${h} h).`, true); loadPlayers(); loadAdminActions();
   });
   // Programmer une enchère : on demande une date/heure future, puis on planifie.
   $('playerRows').querySelectorAll('[data-sched]').forEach(b=>b.onclick = async ()=>{
@@ -1622,7 +1629,7 @@ $('btnCreditBudget').onclick = async ()=>{
   if(r.error) return showMsg($('msg2'), r.error.message);
   showMsg($('msg2'), `${m} M€ crédités.`, true);
   $('cb_amount').value=''; $('cb_reason').value='';
-  loadBonusTrace();
+  loadBonusTrace(); loadAdminActions();
 };
 
 $('btnExemptTax').onclick = async ()=>{
@@ -2656,7 +2663,7 @@ $('btnAwardQuiz').onclick = async () => {
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'), 'Points de quiz convertis en budget.', true);
   $('quiz_points').value='';
-  loadBonusTrace();
+  loadBonusTrace(); loadAdminActions();
 };
 async function loadBonusTrace(){
   const bonuses = await api.adminAllBonuses();
@@ -3026,6 +3033,8 @@ const ADMIN_FAQ = [
      "Onglet <b>Config → « Export »</b> : récupère les données de la saison (classement, transferts…). À faire <b>avant</b> toute remise à zéro si tu veux garder une trace."],
   ]],
   ['Fin de saison & dépannage', [
+    ['J’ai fait une fausse manip : comment l’annuler ?',
+     "Onglet avec le bloc <b>« ↩️ Journal des actions »</b> : il liste tes dernières actions réversibles (crédits budget/points, ouvertures d'enchères, corrections de valeur). Clique <b>« Annuler »</b> sur la ligne concernée — l'effet est inversé (re-débit, enchère annulée avec remboursement, valeur restaurée). Une enchère déjà clôturée ne peut pas être « dé-ouverte ». Nécessite le script <b>134</b>."],
     ['Comment remettre le jeu à zéro pour une nouvelle saison ?',
      "Onglet <b>Pilotage → « Saisons & archives »</b>, bouton <b>« Tout remettre à zéro »</b> (saisie de confirmation demandée). Ça archive la saison (classement + palmarès) puis repart à neuf : joueurs libres, budgets à 800 M€, points à 0. Les comptes et le catalogue sont conservés. <b>Action irréversible</b> — exporte avant."],
     ['Erreur « UPDATE requires a WHERE clause » au reset ?',
@@ -3172,6 +3181,44 @@ if($('btnHonorClear')) $('btnHonorClear').onclick = async ()=>{
   if($('honorUntil')) $('honorUntil').value='';
   loadHonor();
 };
+
+// ---------- Journal des actions admin + annulation ----------
+const ACTION_ICON = {credit_budget:'💶', award_quiz:'🎓', open_auction:'⚡', fix_value:'🔧'};
+async function loadAdminActions(){
+  const box = $('adminActionsList'); if(!box) return;
+  let actions = [];
+  try { actions = await api.adminActionsRecent(50); } catch(e){
+    box.innerHTML = '<p class="hint">Passe le script 134 (journal des actions) pour activer cette section.</p>'; return;
+  }
+  if(!actions.length){ box.innerHTML = '<p class="hint">Aucune action enregistrée pour le moment.</p>'; return; }
+  box.innerHTML = `<table style="width:100%;font-size:.85rem"><thead><tr><th>Quand</th><th>Action</th><th>Par</th><th></th></tr></thead><tbody>${
+    actions.map(a=>{
+      const d = new Date(a.created_at);
+      const when = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      const ic = ACTION_ICON[a.kind] || '•';
+      const btn = a.undone
+        ? `<span class="hint" style="color:var(--muted)">↩️ annulée</span>`
+        : (a.undoable ? `<button class="btn-ghost btn-sm" data-undo="${a.id}">Annuler</button>` : `<span class="hint" style="color:var(--muted)">—</span>`);
+      return `<tr${a.undone?' style="opacity:.55"':''}>
+        <td style="white-space:nowrap;color:var(--muted)">${when}</td>
+        <td>${ic} ${String(a.label).replace(/[<>]/g,'')}</td>
+        <td style="color:var(--muted)">${a.by_name||'—'}</td>
+        <td style="text-align:right">${btn}</td>
+      </tr>`;
+    }).join('')
+  }</tbody></table>`;
+  box.querySelectorAll('[data-undo]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Annuler cette action ? L\'effet sera inversé (remboursement, libération, valeur restaurée selon le cas).')) return;
+    b.disabled=true; const old=b.textContent; b.textContent='⏳…';
+    const { data, error } = await api.adminUndo(b.dataset.undo);
+    if(error){ b.disabled=false; b.textContent=old; return showMsg($('msg2'), error.message); }
+    showMsg($('msg2'), data || 'Action annulée.', true);
+    loadAdminActions();
+    if(typeof loadPlayers==='function') loadPlayers();
+    if(typeof loadAdminTools==='function') loadAdminTools();
+    if(typeof loadFinance==='function') loadFinance();
+  });
+}
 
 // ---------- PWA : enregistrement du service worker ----------
 if ('serviceWorker' in navigator) {
