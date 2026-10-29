@@ -1227,6 +1227,11 @@ export async function currentWindow() {
   const { data } = await sb.rpc('qm_current_window');
   return data ?? null;
 }
+// Prochaine fenêtre de mercato planifiée (pour le compte à rebours quand rien n'est ouvert).
+export async function nextWindow() {
+  const { data } = await sb.rpc('qm_next_window');
+  return data ?? null;
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];

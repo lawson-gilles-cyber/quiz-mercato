@@ -5657,6 +5657,7 @@ async function saveLineup(mdId){
 
 // ---------- Bandeau fenêtre de mercato (compte à rebours) ----------
 let MERCATO_WINDOW = null;      // la fenêtre active (ou null)
+let MERCATO_NEXT = null;        // la prochaine fenêtre planifiée (compte à rebours)
 function fmtCountdown(ms){
   if(ms<=0) return 'maintenant';
   const s=Math.floor(ms/1000), d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
@@ -5667,6 +5668,11 @@ function fmtCountdown(ms){
 async function loadMercatoWindow(){
   try { MERCATO_WINDOW = await api.currentWindow(); }
   catch(e){ MERCATO_WINDOW = null; }
+  // Si rien n'est ouvert, on cherche la prochaine fenêtre planifiée (rebours).
+  MERCATO_NEXT = null;
+  if(!MERCATO_WINDOW || !MERCATO_WINDOW.id){
+    try { MERCATO_NEXT = await api.nextWindow(); } catch(e){ MERCATO_NEXT = null; }
+  }
   renderMercatoBanner();
 }
 // Annonce de l'organisation : bandeau en haut de l'accueil, publié par l'admin.
@@ -5920,6 +5926,20 @@ function renderMercatoBanner(){
   const w = MERCATO_WINDOW;
   if(!w || !w.id){
     box.style.display='block';
+    // Y a-t-il une prochaine fenêtre planifiée ? -> compte à rebours.
+    const nx = MERCATO_NEXT;
+    if(nx && nx.opens_at){
+      const opensAt = new Date(nx.opens_at);
+      const left = opensAt - new Date();
+      if(left > 0){
+        const when = opensAt.toLocaleString('fr-FR',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'});
+        const label = nx.label || 'Prochain mercato';
+        box.style.cssText = 'display:block;background:rgba(245,197,66,.14);border:1px solid var(--transfer);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:.9rem;color:var(--chalk);text-align:center;line-height:1.55';
+        box.innerHTML = `⏳ <b>${label}</b> ouvre dans <b data-mercato-countdown="${nx.opens_at}" style="color:var(--transfer)">${fmtCountdown(left)}</b>`
+          + `<div style="font-size:.74rem;color:var(--muted);margin-top:3px">Le ${when} · les enchères et recrutements reprendront alors.</div>`;
+        return;
+      }
+    }
     box.style.cssText = 'display:block;background:rgba(224,87,74,.12);border:1px solid var(--live,#e0574a);border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:.88rem;color:var(--live,#e0574a);text-align:center';
     box.innerHTML = '🔒 Aucun mercato ouvert actuellement — les enchères et recrutements sont en pause.';
     return;
@@ -5986,7 +6006,7 @@ setInterval(()=>{
     if(left<=0){ loadMercatoWindow(); return; }
   }
   // Re-rendu du bandeau (léger, données en mémoire) pour les transitions de palier.
-  if(MERCATO_WINDOW) renderMercatoBanner();
+  if(MERCATO_WINDOW || MERCATO_NEXT) renderMercatoBanner();
 }, 60000);
 
 // ---------- Page d'accueil dynamique ----------
