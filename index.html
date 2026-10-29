@@ -4269,7 +4269,7 @@ const FAQ_DATA = [
     ['Pourquoi je ne vois pas la note exacte d’un joueur ?',
      "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
     ['Que signifient les flèches ▲▼ dans le classement ?',
-     "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
+     "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. Tant qu’il n’y a pas encore <b>deux journées clôturées</b> (il faut une journée de référence pour comparer), un simple <b>–</b> s’affiche : les flèches apparaîtront dès la <b>2ᵉ journée clôturée</b>. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
     ['Je peux transformer mon budget en points (ou l’inverse) ?',
      "Oui. En fin de mercato d’été : <b>budget → points</b> (10 M€ = 1 point, max 200 M€). Au mercato d’hiver : <b>points → budget</b> (1 point = 10 M€, max 200 points) — mais ces points quittent ton classement, c’est un pari."],
   ]],
@@ -5058,7 +5058,9 @@ async function renderRank(){
   // Indicateur d'évolution : ▲n (vert) / ▼n (rouge) / = (stable) / • (nouveau).
   const trendChip = (id)=>{
     const t = trendByMgr[id];
-    if(!t || t.prev == null) return '';   // pas encore d'historique comparable
+    // Pas encore 2 journées clôturées -> aucune tendance calculable. On montre
+    // un repère neutre « – » (plutôt qu'une colonne vide) avec explication.
+    if(!t || t.prev == null) return `<span title="L'évolution ▲▼ apparaîtra après la 2ᵉ journée clôturée (il faut une journée de référence pour comparer)." style="color:var(--muted);font-size:.72rem;margin-left:4px">–</span>`;
     if(t.trend > 0)  return `<span title="Monté de ${t.trend} place(s) depuis la dernière journée" style="color:#4ade80;font-size:.72rem;font-weight:700;margin-left:4px">▲${t.trend}</span>`;
     if(t.trend < 0)  return `<span title="Descendu de ${-t.trend} place(s)" style="color:var(--live,#e0574a);font-size:.72rem;font-weight:700;margin-left:4px">▼${-t.trend}</span>`;
     return `<span title="Position stable" style="color:var(--muted);font-size:.72rem;margin-left:4px">=</span>`;
