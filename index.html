@@ -5660,10 +5660,13 @@ let MERCATO_WINDOW = null;      // la fenêtre active (ou null)
 let MERCATO_NEXT = null;        // la prochaine fenêtre planifiée (compte à rebours)
 function fmtCountdown(ms){
   if(ms<=0) return 'maintenant';
-  const s=Math.floor(ms/1000), d=Math.floor(s/86400), h=Math.floor(s%86400/3600), m=Math.floor(s%3600/60);
+  const s=Math.floor(ms/1000), d=Math.floor(s/86400), h=Math.floor(s%86400/3600),
+        m=Math.floor(s%3600/60), sec=s%60;
   if(d>0) return `${d}j ${h}h`;
   if(h>0) return `${h}h ${String(m).padStart(2,'0')}m`;
-  return `${m}m`;
+  // Dernière heure : on descend jusqu'aux secondes (plus vivant à l'approche).
+  if(m>0) return `${m}m ${String(sec).padStart(2,'0')}s`;
+  return `${sec}s`;
 }
 async function loadMercatoWindow(){
   try { MERCATO_WINDOW = await api.currentWindow(); }
@@ -5995,19 +5998,21 @@ function renderMercatoBanner(){
   box.style.cssText = `display:block;background:${palette[0]};border:1px solid ${palette[1]};border-radius:10px;padding:11px 16px;margin-bottom:18px;font-size:.88rem;color:${palette[2]};text-align:center;line-height:1.5`;
   box.innerHTML = msg;
 }
-// Rafraîchit le compte à rebours du bandeau chaque minute (texte seul, pas de requête).
-// On re-rend le bandeau entier régulièrement pour que les paliers (J-3, J-1,
-// dernières heures) et le message s'adaptent avec le temps.
+// Rafraîchit le compte à rebours du bandeau CHAQUE SECONDE (texte seul, pas de
+// requête) : dans la dernière heure, fmtCountdown descend jusqu'aux secondes.
+// Le bandeau entier n'est re-rendu qu'une fois par minute, pour les paliers
+// (J-3, J-1, dernières heures) et le changement de message, afin de rester léger.
+let _mercatoTick = 0;
 setInterval(()=>{
   const el = document.querySelector('[data-mercato-countdown]');
   if(el){
     const left = new Date(el.dataset.mercatoCountdown) - new Date();
     el.textContent = fmtCountdown(left);
-    if(left<=0){ loadMercatoWindow(); return; }
+    if(left<=0){ loadMercatoWindow(); _mercatoTick=0; return; }
   }
-  // Re-rendu du bandeau (léger, données en mémoire) pour les transitions de palier.
-  if(MERCATO_WINDOW || MERCATO_NEXT) renderMercatoBanner();
-}, 60000);
+  // Re-rendu complet toutes les 60 s seulement (transitions de palier/message).
+  if((++_mercatoTick % 60 === 0) && (MERCATO_WINDOW || MERCATO_NEXT)) renderMercatoBanner();
+}, 1000);
 
 // ---------- Page d'accueil dynamique ----------
 async function renderHome(){
