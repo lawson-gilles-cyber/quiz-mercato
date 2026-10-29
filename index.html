@@ -1633,7 +1633,7 @@
       </div>
       <div class="rule-block">
         <h3 class="rule-h">9. Les échanges</h3>
-        <p class="rule-p">Tu peux troquer des joueurs (± du cash) avec un autre manager. L'échange doit respecter toutes les règles d'effectif <b>et la masse salariale</b> des deux côtés. L'autre manager accepte ou refuse.</p>
+        <p class="rule-p">Tu peux troquer des joueurs (± du cash) avec un autre manager. L'échange doit respecter toutes les règles d'effectif <b>et la masse salariale</b> des deux côtés. L'autre manager accepte ou refuse. <b>Seul le Manager</b> propose et accepte un échange, une offre en vitrine ou un prêt — le Coach ne peut engager l'équipe sur aucun de ces mouvements.</p>
       </div>
       <div class="rule-block">
         <h3 class="rule-h">10. Libérer un joueur</h3>
@@ -1647,8 +1647,8 @@
       <div class="rule-block">
         <h3 class="rule-h">11. Le duo Manager–Coach</h3>
         <ul class="rule-ul">
-          <li>Le <b>Manager</b> gère le mercato : enchères, recrutement direct, échanges, libérations.</li>
-          <li>Le <b>Coach</b> aligne les <b>11 titulaires</b> chaque journée, avant la date limite (onglet Compo).</li>
+          <li>Le <b>Manager</b> engage l'équipe sur <b>tout le marché</b> : enchères, recrutement direct, <b>échanges, offres en vitrine, prêts</b> et libérations. Il est le seul à pouvoir <b>proposer ET accepter</b> ces mouvements.</li>
+          <li>Le <b>Coach</b> aligne les <b>11 titulaires</b> chaque journée, avant la date limite (onglet Compo). Il peut <b>consulter</b> le marché et les mouvements, mais ne dépense ni n'engage jamais l'effectif.</li>
           <li>Si le Coach n'aligne pas à temps, la <b>composition de la journée précédente est reconduite</b> automatiquement.</li>
         </ul>
       </div>
@@ -4189,7 +4189,9 @@ const FAQ_DATA = [
     ['Comment je commence à jouer ?',
      "Crée ton compte (Connexion → S’inscrire), choisis un pseudo et le nom de ton équipe. Tu démarres avec un <b>budget transfert de 800 M€</b>. Pendant le mercato, tu recrutes tes joueurs aux enchères pour constituer un effectif de <b>21 joueurs</b>."],
     ['Quelle est la différence entre le Manager et le Coach ?',
-     "Chaque équipe est un duo. Le <b>Manager</b> gère l’argent et recrute aux enchères ; le <b>Coach</b> aligne chaque semaine les <b>11 titulaires</b> qui rapportent les points. Les deux partagent la <b>même équipe et le même budget</b> : seul le Manager enchérit, le Coach ne dépense pas."],
+     "Chaque équipe est un duo. Le <b>Manager</b> gère l’argent et engage l’équipe sur tout le marché (enchères, recrutement, échanges, offres, prêts, libérations) ; le <b>Coach</b> aligne chaque semaine les <b>11 titulaires</b> qui rapportent les points. Les deux partagent la <b>même équipe et le même budget</b> : seul le Manager dépense et engage l’effectif, le Coach ne fait qu’aligner."],
+    ['Le coach peut-il proposer un échange ou un prêt ?',
+     "Non. Les <b>échanges</b>, les <b>offres en vitrine</b> et les <b>prêts</b> engagent l’effectif : ils sont réservés au <b>Manager</b>, qui est le seul à pouvoir les <b>proposer ET accepter</b>. Le Coach peut consulter le marché et les mouvements, mais s’il tente une de ces actions, elle est bloquée (le jeu le lui signale)."],
     ['Le coach et le manager ont-ils chacun 800 M€ ?',
      "Non : le duo partage <b>un seul budget de 800 M€</b>, pas un chacun. C’est le <b>Manager</b> qui détient l’argent et qui enchérit ; le <b>Coach</b> ne fait qu’aligner la composition (titulaires et réservistes) et ne peut pas dépenser. Attention : tant que le compte Coach n’est pas <b>relié à son équipe par l’organisateur</b>, il est traité comme une équipe séparée avec son propre budget — d’où l’importance de l’association."],
     ['Le coach doit-il créer son propre compte ?',
