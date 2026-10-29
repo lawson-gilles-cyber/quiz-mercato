@@ -12,7 +12,6 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-
 // ---------- Formatage argent (bigint euros → "180,0 M€") -------------
 export function fmtMoney(euros) {
   const v = Number(euros);
@@ -311,6 +310,11 @@ export async function sendSmartReminders() {
 // Réputation du dénicheur : score + classement des scouts.
 export async function scoutReputation() {
   const { data } = await sb.rpc('qm_scout_reputation');
+  return data ?? [];
+}
+// Trajectoire de saison : mon rang à la fin de chaque journée clôturée.
+export async function myRankHistory() {
+  const { data } = await sb.rpc('qm_my_rank_history');
   return data ?? [];
 }
 // Classement avec évolution ▲▼ depuis la dernière journée clôturée.

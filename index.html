@@ -6747,10 +6747,11 @@ async function renderMyStats(){
   if(gate) gate.style.display='none';
   body.innerHTML = '<div class="empty">Calcul de tes statistiques…</div>';
 
-  let teamId=null, mds=[], best=null;
+  let teamId=null, mds=[], best=null, rankHist=[];
   try { teamId = await api.myTeamId(); } catch(e){}
   try { mds = await api.listMatchdays(); } catch(e){}
   try { best = await api.managerBestDeal(teamId||ME.id); } catch(e){}
+  try { rankHist = await api.myRankHistory(); } catch(e){}
 
   // Journées clôturées (avec résultat), triées par numéro
   const closed = (mds||[]).filter(m=>m.status==='closed').sort((a,b)=> (a.number||0)-(b.number||0));
@@ -6792,6 +6793,43 @@ async function renderMyStats(){
       : '<div class="ms-empty">Il faut au moins 2 journées clôturées pour tracer la courbe.</div>'}
   </div>`;
 
+  // Trajectoire de classement (évolution du rang dans le temps)
+  let trajectory = '';
+  if(rankHist && rankHist.length>=2){
+    const nb = Number(rankHist[rankHist.length-1].total_managers)||rankHist.length;
+    const bestRank = Math.min(...rankHist.map(r=>Number(r.rank)));
+    const worstRank = Math.max(...rankHist.map(r=>Number(r.rank)));
+    const firstRank = Number(rankHist[0].rank), lastRank = Number(rankHist[rankHist.length-1].rank);
+    const delta = firstRank - lastRank;  // positif = progression (monté)
+    // SVG rang inversé : rang 1 en haut.
+    const W=280, H=70, pad=6;
+    const xs = (i)=> pad + i*( (W-2*pad)/Math.max(1,rankHist.length-1) );
+    const ys = (rk)=> pad + ( (rk-1)/Math.max(1,nb-1) ) * (H-2*pad);  // rang 1 → haut
+    const pts = rankHist.map((r,i)=>`${xs(i).toFixed(1)},${ys(Number(r.rank)).toFixed(1)}`).join(' ');
+    const dots = rankHist.map((r,i)=>`<circle cx="${xs(i).toFixed(1)}" cy="${ys(Number(r.rank)).toFixed(1)}" r="2.5" fill="var(--transfer)"/>`).join('');
+    const trend = delta>0 ? `<span style="color:#4ade80">▲ +${delta} place${delta>1?'s':''}</span>`
+                 : delta<0 ? `<span style="color:var(--live,#e0574a)">▼ ${delta} place${delta<-1?'s':''}</span>`
+                 : `<span style="color:var(--muted)">= stable</span>`;
+    trajectory = `<div class="ms-block">
+      <div class="ms-h">🧭 Ta trajectoire de classement</div>
+      <div style="background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:12px">
+        <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="display:block">
+          <polyline points="${pts}" fill="none" stroke="var(--transfer)" stroke-width="2" stroke-linejoin="round"/>
+          ${dots}
+        </svg>
+        <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--muted);margin-top:4px">
+          <span>${rankHist[0].md_label||('J'+rankHist[0].md_number)}</span>
+          <span>${rankHist[rankHist.length-1].md_label||('J'+rankHist[rankHist.length-1].md_number)}</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;justify-content:center;font-size:.82rem;margin-top:10px">
+        <span>Rang actuel : <b style="color:var(--transfer)">${lastRank}${nb?` / ${nb}`:''}</b></span>
+        <span>Meilleur : <b>${bestRank}ᵉ</b></span>
+        <span>Évolution : <b>${trend}</b></span>
+      </div>
+    </div>`;
+  }
+
   // Top contributeurs de l'effectif
   const top = `<div class="ms-block">
     <div class="ms-h">⭐ Tes meilleurs joueurs (saison)</div>
@@ -6807,7 +6845,7 @@ async function renderMyStats(){
       <b style="color:${Number(best.gain)>=0?'#4ade80':'var(--live,#e0574a)'}">(${Number(best.gain)>=0?'+':''}${fmtMoney(best.gain)})</b></div>
   </div>` : '';
 
-  body.innerHTML = kpis + curve + top + deal +
+  body.innerHTML = kpis + curve + trajectory + top + deal +
     `<p style="text-align:center;color:var(--muted);font-size:.76rem;margin-top:8px">Statistiques calculées sur les journées clôturées.</p>`;
 
   renderBilan(teamId||ME.id);
