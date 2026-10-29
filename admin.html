@@ -887,9 +887,16 @@
         <div class="hint">À corriger</div>
       </div>
     </div>
+    <div id="propBatchBar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card2,#101d38);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+      <span id="propSelCount" style="font-weight:700">0 sélectionné(s)</span>
+      <button class="btn-primary btn-sm" id="btnBatchApprove">✅ Valider la sélection</button>
+      <button class="btn-primary btn-sm" id="btnBatchPublish">🚀 Publier la sélection</button>
+      <span class="hint" style="font-size:.78rem">Les propositions « propres » (sans alerte) peuvent être traitées en lot.</span>
+    </div>
+    <p class="hint" style="margin-bottom:8px;font-size:.78rem">🟢 propre · ⚠️ à vérifier (doublon, championnat « Autre », valeur suspecte). Les propositions à problème sont remontées en tête.</p>
     <table>
-      <thead><tr><th>Proposé par</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th>Statut</th><th>Actions</th></tr></thead>
-      <tbody id="proposalRows"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr></tbody>
+      <thead><tr><th style="width:28px"><input type="checkbox" id="propSelAll" title="Tout sélectionner (propres)"></th><th>Proposé par</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th>Signaux</th><th>Statut</th><th>Actions</th></tr></thead>
+      <tbody id="proposalRows"><tr><td colspan="8" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr></tbody>
     </table>
   </div>
 
@@ -2896,15 +2903,39 @@ async function loadProposals(){
   const props = await api.adminProposals();
   const tbody = $('proposalRows');
   if(!props.length){
-    tbody.innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr>';
+    if($('propBatchBar')) $('propBatchBar').style.display='none';
     return;
   }
-  tbody.innerHTML = props.map(p=>{
+  // --- Analyse automatique : calcule les signaux par proposition ---
+  const analyze = p => {
+    const flags = [];
+    if(p.dup_count>0) flags.push({k:'dup', txt:`${p.dup_count} doublon(s) potentiel(s)`, ic:'⚠'});
+    if(p.champ_other) flags.push({k:'champ', txt:'Championnat « Autre » / vide (règle des 6)', ic:'🏷️'});
+    // Valeur suspecte vs repère (fourchette élargie).
+    if(p.value && p.value_min && p.value_max){
+      if(p.value < Number(p.value_min)*0.4 || p.value > Number(p.value_max)*2.5)
+        flags.push({k:'val', txt:`Valeur suspecte (repère ≈ ${fmtM(p.value_typical)})`, ic:'💰'});
+    }
+    return flags;
+  };
+  // Tri : les propositions À PROBLÈME d'abord (plus de flags = plus haut), puis anciennes.
+  const enriched = props.map(p=>({ p, flags: analyze(p) }))
+    .sort((a,b)=> b.flags.length - a.flags.length || (new Date(a.p.created_at)-new Date(b.p.created_at)));
+
+  tbody.innerHTML = enriched.map(({p,flags})=>{
     const st = PROP_STATUS[p.status] || {txt:p.status, cls:'s-closed'};
-    const dup = p.dup_count>0 ? ` <span class="status s-closed" title="Doublons potentiels">⚠ ${p.dup_count} doublon(s)</span>` : '';
     const own = p.is_own ? ' <span class="hint">(ta proposition)</span>' : '';
     const reason = p.decision_reason ? `<div class="hint" style="margin-top:4px">Motif : ${p.decision_reason}</div>` : '';
-    // Actions selon le statut
+    const clean = flags.length===0;
+    // Case à cocher : seulement pour les propositions propres et pas les miennes.
+    const selectable = clean && !p.is_own && (p.status==='pending'||p.status==='needs_changes'||p.status==='approved');
+    const check = selectable
+      ? `<input type="checkbox" class="prop-check" data-pid="${p.id}" data-pstatus="${p.status}">`
+      : '';
+    const signals = clean
+      ? '<span style="color:#4ade80" title="Aucune alerte">🟢 propre</span>'
+      : flags.map(f=>`<div style="color:var(--transfer);font-size:.76rem" title="${f.txt}">${f.ic} ${f.txt}</div>`).join('');
     let actions = '';
     if(p.status==='pending' || p.status==='needs_changes'){
       actions = `
@@ -2916,15 +2947,53 @@ async function loadProposals(){
         <button class="btn-primary btn-sm" data-publish="${p.id}" ${p.is_own?'disabled title="Impossible sur ta propre proposition"':''}>Publier (enchère)</button>
         <button class="btn-danger" data-reject="${p.id}">Refuser</button>`;
     }
-    return `<tr>
+    return `<tr${clean?'':' style="background:rgba(245,197,66,.05)"'}>
+      <td style="text-align:center">${check}</td>
       <td><b>${p.proposer_name}</b>${own}</td>
-      <td>${p.player_name}${dup}${reason}</td>
+      <td>${p.player_name}${reason}</td>
       <td>${p.club ?? '—'}${p.championship?' · '+p.championship:''}</td>
       <td class="val">${p.value?fmtM(p.value):'—'}</td>
+      <td>${signals}</td>
       <td><span class="status ${st.cls}">${st.txt}</span></td>
       <td><div class="actions">${actions}</div></td>
     </tr>`;
   }).join('');
+
+  // --- Sélection + actions groupées ---
+  function updatePropSelection(){
+    const checks = [...tbody.querySelectorAll('.prop-check:checked')];
+    const bar = $('propBatchBar');
+    if($('propSelCount')) $('propSelCount').textContent = `${checks.length} sélectionné(s)`;
+    if(bar) bar.style.display = checks.length ? 'flex' : 'none';
+    // Publier possible seulement si toute la sélection est « approved ».
+    const allApproved = checks.length>0 && checks.every(c=>c.dataset.pstatus==='approved');
+    const allPending  = checks.length>0 && checks.every(c=>c.dataset.pstatus!=='approved');
+    if($('btnBatchApprove')) $('btnBatchApprove').style.display = allPending  ? '' : 'none';
+    if($('btnBatchPublish')) $('btnBatchPublish').style.display = allApproved ? '' : 'none';
+  }
+  tbody.querySelectorAll('.prop-check').forEach(c=>c.onchange=updatePropSelection);
+  if($('propSelAll')) $('propSelAll').onclick = e=>{
+    tbody.querySelectorAll('.prop-check').forEach(c=>{ c.checked = e.target.checked; });
+    updatePropSelection();
+  };
+  if($('btnBatchApprove')) $('btnBatchApprove').onclick = async ()=>{
+    const ids = [...tbody.querySelectorAll('.prop-check:checked')].map(c=>c.dataset.pid);
+    if(!ids.length) return;
+    if(!confirm(`Valider ${ids.length} proposition(s) propre(s) d'un coup ?`)) return;
+    let ok=0, ko=0;
+    for(const id of ids){ const { error } = await api.adminApproveProposal(id); if(error) ko++; else ok++; }
+    toast(`${ok} validée(s)${ko?`, ${ko} en échec`:''}.`, ko?'err':'ok', 4000);
+    loadProposals();
+  };
+  if($('btnBatchPublish')) $('btnBatchPublish').onclick = async ()=>{
+    const ids = [...tbody.querySelectorAll('.prop-check:checked')].map(c=>c.dataset.pid);
+    if(!ids.length) return;
+    if(!confirm(`Publier ${ids.length} joueur(s) aux enchères d'un coup ?`)) return;
+    let ok=0, ko=0;
+    for(const id of ids){ const { error } = await api.adminPublishProposal(id); if(error) ko++; else ok++; }
+    toast(`${ok} publié(s)${ko?`, ${ko} en échec`:''}.`, ko?'err':'ok', 4000);
+    loadProposals(); loadPlayers();
+  };
 
   tbody.querySelectorAll('[data-approve]').forEach(b=>b.onclick=async()=>{
     const { error } = await api.adminApproveProposal(b.dataset.approve);
@@ -3131,6 +3200,8 @@ const ADMIN_FAQ = [
      "C'était un défaut d'anti-doublon : la casse et le découpage prénom/nom pouvaient créer deux fiches du même joueur, donc deux enchères possibles. Corrigé par le script <b>123_verrou_doublon_casse.sql</b> : la détection se fait désormais sur le <b>nom complet + club</b> normalisés (sans casse ni accents), un <b>verrou en base</b> empêche toute recréation, et les doublons déjà présents sont fusionnés (fiche la plus ancienne ou possédée conservée). Passe aussi <b>122_anti_double_enchere.sql</b> pour purger les enchères fantômes restantes."],
     ['Comment valider un joueur proposé par un manager ?',
      "Onglet <b>Marché → « Validation du marché »</b>. Le parcours est : le manager <b>déniche</b> → tu <b>valides</b> (tu reconnais le joueur) → tu <b>publies</b> (mise aux enchères). Tu ne peux pas valider ta propre proposition."],
+    ['Comment aller plus vite quand il y a beaucoup de propositions ?',
+     "La file de validation <b>trie automatiquement</b> : les propositions à problème (⚠️ doublon potentiel, championnat « Autre », valeur suspecte) remontent <b>en tête</b>, les propositions <b>🟢 propres</b> en dessous. Tu peux <b>cocher plusieurs propositions propres</b> et les <b>valider / publier en lot</b> via la barre d'actions groupées. Les propositions signalées restent à traiter une par une (à toi de juger). Nécessite les scripts <b>139</b> et <b>140</b>."],
     ['Un joueur a « Autre » comme championnat, c’est grave ?',
      "Oui, à corriger : la règle des 6 par championnat et certains bonus ne fonctionnent pas sur « Autre ». À l'import comme à la validation, saisis le <b>vrai championnat</b>. L'aperçu d'import signale les lignes « Autre » en orange."],
     ['À quoi sert la double approbation des propositions ?',
