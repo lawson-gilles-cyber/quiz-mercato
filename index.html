@@ -963,6 +963,7 @@
         <button data-v="pronos">🎲 Pronos</button>
         <button data-v="achievements">🏅 Succès</button>
         <button data-v="mystats">📊 Mes stats</button>
+        <button data-v="scouts">🏅 Dénicheurs</button>
         <button data-v="alerts">🔔 Mes alertes</button>
         <button data-v="gazette">📰 Journal</button>
         <button data-v="calendar">📅 Calendrier</button>
@@ -1743,6 +1744,14 @@
   </section>
 
   <!-- MES ALERTES (watchlist enrichie) -->
+  <!-- MEILLEURS DÉNICHEURS (réputation scout) -->
+  <section class="view" id="scouts">
+    <div class="eyebrow">Qui déniche le mieux · réputation des scouts</div>
+    <h1>Les <em>dénicheurs</em></h1>
+    <p style="color:var(--muted);max-width:660px;margin-bottom:18px">Le score de dénicheur récompense la <b>qualité</b> de tes propositions : taux de validation, volume publié, joueurs convoités par les autres, et justesse de tes valeurs. Propose les bons joueurs, au bon prix !</p>
+    <div id="scoutsBody"></div>
+  </section>
+
   <section class="view" id="alerts">
     <div class="eyebrow">Notifications ciblées · ne rate plus une bonne affaire</div>
     <h1>Mes <em>alertes</em></h1>
@@ -2104,7 +2113,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','alerts','gazette','calendar','draft','rules','faq','records'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -2122,7 +2131,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -4161,6 +4170,8 @@ const FAQ_DATA = [
      "En remplissant le <b>poste</b> et le <b>championnat</b>, le formulaire t’affiche une <b>fourchette de valeur conseillée</b> (💡), calculée d’après les joueurs déjà en base ou un barème poste + niveau de championnat. Si ta saisie s’en écarte beaucoup, un avertissement s’affiche — à toi de vérifier. C’est une aide, pas une obligation : l’organisateur reste juge à la validation."],
     ['Qu’est-ce que je gagne à dénicher un joueur ?',
      "Si l’organisateur publie ton joueur et qu’un <b>autre</b> manager le remporte, tu touches le <b>bonus dénicheur : 10 % du prix final</b> (plafonné à 20 M€, max 2 bonus par jour). Si tu le gagnes toi-même, pas de bonus."],
+    ['C’est quoi le score de dénicheur ?',
+     "Une note sur 100 qui récompense la <b>qualité de tes propositions</b>, visible dans <b>Plus ⋮ → « 🏅 Dénicheurs »</b>. Elle combine : ton <b>taux de validation</b> (propositions acceptées), ton <b>volume publié</b>, le nombre de tes joueurs <b>convoités par d’autres</b>, et la <b>justesse de tes valeurs</b> (ta valeur proposée comparée au prix final aux enchères). Un classement des meilleurs scouts met les plus fiables en avant."],
     ['Je dois mettre le vrai championnat ?',
      "Oui. Évite « Autre » : indique le <b>vrai championnat</b>, sinon certaines règles et bonus (comme la diversité) ne s’appliquent pas correctement."],
     ['Combien de joueurs puis-je proposer par jour ?',
@@ -4302,6 +4313,38 @@ async function renderRecords(){
 // ---------- Mes alertes (watchlist enrichie) ----------
 const POS_FR_ALERT = {GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'};
 let AL_WIRED = false;
+// ---------- Meilleurs dénicheurs (réputation scout) ----------
+async function renderScouts(){
+  const box = $('scoutsBody'); if(!box) return;
+  box.innerHTML = '<div class="empty">Calcul des réputations…</div>';
+  let rows = [];
+  try { rows = await api.scoutReputation(); } catch(e){ box.innerHTML = '<p class="hint">Classement indisponible (passe le script 141).</p>'; return; }
+  if(!rows.length){ box.innerHTML = '<div class="empty">Aucun dénicheur pour l\'instant — propose des joueurs pour apparaître ici !</div>'; return; }
+  const scoreColor = s => s>=75 ? '#4ade80' : s>=50 ? 'var(--transfer)' : s>=30 ? '#fb923c' : 'var(--muted)';
+  const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span style="color:var(--muted)">${i+1}</span>`;
+  const mine = ME ? rows.find(r=>r.manager_id===ME.id) : null;
+  const myLine = mine ? `<div style="background:rgba(245,197,66,.1);border:1px solid var(--transfer);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.88rem">
+      🎯 Ta réputation de dénicheur : <b style="color:${scoreColor(mine.score)}">${mine.score}/100</b> · ${mine.published} joueur(s) publié(s) · ${mine.validation_rate}% validés${mine.desired>0?` · ${mine.desired} convoité(s)`:''}</div>` : '';
+  box.innerHTML = myLine + `
+    <div style="overflow-x:auto"><table style="width:100%;font-size:.86rem;border-collapse:collapse">
+      <thead><tr style="color:var(--muted);text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.5px">
+        <th style="padding:8px 6px">#</th><th>Dénicheur</th><th style="text-align:center">Score</th>
+        <th style="text-align:center">Publiés</th><th style="text-align:center">Validés</th>
+        <th style="text-align:center">Convoités</th><th style="text-align:center">Justesse</th></tr></thead>
+      <tbody>${rows.map((r,i)=>`
+        <tr style="border-top:1px solid var(--line)${(ME&&r.manager_id===ME.id)?';background:rgba(245,197,66,.06)':''}">
+          <td style="padding:9px 6px;font-weight:700">${medal(i)}</td>
+          <td><b>${r.team_name||r.name}</b></td>
+          <td style="text-align:center"><b style="color:${scoreColor(r.score)};font-family:'Space Mono',monospace">${r.score}</b></td>
+          <td style="text-align:center">${r.published}</td>
+          <td style="text-align:center">${r.validation_rate}%</td>
+          <td style="text-align:center">${r.desired}</td>
+          <td style="text-align:center">${r.accuracy!=null?r.accuracy+'%':'—'}</td>
+        </tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hint" style="font-size:.72rem;margin-top:10px">Score = validation (40%) + volume publié (20%) + joueurs convoités par d'autres (25%) + justesse de valeur (15%). La « justesse » compare ta valeur proposée au prix final atteint aux enchères.</p>`;
+}
+
 async function renderAlerts(){
   const kindSel = $('al_kind'); if(!kindSel) return;
   if(!AL_WIRED){ wireAlertsForm(); AL_WIRED = true; }
@@ -7232,6 +7275,7 @@ const SEARCH_VIEWS = [
   {v:'team',ic:'👥',t:'Mon équipe'},{v:'lineup',ic:'📋',t:'Compo'},{v:'rank',ic:'🏆',t:'Classement'},
   {v:'bonus',ic:'💰',t:'Bonus'},{v:'penalty',ic:'🚫',t:'Pénalités'},{v:'feed',ic:'📰',t:'Actu'},
   {v:'chat',ic:'💬',t:'Chat'},{v:'pronos',ic:'🎲',t:'Pronos'},{v:'achievements',ic:'🏅',t:'Succès'},
+  {v:'scouts',ic:'🏅',t:'Meilleurs dénicheurs'},
   {v:'alerts',ic:'🔔',t:'Mes alertes'},
   {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'records',ic:'🏆',t:'Mur des records'},{v:'faq',ic:'❓',t:'FAQ'}
 ];

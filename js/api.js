@@ -303,6 +303,11 @@ export async function adminManagerSquad(managerId) {
   return data ?? [];
 }
 // ---------- Profil public d'un manager ----------------------------
+// Réputation du dénicheur : score + classement des scouts.
+export async function scoutReputation() {
+  const { data } = await sb.rpc('qm_scout_reputation');
+  return data ?? [];
+}
 // Classement avec évolution ▲▼ depuis la dernière journée clôturée.
 export async function rankingWithTrend() {
   const { data } = await sb.rpc('qm_ranking_with_trend');
