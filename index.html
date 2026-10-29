@@ -1172,8 +1172,12 @@
     <div id="tradeGate" class="empty" style="margin-bottom:24px">Connecte-toi pour dénicher des joueurs et proposer des échanges.</div>
 
     <div id="tradeUI" style="display:none">
+      <!-- Bandeau Coach : les actions de marché sont réservées au Manager -->
+      <div id="coachTradeNotice" style="display:none;margin-bottom:22px;padding:14px 16px;border:1px solid #2b4a7a;border-radius:12px;background:rgba(40,70,120,.28);color:var(--chalk);font-size:.9rem;line-height:1.45">
+        🧢 <b>Espace Coach</b> — le recrutement, les échanges, les offres en vitrine et les prêts sont pilotés par le <b>Manager</b> de l'équipe. Tu peux consulter le marché et les mouvements, mais c'est le Manager qui engage l'effectif.
+      </div>
       <!-- Dénicher un joueur -->
-      <div class="card" id="scoutCard" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px;position:relative">
+      <div class="card coach-hide" id="scoutCard" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px;position:relative">
         <div id="scoutClosedOverlay" style="display:none;position:absolute;inset:0;background:rgba(10,20,40,.78);backdrop-filter:blur(2px);border-radius:14px;z-index:2;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px">
           <div style="font-size:1.6rem">🔒</div>
           <div style="font-weight:800;color:var(--chalk);margin-top:6px">Dénichage fermé hors mercato</div>
@@ -1213,8 +1217,8 @@
       </div>
 
       <!-- Composer un échange -->
-      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:12px">Proposer un échange</h2>
-      <div class="trade-compose">
+      <h2 class="coach-hide" style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:12px">Proposer un échange</h2>
+      <div class="trade-compose coach-hide">
         <div class="trade-col">
           <div class="trade-head">Tu proposes</div>
           <div id="myPlayers" class="trade-players"></div>
@@ -1236,8 +1240,8 @@
       <div id="tradeList"></div>
 
       <!-- Prêts de joueurs -->
-      <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">🤝 Prêts de joueurs</h2>
-      <div class="trade-compose">
+      <h2 class="coach-hide" style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">🤝 Prêts de joueurs</h2>
+      <div class="trade-compose coach-hide">
         <div class="trade-mid" style="flex:1">
           <label class="trade-l">Prêter un de mes joueurs</label>
           <select id="loanPlayer"><option value="">— choisir un joueur —</option></select>
@@ -1821,6 +1825,16 @@ function toast(msg, type='info', ms=3200){
   const kill = ()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),200); };
   el.onclick = kill;
   setTimeout(kill, ms);
+}
+// Garde-fou : un coach ne peut engager l'équipe (recruter, échanger, offrir,
+// prêter). La base refuse de toute façon ; ici on évite l'erreur sèche et on
+// explique. Renvoie true si l'action doit être bloquée.
+function coachBlocked(){
+  if(ME && ME.is_coach && ME.coach_of){
+    toast('🧢 Réservé au Manager — le Coach ne peut pas engager l\'équipe (échanges, offres, prêts, recrutement).','err',4200);
+    return true;
+  }
+  return false;
 }
 // Remplace confirm() natif par une modale stylée (renvoie une Promise<boolean>).
 function uxConfirm(message, {title='Confirmer', okText='Confirmer', danger=false}={}){
@@ -2562,6 +2576,20 @@ async function renderMarket(){
     setupComparator(); setupDirectRecruit(); return;
   }
   $('tradeGate').style.display='none'; $('tradeUI').style.display='block';
+
+  // Coach : actions de marché masquées (recrutement/échange/offre/prêt sont
+  // réservés au Manager, et la base les refuse de toute façon). Il garde la
+  // consultation du marché et des mouvements.
+  const amCoachMkt = !!(ME.is_coach && ME.coach_of);
+  if($('coachTradeNotice')) $('coachTradeNotice').style.display = amCoachMkt ? 'block' : 'none';
+  document.querySelectorAll('#tradeUI .coach-hide').forEach(el=>{
+    el.style.display = amCoachMkt ? 'none' : '';
+  });
+  if(amCoachMkt){
+    renderMarketplace(); renderFreeAgents(); renderTradeList(); renderScoutList(); renderLoans();
+    return;  // on n'initialise pas les formulaires d'action pour un coach
+  }
+
   setupComparator();
   setupDirectRecruit();
   refreshValueHint();   // suggestion de valeur dès l'ouverture du formulaire
@@ -2651,6 +2679,7 @@ async function renderOffersReceived(){
     </div>`;
   }).join('');
   box.querySelectorAll('[data-acceptoffer]').forEach(btn=>btn.onclick=async()=>{
+    if(coachBlocked()) return;
     if(!confirm('Accepter cette offre ? L\'échange sera conclu et les autres offres sur ce joueur seront refusées.')) return;
     btn.disabled=true; const old=btn.textContent; btn.textContent='⏳…';
     const { error } = await api.listingAcceptOffer(btn.dataset.acceptoffer);
@@ -2750,6 +2779,7 @@ function applyMarketFilters(){
   // Offre rapide (cash et/ou un joueur) directement sur la vitrine.
   list.querySelectorAll('[data-quickoffer]').forEach(btn=>btn.onclick=()=>{
     if(!ME){ $('authModal').style.display='flex'; return; }
+    if(coachBlocked()) return;
     openQuickOffer(btn.dataset.quickoffer, btn.dataset.name, btn.dataset.ask, btn.dataset.team);
   });
   // Action : pré-ouvre le troc avec ce manager + ce joueur demandé.
@@ -2906,7 +2936,7 @@ async function renderLoans(){
   }).join('');
   // Câblage des actions
   const refresh = async (fn, id)=>{ const {error}=await fn(id); if(error){toast(error.message,'err');return;} renderMarket(); if(ME){ME=await api.currentManager(); if(ME)$('wallet').textContent=fmtMoney(Number(ME.budget)-Number(ME.budget_locked));} };
-  el.querySelectorAll('[data-loan-accept]').forEach(b=>b.onclick=()=>refresh(api.acceptLoan,b.dataset.loanAccept));
+  el.querySelectorAll('[data-loan-accept]').forEach(b=>b.onclick=()=>{ if(coachBlocked()) return; refresh(api.acceptLoan,b.dataset.loanAccept); });
   el.querySelectorAll('[data-loan-refuse]').forEach(b=>b.onclick=()=>refresh(api.refuseLoan,b.dataset.loanRefuse));
   el.querySelectorAll('[data-loan-cancel]').forEach(b=>b.onclick=()=>refresh(api.cancelLoan,b.dataset.loanCancel));
   el.querySelectorAll('[data-loan-return]').forEach(b=>b.onclick=()=>refresh(api.returnLoan,b.dataset.loanReturn));
@@ -3247,6 +3277,7 @@ async function renderTradeList(){
   }
 
   $('tradeList').querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
+    if(coachBlocked()) return;
     const { error } = await api.acceptTrade(b.dataset.accept);
     if(error) return toast('Échec : '+error.message,'err');
     toast('Échange conclu !','ok'); renderMarket();
@@ -4825,6 +4856,7 @@ async function renderTeam(){
 
   // Toggle « proposer à l'échange » (vitrine)
   document.querySelectorAll('#team [data-trade]').forEach(btn => btn.onclick = async () => {
+    if(coachBlocked()) return;
     const pid = btn.dataset.trade, name = btn.dataset.name||'ce joueur';
     const isOn = btn.dataset.on==='1';
     if(isOn){
@@ -7796,6 +7828,7 @@ function renderNotifPanel(){
   // clic de navigation de la notif (stopPropagation).
   panel.querySelectorAll('[data-ntrade-ok]').forEach(b=>b.onclick=async(ev)=>{
     ev.stopPropagation();
+    if(coachBlocked()){ b.disabled=false; return; }
     b.disabled = true;
     const { error } = await api.acceptTrade(b.dataset.ntradeOk);
     if(error){ b.disabled=false; toast('Échec : '+error.message,'err',4000); return; }
