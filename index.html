@@ -1112,6 +1112,9 @@
     <div class="eyebrow">Marché · dénicher & échanger</div>
     <h1>Le <em>marché</em></h1>
 
+    <!-- Info : état du mercato (ce qui est ouvert / fermé) -->
+    <div id="marketStateInfo" style="display:none"></div>
+
     <!-- Agents libres (joueurs libérés) -->
     <div id="freeAgentsWrap" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
       <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:8px">🆓 Agents libres</div>
@@ -1170,7 +1173,12 @@
 
     <div id="tradeUI" style="display:none">
       <!-- Dénicher un joueur -->
-      <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px">
+      <div class="card" id="scoutCard" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px;position:relative">
+        <div id="scoutClosedOverlay" style="display:none;position:absolute;inset:0;background:rgba(10,20,40,.78);backdrop-filter:blur(2px);border-radius:14px;z-index:2;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px">
+          <div style="font-size:1.6rem">🔒</div>
+          <div style="font-weight:800;color:var(--chalk);margin-top:6px">Dénichage fermé hors mercato</div>
+          <p style="color:var(--muted);font-size:.84rem;max-width:340px;margin-top:4px">Tu ne peux pas proposer de nouveau joueur en dehors d'une fenêtre de mercato. Mais tu peux toujours <b>échanger</b> et <b>prêter</b> des joueurs entre managers ci-dessous. 👇</p>
+        </div>
         <h2 style="font-family:'Archivo';font-weight:900;font-size:1.2rem;margin-bottom:6px">Dénicher un joueur</h2>
         <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Propose un joueur à mettre aux enchères. Si l'admin valide et qu'un <b>autre</b> manager le remporte, tu gagnes un bonus de budget. (Max 3 propositions en attente.)</p>
         <div id="proposalReminder" style="display:none;margin-bottom:14px;padding:10px 14px;border-radius:10px;font-size:.85rem"></div>
@@ -1647,7 +1655,7 @@
       <div class="rule-block">
         <h3 class="rule-h">13. Les deux mercatos</h3>
         <ul class="rule-ul">
-          <li><b>Mercato d'été</b> (initial, 14 jours) puis <b>mercato d'hiver</b> (fin janvier). Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de joueur.</li>
+          <li><b>Mercato d'été</b> (initial, 14 jours) puis <b>mercato d'hiver</b> (fin janvier). Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de nouveau joueur — mais le <b>marché entre managers reste ouvert</b> : échanges, offres en vitrine et prêts restent possibles toute la saison.</li>
           <li><b>Recrutement direct (remplacement d'un blessé)</b> : réservé au <b>mercato d'hiver</b>. Si un de tes joueurs est blessé, tu le déclares, l'admin valide, puis tu peux le remplacer gratuitement par un joueur libre, <b>sans enchère</b>. En dehors de ce cas, le recrutement direct est fermé. Les règles d'effectif et de masse salariale s'appliquent au remplaçant.</li>
         </ul>
       </div>
@@ -2553,6 +2561,7 @@ async function renderMarket(){
   setupComparator();
   setupDirectRecruit();
   refreshValueHint();   // suggestion de valeur dès l'ouverture du formulaire
+  applyMarketStateUI();  // clarifie ce qui est ouvert/fermé selon l'état du mercato
 
   // Liste des autres managers : on exclut soi-même, les admins et les coachs
   // (un coach n'a pas d'effectif propre, et un admin n'est pas un compétiteur).
@@ -2578,6 +2587,26 @@ async function renderMarket(){
 
 // ---------- Place de marché (vitrine des échanges) ----------
 let MARKET_LISTINGS = [];
+// Clarifie ce qui est ouvert/fermé sur le Marché selon l'état du mercato.
+// Mercato FERMÉ : dénichage (proposer) + enchères fermés ; échanges, vitrine
+// et prêts RESTENT OUVERTS (marché secondaire permanent).
+function applyMarketStateUI(){
+  const closed = (typeof marketIsClosedNow==='function') ? marketIsClosedNow() : false;
+  const info = $('marketStateInfo');
+  const overlay = $('scoutClosedOverlay');
+  if(info){
+    if(closed){
+      info.style.display='block';
+      info.style.cssText = 'display:block;background:linear-gradient(135deg,rgba(90,150,255,.12),transparent);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.88rem;line-height:1.5';
+      info.innerHTML = `🔒 <b>Mercato fermé</b> — le dénichage et les enchères sont en pause. Mais le <b>marché entre managers reste ouvert</b> : tu peux toujours <b>échanger</b> 🤝, faire des <b>offres en vitrine</b> 🏪 et <b>prêter</b> des joueurs 🔄. Le jeu continue !`;
+    } else {
+      info.style.display='none'; info.innerHTML='';
+    }
+  }
+  // Grise le formulaire de dénichage quand le mercato est fermé.
+  if(overlay) overlay.style.display = closed ? 'flex' : 'none';
+}
+
 async function renderMarketplace(){
   const list = $('marketList'); if(!list) return;
   try { MARKET_LISTINGS = await api.marketListings(); } catch(e){ MARKET_LISTINGS = []; }
@@ -4221,7 +4250,7 @@ const FAQ_DATA = [
     ['Combien de temps dure le mercato ?',
      "Le mercato d’été dure <b>14 jours</b>. Les enchères se tiennent sur les 12 premiers jours (48h), puis J13-J14 en fenêtres de 24h."],
     ['Y a-t-il un mercato d’hiver ?',
-     "Oui, fin janvier. Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de joueur."],
+     "Oui, fin janvier. Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de nouveau joueur. En revanche, le <b>marché entre managers reste ouvert toute la saison</b> : tu peux <b>échanger</b>, faire des <b>offres en vitrine</b> et <b>prêter</b> des joueurs quand tu veux."],
     ['Un joueur blessé, je fais quoi ?',
      "Tu le déclares blessé ; l’organisateur valide. Le <b>recrutement direct</b> (remplacement gratuit, sans enchère) est réservé au <b>mercato d’hiver</b> et respecte les règles d’effectif et de salaire."],
   ]],
