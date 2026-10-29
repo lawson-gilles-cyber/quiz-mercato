@@ -12,6 +12,7 @@ const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 
 export const sb = createClient(SUPABASE_URL, SUPABASE_ANON);
 
+
 // ---------- Formatage argent (bigint euros → "180,0 M€") -------------
 export function fmtMoney(euros) {
   const v = Number(euros);
@@ -303,6 +304,10 @@ export async function adminManagerSquad(managerId) {
   return data ?? [];
 }
 // ---------- Profil public d'un manager ----------------------------
+// Déclenche manuellement le balayage des rappels intelligents (admin/test).
+export async function sendSmartReminders() {
+  return sb.rpc('qm_send_smart_reminders');
+}
 // Réputation du dénicheur : score + classement des scouts.
 export async function scoutReputation() {
   const { data } = await sb.rpc('qm_scout_reputation');

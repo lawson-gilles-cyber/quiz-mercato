@@ -282,6 +282,10 @@
   <div class="card">
     <p class="hint" style="margin-bottom:10px">Les points qui demandent peut-être ton attention, en un coup d'œil.</p>
     <div id="healthAlerts"><p class="hint">Analyse…</p></div>
+    <div style="padding-top:12px;border-top:1px solid var(--line);margin-top:12px">
+      <p class="hint" style="margin-bottom:8px">⏰ <b>Rappels intelligents</b> : notifs contextuelles aux joueurs (compo non alignée, budget qui dort, mercato bientôt fermé…). Envoyés automatiquement toutes les 30 min ; tu peux aussi les déclencher maintenant.</p>
+      <button class="btn-ghost btn-sm" id="btnSmartReminders">Envoyer les rappels maintenant</button>
+    </div>
   </div>
 
   <!-- Annonce aux joueurs -->
@@ -1867,6 +1871,16 @@ if($('btnCloseMarketNow')) $('btnCloseMarketNow').onclick = async ()=>{
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
 // Vue d'ensemble : chiffres clés du jeu
+// ---------- Rappels intelligents (déclenchement manuel) ----------
+if($('btnSmartReminders')) $('btnSmartReminders').onclick = async ()=>{
+  const b = $('btnSmartReminders'); b.disabled=true; const old=b.textContent; b.textContent='⏳…';
+  const { data, error } = await api.sendSmartReminders();
+  b.disabled=false; b.textContent=old;
+  if(error) return showMsg($('msg2'), error.message);
+  const n = (typeof data === 'number') ? data : (data && data[0] ? Object.values(data[0])[0] : 0);
+  showMsg($('msg2'), `${n||0} rappel(s) envoyé(s).`, true);
+};
+
 // ---------- Santé du mercato : alertes actionnables ----------
 async function loadHealth(){
   const box = $('healthAlerts'); if(!box) return;
