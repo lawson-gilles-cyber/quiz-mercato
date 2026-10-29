@@ -163,6 +163,11 @@ export async function myTeam(managerId) {
   return data ?? [];
 }
 
+// Suggestion de fourchette de valeur pour une proposition (poste + championnat).
+export async function valueHint(position, championship) {
+  const { data } = await sb.rpc('qm_value_hint', { p_position: position, p_champ: championship });
+  return (data && data[0]) ? data[0] : null;
+}
 // Recherche de joueurs par nom (pour le sélecteur d'alerte, etc.).
 export async function searchPlayersByName(q, limit = 8) {
   const term = (q || '').trim();

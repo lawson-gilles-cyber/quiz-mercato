@@ -1199,6 +1199,7 @@
           <div><label class="trade-l">Valeur (M€)</label><input id="scoutValue" type="number" placeholder="80" style="width:100%"></div>
           <button id="btnScout" class="bid-btn" style="margin:0">Proposer</button>
         </div>
+        <div id="scoutValueHint" style="display:none;margin-top:8px;font-size:.82rem;padding:8px 12px;border-radius:8px"></div>
         <div id="scoutList" style="margin-top:16px"></div>
       </div>
 
@@ -2542,6 +2543,7 @@ async function renderMarket(){
   $('tradeGate').style.display='none'; $('tradeUI').style.display='block';
   setupComparator();
   setupDirectRecruit();
+  refreshValueHint();   // suggestion de valeur dès l'ouverture du formulaire
 
   // Liste des autres managers : on exclut soi-même, les admins et les coachs
   // (un coach n'a pas d'effectif propre, et un admin n'est pas un compétiteur).
@@ -2982,6 +2984,58 @@ if($('scoutChamp')) $('scoutChamp').addEventListener('change', e=>{
   const other = e.target.value === 'Autre';
   w.style.display = other ? 'block' : 'none';
   if(other && $('scoutChampOther')) $('scoutChampOther').focus();
+  refreshValueHint();
+});
+
+// ---------- Barème de valeur assisté (aide à la proposition) ----------
+let VALUE_HINT = null, VH_TIMER = null, VH_LAST_KEY = '';
+function scoutChampValue(){
+  const sel = $('scoutChamp'); if(!sel) return '';
+  if(sel.value === 'Autre') return ($('scoutChampOther')?.value||'').trim();
+  return sel.value;
+}
+async function refreshValueHint(){
+  const box = $('scoutValueHint'); if(!box) return;
+  const pos = $('scoutPos')?.value, champ = scoutChampValue();
+  if(!pos){ box.style.display='none'; return; }
+  const key = pos+'|'+champ;
+  // Recharge la suggestion seulement si poste/championnat ont changé.
+  if(key !== VH_LAST_KEY){
+    VH_LAST_KEY = key; VALUE_HINT = null;
+    try { VALUE_HINT = await api.valueHint(pos, champ); } catch(e){ VALUE_HINT = null; }
+  }
+  renderValueHint();
+}
+function renderValueHint(){
+  const box = $('scoutValueHint'); if(!box) return;
+  const h = VALUE_HINT;
+  if(!h){ box.style.display='none'; return; }
+  const m = v => (Number(v)/1000000);
+  const entered = parseFloat($('scoutValue')?.value);
+  const lo = m(h.val_min), typ = m(h.val_typical), hi = m(h.val_max);
+  let col = 'var(--line)', bg = 'var(--pitch-2)', extra = '';
+  if(!isNaN(entered) && entered > 0){
+    // Alerte si la valeur saisie s'écarte beaucoup de la fourchette.
+    if(entered < lo*0.4 || entered > hi*2.5){
+      col = 'var(--live,#e0574a)'; bg = 'rgba(224,87,74,.1)';
+      extra = `<div style="margin-top:3px;color:var(--live,#e0574a)">⚠️ <b>${entered} M€</b> semble très éloigné de la fourchette attendue. Vérifie la valeur.</div>`;
+    } else if(entered < lo*0.7 || entered > hi*1.5){
+      col = 'var(--transfer)'; bg = 'rgba(245,197,66,.1)';
+      extra = `<div style="margin-top:3px;color:var(--transfer)">↕️ <b>${entered} M€</b> est un peu hors de la fourchette habituelle — à toi de juger.</div>`;
+    } else {
+      col = '#4ade80'; bg = 'rgba(74,222,128,.1)';
+      extra = `<div style="margin-top:3px;color:#4ade80">✅ <b>${entered} M€</b> est cohérent.</div>`;
+    }
+  }
+  const src = h.source === 'data' ? 'd’après les joueurs déjà en base' : 'estimation (poste + championnat)';
+  box.style.display='block';
+  box.style.cssText = `display:block;margin-top:8px;font-size:.82rem;padding:8px 12px;border-radius:8px;background:${bg};border:1px solid ${col}`;
+  box.innerHTML = `💡 Valeur conseillée : <b>${lo}–${hi} M€</b> <span style="color:var(--muted)">(repère ${typ} M€, ${src})</span>${extra}`;
+}
+['scoutPos','scoutValue','scoutChampOther'].forEach(id=>{
+  const el = $(id); if(!el) return;
+  el.addEventListener('input', ()=>{ clearTimeout(VH_TIMER); VH_TIMER = setTimeout(refreshValueHint, 220); });
+  el.addEventListener('change', ()=>{ clearTimeout(VH_TIMER); VH_TIMER = setTimeout(refreshValueHint, 220); });
 });
 if($('btnScout')) $('btnScout').onclick = async (ev)=>{
   const first = $('scoutFirst').value.trim();
@@ -4103,6 +4157,8 @@ const FAQ_DATA = [
   ['Dénicher & proposer', [
     ['Comment proposer un joueur qui n’est pas dans la liste ?',
      "Depuis l’onglet Marché / Dénicher, tu <b>proposes</b> le joueur (nom, poste, club, championnat, valeur). L’organisateur <b>valide</b> puis <b>publie</b> le joueur aux enchères. Tu ne peux jamais publier toi-même."],
+    ['Comment choisir la bonne valeur pour un joueur proposé ?',
+     "En remplissant le <b>poste</b> et le <b>championnat</b>, le formulaire t’affiche une <b>fourchette de valeur conseillée</b> (💡), calculée d’après les joueurs déjà en base ou un barème poste + niveau de championnat. Si ta saisie s’en écarte beaucoup, un avertissement s’affiche — à toi de vérifier. C’est une aide, pas une obligation : l’organisateur reste juge à la validation."],
     ['Qu’est-ce que je gagne à dénicher un joueur ?',
      "Si l’organisateur publie ton joueur et qu’un <b>autre</b> manager le remporte, tu touches le <b>bonus dénicheur : 10 % du prix final</b> (plafonné à 20 M€, max 2 bonus par jour). Si tu le gagnes toi-même, pas de bonus."],
     ['Je dois mettre le vrai championnat ?',
