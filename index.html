@@ -1925,7 +1925,11 @@ function showUserBadge(me){
     : name.trim().slice(0,2);
   $('userInitials').textContent = ini.toUpperCase();
   $('userInitials').title = name;
-  $('userName').textContent = name;
+  // Indique le rôle (coach / admin) à côté du nom, pour lever toute ambiguïté.
+  let roleTag = '';
+  if(me.is_admin) roleTag = ' <span style="color:var(--transfer);font-size:.62rem;font-weight:700">⚙️</span>';
+  else if(me.is_coach && me.coach_of) roleTag = ' <span title="Tu es coach" style="color:#5a96ff;font-size:.62rem;font-weight:700">🧢</span>';
+  $('userName').innerHTML = name.replace(/[<>&]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c])) + roleTag;
   $('userBadge').style.display = 'flex';
 }
 
@@ -6590,7 +6594,11 @@ async function loadChatMessages(keepScroll){
     const authorClickable = (m.manager_id && !m.is_admin)
       ? `<span data-mgrprofile="${m.manager_id}" style="cursor:pointer;text-decoration:underline;text-decoration-style:dotted">${m.author}</span>`
       : m.author;
-    const name = m.is_admin ? `${m.author} <span style="color:var(--transfer);font-size:.68rem">ADMIN</span>` : authorClickable;
+    // Badge de rôle : admin / coach (avec son équipe) / sinon rien (manager par défaut).
+    const roleBadge = m.is_admin
+      ? ` <span style="color:var(--transfer);font-size:.68rem">⚙️ ADMIN</span>`
+      : (m.is_coach ? ` <span title="Coach${m.coach_team?' de '+m.coach_team:''}" style="color:#5a96ff;font-size:.66rem;font-weight:700">🧢 COACH${m.coach_team?' ('+String(m.coach_team).replace(/[<>]/g,'')+')':''}</span>` : '');
+    const name = (m.is_admin ? m.author : authorClickable) + roleBadge;
     const canDel = m.is_mine || isAdmin;
     const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
     // Épingler : réservé à l'admin.

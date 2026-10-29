@@ -2645,8 +2645,13 @@ $('btnCreateMatchday').onclick = async ()=>{
 async function loadCoaches(){
   const managers = await api.listManagers();
   if(!$('coachAccount')) return;
-  $('coachAccount').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
-  $('coachTeam').innerHTML = managers.map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+  // Étiquette de rôle pour lever toute ambiguïté dans les listes.
+  const teamOf = id => { const t = managers.find(x=>x.id===id); return t ? (t.team_name||t.display_name) : '?'; };
+  const roleTag = m => m.is_admin ? ' — ⚙️ admin'
+    : (m.is_coach && m.coach_of) ? ` — 🧢 coach de ${teamOf(m.coach_of)}`
+    : ' — 👔 manager';
+  $('coachAccount').innerHTML = managers.filter(m=>!m.is_admin).map(m=>`<option value="${m.id}">${m.display_name}${roleTag(m)}</option>`).join('');
+  $('coachTeam').innerHTML = managers.filter(m=>!m.is_admin && !m.is_coach).map(m=>`<option value="${m.id}">${m.team_name||m.display_name}${roleTag(m)}</option>`).join('');
   const coaches = managers.filter(m=>m.is_coach && m.coach_of);
   const coachTable = coaches.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Coach</th><th>Équipe coachée</th><th></th></tr></thead><tbody>${
     coaches.map(c=>{
