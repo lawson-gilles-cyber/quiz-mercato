@@ -1232,6 +1232,23 @@ export async function nextWindow() {
   const { data } = await sb.rpc('qm_next_window');
   return data ?? null;
 }
+
+// ---------- Bourse des joueurs (cote dynamique) ----------
+export async function playerQuote(playerId) {
+  const { data } = await sb.rpc('qm_player_quote', { p_player_id: playerId });
+  return (data && data[0]) ? data[0] : null;
+}
+export async function playerQuoteHistory(playerId, limit = 12) {
+  const { data } = await sb.rpc('qm_player_quote_history', { p_player_id: playerId, p_limit: limit });
+  return data ?? [];
+}
+export async function quoteTopMovers(limit = 5) {
+  const { data } = await sb.rpc('qm_quote_top_movers', { p_limit: limit });
+  return data ?? [];
+}
+export async function adminRebuildQuotes() {
+  return await sb.rpc('qm_admin_rebuild_quotes');
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];

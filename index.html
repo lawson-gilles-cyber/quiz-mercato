@@ -1097,6 +1097,8 @@
     <div id="dailyChecklist" class="daily-check" style="display:none"></div>
     <!-- Tendances du marché (ce qui bouge) -->
     <div id="marketTrends" class="trends" style="display:none"></div>
+    <!-- Bourse : top mouvements de cote de la dernière journée -->
+    <div id="bourseMovers" class="trends" style="display:none"></div>
     <div id="challengesWrap" style="margin-top:26px;display:none">
       <div class="eyebrow" style="margin-bottom:12px">🎯 Objectifs & défis</div>
       <div id="challengesList"></div>
@@ -4083,6 +4085,39 @@ function formWidget(form){
     <div style="display:flex;gap:6px;flex-wrap:wrap">${pills}</div>`;
 }
 
+// Bloc « Bourse » de la fiche joueur : cote actuelle + variation de la
+// dernière journée + mini-courbe des cotes. Repli sur l'ancienne courbe de
+// valeur interne tant qu'aucune journée n'a encore fait bouger la cote.
+function bourseBlock(quote, qhist, valueHist, deltaFallbackTxt){
+  const hasQuote = quote && quote.has_history;
+  if(hasQuote){
+    const q = Number(quote.quote);
+    const dp = Number(quote.delta_pct||0);
+    const dv = Number(quote.delta||0);
+    const up = dv >= 0;
+    const col = up ? '#4ade80' : 'var(--live,#e0574a)';
+    const arrow = up ? '▲' : '▼';
+    const variation = `<span style="color:${col};font-weight:700">${arrow} ${up?'+':''}${fmtMoney(dv)} (${up?'+':''}${dp}%)</span>`;
+    // Points pour la sparkline : on réutilise le helper existant (champ .value).
+    const pts = (qhist||[]).map(r=>({ value:Number(r.quote) }));
+    const curve = pts.length>1 ? sparkline(pts) :
+      `<div class="hint" style="text-align:center;padding:10px 0">Courbe disponible après quelques journées.</div>`;
+    return `
+      <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
+        <span style="font-weight:800;font-size:.9rem">📈 Bourse — cote du joueur</span>
+        <span style="font-family:'Saira',sans-serif;font-weight:800;font-size:1.05rem">${fmtMoney(q)}</span>
+      </div>
+      <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${curve}</div>
+      <div style="text-align:center;margin-top:6px;font-size:.84rem">Dernière journée : ${variation}</div>
+      <div class="hint" style="text-align:center;font-size:.72rem;margin-top:2px">La cote évolue selon les notes réelles, journée après journée.</div>`;
+  }
+  // Pas encore d'historique de cote -> ancienne courbe de valeur interne.
+  return `
+    <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la valeur</div>
+    <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(valueHist)}</div>
+    <div style="text-align:center;margin-top:6px">${deltaFallbackTxt||''}</div>
+    <div class="hint" style="text-align:center;font-size:.72rem;margin-top:2px">La cote de Bourse apparaîtra dès la première journée clôturée.</div>`;
+}
 async function showPlayerCard(playerId){
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
@@ -4095,9 +4130,11 @@ async function showPlayerCard(playerId){
   // Infos joueur depuis la liste déjà chargée, sinon valeurs minimales
   const all = (typeof PLAYERS!=='undefined' && PLAYERS) ? PLAYERS : [];
   const p = all.find(x=>x.id===playerId) || {};
-  const [hist, form] = await Promise.all([
+  const [hist, form, quote, qhist] = await Promise.all([
     api.valueHistory(playerId, 80).catch(()=>[]),
-    api.playerForm(playerId, 5).catch(()=>[])
+    api.playerForm(playerId, 5).catch(()=>[]),
+    api.playerQuote(playerId).catch(()=>null),
+    api.playerQuoteHistory(playerId, 12).catch(()=>[])
   ]);
   const first = hist.length ? Number(hist[0].value) : null;
   const last = hist.length ? Number(hist[hist.length-1].value) : null;
@@ -4116,9 +4153,7 @@ async function showPlayerCard(playerId){
     ${valueForMoney(p)}
     <div style="font-weight:800;font-size:.9rem;margin-bottom:6px">💓 Forme récente</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">${formWidget(form)}</div>
-    <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la cote</div>
-    <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(hist)}</div>
-    <div style="text-align:center;margin-top:6px">${deltaTxt}</div>
+    ${bourseBlock(quote, qhist, hist, deltaTxt)}
     <div class="ux-actions">
       ${(ME && p.owner_id===ME.id) ? `<button class="ux-ok" data-share style="background:var(--transfer);color:var(--pitch);border:none">📲 Partager ce coup</button>` : ''}
       <button class="ux-cancel" data-no>Fermer</button>
@@ -4272,6 +4307,8 @@ const FAQ_DATA = [
      "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. Tant qu’il n’y a pas encore <b>deux journées clôturées</b> (il faut une journée de référence pour comparer), un simple <b>–</b> s’affiche : les flèches apparaîtront dès la <b>2ᵉ journée clôturée</b>. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
     ['Je peux transformer mon budget en points (ou l’inverse) ?',
      "Oui. En fin de mercato d’été : <b>budget → points</b> (10 M€ = 1 point, max 200 M€). Au mercato d’hiver : <b>points → budget</b> (1 point = 10 M€, max 200 points) — mais ces points quittent ton classement, c’est un pari."],
+    ['C’est quoi la « Bourse des joueurs » et la cote ?',
+     "Chaque joueur a une <b>cote</b> qui vit au fil de la saison : après chaque journée clôturée, elle <b>monte</b> s’il a une bonne note (≥ 7) et <b>baisse</b> s’il a mal joué ou n’a pas joué. Sur la <b>fiche d’un joueur</b>, tu vois sa cote actuelle, sa variation de la dernière journée et une <b>mini-courbe</b>. La page d’accueil affiche les <b>plus fortes hausses et baisses</b> de la journée. C’est un indicateur de forme/valeur — repère un joueur en méforme avant d’y investir, ou suis la montée d’une pépite."],
   ]],
   ['Bonus', [
     ['Les bonus donnent des points ?',
@@ -6075,6 +6112,41 @@ async function renderHome(){
   renderChallenges();
   renderDailyChecklist(auctions);
   renderMarketTrends(auctions);
+  renderBourseMovers();
+}
+
+// ---------- Bourse : top mouvements de cote (dernière journée) ----------
+async function renderBourseMovers(){
+  const box = $('bourseMovers'); if(!box) return;
+  let movers = [];
+  try { movers = await api.quoteTopMovers(4); } catch(e){ movers = []; }
+  if(!movers || !movers.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const up = movers.filter(m=>m.direction==='up');
+  const down = movers.filter(m=>m.direction==='down');
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const line = (m)=>{
+    const col = m.direction==='up' ? '#4ade80' : 'var(--live,#e0574a)';
+    const arrow = m.direction==='up' ? '▲' : '▼';
+    const dp = Number(m.delta_pct||0);
+    const dv = Number(m.delta||0);
+    return `<div data-playercard="${m.player_id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;background:var(--pitch-2);cursor:pointer">
+        <span style="font-size:.86rem;color:var(--chalk);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}<span style="color:var(--muted);font-size:.74rem"> · ${esc(m.club||'')}</span></span>
+        <span style="color:${col};font-weight:700;font-size:.82rem;white-space:nowrap">${arrow} ${dv>=0?'+':''}${dp}%</span>
+      </div>`;
+  };
+  const col = (title, arr, empty)=>`
+    <div style="flex:1;min-width:0">
+      <div class="eyebrow" style="margin-bottom:8px">${title}</div>
+      ${arr.length ? arr.map(line).join('') : `<div class="hint" style="font-size:.8rem">${empty}</div>`}
+    </div>`;
+  box.style.display='block';
+  box.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:12px">📈 Bourse · mouvements de la dernière journée</div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      ${col('🟢 Plus fortes hausses', up, 'Aucune hausse cette journée.')}
+      ${col('🔴 Plus fortes baisses', down, 'Aucune baisse cette journée.')}
+    </div>
+    <div class="hint" style="font-size:.72rem;margin-top:10px">La cote d'un joueur monte avec les bonnes notes et baisse sinon. Clique un nom pour voir sa courbe.</div>`;
 }
 
 // ---------- Tendances du marché (ce qui bouge) ----------

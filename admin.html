@@ -594,6 +594,14 @@
     <div id="scoreResult" style="margin-top:10px"></div>
   </div>
 
+  <!-- Bourse des joueurs -->
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 8px">📈 Bourse des joueurs</h3>
+    <p class="hint" style="margin-bottom:12px">La cote de chaque joueur évolue <b>automatiquement à chaque clôture de journée</b>, selon les notes saisies (bonne note → la cote monte, mauvaise note ou joueur non aligné → elle baisse). Le bouton ci-dessous <b>reconstruit tout l'historique</b> des cotes depuis la 1ʳᵉ journée clôturée — utile la première fois, ou après avoir corrigé des notes. Nécessite le script <b>147_bourse_joueurs.sql</b>.</p>
+    <button class="btn-primary btn-sm" id="btnRebuildQuotes">Recalculer les cotes</button>
+    <div id="rebuildQuotesResult" style="margin-top:10px"></div>
+  </div>
+
   <!-- Journal des remplacements (réservistes entrés) -->
   <div class="card" style="margin-bottom:14px">
     <div style="font-weight:800;margin-bottom:8px">🪑 Journal des remplacements</div>
@@ -1867,6 +1875,17 @@ if($('btnCloseMarketNow')) $('btnCloseMarketNow').onclick = async ()=>{
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'),'Mercato fermé. Les nouvelles enchères sont bloquées.',true);
   loadMarketDates(); loadWindows();
+};
+
+// ---------- Bourse : recalcul des cotes ----------
+if($('btnRebuildQuotes')) $('btnRebuildQuotes').onclick = async ()=>{
+  const out = $('rebuildQuotesResult');
+  if(!confirm('Recalculer toutes les cotes de la Bourse à partir des journées clôturées ?')) return;
+  $('btnRebuildQuotes').disabled = true;
+  const { data, error } = await api.adminRebuildQuotes();
+  $('btnRebuildQuotes').disabled = false;
+  if(error) return showMsg(out, 'Échec : '+error.message);
+  showMsg(out, `Cotes recalculées (${data ?? 0} ligne(s) de cote générées).`, true);
 };
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
