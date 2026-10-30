@@ -1381,6 +1381,8 @@
       <div id="lineupResult" style="margin-top:10px"></div>
     </div>
     <div id="lineupBreakdown" style="margin-top:26px"></div>
+    <!-- Conseil d'avant-match : pronostics entre managers (jetons de flair) -->
+    <div id="conseilBox" style="margin-top:26px;display:none"></div>
   </section>
   <section class="view" id="rank">
     <div class="eyebrow">Classement des managers</div>
@@ -1700,7 +1702,8 @@
 
       <div class="rule-block">
         <h3 class="rule-h">18. Cote dynamique & rareté</h3>
-        <p class="rule-p">La valeur des joueurs <b>libres</b> évolue : elle monte pour les joueurs les plus demandés (nombre d'offres reçues) et pour les postes rares (peu de joueurs libres à ce poste), et s'érode doucement sinon. La cote reste bornée entre 50 % et 130 % de la valeur de base. Les joueurs que tu possèdes gardent leur valeur d'achat.</p>
+        <p class="rule-p">La valeur des joueurs <b>libres</b> évolue : elle monte pour les joueurs les plus demandés (nombre d'offres reçues) et pour les postes rares (peu de joueurs libres à ce poste), et s'érode doucement sinon. La cote « marché » reste bornée entre 50 % et 130 % de la valeur de base. Les joueurs que tu possèdes gardent leur valeur d'achat.</p>
+        <p class="rule-p"><b>La Bourse des joueurs.</b> En plus de cette cote marché, chaque joueur a une <b>cote de Bourse</b> qui suit ses <b>performances réelles</b> : après chaque journée clôturée, elle <b>monte</b> avec une bonne note (≥ 7) et <b>baisse</b> avec une mauvaise note ou un joueur non aligné. Elle est bornée entre 50 % et 400 % de la valeur de base. Tu la vois sur la <b>fiche de chaque joueur</b> (cote actuelle, variation de la dernière journée, mini-courbe), et la page d'accueil affiche les <b>plus fortes hausses et baisses</b> de la journée. C'est un indicateur de forme et de valeur — il ne modifie ni ton budget ni le prix d'achat.</p>
       </div>
 
       <div class="rule-block">
@@ -1728,6 +1731,7 @@
         <ul class="rule-ul">
           <li><b>Chat de ligue</b> : un salon commun en direct pour échanger et se chambrer. Reste fair-play — l'organisateur peut effacer un message ou réduire au silence.</li>
           <li><b>Pronostics</b> : parie des <b>points pronos</b> (capital de départ 100, sans lien avec le classement sportif) sur les questions ouvertes par l'organisateur. Bon pronostic = mise doublée. Un classement des pronostiqueurs récompense les plus malins.</li>
+          <li><b>Conseil d'avant-match</b> : avant chaque journée (onglet <b>Compo</b>), mise des <b>jetons de flair</b> (capital de départ 100, distinct du budget et des points pronos) sur « quel manager fera le plus de points ? » ou « tel joueur dépassera telle note ? ». Bon prono = <b>2× la mise</b>, et un <b>classement flair</b> à part récompense les meilleurs pronostiqueurs. Un <b>prono masqué</b> 🤫 reste caché des autres jusqu'à la résolution. Réservé au Manager.</li>
           <li><b>Réactions & commentaires</b> : réagis aux transferts avec des stickers et commente les mouvements dans le fil d'actu.</li>
         </ul>
       </div>
@@ -4309,6 +4313,8 @@ const FAQ_DATA = [
      "Oui. En fin de mercato d’été : <b>budget → points</b> (10 M€ = 1 point, max 200 M€). Au mercato d’hiver : <b>points → budget</b> (1 point = 10 M€, max 200 points) — mais ces points quittent ton classement, c’est un pari."],
     ['C’est quoi la « Bourse des joueurs » et la cote ?',
      "Chaque joueur a une <b>cote</b> qui vit au fil de la saison : après chaque journée clôturée, elle <b>monte</b> s’il a une bonne note (≥ 7) et <b>baisse</b> s’il a mal joué ou n’a pas joué. Sur la <b>fiche d’un joueur</b>, tu vois sa cote actuelle, sa variation de la dernière journée et une <b>mini-courbe</b>. La page d’accueil affiche les <b>plus fortes hausses et baisses</b> de la journée. C’est un indicateur de forme/valeur — repère un joueur en méforme avant d’y investir, ou suis la montée d’une pépite."],
+    ['C’est quoi le « Conseil d’avant-match » et les jetons de flair ?',
+     "Avant chaque journée (dans l’onglet <b>Compo</b>), tu peux faire des <b>pronostics</b> en misant des <b>jetons de flair</b> (une monnaie ludique, sans rapport avec ton budget transfert) : « quel manager fera le plus de points ? », « tel joueur dépassera 7,5 ? »… Chaque bon prono te rapporte <b>2× ta mise</b>, et un <b>classement flair</b> récompense les meilleurs pronostiqueurs — indépendamment du classement sportif. Tu peux aussi poser un <b>prono masqué</b> 🤫, révélé seulement après la journée, histoire de chambrer. Tu démarres avec 100 jetons."],
   ]],
   ['Bonus', [
     ['Les bonus donnent des points ?',
@@ -5580,6 +5586,111 @@ async function loadLineupForMatchday(mdId){
   } else {
     $('lineupBreakdown').innerHTML = '';
   }
+
+  // Conseil d'avant-match : pronostics de la journée (jetons de flair).
+  try { await renderConseil(mdId, md, mine); } catch(e){ const b=$('conseilBox'); if(b) b.style.display='none'; }
+}
+
+// ---------- Conseil d'avant-match (pronostics / jetons de flair) ----------
+async function renderConseil(mdId, md, mine){
+  const box = $('conseilBox'); if(!box) return;
+  // Les coachs ne pronostiquent pas (engage l'équipe = Manager).
+  if(ME && ME.is_coach && ME.coach_of){ box.style.display='none'; return; }
+  const [questions, myTokens, mgrs] = await Promise.all([
+    api.pronosForMatchday(mdId).catch(()=>[]),
+    api.myFlair().catch(()=>0),
+    api.leaderboard().catch(()=>[])
+  ]);
+  if(!questions || !questions.length){ box.style.display='none'; return; }
+  const open = md && md.status==='open';
+  const past = md && md.lineup_deadline && (new Date() > new Date(md.lineup_deadline));
+  const canBet = open && !past;
+  const competitors = (mgrs||[]).filter(m=>!m.is_admin && !m.coach_of);
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+  const card = (q)=>{
+    const resolved = q.resolved;
+    const mine2 = q.my_answer;
+    let answerUI = '';
+    if(q.kind === 'player_over'){
+      const yesOn = mine2==='yes', noOn = mine2==='no';
+      answerUI = `
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="bid-btn ${yesOn?'':'ghost'}" data-prono="${q.question_id}" data-ans="yes" ${canBet?'':'disabled'} style="flex:1;margin:0;padding:8px">Oui ✅</button>
+          <button class="bid-btn ${noOn?'':'ghost'}" data-prono="${q.question_id}" data-ans="no" ${canBet?'':'disabled'} style="flex:1;margin:0;padding:8px">Non ❌</button>
+        </div>`;
+    } else {
+      answerUI = `
+        <select data-prono-sel="${q.question_id}" ${canBet?'':'disabled'} style="width:100%;margin-top:8px;padding:8px">
+          <option value="">— choisir un manager —</option>
+          ${competitors.map(m=>`<option value="${m.id}" ${mine2===m.id?'selected':''}>${esc(m.team_name||m.display_name)}</option>`).join('')}
+        </select>
+        <button class="bid-btn" data-prono-go="${q.question_id}" ${canBet?'':'disabled'} style="width:100%;margin-top:8px;padding:8px">Valider ce prono</button>`;
+    }
+    // Statut / résultat
+    let status = '';
+    if(resolved){
+      const won = q.my_won;
+      status = mine2==null
+        ? `<div class="hint" style="font-size:.78rem;margin-top:8px">Résolu — tu n'avais pas pronostiqué.</div>`
+        : `<div style="font-size:.82rem;margin-top:8px;font-weight:700;color:${won?'#4ade80':'var(--live,#e0574a)'}">${won?`✅ Gagné ! +${q.my_payout} jetons`:'❌ Perdu'}</div>`;
+    } else if(mine2!=null){
+      status = `<div class="hint" style="font-size:.78rem;margin-top:8px">Ton prono est enregistré${q.my_hidden?' (masqué 🤫)':''}. Mise : ${q.stake} jetons.</div>`;
+    } else if(!canBet){
+      status = `<div class="hint" style="font-size:.78rem;margin-top:8px">Pronostics fermés pour cette journée.</div>`;
+    }
+    // Case « masqué » (seulement avant de parier, type player_over et top_score)
+    const hideOpt = (canBet && mine2==null)
+      ? `<label style="display:flex;align-items:center;gap:6px;font-size:.76rem;color:var(--muted);margin-top:8px;cursor:pointer"><input type="checkbox" data-prono-hide="${q.question_id}"> Prono masqué (révélé après la journée)</label>`
+      : '';
+    const count = `<span class="hint" style="font-size:.72rem">${q.nb_pronos} prono${q.nb_pronos>1?'s':''}</span>`;
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:var(--pitch-2)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px">
+          <div style="font-weight:700;font-size:.9rem">${esc(q.label)}</div>${count}
+        </div>
+        ${answerUI}${hideOpt}${status}
+      </div>`;
+  };
+
+  box.style.display='block';
+  box.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:6px">🔮 Conseil d'avant-match</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span class="hint" style="font-size:.82rem">Mise tes <b>jetons de flair</b> sur la journée. Gain = 2× la mise.</span>
+      <span style="font-family:'Saira',sans-serif;font-weight:800;color:var(--transfer);white-space:nowrap">🎟️ ${myTokens} jetons</span>
+    </div>
+    ${questions.map(card).join('')}
+    <button class="bid-btn ghost" id="flairRankBtn" style="width:auto;margin-top:4px;padding:7px 14px;font-size:.82rem">🏆 Classement flair</button>
+    <div id="flairRankBox" style="margin-top:12px"></div>`;
+
+  // Câblage — player_over (oui/non)
+  box.querySelectorAll('[data-prono]').forEach(b=>b.onclick=async()=>{
+    const hide = box.querySelector(`[data-prono-hide="${b.dataset.prono}"]`);
+    const { error } = await api.pronoPlace(b.dataset.prono, b.dataset.ans, hide && hide.checked);
+    if(error) return toast(error.message,'err');
+    toast('Prono enregistré 🔮','ok'); renderConseil(mdId, md, mine);
+  });
+  // Câblage — top_score (select + valider)
+  box.querySelectorAll('[data-prono-go]').forEach(b=>b.onclick=async()=>{
+    const sel = box.querySelector(`[data-prono-sel="${b.dataset.pronoGo}"]`);
+    if(!sel || !sel.value) return toast('Choisis un manager.','err');
+    const hide = box.querySelector(`[data-prono-hide="${b.dataset.pronoGo}"]`);
+    const { error } = await api.pronoPlace(b.dataset.pronoGo, sel.value, hide && hide.checked);
+    if(error) return toast(error.message,'err');
+    toast('Prono enregistré 🔮','ok'); renderConseil(mdId, md, mine);
+  });
+  // Classement flair
+  const rankBtn = box.querySelector('#flairRankBtn');
+  if(rankBtn) rankBtn.onclick = async ()=>{
+    const rb = $('flairRankBox');
+    let lb = []; try { lb = await api.flairLeaderboard(); } catch(e){}
+    if(!lb.length){ rb.innerHTML = '<div class="hint">Classement indisponible.</div>'; return; }
+    rb.innerHTML = `<table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>Jetons</th><th>Gagnés</th></tr></thead><tbody>${
+      lb.map((m,i)=>`<tr><td class="rank">${i+1}</td><td><b>${esc(m.team_name||m.display_name)}</b></td>
+        <td style="font-family:'Saira';font-weight:700">🎟️ ${m.flair_tokens}</td>
+        <td style="color:var(--muted)">${m.won}/${m.played}</td></tr>`).join('')
+    }</tbody></table>`;
+  };
 }
 
 function renderLineupPlayers(mine){

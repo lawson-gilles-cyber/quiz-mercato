@@ -602,6 +602,32 @@
     <div id="rebuildQuotesResult" style="margin-top:10px"></div>
   </div>
 
+  <!-- Conseil d'avant-match (pronostics) -->
+  <div class="card" style="margin-bottom:14px">
+    <h3 style="margin:0 0 8px">🔮 Conseil d'avant-match (pronostics)</h3>
+    <p class="hint" style="margin-bottom:12px">À l'ouverture d'une journée, le prono « <b>Top score</b> » (quel manager marquera le plus) est créé automatiquement. Tu peux ajouter des pronos « <b>un joueur dépasse une note</b> ». Tout est résolu à la clôture, et les jetons gagnés alimentent le <b>classement flair</b>. Nécessite le script <b>148_conseil_avant_match.sql</b>.</p>
+    <label>Journée concernée</label>
+    <select id="pronoMatchday" style="width:100%;padding:9px;margin:6px 0 12px"></select>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn-primary btn-sm" id="btnEnsurePronos">Générer le prono « Top score »</button>
+    </div>
+    <label>Ajouter un prono « joueur dépasse une note »</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 12px">
+      <input id="pronoPlayerSearch" placeholder="Nom du joueur…" style="flex:2;min-width:160px;padding:9px">
+      <input id="pronoThreshold" type="number" step="0.5" value="7.5" style="flex:0 0 90px;padding:9px" title="Seuil de note">
+      <button class="btn-primary btn-sm" id="btnAddPlayerProno">Ajouter</button>
+    </div>
+    <div id="pronoPlayerResults" style="margin-bottom:10px"></div>
+    <hr style="border:none;border-top:1px solid var(--line);margin:12px 0">
+    <label>Recréditer des jetons de flair</label>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">
+      <select id="flairManager" style="flex:2;min-width:160px;padding:9px"></select>
+      <input id="flairAmount" type="number" value="50" style="flex:0 0 90px;padding:9px">
+      <button class="btn-primary btn-sm" id="btnGrantFlair">Créditer</button>
+    </div>
+    <div id="pronoAdminResult" style="margin-top:10px"></div>
+  </div>
+
   <!-- Journal des remplacements (réservistes entrés) -->
   <div class="card" style="margin-bottom:14px">
     <div style="font-weight:800;margin-bottom:8px">🪑 Journal des remplacements</div>
@@ -1014,7 +1040,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1886,6 +1912,59 @@ if($('btnRebuildQuotes')) $('btnRebuildQuotes').onclick = async ()=>{
   $('btnRebuildQuotes').disabled = false;
   if(error) return showMsg(out, 'Échec : '+error.message);
   showMsg(out, `Cotes recalculées (${data ?? 0} ligne(s) de cote générées).`, true);
+};
+
+// ---------- Conseil d'avant-match (pronostics) ----------
+let CONSEIL_PLAYER = null;  // joueur sélectionné pour un prono player_over
+async function loadConseilAdmin(){
+  if(!$('pronoMatchday')) return;
+  let mds = []; try { mds = await api.listMatchdays(); } catch(e){}
+  // Journées utiles : à venir / ouvertes / en notation (pas les clôturées)
+  const useful = (mds||[]).filter(m=>m.status!=='closed');
+  $('pronoMatchday').innerHTML = (useful.length?useful:mds).map(m=>`<option value="${m.id}">${m.label||('Journée '+m.number)} — ${m.status}</option>`).join('')
+    || '<option value="">Aucune journée</option>';
+  let mgrs = []; try { mgrs = await api.listManagers(); } catch(e){}
+  const comp = (mgrs||[]).filter(m=>!m.is_admin && !m.coach_of);
+  $('flairManager').innerHTML = '<option value="">— tous les managers —</option>' +
+    comp.map(m=>`<option value="${m.id}">${m.team_name||m.display_name}</option>`).join('');
+}
+if($('btnEnsurePronos')) $('btnEnsurePronos').onclick = async ()=>{
+  const out = $('pronoAdminResult'); const mdId = $('pronoMatchday').value;
+  if(!mdId) return showMsg(out,'Choisis une journée.');
+  const { error } = await api.adminEnsurePronos(mdId);
+  if(error) return showMsg(out,'Échec : '+error.message);
+  showMsg(out,'Prono « Top score » prêt pour cette journée.',true);
+};
+// Recherche joueur pour prono player_over
+if($('pronoPlayerSearch')) $('pronoPlayerSearch').oninput = async (e)=>{
+  const q = e.target.value.trim(); const box = $('pronoPlayerResults');
+  CONSEIL_PLAYER = null;
+  if(q.length<2){ box.innerHTML=''; return; }
+  let res = []; try { res = await api.searchPlayersByName(q); } catch(e){}
+  box.innerHTML = (res||[]).map(p=>`<button class="btn-sm" data-pp="${p.id}" data-nm="${(p.name||'').replace(/"/g,'&quot;')}" style="margin:2px">${p.name}${p.club?' ('+p.club+')':''}</button>`).join('') || '<span class="hint">Aucun joueur.</span>';
+  box.querySelectorAll('[data-pp]').forEach(b=>b.onclick=()=>{
+    CONSEIL_PLAYER = { id:b.dataset.pp, name:b.dataset.nm };
+    $('pronoPlayerSearch').value = b.dataset.nm; box.innerHTML = `<span class="ok">Sélectionné : ${b.dataset.nm}</span>`;
+  });
+};
+if($('btnAddPlayerProno')) $('btnAddPlayerProno').onclick = async ()=>{
+  const out = $('pronoAdminResult'); const mdId = $('pronoMatchday').value;
+  if(!mdId) return showMsg(out,'Choisis une journée.');
+  if(!CONSEIL_PLAYER) return showMsg(out,'Choisis un joueur dans la recherche.');
+  const th = parseFloat($('pronoThreshold').value||'7.5');
+  const { error } = await api.adminAddPlayerProno(mdId, CONSEIL_PLAYER.id, th);
+  if(error) return showMsg(out,'Échec : '+error.message);
+  showMsg(out,`Prono ajouté : ${CONSEIL_PLAYER.name} > ${th}.`,true);
+  CONSEIL_PLAYER=null; $('pronoPlayerSearch').value=''; $('pronoPlayerResults').innerHTML='';
+};
+if($('btnGrantFlair')) $('btnGrantFlair').onclick = async ()=>{
+  const out = $('pronoAdminResult');
+  const mgr = $('flairManager').value || null;
+  const amt = parseInt($('flairAmount').value||'0',10);
+  if(!amt) return showMsg(out,'Indique un montant.');
+  const { data, error } = await api.adminGrantFlair(mgr, amt);
+  if(error) return showMsg(out,'Échec : '+error.message);
+  showMsg(out,`${amt} jeton(s) crédité(s) à ${data ?? 0} manager(s).`,true);
 };
 
 // ---------- VAGUE 3 temps 2 : Récompenses ----------
@@ -3288,6 +3367,16 @@ const ADMIN_FAQ = [
      "Onglet <b>Config → « Apparence du site »</b> : ajuste le thème (couleurs). Si un changement n'apparaît pas côté joueur, demande un rechargement forcé (Ctrl+Maj+R)."],
     ['Comment exporter les données ?',
      "Onglet <b>Config → « Export »</b> : récupère les données de la saison (classement, transferts…). À faire <b>avant</b> toute remise à zéro si tu veux garder une trace."],
+  ]],
+  ['Bourse & Conseil d\'avant-match', [
+    ['Comment fonctionne la Bourse des joueurs ?',
+     "La <b>cote</b> de chaque joueur évolue <b>automatiquement à chaque clôture de journée</b>, selon les notes saisies : bonne note → la cote monte, mauvaise note ou joueur non aligné → elle baisse (bornée entre 50 % et 400 % de la valeur de base). Elle n'affecte <b>ni le budget ni le prix d'achat</b> — c'est un indicateur. Le bouton <b>« Recalculer les cotes »</b> (section Saisie des notes) reconstruit tout l'historique, utile la 1ʳᵉ fois ou après correction de notes. Nécessite le script <b>147_bourse_joueurs.sql</b>."],
+    ['Comment créer des pronostics d\'avant-match ?',
+     "Section <b>« 🔮 Conseil d'avant-match »</b> : choisis une journée. Le prono <b>« Top score »</b> (quel manager marquera le plus) est créé <b>tout seul</b> à l'ouverture d'une journée — le bouton « Générer » sert de rattrapage. Tu peux ajouter des pronos <b>« un joueur dépasse une note »</b> (recherche du joueur + seuil). Tout est résolu <b>à la clôture</b> de la journée. Nécessite le script <b>148_conseil_avant_match.sql</b>."],
+    ['C\'est quoi les jetons de flair et le classement flair ?',
+     "Une <b>monnaie ludique</b> (chaque manager démarre à 100), sans aucun lien avec le budget transfert. Les managers misent ces jetons sur les pronos ; un bon prono rapporte <b>2× la mise</b>. Un <b>classement flair</b> à part récompense les meilleurs pronostiqueurs. Tu peux <b>recréditer</b> des jetons à un manager (ou à tous) via le champ « Recréditer des jetons de flair »."],
+    ['Qui peut pronostiquer ?',
+     "Seuls les <b>Managers</b> — les coachs sont exclus (comme pour les enchères et les échanges). Les pronos ne sont possibles que tant que la journée est <b>ouverte</b> et avant la date limite d'alignement."],
   ]],
   ['Fin de saison & dépannage', [
     ['J’ai fait une fausse manip : comment l’annuler ?',

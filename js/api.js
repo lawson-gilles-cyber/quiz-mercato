@@ -1249,6 +1249,36 @@ export async function quoteTopMovers(limit = 5) {
 export async function adminRebuildQuotes() {
   return await sb.rpc('qm_admin_rebuild_quotes');
 }
+
+// ---------- Conseil d'avant-match (pronostics / jetons de flair) ----------
+export async function pronosForMatchday(matchdayId) {
+  const { data } = await sb.rpc('qm_conseil_bets_for_matchday', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
+export async function pronoPlace(questionId, answer, hidden = false) {
+  return await sb.rpc('qm_conseil_place', { p_question_id: questionId, p_answer: String(answer), p_hidden: !!hidden });
+}
+export async function pronoDetail(questionId) {
+  const { data } = await sb.rpc('qm_conseil_detail', { p_question_id: questionId });
+  return data ?? [];
+}
+export async function flairLeaderboard() {
+  const { data } = await sb.rpc('qm_flair_leaderboard');
+  return data ?? [];
+}
+export async function myFlair() {
+  const { data } = await sb.rpc('qm_my_flair');
+  return Number(data ?? 0);
+}
+export async function adminEnsurePronos(matchdayId) {
+  return await sb.rpc('qm_admin_conseil_ensure', { p_matchday_id: matchdayId });
+}
+export async function adminAddPlayerProno(matchdayId, playerId, threshold = 7.5) {
+  return await sb.rpc('qm_admin_conseil_add_player', { p_matchday_id: matchdayId, p_player_id: playerId, p_threshold: threshold });
+}
+export async function adminGrantFlair(managerId, amount) {
+  return await sb.rpc('qm_admin_grant_flair', { p_manager_id: managerId, p_amount: amount });
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];
