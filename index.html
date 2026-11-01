@@ -1593,7 +1593,8 @@
         <h3 class="rule-h">4. Les enchères</h3>
         <ul class="rule-ul">
           <li>Une enchère dure <b>48 heures fixes</b> (jamais prolongée). En <b>fin de mercato (J13-J14)</b>, la durée passe à <b>24 heures</b> pour accélérer la clôture.</li>
-          <li><b>Pas de mise minimum</b> selon le prix du joueur : moins de 20 M€ → +1 M€ · 20 à 50 M€ → +2 M€ · 50 à 100 M€ → +3 M€ · 100 à 180 M€ → +4 M€ · 180 M€ et plus → +5 M€.</li>
+          <li><b>Palier de mise</b> selon le prix du joueur : moins de 20 M€ → +1 M€ · 20 à 50 M€ → +2 M€ · 50 à 100 M€ → +3 M€ · 100 à 180 M€ → +4 M€ · 180 M€ et plus → +5 M€.</li>
+          <li><b>Une offre = un palier.</b> Chaque offre manuelle fait monter le prix d'<b>un seul palier</b> (prix + incrément) — tu ne peux pas sauter directement à un gros montant ni au plafond. Pour viser plus haut d'un coup, utilise l'<b>enchère automatique</b> : elle surenchérira pour toi par paliers jusqu'à ton max, sans bloquer les autres.</li>
           <li><b>Plafond d'enchère</b> : aucune offre ne peut dépasser <b>la valeur du joueur × 1,5</b> (ex. Mbappé 180 M€ → plafond 270 M€).</li>
           <li><b>PASS limités</b> : 3 offres maximum par joueur. Cette limite inclut les offres passées par l'<b>enchère automatique</b> : manuelles et automatiques comptent ensemble.</li>
           <li><b>Délai de 2h</b> entre deux de tes offres sur un même joueur.</li>
@@ -3339,12 +3340,8 @@ async function startBid(playerId){
     <div class="ux-row"><span class="l">Offre minimale</span><span>${fmtMoney(next)}${atCapNext?' <span style="color:var(--transfer);font-size:.78rem">(au plafond)</span>':''}</span></div>
     ${capRow}${taxRow}
     ${atCapNext?`<p style="color:var(--transfer);font-size:.82rem;margin:10px 0 0">Dernière offre possible : tu ne peux miser qu'au plafond (${fmtMoney(cap)}).</p>`:''}
-    <input class="ux-bid-input" id="uxBid" type="number" inputmode="numeric" value="${next}"${atCapNext?' readonly':''}>
-    ${atCapNext?'':`<div class="ux-quick">
-      <button data-add="${step}">+${fmtMoney(step)}</button>
-      <button data-add="${step*2}">+${fmtMoney(step*2)}</button>
-      ${cap?`<button data-set="${cap}">Plafond</button>`:''}
-    </div>`}
+    <input class="ux-bid-input" id="uxBid" type="number" inputmode="numeric" value="${next}" readonly>
+    <p class="hint" style="font-size:.74rem;margin:6px 0 0">Une offre = <b>un palier</b> (prix + ${fmtMoney(step)}). Pour viser plus haut d'un coup, utilise l'<b>enchère automatique</b> ci-dessous.</p>
     <div id="bidSim" class="bid-sim"></div>
     <div style="margin-top:10px">
       <button type="button" id="cmpToggle" class="bid-btn ghost" style="width:100%;margin-top:0;font-size:.82rem;padding:8px">⚖️ Ai-je mieux à ce poste ?</button>
@@ -3426,6 +3423,8 @@ async function startBid(playerId){
     const amount = parseInt(inp.value,10);
     if(isNaN(amount)) return toast('Montant invalide.','err');
     if(amount < next) return toast(`Offre trop basse. Minimum : ${fmtMoney(next)}.`,'err');
+    // Une offre = un palier : on ne peut pas sauter au-dessus de `next`.
+    if(amount > next) return toast(`Une offre à la fois : tu peux miser ${fmtMoney(next)} (prix + 1 palier). Pour viser plus haut, active l'enchère automatique.`,'err',4200);
     if(cap && amount > cap) return toast(`Au-dessus du plafond (${fmtMoney(cap)}).`,'err');
     await withLoading(e.target, async ()=>{
       const { error } = await api.placeBid(auc.id, amount);
