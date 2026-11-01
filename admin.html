@@ -228,7 +228,7 @@
       <button class="btn-primary" id="btnLogin" style="flex:1">Se connecter</button>
       <button class="btn-ghost" id="btnSignup">Créer un compte</button>
     </div>
-    <p class="hint">Première fois ? Crée un compte, puis désigne-toi admin via le script SQL fourni (05_admin.sql).</p>
+    <p class="hint">Première fois ? Crée un compte, puis demande à l'administrateur technique du jeu de t'accorder les droits admin.</p>
   </div>
 </div>
 
@@ -419,7 +419,7 @@
       <p class="hint" style="margin-top:8px">« Fermer maintenant » bloque immédiatement les nouvelles offres et propositions. Les enchères déjà en cours se terminent normalement à leur échéance.</p>
       <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
       <button class="btn-primary btn-sm" id="btnCloseExpired">⚡ Clôturer les enchères expirées maintenant</button>
-      <p class="hint" style="margin-top:8px">Attribue immédiatement aux gagnants les enchères <b>déjà terminées</b> (dont l'heure de fin est passée) mais restées ouvertes. À utiliser si les joueurs remportés n'apparaissent pas dans les effectifs. Nécessite le script <b>151</b>.</p>
+      <p class="hint" style="margin-top:8px">Attribue immédiatement aux gagnants les enchères <b>déjà terminées</b> (dont l'heure de fin est passée) mais restées ouvertes. À utiliser si les joueurs remportés n'apparaissent pas dans les effectifs.</p>
       <div id="closeExpiredResult" style="margin-top:8px"></div>
     </div>
   </div>
@@ -516,7 +516,7 @@
   <!-- Suspendre le dénichement (sanction temporaire) -->
   <h2>⛔ Suspendre le dénichement</h2>
   <div class="card" style="margin-bottom:14px">
-    <p class="hint" style="margin-bottom:12px">Sanction <b>temporaire</b> pour faute grave : le manager (et son coach) ne pourront <b>plus proposer de joueur</b> pendant la durée choisie. Le reste du jeu (enchères, compo, échanges) n'est pas affecté. La suspension se lève automatiquement à l'échéance. Nécessite le script <b>159</b>.</p>
+    <p class="hint" style="margin-bottom:12px">Sanction <b>temporaire</b> pour faute grave : le manager (et son coach) ne pourront <b>plus proposer de joueur</b> pendant la durée choisie. Le reste du jeu (enchères, compo, échanges) n'est pas affecté. La suspension se lève automatiquement à l'échéance.</p>
     <div class="row c2" style="align-items:end;margin-bottom:10px">
       <div><label>Manager</label><select id="scoutLockMgr"><option value="">— manager —</option></select></div>
       <div><label>Durée (heures)</label><input id="scoutLockHours" type="number" min="1" value="24"></div>
@@ -618,7 +618,7 @@
   <!-- Bourse des joueurs -->
   <div class="card" style="margin-bottom:14px">
     <h3 style="margin:0 0 8px">📈 Bourse des joueurs</h3>
-    <p class="hint" style="margin-bottom:12px">La cote de chaque joueur évolue <b>automatiquement à chaque clôture de journée</b>, selon les notes saisies (bonne note → la cote monte, mauvaise note ou joueur non aligné → elle baisse). Le bouton ci-dessous <b>reconstruit tout l'historique</b> des cotes depuis la 1ʳᵉ journée clôturée — utile la première fois, ou après avoir corrigé des notes. Nécessite le script <b>147_bourse_joueurs.sql</b>.</p>
+    <p class="hint" style="margin-bottom:12px">La cote de chaque joueur évolue <b>automatiquement à chaque clôture de journée</b>, selon les notes saisies (bonne note → la cote monte, mauvaise note ou joueur non aligné → elle baisse). Le bouton ci-dessous <b>reconstruit tout l'historique</b> des cotes depuis la 1ʳᵉ journée clôturée — utile la première fois, ou après avoir corrigé des notes.</p>
     <button class="btn-primary btn-sm" id="btnRebuildQuotes">Recalculer les cotes</button>
     <div id="rebuildQuotesResult" style="margin-top:10px"></div>
   </div>
@@ -626,7 +626,7 @@
   <!-- Conseil d'avant-match (pronostics) -->
   <div class="card" style="margin-bottom:14px">
     <h3 style="margin:0 0 8px">🔮 Conseil d'avant-match (pronostics)</h3>
-    <p class="hint" style="margin-bottom:12px">À l'ouverture d'une journée, le prono « <b>Top score</b> » (quel manager marquera le plus) est créé automatiquement. Tu peux ajouter des pronos « <b>un joueur dépasse une note</b> ». Tout est résolu à la clôture, et les jetons gagnés alimentent le <b>classement flair</b>. Nécessite le script <b>148_conseil_avant_match.sql</b>.</p>
+    <p class="hint" style="margin-bottom:12px">À l'ouverture d'une journée, le prono « <b>Top score</b> » (quel manager marquera le plus) est créé automatiquement. Tu peux ajouter des pronos « <b>un joueur dépasse une note</b> ». Tout est résolu à la clôture, et les jetons gagnés alimentent le <b>classement flair</b>.</p>
     <label>Journée concernée</label>
     <select id="pronoMatchday" style="width:100%;padding:9px;margin:6px 0 12px"></select>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -1047,7 +1047,7 @@ async function refreshGate(){
   if(!mgr){ $('gate').classList.remove('hidden'); $('console').classList.add('hidden'); return; }
   const isAdmin = await api.amIAdmin();
   if(!isAdmin){
-    showMsg($('msg'), `Connecté comme ${mgr.display_name}, mais tu n'es pas admin. Exécute le script 05_admin.sql pour te désigner.`);
+    showMsg($('msg'), `Connecté comme ${mgr.display_name}, mais tu n'as pas les droits admin. Demande à l'administrateur technique du jeu de te les accorder.`);
     $('gate').classList.remove('hidden'); $('console').classList.add('hidden');
     return;
   }
@@ -1203,7 +1203,7 @@ $('btnSignup').onclick = async () => {
   const email = $('email').value.trim();
   const { error } = await api.signUp(email, $('password').value, email.split('@')[0]);
   if(error) return showMsg($('msg'), 'Échec : '+error.message);
-  showMsg($('msg'), 'Compte créé. Désigne-toi admin (05_admin.sql), puis connecte-toi.', true);
+  showMsg($('msg'), 'Compte créé. Demande les droits admin à l\'administrateur technique, puis connecte-toi.', true);
 };
 
 // ---------- Phase ----------
@@ -2072,7 +2072,7 @@ async function loadOverview(){
   if(o.__error){
     const isCache = /schema cache|find the function/i.test(o.__error);
     const hint = isCache
-      ? "Cache d'API Supabase à recharger : exécute <code>notify pgrst, 'reload schema';</code> dans le SQL Editor, ou Settings → API → Reload schema cache."
+      ? "Mise à jour technique à appliquer : signale-le à l'administrateur technique du jeu."
       : "Un script SQL n'a peut-être pas été passé — vérifie le Diagnostic.";
     grid.innerHTML = `<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px;color:var(--danger,#e0574a)">Erreur : ${o.__error}<br><span style="color:var(--muted)">${hint}</span></div>`;
     return;
@@ -3379,27 +3379,27 @@ const ADMIN_FAQ = [
     ['Comment programmer une enchère pour plus tard ?',
      "Même écran, bouton <b>« 🗓️ Programmer »</b> : saisis la date et l'heure de démarrage. Le joueur reste libre d'ici là, et l'enchère démarre automatiquement à l'heure prévue. Tu retrouves et peux annuler les enchères planifiées dans « 🔁 Marché → Enchères programmées »."],
     ['La colonne « Programmées » côté joueur reste vide, pourquoi ?',
-     "Elle n'affiche quelque chose que si tu as planifié au moins une enchère (bouton « Programmer »). Sans programmation, elle est normalement vide. Vérifie aussi que le script des enchères programmées et son cron ont bien été passés."],
+     "Elle n'affiche quelque chose que si tu as planifié au moins une enchère (bouton « Programmer »). Sans programmation, elle est normalement vide."],
     ['Une enchère est bloquée / ne se termine pas ?',
-     "Les enchères se clôturent via un balayage automatique (cron, chaque minute). Si rien ne bouge, vérifie dans Supabase que le job <b>sweep-qm_auctions</b> est actif (table cron.job). Tu peux aussi intervenir manuellement depuis « 🔁 Marché »."],
+     "Les enchères se clôturent automatiquement (chaque minute). Si rien ne bouge, tu peux clôturer manuellement les enchères terminées depuis « 🔁 Marché »."],
     ['Comment annuler une enchère EN COURS (ouverte par erreur) ?',
      "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« ⚠️ Annuler une enchère en cours »</b> : choisis l'enchère, confirme. Le joueur redevient libre, le budget bloqué du meneur est remboursé (il ne paie rien), l'enchère est annulée. On ne peut pas « modifier » une enchère en place : on l'annule puis on la relance correctement."],
     ['Le dénicheur a mis une mauvaise valeur : comment corriger le prix ?',
-     "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« 🔧 Corriger le prix de départ d'une enchère »</b> : choisis l'enchère, saisis le bon prix (M€), confirme. Ça corrige le prix de départ <b>et</b> la valeur de base du joueur. Possible <b>uniquement si personne n'a encore enchéri</b> — sinon annule l'enchère (remboursement) puis relance-la au bon prix. Nécessite le script <b>132</b>."],
+     "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« 🔧 Corriger le prix de départ d'une enchère »</b> : choisis l'enchère, saisis le bon prix (M€), confirme. Ça corrige le prix de départ <b>et</b> la valeur de base du joueur. Possible <b>uniquement si personne n'a encore enchéri</b> — sinon annule l'enchère (remboursement) puis relance-la au bon prix."],
     ['Un joueur a le mauvais poste (ex. défenseur mis en attaquant) : comment corriger ?',
-     "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« 🧭 Corriger le poste d'un joueur »</b> : cherche le joueur, choisis le bon poste, confirme. Ça <b>fonctionne même s'il est déjà acheté</b>, et la note Mercato se recalcule selon le nouveau poste. Si ça déséquilibre l'effectif du possesseur (ex. trop d'attaquants), c'est signalé mais pas bloqué. Annulable via le journal des actions. Nécessite le script <b>136</b>."],
+     "Onglet <b>🔁 Marché → « Interventions manuelles »</b>, bloc <b>« 🧭 Corriger le poste d'un joueur »</b> : cherche le joueur, choisis le bon poste, confirme. Ça <b>fonctionne même s'il est déjà acheté</b>, et la note Mercato se recalcule selon le nouveau poste. Si ça déséquilibre l'effectif du possesseur (ex. trop d'attaquants), c'est signalé mais pas bloqué. Annulable via le journal des actions."],
     ['Une enchère programmée ne démarre pas à l’heure prévue ?',
-     "Elle doit démarrer via le cron <b>start-qm_scheduled</b> (chaque minute). S'il n'est pas planifié, les enchères programmées restent coincées. Correctif : passe le script <b>119</b> (il (re)planifie le cron et ajoute un filet de sécurité). En attendant, va dans « 🔁 Marché → Enchères programmées » : les enchères en retard affichent un bouton <b>« Démarrer maintenant »</b>."],
+     "Elle démarre automatiquement (vérification chaque minute). S'il n'est pas planifié, les enchères programmées restent coincées. En attendant, va dans « 🔁 Marché → Enchères programmées » : les enchères en retard affichent un bouton <b>« Démarrer maintenant »</b>."],
   ]],
   ['Joueurs & propositions', [
     ['Comment ajouter plusieurs joueurs d’un coup ?',
      "Onglet <b>Joueurs → « Import CSV »</b> : colle une liste (Prénom, Nom, Poste, Club, Championnat, Valeur, et en option Âge et Nationalité). Fais « Aperçu » pour vérifier, puis « Importer ». Les doublons sont ignorés."],
     ['Un même joueur est apparu deux fois (ex. « KOUNDE » et « Koundé ») ?',
-     "C'était un défaut d'anti-doublon : la casse et le découpage prénom/nom pouvaient créer deux fiches du même joueur, donc deux enchères possibles. Corrigé par le script <b>123_verrou_doublon_casse.sql</b> : la détection se fait désormais sur le <b>nom complet + club</b> normalisés (sans casse ni accents), un <b>verrou en base</b> empêche toute recréation, et les doublons déjà présents sont fusionnés (fiche la plus ancienne ou possédée conservée). Passe aussi <b>122_anti_double_enchere.sql</b> pour purger les enchères fantômes restantes."],
+     "C'était un défaut d'anti-doublon : la casse et le découpage prénom/nom pouvaient créer deux fiches du même joueur, donc deux enchères possibles. Corrigé : la détection se fait désormais sur le <b>nom complet + club</b> normalisés (sans casse ni accents), un <b>verrou en base</b> empêche toute recréation, et les doublons déjà présents sont fusionnés (fiche la plus ancienne ou possédée conservée)."],
     ['Comment valider un joueur proposé par un manager ?',
      "Onglet <b>Marché → « Validation du marché »</b>. Le parcours est : le manager <b>déniche</b> → tu <b>valides</b> (tu reconnais le joueur) → tu <b>publies</b> (mise aux enchères). Tu ne peux pas valider ta propre proposition."],
     ['Comment aller plus vite quand il y a beaucoup de propositions ?',
-     "La file de validation <b>trie automatiquement</b> : les propositions à problème (⚠️ doublon potentiel, championnat « Autre », valeur suspecte) remontent <b>en tête</b>, les propositions <b>🟢 propres</b> en dessous. Tu peux <b>cocher plusieurs propositions propres</b> et les <b>valider / publier en lot</b> via la barre d'actions groupées. Les propositions signalées restent à traiter une par une (à toi de juger). Nécessite les scripts <b>139</b> et <b>140</b>."],
+     "La file de validation <b>trie automatiquement</b> : les propositions à problème (⚠️ doublon potentiel, championnat « Autre », valeur suspecte) remontent <b>en tête</b>, les propositions <b>🟢 propres</b> en dessous. Tu peux <b>cocher plusieurs propositions propres</b> et les <b>valider / publier en lot</b> via la barre d'actions groupées. Les propositions signalées restent à traiter une par une (à toi de juger)."],
     ['Un joueur a « Autre » comme championnat, c’est grave ?',
      "Oui, à corriger : la règle des 6 par championnat et certains bonus ne fonctionnent pas sur « Autre ». À l'import comme à la validation, saisis le <b>vrai championnat</b>. L'aperçu d'import signale les lignes « Autre » en orange."],
     ['À quoi sert la double approbation des propositions ?',
@@ -3411,17 +3411,17 @@ const ADMIN_FAQ = [
     ['Comment dissocier un coach de son équipe ?',
      "Onglet <b>Managers → « Associer un Coach »</b> : dans la liste des coachs associés, clique <b>« Dissocier »</b> en face du coach concerné (une confirmation est demandée). Le compte <b>redevient un manager indépendant</b> — avec son propre budget et sa ligne au classement. Tu peux le réassocier ensuite si besoin."],
     ['Le coach et le manager ont chacun 800 M€ : comment n’avoir qu’un seul budget ?',
-     "C'est normal <b>tant que le coach n'est pas associé</b> : un compte non relié compte comme un manager à part entière (son propre budget, sa ligne au classement). <b>Associe le coach à son équipe</b> (onglet <b>Managers → « Associer un Coach »</b>) : dès lors le duo ne partage qu'<b>un seul budget</b> (celui du Manager), le coach <b>ne peut plus enchérir, recruter, échanger, faire d'offre ni prêter</b> (il n'aligne que la compo), et il disparaît du classement et du tableau financier. Le bloc « Comptes en double détectés » t'indique les comptes à associer. Nécessite les scripts <b>121_coach_ne_depense_pas.sql</b> (enchères/recrutement) et <b>145_coach_pas_echange.sql</b> (échanges, offres en vitrine, prêts) pour bloquer techniquement un coach."],
+     "C'est normal <b>tant que le coach n'est pas associé</b> : un compte non relié compte comme un manager à part entière (son propre budget, sa ligne au classement). <b>Associe le coach à son équipe</b> (onglet <b>Managers → « Associer un Coach »</b>) : dès lors le duo ne partage qu'<b>un seul budget</b> (celui du Manager), le coach <b>ne peut plus enchérir, recruter, échanger, faire d'offre ni prêter</b> (il n'aligne que la compo), et il disparaît du classement et du tableau financier. Le bloc « Comptes en double détectés » t'indique les comptes à associer."],
     ['Un coach peut-il proposer ou accepter un échange, une offre ou un prêt ?',
-     "Non. Dès qu'il est associé, le coach est bloqué côté base (script <b>145_coach_pas_echange.sql</b>) : il ne peut ni <b>proposer</b> ni <b>accepter</b> un échange, une offre en vitrine ou un prêt — seul le <b>Manager</b> engage l'effectif. Le coach garde l'accès en <b>consultation</b> au marché et aux mouvements, et peut toujours <b>refuser/annuler</b> une sollicitation reçue."],
+     "Non. Dès qu'il est associé, le coach est bloqué côté base : il ne peut ni <b>proposer</b> ni <b>accepter</b> un échange, une offre en vitrine ou un prêt — seul le <b>Manager</b> engage l'effectif. Le coach garde l'accès en <b>consultation</b> au marché et aux mouvements, et peut toujours <b>refuser/annuler</b> une sollicitation reçue."],
     ['Comment inviter de nouveaux managers ?',
      "Onglet <b>Managers → « Inviter des managers »</b> : copie ou partage le lien d'invitation (WhatsApp, SMS…). En l'ouvrant, la personne arrive directement sur l'inscription. Tu peux remplacer « admin » par un pseudo pour un lien de parrainage."],
     ['Comment modérer le chat ?',
      "Onglet <b>Managers → « Modération du chat »</b> : tu peux <b>réduire au silence</b> un manager ou réactiver sa parole. Les comptes admin et coach ne figurent pas dans la liste."],
     ['Comment supprimer définitivement un manager ?',
-     "Onglet <b>Managers → « 🗑 Supprimer un manager »</b> : choisis le manager et confirme (double validation + saisie du mot SUPPRIMER). Ses <b>joueurs retournent au marché</b> (libres, valeur de base) et son <b>compte de connexion est effacé</b>. Si le manager <b>mène une enchère en cours</b>, clôture ou annule-la d'abord, sinon la suppression est refusée. Les comptes <b>admin</b> ne sont pas supprimables (retire-leur d'abord les droits si besoin). <b>Action irréversible.</b> Nécessite le script <b>120_supprimer_manager.sql</b>."],
+     "Onglet <b>Managers → « 🗑 Supprimer un manager »</b> : choisis le manager et confirme (double validation + saisie du mot SUPPRIMER). Ses <b>joueurs retournent au marché</b> (libres, valeur de base) et son <b>compte de connexion est effacé</b>. Si le manager <b>mène une enchère en cours</b>, clôture ou annule-la d'abord, sinon la suppression est refusée. Les comptes <b>admin</b> ne sont pas supprimables (retire-leur d'abord les droits si besoin). <b>Action irréversible.</b>"],
     ['Comment sanctionner un manager (faute grave) sans le supprimer ?',
-     "Onglet <b>Managers → « ⛔ Suspendre le dénichement »</b> : choisis le manager, une <b>durée en heures</b> et un motif, puis « Suspendre ». Pendant la durée, lui (et son coach) ne peuvent <b>plus proposer de joueur</b> — le reste du jeu continue normalement. La suspension se lève toute seule à l'échéance, ou tout de suite avec « Lever la suspension ». Les suspensions en cours sont listées dessous. Nécessite le script <b>159</b>."],
+     "Onglet <b>Managers → « ⛔ Suspendre le dénichement »</b> : choisis le manager, une <b>durée en heures</b> et un motif, puis « Suspendre ». Pendant la durée, lui (et son coach) ne peuvent <b>plus proposer de joueur</b> — le reste du jeu continue normalement. La suspension se lève toute seule à l'échéance, ou tout de suite avec « Lever la suspension ». Les suspensions en cours sont listées dessous."],
     ['Comment gérer les divisions (montée/descente) ?',
      "Onglet <b>Managers → « Ligues & divisions »</b> : répartis les managers par division et applique la montée/descente en fin de saison. Le classement s'affiche alors par division."],
   ]],
@@ -3431,7 +3431,7 @@ const ADMIN_FAQ = [
     ['Comment définir les dates des mercatos ?',
      "Onglet <b>Pilotage → « Fenêtres de mercato »</b> : crée les fenêtres d'été et d'hiver avec leurs dates d'ouverture et de fermeture. Le mercato d'été dure 14 jours (enchères 48h puis 24h en J13-J14)."],
     ['Comment afficher le compte à rebours du prochain mercato ?',
-     "Crée la fenêtre voulue avec une <b>date d'ouverture dans le futur</b>, puis <b>active-la</b> (bouton d'activation dans « Fenêtres de mercato »). Tant que la date d'ouverture n'est pas atteinte, le mercato <b>reste fermé</b> (aucune enchère possible), mais la page d'accueil affiche un <b>compte à rebours « … ouvre dans … »</b> vers cette date. À l'heure dite, le mercato s'ouvre tout seul. Nécessite le script <b>146_prochain_mercato.sql</b>."],
+     "Crée la fenêtre voulue avec une <b>date d'ouverture dans le futur</b>, puis <b>active-la</b> (bouton d'activation dans « Fenêtres de mercato »). Tant que la date d'ouverture n'est pas atteinte, le mercato <b>reste fermé</b> (aucune enchère possible), mais la page d'accueil affiche un <b>compte à rebours « … ouvre dans … »</b> vers cette date. À l'heure dite, le mercato s'ouvre tout seul."],
     ['Comment valider le remplacement d’un joueur blessé ?',
      "Onglet <b>Joueurs → « Blessures à valider »</b> : en validant, tu autorises le remplacement gratuit (sans enchère) pendant le mercato d'hiver. Tu peux aussi rejeter la déclaration."],
     ['Comment générer un récap de journée ?',
@@ -3449,9 +3449,9 @@ const ADMIN_FAQ = [
   ]],
   ['Bourse & Conseil d\'avant-match', [
     ['Comment fonctionne la Bourse des joueurs ?',
-     "La <b>cote</b> de chaque joueur évolue <b>automatiquement à chaque clôture de journée</b>, selon les notes saisies : bonne note → la cote monte, mauvaise note ou joueur non aligné → elle baisse (bornée entre 50 % et 400 % de la valeur de base). Elle n'affecte <b>ni le budget ni le prix d'achat</b> — c'est un indicateur. Le bouton <b>« Recalculer les cotes »</b> (section Saisie des notes) reconstruit tout l'historique, utile la 1ʳᵉ fois ou après correction de notes. Nécessite le script <b>147_bourse_joueurs.sql</b>."],
+     "La <b>cote</b> de chaque joueur évolue <b>automatiquement à chaque clôture de journée</b>, selon les notes saisies : bonne note → la cote monte, mauvaise note ou joueur non aligné → elle baisse (bornée entre 50 % et 400 % de la valeur de base). Elle n'affecte <b>ni le budget ni le prix d'achat</b> — c'est un indicateur. Le bouton <b>« Recalculer les cotes »</b> (section Saisie des notes) reconstruit tout l'historique, utile la 1ʳᵉ fois ou après correction de notes."],
     ['Comment créer des pronostics d\'avant-match ?',
-     "Section <b>« 🔮 Conseil d'avant-match »</b> : choisis une journée. Le prono <b>« Top score »</b> (quel manager marquera le plus) est créé <b>tout seul</b> à l'ouverture d'une journée — le bouton « Générer » sert de rattrapage. Tu peux ajouter des pronos <b>« un joueur dépasse une note »</b> (recherche du joueur + seuil). Tout est résolu <b>à la clôture</b> de la journée. Nécessite le script <b>148_conseil_avant_match.sql</b>."],
+     "Section <b>« 🔮 Conseil d'avant-match »</b> : choisis une journée. Le prono <b>« Top score »</b> (quel manager marquera le plus) est créé <b>tout seul</b> à l'ouverture d'une journée — le bouton « Générer » sert de rattrapage. Tu peux ajouter des pronos <b>« un joueur dépasse une note »</b> (recherche du joueur + seuil). Tout est résolu <b>à la clôture</b> de la journée."],
     ['C\'est quoi les jetons de flair et le classement flair ?',
      "Une <b>monnaie ludique</b> (chaque manager démarre à 100), sans aucun lien avec le budget transfert. Les managers misent ces jetons sur les pronos ; un bon prono rapporte <b>2× la mise</b>. Un <b>classement flair</b> à part récompense les meilleurs pronostiqueurs. Tu peux <b>recréditer</b> des jetons à un manager (ou à tous) via le champ « Recréditer des jetons de flair »."],
     ['Qui peut pronostiquer ?',
@@ -3459,13 +3459,13 @@ const ADMIN_FAQ = [
   ]],
   ['Fin de saison & dépannage', [
     ['J’ai fait une fausse manip : comment l’annuler ?',
-     "Onglet avec le bloc <b>« ↩️ Journal des actions »</b> : il liste tes dernières actions réversibles (crédits budget/points, ouvertures d'enchères, corrections de valeur). Clique <b>« Annuler »</b> sur la ligne concernée — l'effet est inversé (re-débit, enchère annulée avec remboursement, valeur restaurée). Une enchère déjà clôturée ne peut pas être « dé-ouverte ». Nécessite le script <b>134</b>."],
+     "Onglet avec le bloc <b>« ↩️ Journal des actions »</b> : il liste tes dernières actions réversibles (crédits budget/points, ouvertures d'enchères, corrections de valeur). Clique <b>« Annuler »</b> sur la ligne concernée — l'effet est inversé (re-débit, enchère annulée avec remboursement, valeur restaurée). Une enchère déjà clôturée ne peut pas être « dé-ouverte »."],
     ['Comment remettre le jeu à zéro pour une nouvelle saison ?',
      "Onglet <b>Pilotage → « Saisons & archives »</b>, bouton <b>« Tout remettre à zéro »</b> (saisie de confirmation demandée). Ça archive la saison (classement + palmarès) puis repart à neuf : joueurs libres, budgets à 800 M€, points à 0. Les comptes et le catalogue sont conservés. <b>Action irréversible</b> — exporte avant."],
     ['Erreur « UPDATE requires a WHERE clause » au reset ?',
-     "C'est une sécurité de la base (pg-safeupdate) qui bloquait un ancien script. Passe le script correctif <b>104_fix_reset_where.sql</b> dans Supabase et le bouton fonctionnera."],
-    ['Une section admin affiche « passe le script… » ?',
-     "Cette fonctionnalité a besoin d'un script SQL non encore exécuté. Passe le script correspondant dans l'éditeur SQL de Supabase (dossier db/), puis recharge la page admin."],
+     "C'est une sécurité technique de la base. Si ce message apparaît, signale-le à l'administrateur technique du jeu — un correctif rapide débloque le bouton."],
+    ['Une fonctionnalité ne répond pas ou affiche une erreur technique ?',
+     "Signale-le à l'administrateur technique du jeu : il déploiera la mise à jour nécessaire. Recharge ensuite la page admin."],
     ['Un changement n’apparaît pas côté joueurs ?',
      "C'est souvent le cache. Demande un rechargement forcé : <b>Ctrl+Maj+R</b> sur PC, ou fermer/rouvrir l'appli sur mobile. Côté admin, recharge aussi la page."],
   ]],
