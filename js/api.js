@@ -1284,6 +1284,18 @@ export async function adminGrantFlair(managerId, amount) {
 export async function adminCloseExpiredAuctions() {
   return await sb.rpc('qm_admin_close_expired_auctions');
 }
+
+// ---------- Verrou de dénichement (sanction admin) ----------
+export async function adminLockScouting(managerId, hours, reason = null) {
+  return await sb.rpc('qm_admin_lock_scouting', { p_manager_id: managerId, p_hours: hours, p_reason: reason });
+}
+export async function adminUnlockScouting(managerId) {
+  return await sb.rpc('qm_admin_unlock_scouting', { p_manager_id: managerId });
+}
+export async function scoutingLocks() {
+  const { data } = await sb.rpc('qm_scouting_locks');
+  return data ?? [];
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];

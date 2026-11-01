@@ -513,6 +513,23 @@
     </div>
   </div>
 
+  <!-- Suspendre le dénichement (sanction temporaire) -->
+  <h2>⛔ Suspendre le dénichement</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Sanction <b>temporaire</b> pour faute grave : le manager (et son coach) ne pourront <b>plus proposer de joueur</b> pendant la durée choisie. Le reste du jeu (enchères, compo, échanges) n'est pas affecté. La suspension se lève automatiquement à l'échéance. Nécessite le script <b>159</b>.</p>
+    <div class="row c2" style="align-items:end;margin-bottom:10px">
+      <div><label>Manager</label><select id="scoutLockMgr"><option value="">— manager —</option></select></div>
+      <div><label>Durée (heures)</label><input id="scoutLockHours" type="number" min="1" value="24"></div>
+    </div>
+    <div style="margin-bottom:10px"><label>Motif (optionnel)</label><input id="scoutLockReason" placeholder="ex. collusion, triche…" style="width:100%"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-danger btn-sm" id="btnScoutLock">Suspendre</button>
+      <button class="btn-primary btn-sm" id="btnScoutUnlock">Lever la suspension</button>
+    </div>
+    <div id="scoutLockResult" style="margin-top:10px"></div>
+    <div id="scoutLockList" style="margin-top:12px"></div>
+  </div>
+
   <!-- Récompenses de fin de saison (Vague 3 temps 2) -->
   <h2>Récompenses de fin de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1044,7 +1061,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -2578,6 +2595,50 @@ if($('btnDeleteManager')) $('btnDeleteManager').onclick = async ()=>{
   if(typeof loadRanking === 'function') loadRanking();
 };
 
+// ---------- Suspension du dénichement ----------
+async function loadScoutLock(){
+  if(!$('scoutLockMgr')) return;
+  const mgrs = (await api.listManagers()).filter(m=>!m.is_admin && !m.coach_of);
+  $('scoutLockMgr').innerHTML = '<option value="">— manager —</option>' +
+    mgrs.map(m=>`<option value="${m.id}">${m.team_name ? m.team_name+' — ' : ''}${m.display_name}</option>`).join('');
+  // Liste des suspensions en cours
+  let locks = []; try { locks = await api.scoutingLocks(); } catch(e){}
+  const box = $('scoutLockList');
+  if(!locks.length){ box.innerHTML = '<p class="hint" style="font-size:.8rem">Aucune suspension en cours.</p>'; return; }
+  box.innerHTML = '<div class="hint" style="font-size:.78rem;margin-bottom:6px">Suspensions en cours :</div>' +
+    locks.map(l=>{
+      const until = new Date(l.locked_until).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px">
+        <span style="font-size:.84rem"><b>${l.team_name||l.display_name}</b> — jusqu'au ${until}${l.reason?` <span class="hint">(${l.reason})</span>`:''}</span>
+        <button class="btn-primary btn-sm" data-unlock="${l.manager_id}">Lever</button></div>`;
+    }).join('');
+  box.querySelectorAll('[data-unlock]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminUnlockScouting(b.dataset.unlock);
+    if(error) return showMsg($('scoutLockResult'), error.message);
+    showMsg($('scoutLockResult'), 'Suspension levée.', true); loadScoutLock();
+  });
+}
+if($('btnScoutLock')) $('btnScoutLock').onclick = async ()=>{
+  const id = $('scoutLockMgr').value;
+  if(!id) return showMsg($('scoutLockResult'), 'Choisis un manager.');
+  const hours = parseInt($('scoutLockHours').value||'0',10);
+  if(!hours || hours<1) return showMsg($('scoutLockResult'), 'Indique une durée (heures).');
+  const reason = ($('scoutLockReason').value||'').trim() || null;
+  const name = $('scoutLockMgr').options[$('scoutLockMgr').selectedIndex].text;
+  if(!confirm(`Suspendre le dénichement de « ${name} » pendant ${hours} h ?`)) return;
+  const { error } = await api.adminLockScouting(id, hours, reason);
+  if(error) return showMsg($('scoutLockResult'), error.message);
+  showMsg($('scoutLockResult'), `Dénichement suspendu ${hours} h.`, true);
+  $('scoutLockReason').value=''; loadScoutLock();
+};
+if($('btnScoutUnlock')) $('btnScoutUnlock').onclick = async ()=>{
+  const id = $('scoutLockMgr').value;
+  if(!id) return showMsg($('scoutLockResult'), 'Choisis un manager.');
+  const { error } = await api.adminUnlockScouting(id);
+  if(error) return showMsg($('scoutLockResult'), error.message);
+  showMsg($('scoutLockResult'), 'Suspension levée.', true); loadScoutLock();
+};
+
 // ---------- Ligues / divisions ----------
 async function loadDivisions(){
   if(!$('divList')) return;
@@ -3358,6 +3419,8 @@ const ADMIN_FAQ = [
      "Onglet <b>Managers → « Modération du chat »</b> : tu peux <b>réduire au silence</b> un manager ou réactiver sa parole. Les comptes admin et coach ne figurent pas dans la liste."],
     ['Comment supprimer définitivement un manager ?',
      "Onglet <b>Managers → « 🗑 Supprimer un manager »</b> : choisis le manager et confirme (double validation + saisie du mot SUPPRIMER). Ses <b>joueurs retournent au marché</b> (libres, valeur de base) et son <b>compte de connexion est effacé</b>. Si le manager <b>mène une enchère en cours</b>, clôture ou annule-la d'abord, sinon la suppression est refusée. Les comptes <b>admin</b> ne sont pas supprimables (retire-leur d'abord les droits si besoin). <b>Action irréversible.</b> Nécessite le script <b>120_supprimer_manager.sql</b>."],
+    ['Comment sanctionner un manager (faute grave) sans le supprimer ?',
+     "Onglet <b>Managers → « ⛔ Suspendre le dénichement »</b> : choisis le manager, une <b>durée en heures</b> et un motif, puis « Suspendre ». Pendant la durée, lui (et son coach) ne peuvent <b>plus proposer de joueur</b> — le reste du jeu continue normalement. La suspension se lève toute seule à l'échéance, ou tout de suite avec « Lever la suspension ». Les suspensions en cours sont listées dessous. Nécessite le script <b>159</b>."],
     ['Comment gérer les divisions (montée/descente) ?',
      "Onglet <b>Managers → « Ligues & divisions »</b> : répartis les managers par division et applique la montée/descente en fin de saison. Le classement s'affiche alors par division."],
   ]],
