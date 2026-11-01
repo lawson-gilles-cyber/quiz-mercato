@@ -1279,6 +1279,11 @@ export async function adminAddPlayerProno(matchdayId, playerId, threshold = 7.5)
 export async function adminGrantFlair(managerId, amount) {
   return await sb.rpc('qm_admin_grant_flair', { p_manager_id: managerId, p_amount: amount });
 }
+
+// Clôturer immédiatement les enchères expirées (rattrapage admin).
+export async function adminCloseExpiredAuctions() {
+  return await sb.rpc('qm_admin_close_expired_auctions');
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];

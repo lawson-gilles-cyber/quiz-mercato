@@ -417,6 +417,10 @@
       </div>
       <button class="btn-danger btn-sm" id="btnCloseMarketNow">⛔ Fermer le mercato maintenant</button>
       <p class="hint" style="margin-top:8px">« Fermer maintenant » bloque immédiatement les nouvelles offres et propositions. Les enchères déjà en cours se terminent normalement à leur échéance.</p>
+      <hr style="border:none;border-top:1px solid var(--line);margin:14px 0">
+      <button class="btn-primary btn-sm" id="btnCloseExpired">⚡ Clôturer les enchères expirées maintenant</button>
+      <p class="hint" style="margin-top:8px">Attribue immédiatement aux gagnants les enchères <b>déjà terminées</b> (dont l'heure de fin est passée) mais restées ouvertes. À utiliser si les joueurs remportés n'apparaissent pas dans les effectifs. Nécessite le script <b>151</b>.</p>
+      <div id="closeExpiredResult" style="margin-top:8px"></div>
     </div>
   </div>
 
@@ -1901,6 +1905,17 @@ if($('btnCloseMarketNow')) $('btnCloseMarketNow').onclick = async ()=>{
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'),'Mercato fermé. Les nouvelles enchères sont bloquées.',true);
   loadMarketDates(); loadWindows();
+};
+
+// ---------- Clôturer les enchères expirées (rattrapage) ----------
+if($('btnCloseExpired')) $('btnCloseExpired').onclick = async ()=>{
+  const out = $('closeExpiredResult');
+  if(!confirm('Clôturer maintenant toutes les enchères déjà terminées ?\n\nChaque enchère gagnée attribue le joueur à son vainqueur (budget débité). Celles sans offre remettent le joueur libre.')) return;
+  $('btnCloseExpired').disabled = true;
+  const { data, error } = await api.adminCloseExpiredAuctions();
+  $('btnCloseExpired').disabled = false;
+  if(error) return showMsg(out, 'Échec : '+error.message);
+  showMsg(out, `${data ?? 0} enchère(s) clôturée(s). Les joueurs gagnés sont désormais dans les effectifs.`, true);
 };
 
 // ---------- Bourse : recalcul des cotes ----------
