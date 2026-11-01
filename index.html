@@ -1870,7 +1870,12 @@ async function withLoading(btn, fn){
 // ---------- Utilitaires ----------
 function fmtMoney(v){ v=Number(v);
   if(v>=1e9) return (v/1e9).toFixed(2).replace('.',',')+' Md€';
-  if(v>=1e6) return (v/1e6).toFixed(0).replace('.',',')+' M€';
+  if(v>=1e6){
+    // Évite d'arrondir 7,5 M€ en « 8 M€ » : on affiche 1 décimale si non rond.
+    const m = v/1e6;
+    const s = Number.isInteger(m) ? String(m) : m.toFixed(1);
+    return s.replace('.',',')+' M€';
+  }
   if(v>=1e3) return Math.round(v/1e3)+' k€';
   return v+' €';
 }
