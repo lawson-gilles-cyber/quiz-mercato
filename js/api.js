@@ -1296,6 +1296,12 @@ export async function scoutingLocks() {
   const { data } = await sb.rpc('qm_scouting_locks');
   return data ?? [];
 }
+
+// Enchères clôturées (admin) : journal + vérification des bonus dénicheur.
+export async function adminClosedAuctions(limit = 60) {
+  const { data } = await sb.rpc('qm_admin_closed_auctions', { p_limit: limit });
+  return data ?? [];
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];

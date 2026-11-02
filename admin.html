@@ -909,6 +909,15 @@
     </table>
   </div>
 
+  <!-- Enchères clôturées -->  <h2>Enchères clôturées</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Les enchères terminées, de la plus récente à la plus ancienne. Consulte le <b>journal des offres</b> même après clôture, et vérifie que le <b>bonus dénicheur</b> a bien été crédité (quand un joueur déniché par un manager est remporté par un autre).</p>
+    <table>
+      <thead><tr><th>Date</th><th>Joueur</th><th>Gagnant</th><th>Prix</th><th>Dénicheur</th><th>Bonus</th><th></th></tr></thead>
+      <tbody id="closedAucRows"><tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune enchère clôturée.</td></tr></tbody>
+    </table>
+  </div>
+
   <!-- Libérations / pénalités -->  <h2>Libérations & pénalités</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:14px">Toutes les libérations de joueurs, avec remboursement et pénalité perdue.</p>
@@ -1061,7 +1070,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1075,7 +1084,7 @@ const ADMIN_TABS = [
       "Vue d'ensemble","Santé du mercato","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
-      "Historique des transactions","Libérations & pénalités","Historique des propositions"] },
+      "Historique des transactions","Enchères clôturées","Libérations & pénalités","Historique des propositions"] },
   { id:'joueurs', label:'⚽ Joueurs', titles:[
       "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
   { id:'managers', label:'👥 Managers', titles:[
@@ -1558,6 +1567,55 @@ async function loadTransactions(){
       <td class="val">${t.price>0?fmtM(t.price):'échange'}</td>
     </tr>`;
   }).join('');
+}
+
+// ---------- Enchères clôturées (journal + bonus) ----------
+async function loadClosedAuctions(){
+  const tbody = $('closedAucRows'); if(!tbody) return;
+  let list = []; try { list = await api.adminClosedAuctions(80); } catch(e){}
+  if(!list.length){
+    tbody.innerHTML = '<tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune enchère clôturée.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(a=>{
+    const d = new Date(a.closed_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    // Statut du bonus dénicheur
+    let bonus;
+    if(!a.winner){ bonus = '<span class="hint">—</span>'; }         // sans gagnant (aucune offre)
+    else if(!a.scout_is_other){ bonus = '<span class="hint">sans objet</span>'; } // pas de dénicheur tiers
+    else if(a.bonus_credited){ bonus = `<span style="color:#4ade80">✓ ${fmtM(a.bonus_amount)}</span>`; }
+    else { bonus = '<span style="color:#e0574a;font-weight:700">✗ non crédité</span>'; }
+    return `<tr>
+      <td class="hint">${d}</td>
+      <td><b>${a.player_name}</b></td>
+      <td>${a.winner ?? '<span class="hint">aucune offre</span>'}</td>
+      <td class="val">${a.price>0?fmtM(a.price):'—'}</td>
+      <td>${a.scout ?? '<span class="hint">—</span>'}</td>
+      <td>${bonus}</td>
+      <td><button class="btn-ghost btn-sm" data-journal="${a.auction_id}" data-pname="${(a.player_name||'').replace(/"/g,'&quot;')}">📜 Journal</button></td>
+    </tr>`;
+  }).join('');
+  tbody.querySelectorAll('[data-journal]').forEach(b=>b.onclick=()=>showAdminJournal(b.dataset.journal, b.dataset.pname));
+}
+// Popup journal des offres (admin), réutilise qm_auction_bids (sans filtre de statut).
+async function showAdminJournal(auctionId, playerName){
+  let bids = []; try { bids = await api.auctionBids(auctionId); } catch(e){}
+  const rows = bids.length ? bids.map(b=>{
+    const t = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">
+      <span>${(b.bidder||'?')}</span><span style="font-family:'Space Mono',monospace">${fmtM(b.amount)} <span class="hint">· ${t}</span></span></div>`;
+  }).join('') : '<p class="hint">Aucune offre sur cette enchère.</p>';
+  const ov = document.createElement('div');
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(5,12,25,.75);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px';
+  ov.innerHTML = `<div style="background:var(--pitch-2,#111a2e);border:1px solid var(--line);border-radius:14px;max-width:460px;width:100%;max-height:80vh;overflow:auto;padding:20px">
+      <h3 style="margin:0 0 4px">📜 Journal des offres</h3>
+      <p class="hint" style="margin:0 0 12px">${playerName||''} — ${bids.length} offre${bids.length>1?'s':''}, de la plus récente à la plus ancienne.</p>
+      ${rows}
+      <button class="btn-primary btn-sm" id="closeAdminJournal" style="margin-top:14px;width:100%">Fermer</button>
+    </div>`;
+  ov.onclick = (e)=>{ if(e.target===ov) ov.remove(); };
+  document.body.appendChild(ov);
+  ov.querySelector('#closeAdminJournal').onclick = ()=>ov.remove();
 }
 
 // ---------- Libérations & pénalités ----------
