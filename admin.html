@@ -3198,6 +3198,14 @@ async function loadProposals(){
   const analyze = p => {
     const flags = [];
     if(p.dup_count>0) flags.push({k:'dup', txt:`${p.dup_count} doublon(s) potentiel(s)`, ic:'⚠'});
+    // Quota CLUB (max 3) : le proposeur a-t-il déjà atteint la limite ?
+    if(typeof p.proposer_club_count==='number' && p.proposer_club_count >= (p.proposer_club_max||3)){
+      flags.push({k:'quota', txt:`⛔ Le proposeur a déjà ${p.proposer_club_count}/${p.proposer_club_max||3} joueurs de ${p.club||'ce club'} — il ne pourra pas enchérir`, ic:'⛔'});
+    }
+    // Quota CHAMPIONNAT (max 6).
+    if(typeof p.proposer_champ_count==='number' && p.proposer_champ_count >= (p.proposer_champ_max||6)){
+      flags.push({k:'quota', txt:`⛔ Le proposeur a déjà ${p.proposer_champ_count}/${p.proposer_champ_max||6} joueurs du championnat ${p.championship||''} — il ne pourra pas enchérir`, ic:'⛔'});
+    }
     if(p.champ_other) flags.push({k:'champ', txt:'Championnat « Autre » / vide (règle des 6)', ic:'🏷️'});
     // Valeur suspecte vs repère (fourchette élargie).
     if(p.value && p.value_min && p.value_max){
