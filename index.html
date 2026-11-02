@@ -4163,11 +4163,41 @@ async function showPlayerCard(playerId){
     <div style="font-weight:800;font-size:.9rem;margin-bottom:6px">💓 Forme récente</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">${formWidget(form)}</div>
     ${bourseBlock(quote, qhist, hist, deltaTxt)}
+    <button class="bid-btn ghost" id="pcJournalBtn" style="width:100%;margin-top:12px;font-size:.84rem;padding:9px">📜 Journal des offres</button>
+    <div id="pcJournalBox" style="margin-top:10px"></div>
     <div class="ux-actions">
       ${(ME && p.owner_id===ME.id) ? `<button class="ux-ok" data-share style="background:var(--transfer);color:var(--pitch);border:none">📲 Partager ce coup</button>` : ''}
       <button class="ux-cancel" data-no>Fermer</button>
     </div>`;
   md.querySelector('[data-no]').onclick = close;
+  // Journal des offres du joueur (dernière enchère, même après clôture).
+  const jBtn = md.querySelector('#pcJournalBtn');
+  if(jBtn) jBtn.onclick = async ()=>{
+    const box = md.querySelector('#pcJournalBox');
+    if(box.dataset.open==='1'){ box.innerHTML=''; box.dataset.open='0'; return; }
+    box.dataset.open='1';
+    box.innerHTML = '<div class="hint" style="font-size:.82rem;padding:6px">Chargement…</div>';
+    let bids = []; try { bids = await api.playerBidHistory(playerId); } catch(e){}
+    if(!bids.length){ box.innerHTML = '<div class="hint" style="font-size:.82rem">Aucune enchère sur ce joueur.</div>'; return; }
+    const esc = s => String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    // Bandeau résultat (si l'enchère est close)
+    const first = bids[0];
+    let head = '';
+    if(first.auction_status==='closed'){
+      head = first.winner
+        ? `<div style="font-size:.82rem;margin-bottom:8px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--pitch-2)">🏁 Remporté par <b>${esc(first.winner)}</b> à <b>${fmtMoney(first.final_price)}</b></div>`
+        : `<div style="font-size:.82rem;margin-bottom:8px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--pitch-2)">🏁 Enchère clôturée sans offre</div>`;
+    } else if(first.auction_status==='cancelled'){
+      head = `<div style="font-size:.82rem;margin-bottom:8px;color:var(--muted)">Enchère annulée par l'organisateur.</div>`;
+    }
+    const rows = bids.map(b=>{
+      const t = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      return `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">
+        <span>${b.is_mine?'<b style="color:var(--transfer)">Toi</b>':esc(b.bidder)}</span>
+        <span>${fmtMoney(b.amount)} <span style="color:var(--muted);font-size:.74rem">· ${t}</span></span></div>`;
+    }).join('');
+    box.innerHTML = `${head}<p class="hint" style="font-size:.78rem;margin:0 0 6px">${bids.length} offre${bids.length>1?'s':''} — de la plus récente à la plus ancienne.</p>${rows}`;
+  };
   const shareBtn = md.querySelector('[data-share]');
   if(shareBtn) shareBtn.onclick = ()=>{
     shareRecruit({

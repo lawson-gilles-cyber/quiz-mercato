@@ -248,6 +248,11 @@ export async function auctionBids(auctionId) {
   const { data } = await sb.rpc('qm_auction_bids', { p_auction_id: auctionId });
   return data ?? [];
 }
+// Historique des offres d'un joueur (dernière enchère, même après clôture).
+export async function playerBidHistory(playerId) {
+  const { data } = await sb.rpc('qm_player_bid_history', { p_player_id: playerId });
+  return data ?? [];
+}
 export async function watchToggle(auctionId) {
   return sb.rpc('qm_watch_toggle', { p_auction_id: auctionId });
 }
