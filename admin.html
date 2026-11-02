@@ -921,7 +921,7 @@
   <!-- Validation du marché (dénichage -> validation -> publication) -->
   <h2>🗓️ Enchères programmées</h2>
   <div class="card" style="margin-bottom:14px">
-    <p class="hint" style="margin-bottom:12px">Les enchères planifiées pour démarrer plus tard. Elles démarrent automatiquement à l'heure prévue (le joueur reste libre d'ici là). Pour en programmer une, utilise le bouton « 🗓️ Programmer » dans « Joueurs en base ».</p>
+    <p class="hint" style="margin-bottom:12px">Les enchères planifiées pour démarrer plus tard. Elles démarrent automatiquement à l'heure prévue (le joueur reste libre d'ici là) et durent <b>24 h</b>. Pour en programmer une, utilise le bouton « 🗓️ Programmer » dans « Joueurs en base ».</p>
     <div id="schedList"><p class="hint">Chargement…</p></div>
   </div>
 
@@ -1480,7 +1480,7 @@ function renderPlayerRows(){
     const d = new Date(Date.now() + 24*3600*1000); d.setMinutes(0,0,0); d.setHours(18);
     const pad = n => String(n).padStart(2,'0');
     const def = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    const raw = prompt(`Programmer la mise aux enchères de « ${name} ».\nDate et heure de démarrage (format AAAA-MM-JJ HH:MM) :`, def);
+    const raw = prompt(`Programmer la mise aux enchères de « ${name} » (durée : 24 h).\nDate et heure de démarrage (format AAAA-MM-JJ HH:MM) :`, def);
     if(!raw) return;
     const dt = new Date(raw.replace(' ','T'));
     if(isNaN(dt.getTime())){ showMsg($('msg2'),'Date invalide. Utilise le format AAAA-MM-JJ HH:MM.'); return; }
