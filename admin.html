@@ -912,6 +912,11 @@
   <!-- Enchères clôturées -->  <h2>Enchères clôturées</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:14px">Les enchères terminées, de la plus récente à la plus ancienne. Consulte le <b>journal des offres</b> même après clôture, et vérifie que le <b>bonus dénicheur</b> a bien été crédité (quand un joueur déniché par un manager est remporté par un autre).</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="btn-ghost btn-sm" id="btnBackfillTest">🔍 Vérifier les bonus manquants</button>
+      <button class="btn-primary btn-sm" id="btnBackfillApply" style="display:none">✓ Créditer les bonus manquants</button>
+    </div>
+    <div id="backfillResult" style="margin-bottom:12px"></div>
     <table>
       <thead><tr><th>Date</th><th>Joueur</th><th>Gagnant</th><th>Prix</th><th>Dénicheur</th><th>Bonus</th><th></th></tr></thead>
       <tbody id="closedAucRows"><tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune enchère clôturée.</td></tr></tbody>
@@ -1597,6 +1602,31 @@ async function loadClosedAuctions(){
   }).join('');
   tbody.querySelectorAll('[data-journal]').forEach(b=>b.onclick=()=>showAdminJournal(b.dataset.journal, b.dataset.pname));
 }
+// Rattrapage des bonus dénicheur : test puis application.
+function renderBackfill(list, applied){
+  const box = $('backfillResult'); if(!box) return;
+  const toCredit = list.filter(x=>x.action==='À CRÉDITER' || x.action==='CRÉDITÉ');
+  const notElig  = list.filter(x=>x.action==='NON ÉLIGIBLE');
+  if(!list.length){ box.innerHTML = '<p class="ok" style="font-size:.85rem">✓ Aucun bonus dénicheur manquant : tout est à jour.</p>'; $('btnBackfillApply').style.display='none'; return; }
+  const lines = toCredit.map(x=>`<div style="font-size:.84rem;padding:3px 0">${applied?'✓ ':'• '}<b>${x.scout}</b> ← ${fmtM(x.bonus)} (dénicheur de <b>${x.player_name}</b>, remporté par ${x.winner})</div>`).join('');
+  const noteN = notElig.length ? `<p class="hint" style="font-size:.78rem;margin-top:6px">${notElig.length} enchère(s) non éligible(s) (pas assez de mises du dénicheur, ou collusion) — non créditées.</p>` : '';
+  box.innerHTML = `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--pitch-2,#111a2e)">
+      <div style="font-weight:700;margin-bottom:6px">${applied?`✓ ${toCredit.length} bonus crédité(s)`:`${toCredit.length} bonus à créditer`}</div>
+      ${lines||'<span class="hint">—</span>'}${noteN}</div>`;
+  $('btnBackfillApply').style.display = (!applied && toCredit.length) ? 'inline-block' : 'none';
+}
+if($('btnBackfillTest')) $('btnBackfillTest').onclick = async ()=>{
+  const { data, error } = await api.adminBackfillScoutBonuses(true);
+  if(error){ showMsg($('backfillResult'), error.message); return; }
+  renderBackfill(data, false);
+};
+if($('btnBackfillApply')) $('btnBackfillApply').onclick = async ()=>{
+  if(!confirm('Créditer maintenant tous les bonus dénicheur manquants ? Cette action modifie les budgets.')) return;
+  const { data, error } = await api.adminBackfillScoutBonuses(false);
+  if(error){ showMsg($('backfillResult'), error.message); return; }
+  renderBackfill(data, true);
+  loadClosedAuctions(); loadBonusTrace();
+};
 // Popup journal des offres (admin), réutilise qm_auction_bids (sans filtre de statut).
 async function showAdminJournal(auctionId, playerName){
   let bids = []; try { bids = await api.auctionBids(auctionId); } catch(e){}

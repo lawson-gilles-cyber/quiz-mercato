@@ -1302,6 +1302,11 @@ export async function adminClosedAuctions(limit = 60) {
   const { data } = await sb.rpc('qm_admin_closed_auctions', { p_limit: limit });
   return data ?? [];
 }
+// Rattrapage des bonus dénicheur manquants. dryRun=true : simulation (ne crédite rien).
+export async function adminBackfillScoutBonuses(dryRun = true) {
+  const { data, error } = await sb.rpc('qm_admin_backfill_scout_bonuses', { p_dry_run: dryRun });
+  return { data: data ?? [], error };
+}
 export async function listWindows() {
   const { data } = await sb.from('qm_market_windows').select('*').order('created_at', { ascending: true });
   return data ?? [];
