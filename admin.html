@@ -1043,6 +1043,29 @@ function maybeShowWelcome(){
   modal.onclick = (e)=>{ if(e.target===modal) close(); };
 }
 const showMsg = (el, txt, ok=false) => { el.textContent = txt; el.className = ok?'ok':'err'; };
+
+// Décalage (ms) de Paris par rapport à UTC pour un instant donné (gère été/hiver).
+function parisOffsetMs(utcMs){
+  const dtf = new Intl.DateTimeFormat('en-US',{timeZone:'Europe/Paris',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});
+  const p = {}; dtf.formatToParts(new Date(utcMs)).forEach(x=>p[x.type]=x.value);
+  const hh = p.hour==='24' ? '00' : p.hour;
+  const asIfUTC = Date.UTC(+p.year, +p.month-1, +p.day, +hh, +p.minute, +p.second);
+  return asIfUTC - utcMs;
+}
+// Convertit une heure saisie EN HEURE DE PARIS (y,mo 1-12,d,h,mi) vers un
+// objet Date (instant UTC correct), quel que soit le fuseau de l'appareil.
+function parisToDate(y, mo, d, h, mi){
+  const naive = Date.UTC(y, mo-1, d, h, mi, 0);   // saisie traitée comme UTC provisoire
+  const off = parisOffsetMs(naive);               // décalage de Paris à cet instant
+  return new Date(naive - off);                   // recule du décalage -> instant réel
+}
+// Parse "AAAA-MM-JJ HH:MM" comme heure de Paris -> Date (ou null si invalide).
+function parseParisInput(raw){
+  const m = String(raw||'').trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})$/);
+  if(!m) return null;
+  const dt = parisToDate(+m[1], +m[2], +m[3], +m[4], +m[5]);
+  return isNaN(dt.getTime()) ? null : dt;
+}
 // Toast visible quel que soit le défilement (pour le feedback des validations).
 function toast(msg, type='info', ms=4000){
   const wrap = document.getElementById('toastWrap'); if(!wrap){ console.log(msg); return; }
@@ -1490,19 +1513,29 @@ function renderPlayerRows(){
   // Programmer une enchère : on demande une date/heure future, puis on planifie.
   $('playerRows').querySelectorAll('[data-sched]').forEach(b=>b.onclick = async ()=>{
     const name = b.dataset.sname || 'ce joueur';
-    // Pré-remplit avec « demain à 18:00 » au format attendu par datetime-local.
-    const d = new Date(Date.now() + 24*3600*1000); d.setMinutes(0,0,0); d.setHours(18);
-    const pad = n => String(n).padStart(2,'0');
-    const def = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    const raw = prompt(`Programmer la mise aux enchères de « ${name} ».\nDate et heure de démarrage (format AAAA-MM-JJ HH:MM) :`, def);
+    // Pré-remplit avec « demain à 18:00 » EN HEURE DE PARIS.
+    const parisParts = new Intl.DateTimeFormat('fr-CA', { timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit' })
+      .formatToParts(new Date(Date.now() + 24*3600*1000));
+    const gp = t => (parisParts.find(x=>x.type===t)||{}).value;
+    const def = `${gp('year')}-${gp('month')}-${gp('day')} 18:00`;
+    const raw = prompt(`Programmer la mise aux enchères de « ${name} ».\nDate et heure de démarrage — HEURE DE PARIS (format AAAA-MM-JJ HH:MM) :`, def);
     if(!raw) return;
-    const dt = new Date(raw.replace(' ','T'));
-    if(isNaN(dt.getTime())){ showMsg($('msg2'),'Date invalide. Utilise le format AAAA-MM-JJ HH:MM.'); return; }
-    if(dt <= new Date()){ showMsg($('msg2'),'La date de démarrage doit être dans le futur.'); return; }
+    const dt = parseParisInput(raw);   // interprété comme HEURE DE PARIS, quel que soit l'appareil
+    if(!dt){ alert('Date invalide. Utilise le format AAAA-MM-JJ HH:MM.'); return; }
+    if(dt <= new Date()){ alert('La date de démarrage doit être dans le futur.'); return; }
+    // Confirmation explicite en heure de Paris (ce que tu tapes = heure de Paris).
+    const heureParis = dt.toLocaleString('fr-FR',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
+    if(!confirm(`Confirmer : « ${name} » démarrera le\n\n${heureParis} (heure de Paris).\n\nOK ?`)) return;
     const { error } = await api.scheduleAuction(b.dataset.sched, dt.toISOString());
-    if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), `Enchère programmée pour le ${dt.toLocaleDateString('fr-FR')} à ${dt.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}.`, true);
-    loadPlayers();
+    if(error){
+      // Échec visible immédiatement (le message #msg2 est loin du bouton).
+      alert('Impossible de programmer « '+name+' » :\n\n'+error.message);
+      showMsg($('msg2'), 'Programmation refusée : '+error.message);
+      return;
+    }
+    alert(`✅ « ${name} » programmé pour le ${heureParis} (heure de Paris).`);
+    showMsg($('msg2'), `Enchère programmée pour le ${heureParis} (heure de Paris).`, true);
+    loadPlayers(); if(typeof loadScheduled==='function') loadScheduled();
   });
   $('playerRows').querySelectorAll('[data-del]').forEach(b=>b.onclick = async ()=>{
     if(!confirm('Supprimer ce joueur ?')) return;
@@ -3155,7 +3188,7 @@ async function loadScheduled(){
       const p = a.player || {};
       const st = a.starts_at ? new Date(a.starts_at) : null;
       const overdue = st && st.getTime() <= now;
-      const when = st ? st.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'})+' à '+st.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
+      const when = st ? st.toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'})+' (Paris)' : '—';
       const lateTag = overdue ? ` <span class="status s-closed" style="color:var(--danger,#e0574a)" title="L'heure de démarrage est dépassée">⏰ en retard</span>` : '';
       const startBtn = overdue ? `<button class="btn-primary btn-sm" data-startsched="${a.id}">Démarrer maintenant</button> ` : '';
       return `<tr><td><b>${p.name||'?'}</b> <span style="color:var(--muted)">${p.club||''}</span>${lateTag}</td>
