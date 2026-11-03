@@ -353,6 +353,12 @@ export async function rankingWithTrend() {
   const { data } = await sb.rpc('qm_ranking_with_trend');
   return data ?? [];
 }
+// Classement complet en un seul appel (points, trend, dernière journée,
+// meilleure journée, régularité, valeur d'effectif, budget, division).
+export async function rankingFull() {
+  const { data } = await sb.rpc('qm_ranking_full');
+  return data ?? [];
+}
 export async function managerPublicCard(managerId) {
   const { data } = await sb.rpc('qm_manager_public_card', { p_manager_id: managerId });
   return (data && data[0]) ? data[0] : null;
