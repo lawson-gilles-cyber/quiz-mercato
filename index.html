@@ -1007,6 +1007,23 @@
   </div>
 </div>
 
+<!-- Pop-up d'annonce de l'organisation (surgit à la publication) -->
+<div id="announceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center;padding:20px">
+  <div style="background:var(--pitch);border:1px solid var(--transfer);border-radius:16px;padding:0;width:420px;max-width:94vw;max-height:88vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="background:linear-gradient(135deg,rgba(245,197,66,.22),transparent);padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
+      <span style="font-size:1.5rem">📣</span>
+      <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1.5px;font-size:.78rem;color:var(--transfer);font-weight:800">Annonce de l'organisation</div>
+    </div>
+    <div style="padding:22px">
+      <div id="announceModalText" style="font-size:1.02rem;color:var(--chalk);line-height:1.5;white-space:pre-wrap"></div>
+      <div id="announceModalUntil" style="font-size:.76rem;color:var(--muted);margin-top:12px"></div>
+    </div>
+    <div style="padding:0 22px 22px;text-align:right">
+      <button id="announceModalOk" style="background:var(--transfer);border:none;color:#1a1400;border-radius:9px;padding:10px 22px;cursor:pointer;font-weight:800;font-size:.92rem">J'ai compris</button>
+    </div>
+  </div>
+</div>
+
 <div id="authModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center">
   <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:26px;width:360px;max-width:92vw">
     <div id="authMsg" style="display:none;padding:9px 12px;border-radius:8px;margin-bottom:14px;font-size:.85rem"></div>
@@ -6079,6 +6096,30 @@ async function renderAnnouncement(){
         ${sub}
       </div>
     </div>`;
+  // Pop-up : surgit UNE fois par nouvelle annonce (comparaison sur announce_at).
+  maybeAnnouncePopup(a);
+}
+
+// Affiche le pop-up d'annonce si elle est plus récente que la dernière vue.
+function maybeAnnouncePopup(a){
+  if(!a || !a.text || !a.at) return;
+  let lastSeen = '';
+  try { lastSeen = localStorage.getItem('us_announce_seen') || ''; } catch(e){}
+  // Déjà vue cette annonce (même horodatage) -> ne pas re-surgir.
+  if(lastSeen === String(a.at)) return;
+  const modal = $('announceModal'); if(!modal) return;
+  const esc = s => String(s).replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  $('announceModalText').innerHTML = esc(a.text);
+  if(a.until){
+    const d = new Date(a.until);
+    $('announceModalUntil').textContent = `Valable jusqu'au ${d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})} à ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
+  } else { $('announceModalUntil').textContent = ''; }
+  modal.style.display = 'flex';
+  const close = ()=>{
+    modal.style.display='none';
+    try { localStorage.setItem('us_announce_seen', String(a.at)); } catch(e){}
+  };
+  $('announceModalOk').onclick = close;
 }
 
 let HONOR_CACHE = null;   // hommage en cours (pour badge fiche), rafraîchi par renderHommage
@@ -8128,8 +8169,9 @@ async function askNotifPermission(){
   }
 }
 // Rafraîchit les notifications toutes les 60 s (pour les notifs système
-// même quand l'utilisateur ne fait rien).
-setInterval(async ()=>{ if(!ME) return; if(CURRENT_VIEW!=='chat') await refreshChatBadge(); loadNotifications(); }, 60000);
+// même quand l'utilisateur ne fait rien). On vérifie aussi l'annonce de
+// l'organisation : une nouvelle annonce admin surgit alors en pop-up.
+setInterval(async ()=>{ if(!ME) return; if(CURRENT_VIEW!=='chat') await refreshChatBadge(); loadNotifications(); renderAnnouncement(); }, 60000);
 
 // ---------- Rappels programmés (notifications locales) ----------
 // Les rappels sont vérifiés tant que l'app est ouverte (onglet ou PWA). Il ne
