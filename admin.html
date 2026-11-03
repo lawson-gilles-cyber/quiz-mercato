@@ -923,6 +923,13 @@
     </table>
   </div>
 
+  <!-- Acquisitions reportées -->  <h2>Acquisitions reportées</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:12px">Quand un manager remporte plus d'enchères que sa limite (3 achats/jour), les achats en trop sont <b>reportés au lendemain</b> : le joueur lui reste réservé (budget gelé) et il ne peut plus enchérir ni proposer tant qu'ils ne sont pas réglés. La régularisation est <b>automatique</b> (chaque jour), mais tu peux la lancer <b>maintenant</b> : seuls les managers redevenus sous leur limite seront réglés.</p>
+    <button class="btn-primary btn-sm" id="btnSettleDeferred">⏳ Régulariser maintenant</button>
+    <div id="settleDeferredResult" style="margin-top:10px"></div>
+  </div>
+
   <!-- Libérations / pénalités -->  <h2>Libérations & pénalités</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:14px">Toutes les libérations de joueurs, avec remboursement et pénalité perdue.</p>
@@ -1112,7 +1119,7 @@ const ADMIN_TABS = [
       "Vue d'ensemble","Santé du mercato","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
-      "Historique des transactions","Enchères clôturées","Libérations & pénalités","Historique des propositions"] },
+      "Historique des transactions","Enchères clôturées","Acquisitions reportées","Libérations & pénalités","Historique des propositions"] },
   { id:'joueurs', label:'⚽ Joueurs', titles:[
       "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
   { id:'managers', label:'👥 Managers', titles:[
@@ -1659,6 +1666,17 @@ if($('btnBackfillApply')) $('btnBackfillApply').onclick = async ()=>{
   if(error){ showMsg($('backfillResult'), error.message); return; }
   renderBackfill(data, true);
   loadClosedAuctions(); loadBonusTrace();
+};
+// Régulariser maintenant les achats reportés.
+if($('btnSettleDeferred')) $('btnSettleDeferred').onclick = async ()=>{
+  const out = $('settleDeferredResult');
+  if(!confirm('Régulariser maintenant les acquisitions reportées ?\n\nSeuls les managers redevenus sous leur limite d\'achats seront réglés (débit + transfert du joueur).')) return;
+  $('btnSettleDeferred').disabled = true;
+  const { data, error } = await api.adminSettleDeferred();
+  $('btnSettleDeferred').disabled = false;
+  if(error) return showMsg(out, 'Échec : '+error.message);
+  showMsg(out, `${data ?? 0} acquisition(s) régularisée(s).`, true);
+  if(typeof loadPlayers==='function') loadPlayers();
 };
 // Popup journal des offres (admin), réutilise qm_auction_bids (sans filtre de statut).
 async function showAdminJournal(auctionId, playerName){

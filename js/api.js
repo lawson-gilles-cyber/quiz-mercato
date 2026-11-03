@@ -253,6 +253,23 @@ export async function playerBidHistory(playerId) {
   const { data } = await sb.rpc('qm_player_bid_history', { p_player_id: playerId });
   return data ?? [];
 }
+// Acquisitions en attente (enchères reportées au lendemain) du manager.
+export async function myDeferred() {
+  const { data } = await sb.rpc('qm_my_deferred');
+  return data ?? [];
+}
+// Admin : régulariser maintenant les achats reportés.
+export async function adminSettleDeferred() {
+  return await sb.rpc('qm_admin_settle_deferred');
+}
+// Mes enchères menées (avec flag priorité) + (dé)marquage prioritaire.
+export async function myLedAuctions() {
+  const { data } = await sb.rpc('qm_my_led_auctions');
+  return data ?? [];
+}
+export async function setAuctionPriority(auctionId, on) {
+  return await sb.rpc('qm_set_auction_priority', { p_auction_id: auctionId, p_on: !!on });
+}
 export async function watchToggle(auctionId) {
   return sb.rpc('qm_watch_toggle', { p_auction_id: auctionId });
 }

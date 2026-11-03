@@ -1038,6 +1038,9 @@
   <!-- Récap quotidien « Ce qui s'est passé » (accueil) -->
   <div id="dailyRecap" style="display:none"></div>
 
+  <!-- Bandeau : acquisitions en attente (enchères reportées au lendemain) -->
+  <div id="deferredBanner" style="display:none"></div>
+
   <!-- Bandeau fenêtre de mercato (compte à rebours) -->
   <div id="mercatoBanner" style="display:none"></div>
 
@@ -1277,6 +1280,8 @@
     <h1>Le <em>marché</em> des transferts</h1>
     <!-- Alerte « dernière minute » : enchères qui se terminent très bientôt -->
     <div id="lastMinute" class="last-minute" style="display:none"></div>
+    <!-- Priorités d'acquisition (si je mène plus d'enchères que ma limite) -->
+    <div id="priorityPanel" style="display:none"></div>
     <!-- Fil speaker : commentaire live du marché -->
     <div id="speaker" class="speaker" style="display:none">
       <div class="sp-head"><span class="sp-dot"></span>🎙️ Le direct du marché</div>
@@ -1617,7 +1622,7 @@
         <ul class="rule-ul">
           <li>Le mercato d'été dure <b>14 jours</b> au total.</li>
           <li>Les enchères se tiennent sur les <b>12 premiers jours</b> (fenêtres de 48h), puis les <b>2 derniers jours (J13-J14)</b> en fenêtres de 24h.</li>
-          <li>3 achats maximum par jour et par manager.</li>
+          <li><b>3 achats maximum par jour et par manager.</b> Si tu remportes plus de 3 enchères le même jour, les achats en trop sont <b>reportés au lendemain</b> : le joueur te reste réservé (budget gelé), il te sera crédité automatiquement le jour suivant, et tant que tu as une acquisition en attente tu ne peux <b>ni enchérir ni proposer</b>. Quand tu mènes plus de 3 enchères, un encart <b>« ⭐ Mes priorités d'acquisition »</b> (en haut des Enchères) te laisse <b>désigner jusqu'à 3 enchères prioritaires</b> : elles seront validées en premier si tu les gagnes. Sans choix, priorité à tes joueurs <b>dénichés</b>, puis aux clôtures les plus proches.</li>
           <li>6 enchères actives maximum sur la plateforme.</li>
           <li>2 propositions de joueurs recommandées par jour (rappel, non bloquant).</li>
         </ul>
@@ -3670,7 +3675,48 @@ function renderLastMinute(){
     setTimeout(()=>{ const bid = document.querySelector(`[data-bid="${pid}"]`); if(bid) bid.click(); }, 120);
   });
 }
+// Panneau « Mes priorités d'acquisition » : visible si je mène plus
+// d'enchères que ma limite d'achats/jour. Je coche jusqu'à 3 enchères
+// prioritaires ; à la clôture, elles passent d'abord, les autres sont
+// reportées au lendemain.
+async function renderPriorityPanel(){
+  const box = $('priorityPanel'); if(!box) return;
+  if(!ME){ box.style.display='none'; box.innerHTML=''; return; }
+  let led = [];
+  try { led = await api.myLedAuctions(); } catch(e){ led = []; }
+  const MAXP = 3;  // = limite d'achats/jour
+  // On n'affiche le panneau que si ça devient un choix réel (plus de 3 menées).
+  if(led.length <= MAXP){ box.style.display='none'; box.innerHTML=''; return; }
+  const esc = s => String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const nbPrio = led.filter(a=>a.is_priority).length;
+  const rows = led.map(a=>{
+    const on = !!a.is_priority;
+    const role = a.was_scout ? '🔎 déniché' : '🎯 surenchère';
+    const t = new Date(a.ends_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    return `<label style="display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:10px;margin-bottom:6px;background:${on?'rgba(245,197,66,.1)':'var(--pitch-2)'};cursor:pointer">
+      <input type="checkbox" data-prio="${a.auction_id}" ${on?'checked':''} style="width:18px;height:18px;flex:0 0 auto">
+      <span style="flex:1;min-width:0"><b>${esc(a.player_name)}</b> <span style="color:var(--muted);font-size:.8rem">${esc(a.club||'')} · ${role}</span></span>
+      <span style="font-family:'Saira',sans-serif;font-weight:700;white-space:nowrap">${fmtMoney(a.current_price)}</span>
+      <span style="color:var(--muted);font-size:.74rem;white-space:nowrap">${t}</span>
+    </label>`;
+  }).join('');
+  box.style.display='block';
+  box.style.cssText = 'display:block;background:var(--pitch-2);border:1px solid var(--transfer);border-radius:14px;padding:16px 18px;margin-bottom:18px';
+  box.innerHTML = `
+    <div style="font-family:'Archivo',sans-serif;font-weight:800;color:var(--transfer);margin-bottom:4px">⭐ Mes priorités d'acquisition</div>
+    <p class="hint" style="font-size:.85rem;margin:0 0 12px;line-height:1.45">Tu mènes <b>${led.length} enchères</b> mais tu ne peux acheter que <b>${MAXP} joueurs par jour</b>. Choisis jusqu'à <b>${MAXP} enchères prioritaires</b> : si tu les remportes, elles seront validées en premier. Les autres que tu gagnes seront <b>reportées au lendemain</b> (joueur réservé, budget gelé). Sans choix, priorité à tes joueurs <b>dénichés</b>, puis aux clôtures les plus proches.</p>
+    <div style="font-size:.8rem;color:${nbPrio>=MAXP?'var(--transfer)':'var(--muted)'};margin-bottom:8px">${nbPrio}/${MAXP} prioritaires sélectionnées</div>
+    ${rows}`;
+  box.querySelectorAll('[data-prio]').forEach(cb=>cb.onchange=async()=>{
+    cb.disabled = true;
+    const { error } = await api.setAuctionPriority(cb.dataset.prio, cb.checked);
+    cb.disabled = false;
+    if(error){ cb.checked = !cb.checked; toast(error.message,'err',4000); return; }
+    renderPriorityPanel();  // rafraîchit le compteur et l'état
+  });
+}
 async function renderAuctions(){
+  renderPriorityPanel();
   const open = await api.listOpenAuctions();
   AUC_WATCH = ME ? await api.myWatchlist().catch(()=>new Set()) : new Set();
   const now = new Date();
@@ -4276,6 +4322,10 @@ const FAQ_DATA = [
   ['Enchères', [
     ['Combien de temps dure une enchère ?',
      "<b>48 heures fixes</b>, jamais prolongée. En <b>fin de mercato (J13-J14)</b>, la durée passe à <b>24 heures</b> pour accélérer la clôture."],
+    ['Que se passe-t-il si je remporte plus de 3 enchères le même jour ?',
+     "Tu es limité à <b>3 achats par jour</b>. Si tu gagnes davantage d'enchères le même jour, les achats en trop sont <b>reportés au lendemain</b> : le joueur te reste <b>réservé</b> (ton budget correspondant est gelé) et il te sera <b>crédité automatiquement</b> le jour suivant. Tant que tu as une acquisition en attente, tu ne peux <b>ni enchérir ni proposer</b> de nouveau joueur. Tu vois tes acquisitions en attente dans un bandeau en haut de l'accueil."],
+    ['Puis-je choisir quelles enchères garder en priorité ?',
+     "Oui. Dès que tu mènes <b>plus de 3 enchères</b>, un encart <b>« ⭐ Mes priorités d'acquisition »</b> apparaît en haut de l'onglet <b>Enchères</b> : coche jusqu'à <b>3 enchères prioritaires</b>. Si tu les remportes, elles sont validées en premier ; les autres que tu gagnes sont reportées au lendemain. Si tu ne choisis rien, la priorité va d'abord aux joueurs que tu as <b>toi-même dénichés</b>, puis aux enchères qui <b>clôturent le plus tôt</b>."],
     ['Quelle est la mise minimum ?',
      "Elle dépend du prix du joueur : moins de 20 M€ → +1 M€ · 20-50 M€ → +2 M€ · 50-100 M€ → +3 M€ · 100-180 M€ → +4 M€ · 180 M€ et + → +5 M€."],
     ['Y a-t-il un plafond d’enchère ?',
@@ -5862,6 +5912,31 @@ async function loadMercatoWindow(){
     try { MERCATO_NEXT = await api.nextWindow(); } catch(e){ MERCATO_NEXT = null; }
   }
   renderMercatoBanner();
+  renderDeferredBanner();
+}
+// Bandeau : acquisitions reportées au lendemain (limite de 3 achats/jour).
+async function renderDeferredBanner(){
+  const box = $('deferredBanner'); if(!box) return;
+  if(!ME){ box.style.display='none'; box.innerHTML=''; return; }
+  let list = [];
+  try { list = await api.myDeferred(); } catch(e){ list = []; }
+  if(!list.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const esc = s => String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const lignes = list.map(d=>{
+    const role = d.was_scout ? '🔎 déniché par toi' : '🎯 surenchère';
+    return `<li style="margin:2px 0"><b>${esc(d.player_name)}</b> — ${fmtMoney(d.price)} <span style="color:var(--muted);font-size:.8rem">(${role})</span></li>`;
+  }).join('');
+  box.style.display='block';
+  box.style.cssText = 'display:block;background:rgba(245,197,66,.14);border:1px solid var(--transfer);border-radius:12px;padding:14px 16px;margin-bottom:14px;color:var(--chalk)';
+  box.innerHTML = `
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <span style="font-size:1.2rem;flex:0 0 auto">⏳</span>
+      <div style="flex:1">
+        <div style="font-family:'Archivo',sans-serif;font-weight:800;color:var(--transfer);margin-bottom:4px">${list.length} acquisition${list.length>1?'s':''} en attente</div>
+        <p style="font-size:.86rem;line-height:1.45;margin:0 0 8px">Tu as atteint la <b>limite de 3 achats par jour</b>. Ces joueurs te sont <b>réservés</b> (budget gelé) et seront <b>crédités demain</b> automatiquement. En attendant, tu ne peux <b>ni enchérir ni proposer</b> de nouveau joueur.</p>
+        <ul style="margin:0;padding-left:18px">${lignes}</ul>
+      </div>
+    </div>`;
 }
 // Annonce de l'organisation : bandeau en haut de l'accueil, publié par l'admin.
 async function renderAnnouncement(){
