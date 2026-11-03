@@ -828,6 +828,19 @@
     </div>
     <div style="margin-bottom:18px"><input id="cb_reason" type="text" placeholder="Motif (optionnel, ex. dédommagement bug)" style="width:100%"></div>
 
+    <!-- Malus (sanction) : retirer du budget -->
+    <div style="padding-top:16px;border-top:1px solid var(--line)">
+      <label>⛔ Retirer du budget à un manager — MALUS / sanction (M€)</label>
+      <div class="row c3" style="margin-top:6px;margin-bottom:6px">
+        <div><select id="ml_manager"><option value="">— manager —</option></select></div>
+        <div><input id="ml_amount" type="number" min="0" step="0.5" placeholder="Montant à retirer (ex. 10)"></div>
+        <div><button class="btn-danger" id="btnMalus" style="width:100%">Appliquer le malus</button></div>
+      </div>
+      <div style="margin-bottom:6px"><input id="ml_reason" type="text" placeholder="Motif de la sanction (obligatoire, ex. faute grave)" style="width:100%"></div>
+      <p class="hint">Le montant est retiré du budget du manager. Le malus ne peut pas dépasser son budget <b>disponible</b> (hors fonds déjà engagés dans des enchères). Tracé dans « Trace des bonus » avec un montant négatif.</p>
+      <div id="malusResult" style="margin-top:6px"></div>
+    </div>
+
     <!-- Exempter de la taxe d'entrée -->
     <div style="padding-top:16px;border-top:1px solid var(--line)">
       <label>Exempter un manager de la taxe d'entrée (3 M€) sur une enchère</label>
@@ -2005,6 +2018,7 @@ async function loadAdminTools(){
   $('cb_manager').innerHTML = mgrOpts;
   $('ex_manager').innerHTML = mgrOpts;
   $('sb_manager').innerHTML = mgrOpts;
+  if($('ml_manager')) $('ml_manager').innerHTML = mgrOpts;
 
   // Enchères ouvertes (exemption de taxe + annulation).
   const aucs = await api.listOpenAuctions();
@@ -2029,6 +2043,22 @@ $('btnCreditBudget').onclick = async ()=>{
   if(r.error) return showMsg($('msg2'), r.error.message);
   showMsg($('msg2'), `${m} M€ crédités.`, true);
   $('cb_amount').value=''; $('cb_reason').value='';
+  loadBonusTrace(); loadAdminActions();
+};
+
+if($('btnMalus')) $('btnMalus').onclick = async ()=>{
+  const mgr = $('ml_manager').value;
+  const m = parseFloat($('ml_amount').value);
+  const reason = $('ml_reason').value.trim();
+  if(!mgr) return showMsg($('malusResult'),'Choisis un manager.');
+  if(isNaN(m) || m<=0) return showMsg($('malusResult'),'Indique un montant positif (M€) à retirer.');
+  if(!reason) return showMsg($('malusResult'),'Indique le motif de la sanction.');
+  const label = $('ml_manager').selectedOptions[0].textContent;
+  if(!confirm(`Retirer ${m} M€ à ${label} ?\n\nMotif : ${reason}\n\nCette sanction est tracée.`)) return;
+  const r = await api.adminMalusBudget(mgr, Math.round(m*1e6), reason);
+  if(r.error) return showMsg($('malusResult'), r.error.message);
+  showMsg($('malusResult'), `Malus de ${m} M€ appliqué à ${label}.`, true);
+  $('ml_amount').value=''; $('ml_reason').value='';
   loadBonusTrace(); loadAdminActions();
 };
 
@@ -3333,15 +3363,19 @@ async function loadBonusTrace(){
     tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus attribué.</td></tr>';
     return;
   }
-  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur'};
+  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur',malus:'Malus'};
   tbody.innerHTML = bonuses.map(b=>{
     const d = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const neg = Number(b.amount) < 0;
+    const montant = neg
+      ? `<span style="color:#ef5350">−${fmtM(Math.abs(Number(b.amount)))}</span>`
+      : `+${fmtM(b.amount)}`;
     return `<tr>
       <td class="hint">${d}</td>
       <td><b>${b.manager}</b></td>
       <td>${labels[b.bonus_type]??b.bonus_type}</td>
       <td class="hint">${b.detail??''}</td>
-      <td class="val">+${fmtM(b.amount)}</td>
+      <td class="val">${montant}</td>
     </tr>`;
   }).join('');
 }

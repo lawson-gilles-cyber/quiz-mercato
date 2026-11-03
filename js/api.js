@@ -1381,6 +1381,10 @@ export async function adminCrownChampion() {
 export async function adminCreditBudget(managerId, amount, reason) {
   return sb.rpc('qm_admin_credit_budget_logged', { p_manager_id: managerId, p_amount: amount, p_reason: reason ?? null });
 }
+// Malus (sanction) : retire du budget à un manager, motif obligatoire.
+export async function adminMalusBudget(managerId, amount, reason) {
+  return sb.rpc('qm_admin_malus_budget', { p_manager_id: managerId, p_amount: amount, p_reason: reason });
+}
 // Journal des actions admin + annulation (undo).
 export async function adminActionsRecent(limit = 50) {
   const { data } = await sb.rpc('qm_admin_actions_recent', { p_limit: limit });
