@@ -6115,11 +6115,39 @@ function maybeAnnouncePopup(a){
     $('announceModalUntil').textContent = `Valable jusqu'au ${d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})} à ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`;
   } else { $('announceModalUntil').textContent = ''; }
   modal.style.display = 'flex';
+  announceAlert();   // son + vibration à l'apparition
   const close = ()=>{
     modal.style.display='none';
     try { localStorage.setItem('us_announce_seen', String(a.at)); } catch(e){}
   };
   $('announceModalOk').onclick = close;
+}
+
+// Son (carillon synthétisé, sans fichier) + vibration à l'apparition du pop-up.
+let _audioCtx = null;
+function announceAlert(){
+  // Vibration (mobile ; ignorée sur desktop / si non supportée).
+  try { if(navigator.vibrate) navigator.vibrate([120, 60, 120]); } catch(e){}
+  // Carillon deux notes via Web Audio. Nécessite une interaction préalable
+  // sur certains navigateurs ; en cas d'échec on reste silencieux (non bloquant).
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if(!AC) return;
+    _audioCtx = _audioCtx || new AC();
+    if(_audioCtx.state === 'suspended') _audioCtx.resume().catch(()=>{});
+    const ctx = _audioCtx, t0 = ctx.currentTime;
+    const notes = [[880, 0], [1174.66, 0.14]];  // La5 -> Ré6 (ding-dong)
+    notes.forEach(([freq, delay])=>{
+      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      osc.type = 'sine'; osc.frequency.value = freq;
+      const t = t0 + delay;
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(0.25, t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.45);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.5);
+    });
+  } catch(e){ /* silencieux : le son ne doit jamais bloquer le pop-up */ }
 }
 
 let HONOR_CACHE = null;   // hommage en cours (pour badge fiche), rafraîchi par renderHommage
