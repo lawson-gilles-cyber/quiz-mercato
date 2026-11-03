@@ -506,8 +506,8 @@ export async function adminBulkValues(data) {
   // data : [{name, value}, ...]
   return sb.rpc('qm_admin_bulk_values', { p_data: data });
 }
-export async function adminOpenAuction(playerId) {
-  return sb.rpc('qm_admin_open_auction_logged', { p_player_id: playerId });
+export async function adminOpenAuction(playerId, scoutedBy = null) {
+  return sb.rpc('qm_admin_open_auction_logged', { p_player_id: playerId, p_scouted_by: scoutedBy });
 }
 // Enchère « éclair » : durée courte choisie (heures).
 export async function adminOpenAuctionDuration(playerId, hours) {
@@ -1452,4 +1452,8 @@ export async function adminPendingInjuries() {
 export async function clubList() {
   const { data } = await sb.rpc('qm_club_list');
   return data ?? [];
+}
+// Rattrapage : joueurs déniché restés sans propriétaire -> retour au dénicheur.
+export async function adminBackfillScoutReturns(dryRun = true) {
+  return sb.rpc('qm_admin_backfill_scout_returns', { p_dry_run: dryRun });
 }

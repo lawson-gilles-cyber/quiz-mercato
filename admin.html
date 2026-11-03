@@ -949,7 +949,10 @@
       <button class="btn-primary btn-sm" id="btnBackfillApply" style="display:none">✓ Créditer les bonus dénicheur</button>
       <button class="btn-ghost btn-sm" id="btnPriceTest">🔍 Vérifier les bonus « prix élevé » manquants</button>
       <button class="btn-primary btn-sm" id="btnPriceApply" style="display:none">✓ Créditer les bonus « prix élevé »</button>
+      <button class="btn-ghost btn-sm" id="btnScoutReturnTest">🔍 Vérifier les joueurs déniché non rendus</button>
+      <button class="btn-primary btn-sm" id="btnScoutReturnApply" style="display:none">✓ Rendre aux dénicheurs</button>
     </div>
+    <p class="hint" style="margin-bottom:10px">Un joueur <b>déniché</b> dont l'enchère expire <b>sans aucune offre</b> revient gratuitement à son dénicheur (si son effectif l'autorise : 24 max, 3/club, 6/championnat). Le bouton ci-dessus rattrape les joueurs restés « bloqués » hors marché sans propriétaire.</p>
     <div id="backfillResult" style="margin-bottom:12px"></div>
     <table>
       <thead><tr><th>Date</th><th>Joueur</th><th>Gagnant</th><th>Prix</th><th>Dénicheur</th><th>Bonus</th><th></th></tr></thead>
@@ -1510,6 +1513,34 @@ async function loadPlayers(){
   loadClubList();   // tient l'autocomplétion « Club » à jour
 }
 
+// Cache des managers (pour rattacher un dénicheur à l'ouverture d'enchère).
+let ADMIN_MANAGERS_CACHE = null;
+async function getManagersCache(){
+  if(ADMIN_MANAGERS_CACHE) return ADMIN_MANAGERS_CACHE;
+  try{ ADMIN_MANAGERS_CACHE = (await api.listManagers()).filter(m=>!m.is_admin); }
+  catch(e){ ADMIN_MANAGERS_CACHE = []; }
+  return ADMIN_MANAGERS_CACHE;
+}
+// Demande (optionnellement) le dénicheur du joueur à l'ouverture d'une enchère.
+// Retour : un id de manager, null (aucun dénicheur), ou undefined (annulé).
+async function pickScout(playerName){
+  const mgrs = await getManagersCache();
+  const noms = mgrs.map(m=>m.display_name).sort((a,b)=>a.localeCompare(b,'fr'));
+  const raw = prompt(
+    `Ouverture de l'enchère de « ${playerName} ».\n\n`+
+    `Qui a DÉNICHÉ ce joueur ? (facultatif — laisse VIDE si personne)\n`+
+    `Tape le nom exact d'un manager :\n\n`+ noms.join(' · '),
+    '');
+  if(raw === null) return undefined;         // annulé
+  const q = raw.trim();
+  if(!q) return null;                        // aucun dénicheur
+  const hit = mgrs.find(m=>(m.display_name||'').toLowerCase() === q.toLowerCase());
+  if(!hit){
+    alert(`Aucun manager nommé « ${q} ». L'enchère sera ouverte SANS dénicheur.`);
+    return null;
+  }
+  return hit.id;
+}
 // Remplit la liste d'autocomplétion du champ « Club » avec les clubs déjà
 // en base (noms canoniques). Évite de recréer des variantes d'orthographe.
 async function loadClubList(){
@@ -1548,7 +1579,7 @@ function renderPlayerRows(){
         <button class="btn-ghost btn-sm" data-photo="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" data-purl="${p.photo_url||''}" title="Photo du joueur">${p.photo_url?'🖼️':'📷'}</button>
         <button class="btn-ghost btn-sm" data-attr="${p.id}">Note / Critères</button>
         ${p.status==='free'
-          ? `<button class="btn-primary btn-sm" data-open="${p.id}">Ouvrir enchère</button>
+          ? `<button class="btn-primary btn-sm" data-open="${p.id}" data-oname="${(p.name||'').replace(/"/g,'&quot;')}">Ouvrir enchère</button>
              <button class="btn-ghost btn-sm" data-flash="${p.id}" data-fname="${(p.name||'').replace(/"/g,'&quot;')}" title="Enchère éclair : durée courte choisie (2h, 6h…)">⚡ Éclair</button>
              <button class="btn-ghost btn-sm" data-sched="${p.id}" data-sname="${(p.name||'').replace(/"/g,'&quot;')}" title="Programmer la mise aux enchères pour plus tard">🗓️ Programmer</button>
              <button class="btn-danger" data-del="${p.id}">Suppr.</button>`
@@ -1566,9 +1597,14 @@ function renderPlayerRows(){
   });
 
   $('playerRows').querySelectorAll('[data-open]').forEach(b=>b.onclick = async ()=>{
-    const { error } = await api.adminOpenAuction(b.dataset.open);
+    // Dénicheur optionnel : on peut rattacher le manager qui a déniché le joueur,
+    // pour que le bonus dénicheur et le retour au dénicheur fonctionnent.
+    const scoutId = await pickScout(b.dataset.oname || 'ce joueur');
+    if(scoutId === undefined) return;   // annulé
+    const { error } = await api.adminOpenAuction(b.dataset.open, scoutId);
     if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), 'Enchère ouverte (48 h).', true); loadPlayers(); loadAdminActions();
+    showMsg($('msg2'), 'Enchère ouverte (48 h)'+(scoutId?' — dénicheur rattaché':'')+'.', true);
+    loadPlayers(); loadAdminActions();
   });
   // Enchère éclair : on demande une durée courte (heures), puis on ouvre.
   $('playerRows').querySelectorAll('[data-flash]').forEach(b=>b.onclick = async ()=>{
@@ -1751,6 +1787,28 @@ if($('btnPriceApply')) $('btnPriceApply').onclick = async ()=>{
   if(error){ showMsg($('backfillResult'), error.message); return; }
   renderPriceBackfill(data, true);
   loadClosedAuctions(); loadBonusTrace();
+};
+
+// Rattrapage : joueurs déniché restés sans propriétaire -> retour au dénicheur.
+function renderScoutReturns(list, applied){
+  const box = $('backfillResult'); if(!box) return;
+  if(!list.length){ box.innerHTML = '<p class="ok" style="font-size:.85rem">✓ Aucun joueur déniché « bloqué » : tout est à jour.</p>'; $('btnScoutReturnApply').style.display='none'; return; }
+  const lines = list.map(x=>`<div style="font-size:.84rem;padding:3px 0">${applied?'✓ ':'• '}<b>${x.player_name}</b> → ${x.scout} <span class="hint">· ${x.decision}</span></div>`).join('');
+  box.innerHTML = `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--pitch-2,#111a2e)">
+      <div style="font-weight:700;margin-bottom:6px">${applied?`✓ ${list.length} joueur(s) traité(s)`:`${list.length} joueur(s) à traiter`}</div>${lines}</div>`;
+  $('btnScoutReturnApply').style.display = (!applied && list.length) ? 'inline-block' : 'none';
+}
+if($('btnScoutReturnTest')) $('btnScoutReturnTest').onclick = async ()=>{
+  const { data, error } = await api.adminBackfillScoutReturns(true);
+  if(error){ showMsg($('backfillResult'), error.message); return; }
+  renderScoutReturns(data, false);
+};
+if($('btnScoutReturnApply')) $('btnScoutReturnApply').onclick = async ()=>{
+  if(!confirm('Rendre maintenant les joueurs déniché à leurs dénicheurs (gratuit) ?\n\nLes dénicheurs dont l\'effectif est plein verront le joueur remis sur le marché.')) return;
+  const { data, error } = await api.adminBackfillScoutReturns(false);
+  if(error){ showMsg($('backfillResult'), error.message); return; }
+  renderScoutReturns(data, true);
+  loadClosedAuctions(); if(typeof loadPlayers==='function') loadPlayers();
 };
 
 // Régulariser maintenant les achats reportés.
