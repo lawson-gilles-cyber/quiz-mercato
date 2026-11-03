@@ -106,6 +106,10 @@ export async function adminFixAuctionPrice(auctionId, newPrice) {
 export async function adminSetPosition(playerId, position) {
   return sb.rpc('qm_admin_set_position', { p_player_id: playerId, p_position: position });
 }
+// Corriger le championnat d'un joueur (même détenu).
+export async function adminSetChampionship(playerId, championship) {
+  return sb.rpc('qm_admin_set_championship', { p_player_id: playerId, p_championship: championship });
+}
 // Déclenche le démarrage des enchères programmées dues (filet de sécurité).
 export async function sweepDueAuctions() {
   const { data } = await sb.rpc('qm_sweep_due_auctions');
@@ -173,7 +177,7 @@ export async function searchPlayersByName(q, limit = 8) {
   const term = (q || '').trim();
   if (term.length < 2) return [];
   const { data } = await sb.from('qm_players')
-    .select('id, name, first_name, club, position, current_value')
+    .select('id, name, first_name, club, position, current_value, championship')
     .ilike('name', `%${term}%`)
     .order('current_value', { ascending: false })
     .limit(limit);
@@ -269,6 +273,11 @@ export async function myLedAuctions() {
 }
 export async function setAuctionPriority(auctionId, on) {
   return await sb.rpc('qm_set_auction_priority', { p_auction_id: auctionId, p_on: !!on });
+}
+// Rattrapage du bonus « prix élevé » cumulable. dryRun=true : simulation.
+export async function adminBackfillPriceBonus(dryRun = true) {
+  const { data, error } = await sb.rpc('qm_admin_backfill_price_bonus', { p_dry_run: dryRun });
+  return { data: data ?? [], error };
 }
 export async function watchToggle(auctionId) {
   return sb.rpc('qm_watch_toggle', { p_auction_id: auctionId });
@@ -1437,5 +1446,10 @@ export async function adminReviewInjury(injuryId, approve) {
 }
 export async function adminPendingInjuries() {
   const { data } = await sb.rpc('qm_admin_pending_injuries');
+  return data ?? [];
+}
+// Liste des clubs déjà en base (autocomplétion du champ « Club »).
+export async function clubList() {
+  const { data } = await sb.rpc('qm_club_list');
   return data ?? [];
 }

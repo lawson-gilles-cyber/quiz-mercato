@@ -676,7 +676,7 @@
       <div><label>Âge</label><input id="p_age" type="number" placeholder="27"></div>
     </div>
     <div class="row c3">
-      <div><label>Club</label><input id="p_club" placeholder="Real Madrid"></div>
+      <div><label>Club</label><input id="p_club" list="clubsDatalist" placeholder="Real Madrid" autocomplete="off"><datalist id="clubsDatalist"></datalist></div>
       <div><label>Nationalité (emoji ou texte)</label><input id="p_nat" placeholder="🇫🇷"></div>
       <div><label>Valeur (M€)</label><input id="p_value" type="number" placeholder="180"></div>
     </div>
@@ -708,6 +708,7 @@
     <p class="hint" style="margin-bottom:10px">Colle une liste de joueurs (depuis Excel/Sheets/Transfermarkt). Une ligne par joueur, colonnes séparées par <b>virgule</b> ou <b>point-virgule</b> :</p>
     <p class="hint" style="margin-bottom:10px;font-family:'Space Mono';color:var(--transfer)">Prénom, Nom, Poste, Club, Championnat, Valeur(M€) [, Âge] [, Nationalité]</p>
     <p class="hint" style="margin-bottom:10px">Poste : GK/DEF/MID/FWD ou Gardien/Défenseur/Milieu/Attaquant. Âge et Nationalité sont facultatifs. Les joueurs déjà en base (même prénom+nom+club) sont ignorés. ⚠️ Un championnat « Autre » ou vide est signalé : saisis le vrai championnat pour que la règle des 6 fonctionne.</p>
+    <p class="hint" style="margin-bottom:10px">💡 <b>Noms de clubs</b> : reprends l'orthographe exacte d'un club déjà en base (l'autocomplétion du champ « Club » ci-dessus liste tous les clubs existants) pour que la règle des 3 joueurs/club compte correctement. L'aperçu ci-dessous marque d'un 🆕 tout club absent de la base — vérifie que ce n'est pas une variante d'un club existant.</p>
     <textarea id="csvInput" rows="6" style="width:100%;font-family:'Space Mono';font-size:.82rem" placeholder="Kylian, Mbappé, FWD, Real Madrid, Liga, 180, 27, 🇫🇷&#10;Erling, Haaland, FWD, Manchester City, Premier League, 180"></textarea>
     <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap">
       <button class="btn-ghost btn-sm" id="btnCsvPreview">Aperçu</button>
@@ -878,6 +879,37 @@
       <p class="hint">Fonctionne même si le joueur est <b>déjà acheté</b>. La note Mercato se recalcule selon le nouveau poste. Si ça déséquilibre l'effectif du possesseur (ex. trop d'attaquants), c'est signalé mais pas bloqué.</p>
     </div>
 
+    <!-- Corriger le championnat d'un joueur (même détenu) -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>🏆 Corriger le championnat d'un joueur (même déjà détenu)</label>
+      <input id="champ_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
+      <div id="champ_results" style="margin-top:4px"></div>
+      <input id="champ_player_id" type="hidden">
+      <div id="champ_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+      <div class="row c2" style="margin-top:8px;align-items:end">
+        <div><label>Nouveau championnat</label>
+          <select id="champ_new" style="width:100%">
+            <option value="Premier League">Premier League</option>
+            <option value="Liga">Liga</option>
+            <option value="Serie A">Serie A</option>
+            <option value="Bundesliga">Bundesliga</option>
+            <option value="Ligue 1">Ligue 1</option>
+            <option value="Primeira Liga">Primeira Liga</option>
+            <option value="Eredivisie">Eredivisie</option>
+            <option value="Pro League">Pro League (Belgique)</option>
+            <option value="Süper Lig">Süper Lig</option>
+            <option value="Brasileirão">Brasileirão</option>
+            <option value="Primera División">Primera División</option>
+            <option value="MLS">MLS</option>
+            <option value="Saudi Pro League">Saudi Pro League</option>
+          </select>
+        </div>
+        <div><button class="btn-primary" id="btnFixChamp" style="width:100%">Corriger le championnat</button></div>
+      </div>
+      <p class="hint">Corrige la classification d'un joueur mal rangé (ex. un italien compté en Premier League). Fonctionne même s'il est <b>déjà détenu</b>. Si ça dépasse la limite de 6 par championnat chez le possesseur, c'est signalé mais pas bloqué.</p>
+      <div id="champFixResult" style="margin-top:8px"></div>
+    </div>
+
     <!-- Forcer un bonus dénicheur -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
       <label>Forcer un bonus dénicheur (10 % du prix, plafonné à 20 M€)</label>
@@ -913,8 +945,10 @@
   <div class="card">
     <p class="hint" style="margin-bottom:14px">Les enchères terminées, de la plus récente à la plus ancienne. Consulte le <b>journal des offres</b> même après clôture, et vérifie que le <b>bonus dénicheur</b> a bien été crédité (quand un joueur déniché par un manager est remporté par un autre).</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-      <button class="btn-ghost btn-sm" id="btnBackfillTest">🔍 Vérifier les bonus manquants</button>
-      <button class="btn-primary btn-sm" id="btnBackfillApply" style="display:none">✓ Créditer les bonus manquants</button>
+      <button class="btn-ghost btn-sm" id="btnBackfillTest">🔍 Vérifier les bonus dénicheur manquants</button>
+      <button class="btn-primary btn-sm" id="btnBackfillApply" style="display:none">✓ Créditer les bonus dénicheur</button>
+      <button class="btn-ghost btn-sm" id="btnPriceTest">🔍 Vérifier les bonus « prix élevé » manquants</button>
+      <button class="btn-primary btn-sm" id="btnPriceApply" style="display:none">✓ Créditer les bonus « prix élevé »</button>
     </div>
     <div id="backfillResult" style="margin-bottom:12px"></div>
     <table>
@@ -1351,19 +1385,37 @@ function stripHeader(rows){
   }
   return rows;
 }
+// Clé de normalisation d'un nom de club (miroir de db/173 : minuscule, sans
+// accents, sans fc/ac/cf/sc/as/de/du/le/la, espaces compactés).
+function clubKey(s){
+  return (s||'').toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/\b(fc|ac|cf|sc|as|de|du|le|la)\b/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+// Ensemble des clés de clubs déjà en base (pour signaler un club "nouveau").
+let KNOWN_CLUB_KEYS = new Set();
+function refreshKnownClubKeys(){
+  KNOWN_CLUB_KEYS = new Set((ADMIN_PLAYERS||[]).map(p=>clubKey(p.club)).filter(Boolean));
+}
 if($('btnCsvPreview')) $('btnCsvPreview').onclick = ()=>{
   let rows = parseCSV($('csvInput').value);
   rows = stripHeader(rows);
+  refreshKnownClubKeys();
+  // Marque les lignes dont le club n'existe pas encore en base (nouvelle graphie ?)
+  rows.forEach(r=>{ r.newClub = !r.error && r.club && !KNOWN_CLUB_KEYS.has(clubKey(r.club)); });
   CSV_ROWS = rows;
   const ok = rows.filter(r=>!r.error), bad = rows.filter(r=>r.error);
   if(!rows.length){ $('csvPreview').innerHTML='<p class="hint">Rien à importer.</p>'; $('btnCsvImport').style.display='none'; return; }
   const warned = ok.filter(r=>r.warn).length;
+  const newClubs = ok.filter(r=>r.newClub).length;
   $('csvPreview').innerHTML = `
-    <p class="hint" style="margin-bottom:8px"><b>${ok.length}</b> joueur(s) valides${bad.length?` · <span style="color:var(--live,#ef5350)">${bad.length} ligne(s) à corriger</span>`:''}${warned?` · <span style="color:var(--transfer,#e0a106)">${warned} à championnat « Autre »</span>`:''}</p>
+    <p class="hint" style="margin-bottom:8px"><b>${ok.length}</b> joueur(s) valides${bad.length?` · <span style="color:var(--live,#ef5350)">${bad.length} ligne(s) à corriger</span>`:''}${warned?` · <span style="color:var(--transfer,#e0a106)">${warned} à championnat « Autre »</span>`:''}${newClubs?` · <span style="color:var(--transfer,#e0a106)">${newClubs} nouveau(x) club(s) 🆕</span>`:''}</p>
+    ${newClubs?`<p class="hint" style="margin-bottom:8px;color:var(--transfer,#e0a106)">🆕 = club absent de la base. Vérifie que ce n'est pas une variante d'un club existant (ex. « Chelsea FC » alors que « CHELSEA » existe déjà), sinon la règle des 3/club sera faussée.</p>`:''}
     <table style="width:100%;font-size:.82rem"><thead><tr><th>Prénom</th><th>Nom</th><th>Poste</th><th>Club</th><th>Champ.</th><th>Âge</th><th>Nat.</th><th>Valeur</th><th></th></tr></thead><tbody>${
       rows.map(r=>r.error
         ? `<tr style="color:var(--live,#ef5350)"><td colspan="8">${r.raw}</td><td>⚠️ ${r.error}</td></tr>`
-        : `<tr${r.warn?' style="color:var(--transfer,#e0a106)"':''}><td>${r.first}</td><td>${r.name}</td><td>${r.pos}</td><td>${r.club||'—'}</td><td>${r.champ||'—'}</td><td>${r.age??'—'}</td><td>${r.nationality||'—'}</td><td>${r.val} M€</td><td title="${r.warn||''}">${r.warn?'⚠️':'✅'}</td></tr>`
+        : `<tr${r.warn?' style="color:var(--transfer,#e0a106)"':''}><td>${r.first}</td><td>${r.name}</td><td>${r.pos}</td><td>${r.club||'—'}${r.newClub?' <span title="club absent de la base">🆕</span>':''}</td><td>${r.champ||'—'}</td><td>${r.age??'—'}</td><td>${r.nationality||'—'}</td><td>${r.val} M€</td><td title="${r.warn||''}">${r.warn?'⚠️':'✅'}</td></tr>`
       ).join('')
     }</tbody></table>`;
   $('btnCsvImport').style.display = ok.length?'inline-block':'none';
@@ -1455,6 +1507,18 @@ async function loadPlayers(){
   ADMIN_PLAYERS = await api.listPlayers();
   $('playerCount').textContent = ADMIN_PLAYERS.length;
   renderPlayerRows();
+  loadClubList();   // tient l'autocomplétion « Club » à jour
+}
+
+// Remplit la liste d'autocomplétion du champ « Club » avec les clubs déjà
+// en base (noms canoniques). Évite de recréer des variantes d'orthographe.
+async function loadClubList(){
+  const dl = $('clubsDatalist');
+  if(!dl || typeof api.clubList!=='function') return;
+  try{
+    const rows = await api.clubList();
+    dl.innerHTML = (rows||[]).map(c=>`<option value="${(c.club||'').replace(/"/g,'&quot;')}">${c.nb} joueur${c.nb>1?'s':''}</option>`).join('');
+  }catch(e){ /* best-effort : l'autocomplétion n'est pas bloquante */ }
 }
 
 // Applique la recherche + le filtre de statut, puis rend le tableau.
@@ -1667,6 +1731,28 @@ if($('btnBackfillApply')) $('btnBackfillApply').onclick = async ()=>{
   renderBackfill(data, true);
   loadClosedAuctions(); loadBonusTrace();
 };
+// Rattrapage du bonus « prix élevé » cumulable.
+function renderPriceBackfill(list, applied){
+  const box = $('backfillResult'); if(!box) return;
+  if(!list.length){ box.innerHTML = '<p class="ok" style="font-size:.85rem">✓ Aucun bonus « prix élevé » manquant : tout est à jour.</p>'; $('btnPriceApply').style.display='none'; return; }
+  const lines = list.map(x=>`<div style="font-size:.84rem;padding:3px 0">${applied?'✓ ':'• '}<b>${x.winner}</b> ← ${fmtM(x.bonus)} (prix élevé sur <b>${x.player_name}</b>, remporté ${fmtM(x.price)})</div>`).join('');
+  box.innerHTML = `<div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:var(--pitch-2,#111a2e)">
+      <div style="font-weight:700;margin-bottom:6px">${applied?`✓ ${list.length} bonus « prix élevé » crédité(s)`:`${list.length} bonus « prix élevé » à créditer`}</div>${lines}</div>`;
+  $('btnPriceApply').style.display = (!applied && list.length) ? 'inline-block' : 'none';
+}
+if($('btnPriceTest')) $('btnPriceTest').onclick = async ()=>{
+  const { data, error } = await api.adminBackfillPriceBonus(true);
+  if(error){ showMsg($('backfillResult'), error.message); return; }
+  renderPriceBackfill(data, false);
+};
+if($('btnPriceApply')) $('btnPriceApply').onclick = async ()=>{
+  if(!confirm('Créditer maintenant les bonus « prix élevé » manquants ? Cette action modifie les budgets.')) return;
+  const { data, error } = await api.adminBackfillPriceBonus(false);
+  if(error){ showMsg($('backfillResult'), error.message); return; }
+  renderPriceBackfill(data, true);
+  loadClosedAuctions(); loadBonusTrace();
+};
+
 // Régulariser maintenant les achats reportés.
 if($('btnSettleDeferred')) $('btnSettleDeferred').onclick = async ()=>{
   const out = $('settleDeferredResult');
@@ -1959,6 +2045,45 @@ if($('btnFixPosition')) $('btnFixPosition').onclick = async ()=>{
   if(r && r.over_limit){ msg += ` ⚠️ ${r.owner_name||'Le possesseur'} a maintenant ${r.count_at_pos} ${POSFR[newPos].toLowerCase()}s (max ${r.limit_at_pos}).`; }
   showMsg($('msg2'), msg, true);
   $('pos_player_id').value=''; $('pos_chosen').textContent=''; $('pos_search').value='';
+  loadPlayers(); if(typeof loadAdminActions==='function') loadAdminActions();
+};
+
+// Corriger le championnat d'un joueur (recherche + sélection).
+(function wireChampFix(){
+  const search = $('champ_search'); if(!search) return;
+  let t = null;
+  search.oninput = ()=>{
+    clearTimeout(t); const q = search.value;
+    t = setTimeout(async ()=>{
+      const box = $('champ_results');
+      if((q||'').trim().length < 2){ box.innerHTML=''; return; }
+      let res = [];
+      try { res = await api.searchPlayersByName(q); } catch(e){}
+      box.innerHTML = res.map(p=>`<button type="button" class="btn-ghost btn-sm" data-cid="${p.id}" data-cname="${(p.name||'').replace(/"/g,'&quot;')}" data-cchamp="${(p.championship||'').replace(/"/g,'&quot;')}" style="display:block;width:100%;text-align:left;margin:3px 0">${p.name} <span style="color:var(--muted)">· ${p.club||'—'} · actuellement ${p.championship||'(vide)'}</span></button>`).join('')
+        || '<p class="hint" style="font-size:.8rem">Aucun joueur trouvé.</p>';
+      box.querySelectorAll('[data-cid]').forEach(b=>b.onclick=()=>{
+        $('champ_player_id').value = b.dataset.cid;
+        $('champ_chosen').textContent = `✓ ${b.dataset.cname} (actuellement ${b.dataset.cchamp||'(vide)'})`;
+        $('champ_results').innerHTML = '';
+        search.value = b.dataset.cname;
+        if(b.dataset.cchamp){ const sel=$('champ_new'); if([...sel.options].some(o=>o.value===b.dataset.cchamp)) sel.value=b.dataset.cchamp; }
+      });
+    }, 250);
+  };
+})();
+if($('btnFixChamp')) $('btnFixChamp').onclick = async ()=>{
+  const out = $('champFixResult');
+  const pid = $('champ_player_id').value;
+  if(!pid) return showMsg(out,'Choisis d’abord un joueur.');
+  const newChamp = $('champ_new').value;
+  if(!confirm(`Corriger le championnat de ce joueur en « ${newChamp} » ?\n\nFonctionne même s'il est déjà détenu.`)) return;
+  const { data, error } = await api.adminSetChampionship(pid, newChamp);
+  if(error) return showMsg(out, error.message);
+  const r = Array.isArray(data) ? data[0] : data;
+  let msg = `Championnat corrigé : ${r?.player_name||'joueur'} → ${newChamp}.`;
+  if(r && r.over_limit){ msg += ` ⚠️ ${r.owner_name||'Le possesseur'} a maintenant ${r.count_in_champ} joueurs de ${newChamp} (max ${r.limit_in_champ}).`; }
+  showMsg(out, msg, true);
+  $('champ_player_id').value=''; $('champ_chosen').textContent=''; $('champ_search').value='';
   loadPlayers(); if(typeof loadAdminActions==='function') loadAdminActions();
 };
 
