@@ -359,6 +359,11 @@ export async function rankingFull() {
   const { data } = await sb.rpc('qm_ranking_full');
   return data ?? [];
 }
+// Séries d'assiduité (fidélité) : série en cours + record, par manager.
+export async function activityStreaks() {
+  const { data } = await sb.rpc('qm_activity_streaks');
+  return data ?? [];
+}
 export async function managerPublicCard(managerId) {
   const { data } = await sb.rpc('qm_manager_public_card', { p_manager_id: managerId });
   return (data && data[0]) ? data[0] : null;

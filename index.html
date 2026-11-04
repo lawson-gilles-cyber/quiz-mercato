@@ -4419,6 +4419,8 @@ const FAQ_DATA = [
      "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
     ['Que signifient les flèches ▲▼ dans le classement ?',
      "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. Tant qu’il n’y a pas encore <b>deux journées clôturées</b> (il faut une journée de référence pour comparer), un simple <b>–</b> s’affiche : les flèches apparaîtront dès la <b>2ᵉ journée clôturée</b>. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
+    ['C’est quoi le 🔥 à côté de certains managers au classement ?',
+     "C’est la <b>série d’assiduité</b> : le nombre de <b>journées clôturées consécutives</b> où le manager a <b>aligné sa compo lui-même</b>. Le chiffre (ex. 🔥5) apparaît dès <b>2 journées</b> de suite. Attention : une compo <b>reconduite automatiquement</b> (quand tu ne fais rien) ne compte pas — il faut aligner activement. C’est une <b>distinction de prestige</b>, elle ne rapporte aucun budget : juste la fierté d’être un habitué fidèle. Rate une journée et la série repart de zéro."],
     ['Je peux transformer mon budget en points (ou l’inverse) ?',
      "Oui. En fin de mercato d’été : <b>budget → points</b> (10 M€ = 1 point, max 200 M€). Au mercato d’hiver : <b>points → budget</b> (1 point = 10 M€, max 200 points) — mais ces points quittent ton classement, c’est un pari."],
     ['C’est quoi la « Bourse des joueurs » et la cote ?',
@@ -5181,6 +5183,13 @@ const RANK_ZONE = 2;
 let RANK_MODE = 'sportif';
 let RANK_ROWS = [];        // lignes brutes de qm_ranking_full (filtrées division)
 let RANK_BADGES = {};
+let RANK_STREAKS = {};
+// Puce série d'assiduité 🔥 (fidélité) : affichée dès 2 semaines consécutives.
+function streakChip(id){
+  const s = RANK_STREAKS[id];
+  if(!s || s.cur < 2) return '';
+  return ` <span title="Série d'assiduité : ${s.cur} journées consécutives avec compo alignée (record : ${s.best})" style="color:#ff8a3d;font-size:.78rem;font-weight:700;white-space:nowrap">🔥${s.cur}</span>`;
+}
 
 async function renderRank(){
   renderDivTabs();
@@ -5207,6 +5216,13 @@ async function renderRank(){
   try {
     const bd = await api.allBadges();
     bd.forEach(b=>{ (RANK_BADGES[b.manager_id] ||= []).push(b.icon); });
+  } catch(e){}
+
+  // Séries d'assiduité (fidélité) — badge 🔥, sans budget.
+  RANK_STREAKS = {};
+  try {
+    const st = await api.activityStreaks();
+    st.forEach(s=>{ RANK_STREAKS[s.manager_id] = { cur:Number(s.current_streak||0), best:Number(s.best_streak||0) }; });
   } catch(e){}
 
   // NB : on ne pré-remplit PAS RANK_TEAMS ici — l'effectif complet (pour le
@@ -5287,7 +5303,7 @@ function renderRankTable(){
     body.innerHTML = `<tr><td colspan="3" class="empty">Aucun manager inscrit.</td></tr>`;
     return;
   }
-  const nameCell = (m)=>`<b>${m.display_name}</b>${(RANK_BADGES[m.id]||[]).length?` <span title="Distinctions">${(RANK_BADGES[m.id]||[]).join(' ')}</span>`:''} <span style="color:var(--muted);font-size:.75rem">▸ voir</span>`;
+  const nameCell = (m)=>`<b>${m.display_name}</b>${(RANK_BADGES[m.id]||[]).length?` <span title="Distinctions">${(RANK_BADGES[m.id]||[]).join(' ')}</span>`:''}${streakChip(m.id)} <span style="color:var(--muted);font-size:.75rem">▸ voir</span>`;
 
   if(RANK_MODE==='sportif'){
     // tri déjà par rang (season_points desc). Zone montée/descente = RANK_ZONE.
