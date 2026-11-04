@@ -1735,17 +1735,22 @@ async function loadClosedAuctions(){
     tbody.innerHTML = '<tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune enchère clôturée.</td></tr>';
     return;
   }
+  const esc = s => String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   tbody.innerHTML = list.map(a=>{
     const d = new Date(a.closed_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    // Statut du bonus dénicheur
+    const reason = esc(a.bonus_reason||'');
+    // Statut du bonus dénicheur (avec commentaire explicatif en infobulle)
     let bonus;
-    if(!a.winner){ bonus = '<span class="hint">—</span>'; }         // sans gagnant (aucune offre)
-    else if(!a.scout_is_other){ bonus = '<span class="hint">sans objet</span>'; } // pas de dénicheur tiers
-    else if(a.bonus_credited){ bonus = `<span style="color:#4ade80">✓ ${fmtM(a.bonus_amount)}</span>`; }
-    else { bonus = '<span style="color:#e0574a;font-weight:700">✗ non crédité</span>'; }
+    if(!a.winner){ bonus = `<span class="hint" title="${reason}">—</span>`; }
+    else if(!a.scout_is_other){ bonus = `<span class="hint" title="${reason}">sans objet</span>`; }
+    else if(a.bonus_credited){ bonus = `<span style="color:#4ade80" title="${reason}">✓ ${fmtM(a.bonus_amount)}</span>`; }
+    else { bonus = `<span style="color:#e0574a;font-weight:700" title="${reason}">✗ non crédité</span>`; }
+    // Ligne de commentaire toujours visible (utile sur mobile, sans survol).
+    const reasonLine = reason
+      ? `<div style="font-size:.72rem;color:var(--muted);margin-top:3px;font-style:italic">💬 ${reason}</div>` : '';
     return `<tr>
       <td class="hint">${d}</td>
-      <td><b>${a.player_name}</b></td>
+      <td><b>${a.player_name}</b>${reasonLine}</td>
       <td>${a.winner ?? '<span class="hint">aucune offre</span>'}</td>
       <td class="val">${a.price>0?fmtM(a.price):'—'}</td>
       <td>${a.scout ?? '<span class="hint">—</span>'}</td>
