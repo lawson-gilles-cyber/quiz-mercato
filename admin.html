@@ -1722,15 +1722,54 @@ if($('playerSearch')) $('playerSearch').addEventListener('input', ()=>renderPlay
 if($('playerStatusFilter')) $('playerStatusFilter').addEventListener('change', ()=>renderPlayerRows());
 
 // ---------- Propositions de joueurs (dénichage) ----------
-async function loadTransactions(){
-  const tx = await api.adminTransactions();
-  const tbody = $('txRows');
-  if(!tbody) return;
-  if(tx.length===0){
-    tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucune transaction.</td></tr>';
+// ---------- Pagination réutilisable (20 lignes/page) ----------
+// Stocke, par tbody, la liste complète, la fonction de rendu d'une ligne,
+// le nombre de colonnes (pour l'état vide) et la page courante.
+const PAGER = {};
+const PAGE_SIZE = 20;
+function paginate(tbodyId, rows, renderRow, cols, emptyMsg){
+  const tbody = document.getElementById(tbodyId); if(!tbody) return;
+  PAGER[tbodyId] = PAGER[tbodyId] || { page: 0 };
+  const st = PAGER[tbodyId];
+  st.rows = rows; st.renderRow = renderRow; st.cols = cols; st.emptyMsg = emptyMsg || 'Aucune donnée.';
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  if(st.page >= pages) st.page = pages - 1;
+  if(st.page < 0) st.page = 0;
+  // Barre de contrôles (créée une fois, juste après la <table> parente).
+  let bar = document.getElementById(tbodyId + '_pager');
+  if(!bar){
+    bar = document.createElement('div');
+    bar.id = tbodyId + '_pager';
+    bar.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:12px;margin-top:10px;font-size:.85rem';
+    const table = tbody.closest('table');
+    if(table && table.parentNode) table.parentNode.insertBefore(bar, table.nextSibling);
+  }
+  if(rows.length === 0){
+    tbody.innerHTML = `<tr><td colspan="${cols}" class="hint" style="text-align:center;padding:20px">${st.emptyMsg}</td></tr>`;
+    if(bar) bar.style.display = 'none';
     return;
   }
-  tbody.innerHTML = tx.map(t=>{
+  const start = st.page * PAGE_SIZE;
+  const slice = rows.slice(start, start + PAGE_SIZE);
+  tbody.innerHTML = slice.map(renderRow).join('');
+  if(st.afterRender) st.afterRender(tbody);
+  // Contrôles
+  if(pages <= 1){ bar.style.display = 'none'; }
+  else {
+    bar.style.display = 'flex';
+    bar.innerHTML = `
+      <button class="btn-ghost btn-sm" ${st.page===0?'disabled':''} data-pg="prev">← Précédent</button>
+      <span style="color:var(--muted)">Page <b>${st.page+1}</b> / ${pages} · ${rows.length} au total</span>
+      <button class="btn-ghost btn-sm" ${st.page>=pages-1?'disabled':''} data-pg="next">Suivant →</button>`;
+    bar.querySelector('[data-pg="prev"]').onclick = ()=>{ st.page--; paginate(tbodyId, st.rows, st.renderRow, st.cols, st.emptyMsg); };
+    bar.querySelector('[data-pg="next"]').onclick = ()=>{ st.page++; paginate(tbodyId, st.rows, st.renderRow, st.cols, st.emptyMsg); };
+  }
+}
+
+async function loadTransactions(){
+  const tx = await api.adminTransactions();
+  if(!$('txRows')) return;
+  paginate('txRows', tx, t=>{
     const d = new Date(t.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     return `<tr>
       <td class="hint">${d}</td>
@@ -1739,28 +1778,27 @@ async function loadTransactions(){
       <td>${t.to_manager ?? '—'}</td>
       <td class="val">${t.price>0?fmtM(t.price):'échange'}</td>
     </tr>`;
-  }).join('');
+  }, 5, 'Aucune transaction.');
 }
 
 // ---------- Enchères clôturées (journal + bonus) ----------
 async function loadClosedAuctions(){
-  const tbody = $('closedAucRows'); if(!tbody) return;
-  let list = []; try { list = await api.adminClosedAuctions(80); } catch(e){}
-  if(!list.length){
-    tbody.innerHTML = '<tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune enchère clôturée.</td></tr>';
-    return;
-  }
+  if(!$('closedAucRows')) return;
+  let list = []; try { list = await api.adminClosedAuctions(300); } catch(e){}
   const esc = s => String(s||'').replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
-  tbody.innerHTML = list.map(a=>{
+  // Au rendu de chaque page, (re)brancher les boutons Journal.
+  PAGER['closedAucRows'] = PAGER['closedAucRows'] || { page: 0 };
+  PAGER['closedAucRows'].afterRender = (tb)=>{
+    tb.querySelectorAll('[data-journal]').forEach(b=>b.onclick=()=>showAdminJournal(b.dataset.journal, b.dataset.pname));
+  };
+  paginate('closedAucRows', list, a=>{
     const d = new Date(a.closed_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const reason = esc(a.bonus_reason||'');
-    // Statut du bonus dénicheur (avec commentaire explicatif en infobulle)
     let bonus;
     if(!a.winner){ bonus = `<span class="hint" title="${reason}">—</span>`; }
     else if(!a.scout_is_other){ bonus = `<span class="hint" title="${reason}">sans objet</span>`; }
     else if(a.bonus_credited){ bonus = `<span style="color:#4ade80" title="${reason}">✓ ${fmtM(a.bonus_amount)}</span>`; }
     else { bonus = `<span style="color:#e0574a;font-weight:700" title="${reason}">✗ non crédité</span>`; }
-    // Ligne de commentaire toujours visible (utile sur mobile, sans survol).
     const reasonLine = reason
       ? `<div style="font-size:.72rem;color:var(--muted);margin-top:3px;font-style:italic">💬 ${reason}</div>` : '';
     return `<tr>
@@ -1772,8 +1810,7 @@ async function loadClosedAuctions(){
       <td>${bonus}</td>
       <td><button class="btn-ghost btn-sm" data-journal="${a.auction_id}" data-pname="${(a.player_name||'').replace(/"/g,'&quot;')}">📜 Journal</button></td>
     </tr>`;
-  }).join('');
-  tbody.querySelectorAll('[data-journal]').forEach(b=>b.onclick=()=>showAdminJournal(b.dataset.journal, b.dataset.pname));
+  }, 7, 'Aucune enchère clôturée.');
 }
 // Rattrapage des bonus dénicheur : test puis application.
 function renderBackfill(list, applied){
@@ -3441,11 +3478,10 @@ const PROP_STATUS = {
 };
 
 async function loadProposalHistory(){
-  const tbody = $('propHistoryRows'); if(!tbody) return;
-  const rows = await api.adminProposalsHistory(100);
-  if(!rows.length){ tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucune proposition enregistrée.</td></tr>'; return; }
+  if(!$('propHistoryRows')) return;
+  const rows = await api.adminProposalsHistory(300);
   const STCLS = {published:'s-open', approved:'s-open', pending:'s-open', needs_changes:'s-closed', rejected:'s-closed', cancelled:'s-closed'};
-  tbody.innerHTML = rows.map(r=>{
+  paginate('propHistoryRows', rows, r=>{
     const d = new Date(r.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'});
     const motif = [r.decision_reason, r.reviewer_name?('par '+r.reviewer_name):null].filter(Boolean).join(' · ');
     return `<tr>
@@ -3455,7 +3491,7 @@ async function loadProposalHistory(){
       <td><span class="status ${STCLS[r.status]||'s-closed'}">${r.status_fr||r.status}</span></td>
       <td style="font-size:.82rem;color:var(--muted)">${motif||'—'}</td>
     </tr>`;
-  }).join('');
+  }, 5, 'Aucune proposition enregistrée.');
 }
 
 // ---------- Enchères programmées (admin) ----------
