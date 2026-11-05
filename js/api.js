@@ -1,3 +1,4 @@
+
 // =====================================================================
 // QUIZ MERCATO — Couche API (Supabase, Vanilla JS)
 // =====================================================================
@@ -362,6 +363,27 @@ export async function rankingFull() {
 // Séries d'assiduité (fidélité) : série en cours + record, par manager.
 export async function activityStreaks() {
   const { data } = await sb.rpc('qm_activity_streaks');
+  return data ?? [];
+}
+// ---------- Duel de la journée ----------
+export async function adminGenerateDuels(matchdayId) {
+  return sb.rpc('qm_admin_generate_duels', { p_matchday_id: matchdayId });
+}
+export async function myDuel(matchdayId) {
+  const { data } = await sb.rpc('qm_my_duel', { p_matchday_id: matchdayId });
+  return (data && data[0]) ? data[0] : null;
+}
+export async function duelStandings() {
+  const { data } = await sb.rpc('qm_duel_standings');
+  return data ?? [];
+}
+// ---------- Onze type de la journée ----------
+export async function teamOfWeek(matchdayId) {
+  const { data } = await sb.rpc('qm_team_of_week', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
+export async function towCounts() {
+  const { data } = await sb.rpc('qm_tow_counts');
   return data ?? [];
 }
 export async function managerPublicCard(managerId) {

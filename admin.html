@@ -3141,6 +3141,7 @@ async function loadMatchdays(){
         ${m.status==='upcoming'?`<button class="btn-primary btn-sm" data-mdopen="${m.id}">Ouvrir</button>`:''}
         ${m.status==='open'?`<button class="btn-ghost btn-sm" data-mdscore="${m.id}">Passer en notation</button>`:''}
         ${m.status==='scoring'?`<button class="btn-primary btn-sm" data-mdclose="${m.id}">Clôturer</button>`:''}
+        ${m.status!=='closed'?`<button class="btn-ghost btn-sm" data-mdduel="${m.id}" title="Apparie les managers 2 à 2 pour le Duel de la journée (tirage équilibré). Les gagnants seront désignés à la clôture.">⚔️ Générer les duels</button>`:''}
       </div></td></tr>`).join('')
   }</tbody></table>` : `<p class="hint">Aucune journée créée.</p>`;
 
@@ -3159,6 +3160,12 @@ async function loadMatchdays(){
     const r = await api.adminCloseMatchday(b.dataset.mdclose);
     if(r.error) return showMsg($('msg2'),r.error.message);
     showMsg($('msg2'),'Journée clôturée, points attribués.',true); loadMatchdays();
+  });
+  $('mdList').querySelectorAll('[data-mdduel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Générer les duels de cette journée ?\n\nLes managers sont appariés 2 à 2 (tirage équilibré). Les gagnants seront désignés automatiquement à la clôture. Relancer remplace les duels existants.')) return;
+    const r = await api.adminGenerateDuels(b.dataset.mdduel);
+    if(r.error) return showMsg($('msg2'),r.error.message);
+    showMsg($('msg2'),`${r.data ?? 0} duel(s) généré(s) pour cette journée.`,true);
   });
 }
 const MD_STATUS = {upcoming:'À venir', open:'Ouverte', scoring:'Notation', closed:'Clôturée'};

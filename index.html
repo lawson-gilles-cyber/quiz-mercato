@@ -1424,6 +1424,12 @@
       <tbody id="rankBody"></tbody>
     </table>
 
+    <!-- Duel de la journée -->
+    <div id="duelBlock" style="margin-top:30px;display:none"></div>
+
+    <!-- Onze type de la journée -->
+    <div id="towBlock" style="margin-top:30px;display:none"></div>
+
     <!-- Comparateur d'effectifs (tête-à-tête) -->
     <div style="margin-top:30px">
       <div class="eyebrow" style="margin-bottom:12px">⚔️ Face-à-face</div>
@@ -1709,7 +1715,7 @@
         <h3 class="rule-h">15. Les bonus (budget)</h3>
         <p class="rule-p">Les bonus donnent du <b>budget</b>, pas des points. Il en existe quatre familles :</p>
         <ul class="rule-ul">
-          <li><b>Journée complète</b> : 3 joueurs à des postes différents le même jour (+30 M€) ; 3 joueurs au même poste (+20 M€).</li>
+          <li><b>Journée complète</b> : achète le même jour <b>au moins un attaquant, un milieu ET un défenseur</b> (+30 M€). Le gardien ne compte pas pour ce bonus. Tu peux le toucher <b>chaque jour</b> où tu remplis la condition (une fois par jour). À part : 3 joueurs <b>au même poste</b> le même jour (+20 M€).</li>
           <li><b>Scout / Dénicheur</b> : 10 % du prix final si un autre manager remporte un joueur que tu as déniché (max 20 M€). Plafonné à 2 bonus par jour.</li>
           <li><b>Construction</b> : 9 joueurs avant la fin du 5ᵉ jour (+10 M€) ; 14 joueurs avant la fin du 8ᵉ jour (+15 M€) ; 18 joueurs avant la fin du 11ᵉ jour (+25 M€) ; joueurs de 10 clubs différents ou plus (+25 M€, à tout moment). Les jours se comptent depuis l'ouverture du mercato d'été.</li>
           <li><b>Coup de poker</b> : seul enchérisseur sur un joueur à ≥30 M€ (+15 M€), à ≥60 M€ (+30 M€), à ≥80 M€ (+40 M€), à ≥100 M€ (+50 M€) ; enchère remportée à 5+ managers (+25 M€) ; enchère remportée à ≥100 M€ (+15 M€).</li>
@@ -4421,6 +4427,10 @@ const FAQ_DATA = [
      "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
     ['Que signifient les flèches ▲▼ dans le classement ?',
      "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. Tant qu’il n’y a pas encore <b>deux journées clôturées</b> (il faut une journée de référence pour comparer), un simple <b>–</b> s’affiche : les flèches apparaîtront dès la <b>2ᵉ journée clôturée</b>. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
+    ['C’est quoi le « Duel de la journée » ⚔️ ?',
+     "Chaque journée, l’organisateur peut t’<b>apparier à un autre manager</b> (tirage équilibré, qui évite de refaire les mêmes paires). Celui qui marque le <b>plus de points à cette journée</b> gagne le duel. On garde ton <b>bilan</b> (victoires / nuls / défaites) et ta <b>série de victoires en cours</b> 🔥. C’est purement du <b>prestige</b> (aucun budget en jeu) : juste le plaisir de battre ton adversaire du moment. Si le nombre de managers est impair, un manager est <b>exempt</b> cette journée-là."],
+    ['C’est quoi le « Onze type de la journée » ⭐ ?',
+     "Après chaque journée clôturée, le jeu compose le <b>meilleur XI</b> : les <b>11 meilleures notes</b> (pondérées par le temps de jeu) parmi les <b>titulaires de tous les managers</b>. Si l’un de tes joueurs y figure, tu gagnes une <b>sélection</b> — un compteur de saison récompense ceux qui placent le plus souvent leurs joueurs dans le Onze type. Encore une distinction de prestige, sans budget : aligne tes meilleurs éléments pour y apparaître !"],
     ['C’est quoi le 🔥 à côté de certains managers au classement ?',
      "C’est la <b>série d’assiduité</b> : le nombre de <b>journées clôturées consécutives</b> où le manager a <b>aligné sa compo lui-même</b>. Le chiffre (ex. 🔥5) apparaît dès <b>2 journées</b> de suite. Attention : une compo <b>reconduite automatiquement</b> (quand tu ne fais rien) ne compte pas — il faut aligner activement. C’est une <b>distinction de prestige</b>, elle ne rapporte aucun budget : juste la fierté d’être un habitué fidèle. Rate une journée et la série repart de zéro."],
     ['Je peux transformer mon budget en points (ou l’inverse) ?',
@@ -4440,7 +4450,7 @@ const FAQ_DATA = [
     ['Les bonus d’une même enchère se cumulent-ils ?',
      "Le <b>bonus de concurrence</b> (seul enchérisseur selon le prix, OU 5+ managers) n’est pas cumulable avec lui-même : tu touches le <b>plus avantageux</b>. Mais le <b>bonus « prix élevé »</b> (+15 M€ dès 100 M€) <b>s’ajoute toujours</b>. Exemples : seul à 160 M€ → 50 + 15 = <b>65 M€</b> ; face à 5+ managers à 160 M€ → 25 + 15 = <b>40 M€</b> ; face à 2-4 managers à 160 M€ → <b>15 M€</b>. Le <b>bonus dénicheur</b> est encore à part et peut s’ajouter si c’est un <b>autre</b> manager qui gagne le joueur que tu as déniché."],
     ['Qu’est-ce que le bonus « journée complète » ?',
-     "Si tu recrutes 3 joueurs le même jour : <b>3 postes différents</b> → +30 M€, ou <b>3 au même poste</b> → +20 M€."],
+     "Tu le touches si, <b>le même jour</b>, tu recrutes au moins <b>un attaquant, un milieu ET un défenseur</b> (+30 M€). Attention : il faut vraiment ces <b>trois lignes</b> — le <b>gardien ne compte pas</b>, et 3 attaquants (par ex.) ne suffisent pas non plus. Tu peux le gagner <b>chaque jour</b> où tu remplis la condition (une fois par jour, sans limite sur la saison). À part, il existe aussi un bonus <b>3 joueurs au même poste</b> le même jour → +20 M€."],
   ]],
   ['Calendrier & mercatos', [
     ['Combien de temps dure le mercato ?',
@@ -5234,6 +5244,81 @@ async function renderRank(){
   renderPodium();
   renderRankTable();
   setupVersus(rows);
+  renderDuelAndTow();   // Duel de la journée + Onze type (prestige)
+}
+
+// ---------- Duel de la journée + Onze type ----------
+async function renderDuelAndTow(){
+  let mds = [];
+  try { mds = await api.listMatchdays(); } catch(e){}
+  const closed = (mds||[]).filter(m=>m.status==='closed').sort((a,b)=>b.number-a.number);
+  const lastClosed = closed[0] || null;
+
+  // --- Mon duel de la journée (sur la dernière journée clôturée) ---
+  const dBox = $('duelBlock');
+  if(dBox && lastClosed && ME){
+    let duel=null, standings=[];
+    try { [duel, standings] = await Promise.all([ api.myDuel(lastClosed.id), api.duelStandings() ]); } catch(e){}
+    let html = `<div class="eyebrow" style="margin-bottom:12px">⚔️ Duel de la journée</div>`;
+    if(duel){
+      const col = duel.outcome==='Victoire' ? '#4ade80' : duel.outcome==='Défaite' ? '#e0574a' : 'var(--muted)';
+      html += `<div style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
+        <div style="font-size:.78rem;color:var(--muted);margin-bottom:6px">Journée ${lastClosed.number} — ${duel.opponent?('contre <b>'+duel.opponent+'</b>'):'exempt'}</div>
+        ${duel.opponent ? `<div style="display:flex;align-items:center;justify-content:center;gap:18px;font-family:'Space Mono',monospace;font-size:1.3rem">
+          <span>Toi <b>${duel.my_points!=null?Number(duel.my_points).toFixed(0):'—'}</b></span>
+          <span style="color:var(--muted)">vs</span>
+          <span><b>${duel.opp_points!=null?Number(duel.opp_points).toFixed(0):'—'}</b> ${duel.opponent}</span>
+        </div>` : ''}
+        <div style="text-align:center;margin-top:8px;font-weight:800;color:${col}">${duel.outcome}</div>
+      </div>`;
+    } else {
+      html += `<p class="hint" style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Pas de duel pour toi sur la dernière journée (les duels sont générés par l'organisateur).</p>`;
+    }
+    // Bilan des duels (top victoires)
+    if(standings && standings.length){
+      html += `<table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>V</th><th>N</th><th>D</th><th>Série</th></tr></thead><tbody>${
+        standings.map((s,i)=>`<tr${ME&&s.manager_id===ME.id?' style="background:rgba(74,222,128,.07)"':''}>
+          <td class="rank">${i+1}</td>
+          <td><b>${s.display_name}</b></td>
+          <td style="color:#4ade80">${s.wins}</td>
+          <td style="color:var(--muted)">${s.draws}</td>
+          <td style="color:#e0574a">${s.losses}</td>
+          <td>${s.current_win_streak>=2?('🔥'+s.current_win_streak):(s.current_win_streak||'—')}</td>
+        </tr>`).join('')
+      }</tbody></table>`;
+    }
+    dBox.innerHTML = html;
+    dBox.style.display = 'block';
+  } else if(dBox){ dBox.style.display='none'; }
+
+  // --- Onze type de la journée ---
+  const tBox = $('towBlock');
+  if(tBox && lastClosed){
+    let eleven=[], counts=[];
+    try { [eleven, counts] = await Promise.all([ api.teamOfWeek(lastClosed.id), api.towCounts() ]); } catch(e){}
+    if(eleven && eleven.length){
+      const POSFR = {GK:'G',DEF:'D',MID:'M',FWD:'A'};
+      let html = `<div class="eyebrow" style="margin-bottom:12px">⭐ Onze type — Journée ${lastClosed.number}</div>
+        <p class="hint" style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Les 11 meilleures notes de la journée, tous managers confondus.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${
+          eleven.map(p=>`<div style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--pitch-2,#111a2e)">
+            <div style="font-size:.7rem;color:var(--transfer);font-weight:700">${POSFR[p.pos]||p.pos} · ${Number(p.rating).toFixed(1)}</div>
+            <div style="font-weight:700;font-size:.88rem">${p.player_name}</div>
+            <div style="font-size:.72rem;color:var(--muted)">${p.manager}</div>
+          </div>`).join('')
+        }</div>`;
+      // Compteur de sélections (top)
+      const top = (counts||[]).filter(c=>c.selections>0).slice(0,8);
+      if(top.length){
+        html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px">🏅 Sélections au Onze type (saison) :</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">${
+            top.map(c=>`<span style="border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:.78rem${ME&&c.manager_id===ME.id?';border-color:var(--transfer);color:var(--transfer)':''}"><b>${c.display_name}</b> · ${c.selections}</span>`).join('')
+          }</div>`;
+      }
+      tBox.innerHTML = html;
+      tBox.style.display = 'block';
+    } else { tBox.style.display='none'; }
+  } else if(tBox){ tBox.style.display='none'; }
 }
 
 // Puce de tendance ▲▼ (classement sportif)
