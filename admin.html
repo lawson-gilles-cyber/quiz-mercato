@@ -939,6 +939,21 @@
   <!-- Trace des bonus -->
   <h2>Trace des bonus attribués</h2>
   <div class="card">
+    <p class="hint" style="margin-bottom:10px">Historique de tous les bonus crédités (et malus) : journée complète, même poste, coup de poker, dénicheur, quiz, conversions, rattrapages… Filtre par type ou par manager pour vérifier une créditation précise.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center">
+      <select id="bonusFilterType" style="padding:7px 9px">
+        <option value="">Tous les types</option>
+        <option value="full_day">Journée complète</option>
+        <option value="same_pos">Même poste</option>
+        <option value="poker">Coup de poker</option>
+        <option value="other">Dénicheur</option>
+        <option value="quiz">Quiz</option>
+        <option value="convert">Conversion en points</option>
+        <option value="malus">Malus</option>
+      </select>
+      <input id="bonusFilterMgr" type="text" placeholder="🔎 Manager…" style="flex:1;min-width:140px;padding:7px 9px">
+    </div>
+    <div id="bonusTraceSummary" style="margin-bottom:8px;font-size:.82rem;color:var(--muted)"></div>
     <table>
       <thead><tr><th>Date</th><th>Manager</th><th>Type</th><th>Détail</th><th>Montant</th></tr></thead>
       <tbody id="bonusTrace"><tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus attribué.</td></tr></tbody>
@@ -3367,16 +3382,40 @@ $('btnAwardQuiz').onclick = async () => {
   $('quiz_points').value='';
   loadBonusTrace(); loadAdminActions();
 };
+const BONUS_LABELS = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur',same_pos:'Même poste',poker:'Coup de poker',convert:'Conversion en points',malus:'Malus'};
+let BONUS_TRACE = [];
 async function loadBonusTrace(){
-  const bonuses = await api.adminAllBonuses();
   const tbody = $('bonusTrace');
   if(!tbody) return;
-  if(bonuses.length===0){
-    tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus attribué.</td></tr>';
+  BONUS_TRACE = await api.adminAllBonuses();
+  // Branche les filtres une seule fois.
+  if($('bonusFilterType') && !$('bonusFilterType').dataset.bound){
+    $('bonusFilterType').dataset.bound='1';
+    $('bonusFilterType').onchange = renderBonusTrace;
+    if($('bonusFilterMgr')) $('bonusFilterMgr').oninput = renderBonusTrace;
+  }
+  renderBonusTrace();
+}
+function renderBonusTrace(){
+  const tbody = $('bonusTrace'); if(!tbody) return;
+  const ft = ($('bonusFilterType')?.value)||'';
+  const fm = (($('bonusFilterMgr')?.value)||'').trim().toLowerCase();
+  let rows = BONUS_TRACE;
+  if(ft) rows = rows.filter(b=>b.bonus_type===ft);
+  if(fm) rows = rows.filter(b=>(b.manager||'').toLowerCase().includes(fm));
+  // Résumé : nombre + total de la vue filtrée.
+  if($('bonusTraceSummary')){
+    const total = rows.reduce((s,b)=>s+Number(b.amount),0);
+    const sign = total<0?'−':'+';
+    $('bonusTraceSummary').innerHTML = rows.length
+      ? `<b>${rows.length}</b> ligne(s) · total <b>${sign}${fmtM(Math.abs(total))}</b>${ft?` · type « ${BONUS_LABELS[ft]||ft} »`:''}`
+      : '';
+  }
+  if(rows.length===0){
+    tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus pour ce filtre.</td></tr>';
     return;
   }
-  const labels = {full_day:'Journée complète',quiz:'Quiz',other:'Dénicheur',malus:'Malus'};
-  tbody.innerHTML = bonuses.map(b=>{
+  tbody.innerHTML = rows.map(b=>{
     const d = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const neg = Number(b.amount) < 0;
     const montant = neg
@@ -3385,7 +3424,7 @@ async function loadBonusTrace(){
     return `<tr>
       <td class="hint">${d}</td>
       <td><b>${b.manager}</b></td>
-      <td>${labels[b.bonus_type]??b.bonus_type}</td>
+      <td>${BONUS_LABELS[b.bonus_type]??b.bonus_type}</td>
       <td class="hint">${b.detail??''}</td>
       <td class="val">${montant}</td>
     </tr>`;
