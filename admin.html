@@ -3428,8 +3428,9 @@ async function loadBonusTrace(){
   // Branche les filtres une seule fois.
   if($('bonusFilterType') && !$('bonusFilterType').dataset.bound){
     $('bonusFilterType').dataset.bound='1';
-    $('bonusFilterType').onchange = renderBonusTrace;
-    if($('bonusFilterMgr')) $('bonusFilterMgr').oninput = renderBonusTrace;
+    const onFilter = ()=>{ if(PAGER['bonusTrace']) PAGER['bonusTrace'].page=0; renderBonusTrace(); };
+    $('bonusFilterType').onchange = onFilter;
+    if($('bonusFilterMgr')) $('bonusFilterMgr').oninput = onFilter;
   }
   renderBonusTrace();
 }
@@ -3448,11 +3449,7 @@ function renderBonusTrace(){
       ? `<b>${rows.length}</b> ligne(s) · total <b>${sign}${fmtM(Math.abs(total))}</b>${ft?` · type « ${BONUS_LABELS[ft]||ft} »`:''}`
       : '';
   }
-  if(rows.length===0){
-    tbody.innerHTML = '<tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucun bonus pour ce filtre.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = rows.map(b=>{
+  paginate('bonusTrace', rows, b=>{
     const d = new Date(b.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const neg = Number(b.amount) < 0;
     const montant = neg
@@ -3465,7 +3462,7 @@ function renderBonusTrace(){
       <td class="hint">${b.detail??''}</td>
       <td class="val">${montant}</td>
     </tr>`;
-  }).join('');
+  }, 5, 'Aucun bonus pour ce filtre.');
 }
 
 const PROP_STATUS = {
