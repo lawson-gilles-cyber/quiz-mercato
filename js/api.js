@@ -365,6 +365,24 @@ export async function activityStreaks() {
   const { data } = await sb.rpc('qm_activity_streaks');
   return data ?? [];
 }
+// ---------- Défi tête-à-tête ----------
+export async function h2hChallenge(opponentId) {
+  return sb.rpc('qm_h2h_challenge', { p_opponent: opponentId });
+}
+export async function h2hRespond(id, accept) {
+  return sb.rpc('qm_h2h_respond', { p_id: id, p_accept: accept });
+}
+export async function h2hCancel(id) {
+  return sb.rpc('qm_h2h_cancel', { p_id: id });
+}
+export async function myH2h() {
+  const { data } = await sb.rpc('qm_my_h2h');
+  return data ?? [];
+}
+export async function h2hStandings() {
+  const { data } = await sb.rpc('qm_h2h_standings');
+  return data ?? [];
+}
 // ---------- Duel de la journée ----------
 export async function adminGenerateDuels(matchdayId) {
   return sb.rpc('qm_admin_generate_duels', { p_matchday_id: matchdayId });

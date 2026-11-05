@@ -1427,6 +1427,9 @@
     <!-- Duel de la journée -->
     <div id="duelBlock" style="margin-top:30px;display:none"></div>
 
+    <!-- Défi tête-à-tête -->
+    <div id="h2hBlock" style="margin-top:30px;display:none"></div>
+
     <!-- Onze type de la journée -->
     <div id="towBlock" style="margin-top:30px;display:none"></div>
 
@@ -4427,6 +4430,8 @@ const FAQ_DATA = [
      "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
     ['Que signifient les flèches ▲▼ dans le classement ?',
      "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. Tant qu’il n’y a pas encore <b>deux journées clôturées</b> (il faut une journée de référence pour comparer), un simple <b>–</b> s’affiche : les flèches apparaîtront dès la <b>2ᵉ journée clôturée</b>. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
+    ['C’est quoi le « Défi tête-à-tête » 🤝 ?',
+     "Tu peux <b>défier le manager de ton choix</b> pour la journée en cours (onglet Classement). Il <b>accepte ou décline</b>. À la clôture, celui qui a marqué le plus de points gagne un <b>point d’honneur</b> ; en cas d’égalité, <b>vous gagnez tous les deux</b> un point. Tu ne peux avoir qu’<b>un seul défi à la fois</b> par journée. C’est du pur prestige (aucun budget), parfait pour les rivalités. Différent du <b>Duel de la journée</b> (où l’organisateur t’apparie au hasard) : ici, c’est toi qui choisis ton adversaire."],
     ['C’est quoi le « Duel de la journée » ⚔️ ?',
      "Chaque journée, l’organisateur peut t’<b>apparier à un autre manager</b> (tirage équilibré, qui évite de refaire les mêmes paires). Celui qui marque le <b>plus de points à cette journée</b> gagne le duel. On garde ton <b>bilan</b> (victoires / nuls / défaites) et ta <b>série de victoires en cours</b> 🔥. C’est purement du <b>prestige</b> (aucun budget en jeu) : juste le plaisir de battre ton adversaire du moment. Si le nombre de managers est impair, un manager est <b>exempt</b> cette journée-là."],
     ['C’est quoi le « Onze type de la journée » ⭐ ?',
@@ -5245,6 +5250,94 @@ async function renderRank(){
   renderRankTable();
   setupVersus(rows);
   renderDuelAndTow();   // Duel de la journée + Onze type (prestige)
+  renderH2h(rows);      // Défi tête-à-tête (prestige)
+}
+
+// ---------- Défi tête-à-tête ----------
+async function renderH2h(rows){
+  const box = $('h2hBlock'); if(!box || !ME) return;
+  let mine=[], standings=[];
+  try { [mine, standings] = await Promise.all([ api.myH2h(), api.h2hStandings() ]); } catch(e){}
+  const active = mine.find(m=>m.status==='pending' || m.status==='accepted');
+  const recent = mine.filter(m=>m.outcome && ['Victoire','Défaite','Nul (chacun 1 pt)'].includes(m.outcome));
+
+  let html = `<div class="eyebrow" style="margin-bottom:10px">🤝 Défi tête-à-tête</div>
+    <p class="hint" style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Défie le manager de ton choix sur la journée en cours : le meilleur score gagne un <b>point d'honneur</b>. Pur prestige, aucun budget en jeu.</p>`;
+
+  if(active){
+    if(active.status==='pending' && active.role==='opponent'){
+      // J'ai reçu un défi : accepter / décliner
+      html += `<div style="border:1px solid var(--transfer);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
+        <div style="margin-bottom:8px">⚔️ <b>${active.other}</b> te défie cette journée !</div>
+        <button class="btn-primary btn-sm" data-h2h-accept="${active.id}">Accepter</button>
+        <button class="btn-ghost btn-sm" data-h2h-decline="${active.id}" style="margin-left:6px">Décliner</button>
+      </div>`;
+    } else if(active.status==='pending' && active.role==='challenger'){
+      html += `<div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
+        <div style="margin-bottom:8px">⏳ Tu as défié <b>${active.other}</b> — en attente de sa réponse.</div>
+        <button class="btn-ghost btn-sm" data-h2h-cancel="${active.id}">Annuler mon défi</button>
+      </div>`;
+    } else if(active.status==='accepted'){
+      html += `<div style="border:1px solid #4ade80;border-radius:12px;padding:14px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
+        ⚔️ Duel accepté : <b>toi</b> contre <b>${active.other}</b> cette journée. Que le meilleur gagne ! Résultat à la clôture.
+      </div>`;
+    }
+  } else {
+    // Pas de défi actif : proposer d'en lancer un
+    const opts = (rows||[]).filter(m=>m.id!==ME.id)
+      .map(m=>`<option value="${m.id}">${m.display_name}</option>`).join('');
+    html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <select id="h2hTarget" style="padding:8px 10px;flex:1;min-width:150px"><option value="">— défier un manager —</option>${opts}</select>
+      <button class="btn-primary btn-sm" id="h2hLaunch">Lancer le défi</button>
+    </div>`;
+  }
+
+  // Résultat récent
+  if(recent.length){
+    const r = recent[0];
+    const col = r.outcome==='Victoire'?'#4ade80':r.outcome==='Défaite'?'#e0574a':'var(--muted)';
+    html += `<div style="font-size:.85rem;margin-bottom:14px">Dernier défi contre <b>${r.other}</b> : <span style="color:${col};font-weight:700">${r.outcome}</span> (${r.my_points!=null?Number(r.my_points).toFixed(0):'—'}–${r.opp_points!=null?Number(r.opp_points).toFixed(0):'—'})</div>`;
+  }
+
+  // Classement des points d'honneur
+  const withHonor = (standings||[]).filter(s=>s.played>0);
+  if(withHonor.length){
+    html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px">🏅 Points d'honneur (défis) :</div>
+      <table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Défis</th></tr></thead><tbody>${
+        withHonor.slice(0,10).map((s,i)=>`<tr${s.manager_id===ME.id?' style="background:rgba(74,222,128,.07)"':''}>
+          <td class="rank">${i+1}</td><td><b>${s.display_name}</b></td>
+          <td class="pts">${s.honor}</td><td style="color:var(--muted)">${s.played}</td>
+        </tr>`).join('')
+      }</tbody></table>`;
+  }
+
+  box.innerHTML = html;
+  box.style.display = 'block';
+
+  // Handlers
+  const launch = $('h2hLaunch');
+  if(launch) launch.onclick = async ()=>{
+    const tgt = $('h2hTarget').value;
+    if(!tgt) return;
+    const r = await api.h2hChallenge(tgt);
+    if(r.error) return alert(r.error.message);
+    renderH2h(rows);
+  };
+  box.querySelectorAll('[data-h2h-accept]').forEach(b=>b.onclick=async()=>{
+    const r = await api.h2hRespond(b.dataset.h2hAccept, true);
+    if(r.error) return alert(r.error.message);
+    renderH2h(rows); if(typeof loadNotifications==='function') loadNotifications();
+  });
+  box.querySelectorAll('[data-h2h-decline]').forEach(b=>b.onclick=async()=>{
+    const r = await api.h2hRespond(b.dataset.h2hDecline, false);
+    if(r.error) return alert(r.error.message);
+    renderH2h(rows);
+  });
+  box.querySelectorAll('[data-h2h-cancel]').forEach(b=>b.onclick=async()=>{
+    const r = await api.h2hCancel(b.dataset.h2hCancel);
+    if(r.error) return alert(r.error.message);
+    renderH2h(rows);
+  });
 }
 
 // ---------- Duel de la journée + Onze type ----------
@@ -8348,20 +8441,23 @@ function remCheck(){
 setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'⚠️', trade:'🔄', winning:'✅',
   proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
-  auction_won:'🏆', bonus:'💰', watch_ending:'⏰', chat:'💬'};
+  auction_won:'🏆', bonus:'💰', watch_ending:'⏰', chat:'💬',
+  remind_lineup:'⏰', remind_idle_budget:'💰', remind_market_end:'🔔'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
-  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0'};
+  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0',
+  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
-  watch_ending:'Enchérir', chat:'Ouvrir le chat'
+  watch_ending:'Enchérir', chat:'Ouvrir le chat',
+  remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','remind_lineup','remind_market_end']);
 function notifTodoCount(){
   const read = notifReadSet();
   return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
@@ -8400,6 +8496,15 @@ function notifAction(n){
       break;
     case 'chat':
       goView('chat');
+      break;
+    case 'remind_lineup':
+      goView('lineup');   // va directement à la Compo
+      break;
+    case 'remind_idle_budget':
+      goView('auctions'); // va aux enchères pour investir
+      break;
+    case 'remind_market_end':
+      goView('market');   // va au marché pour compléter l'effectif
       break;
     default:
       goView('home');
