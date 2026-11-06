@@ -365,6 +365,32 @@ export async function activityStreaks() {
   const { data } = await sb.rpc('qm_activity_streaks');
   return data ?? [];
 }
+// ---------- Palmarès ----------
+export async function palmares() {
+  const { data } = await sb.rpc('qm_palmares');
+  return data ?? [];
+}
+export async function managerTitles(id) {
+  const { data } = await sb.rpc('qm_manager_titles', { p_manager_id: id });
+  return data ?? [];
+}
+// ---------- Chronique de saison ----------
+export async function chronicleFeed(limit = 20) {
+  const { data } = await sb.rpc('qm_chronicle_feed', { p_limit: limit });
+  return data ?? [];
+}
+// ---------- Marché des prédictions ----------
+export async function predict(pickedId) {
+  return sb.rpc('qm_predict', { p_picked: pickedId });
+}
+export async function myPrediction() {
+  const { data } = await sb.rpc('qm_my_prediction');
+  return data ?? [];
+}
+export async function predictionStandings() {
+  const { data } = await sb.rpc('qm_prediction_standings');
+  return data ?? [];
+}
 // ---------- Défi tête-à-tête ----------
 export async function h2hChallenge(opponentId) {
   return sb.rpc('qm_h2h_challenge', { p_opponent: opponentId });

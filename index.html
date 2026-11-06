@@ -955,22 +955,23 @@
     <div class="more-wrap">
       <button type="button" id="moreBtn" class="more-btn" aria-haspopup="true">Plus ▾</button>
       <div id="moreMenu" class="more-menu">
-        <button data-v="bonus">Bonus</button>
-        <button data-v="penalty">Pénalités</button>
-        <button data-v="rank">Classement</button>
-        <button data-v="feed">Actu</button>
-        <button data-v="chat" id="chatMenuBtn">💬 Chat <span id="chatMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
-        <button data-v="pronos">🎲 Pronos</button>
-        <button data-v="achievements">🏅 Succès</button>
-        <button data-v="mystats">📊 Mes stats</button>
-        <button data-v="scouts">🏅 Dénicheurs</button>
-        <button data-v="alerts">🔔 Mes alertes</button>
-        <button data-v="gazette">📰 Journal</button>
-        <button data-v="calendar">📅 Calendrier</button>
-        <button data-v="draft" id="draftMenuBtn" style="display:none">🎯 Draft</button>
-        <button data-v="rules">Règlement</button>
-        <button data-v="records">🏆 Records</button>
-        <button data-v="faq">❓ FAQ</button>
+        <button data-v="bonus" data-ic="coins">Bonus</button>
+        <button data-v="penalty" data-ic="warning">Pénalités</button>
+        <button data-v="rank" data-ic="trophy">Classement</button>
+        <button data-v="feed" data-ic="megaphone">Actu</button>
+        <button data-v="chat" id="chatMenuBtn" data-ic="chat">Chat <span id="chatMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
+        <button data-v="pronos" data-ic="dice">Pronos</button>
+        <button data-v="achievements" data-ic="medal">Succès</button>
+        <button data-v="mystats" data-ic="chart">Mes stats</button>
+        <button data-v="scouts" data-ic="target">Dénicheurs</button>
+        <button data-v="alerts" data-ic="bell">Mes alertes</button>
+        <button data-v="gazette" data-ic="megaphone">Journal</button>
+        <button data-v="calendar" data-ic="calendar">Calendrier</button>
+        <button data-v="draft" id="draftMenuBtn" data-ic="target" style="display:none">Draft</button>
+        <button data-v="rules" data-ic="scroll">Règlement</button>
+        <button data-v="records" data-ic="trophy">Records</button>
+        <button data-v="palmares" data-ic="medal">Palmarès</button>
+        <button data-v="faq" data-ic="help">FAQ</button>
       </div>
     </div>
   </nav>
@@ -1430,12 +1431,15 @@
     <!-- Défi tête-à-tête -->
     <div id="h2hBlock" style="margin-top:30px;display:none"></div>
 
+    <!-- Marché des prédictions -->
+    <div id="predBlock" style="margin-top:30px;display:none"></div>
+
     <!-- Onze type de la journée -->
     <div id="towBlock" style="margin-top:30px;display:none"></div>
 
     <!-- Comparateur d'effectifs (tête-à-tête) -->
     <div style="margin-top:30px">
-      <div class="eyebrow" style="margin-bottom:12px">⚔️ Face-à-face</div>
+      <div class="eyebrow" style="margin-bottom:12px">${(typeof ic==='function'?ic('swords',16):'')} Face-à-face</div>
       <h2 style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin-bottom:14px">Comparer deux effectifs</h2>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">
         <select id="vsA" style="flex:1;min-width:140px"><option value="">— équipe A —</option></select>
@@ -1456,6 +1460,9 @@
       <summary style="cursor:pointer;padding:12px 16px;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1rem;color:var(--chalk)">🤝 Journal des échanges</summary>
       <div id="tradesLogList" style="padding:4px 16px 14px"></div>
     </details>
+
+    <!-- Chronique de saison -->
+    <div id="chronicleBox" style="margin-bottom:20px"></div>
 
     <div id="feedList"></div>
     <p class="hint" style="color:var(--muted);font-size:.85rem;margin-top:14px">Les derniers mouvements de tous les managers : recrutements, échanges, libérations.</p>
@@ -1802,6 +1809,14 @@
     <div id="recordsGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px"></div>
   </section>
 
+  <!-- PALMARÈS : toutes les distinctions de prestige par manager -->
+  <section class="view" id="palmares">
+    <div class="eyebrow">Toutes les distinctions · prestige</div>
+    <h1>Le <em>palmarès</em></h1>
+    <p style="color:var(--muted);max-width:660px;margin-bottom:18px">Tout ce que chaque manager a accompli au-delà du budget : titres, points d'honneur des défis, victoires en duel, sélections au Onze type, fidélité, flair et prédictions. La vraie gloire se mesure ici.</p>
+    <div id="palmaresBody"></div>
+  </section>
+
   <!-- MES ALERTES (watchlist enrichie) -->
   <!-- MEILLEURS DÉNICHEURS (réputation scout) -->
   <section class="view" id="scouts">
@@ -1856,9 +1871,26 @@
   </section>
 </main>
 
+<script src="./js/icons.js"></script>
 <script type="module">
 import * as api from './js/api.js';
 import { sb } from './js/api.js';
+
+// ---------- Icônes : injecte un SVG devant chaque [data-ic] ----------
+// Remplace les emojis des boutons/libellés statiques par des icônes SVG
+// homogènes. Appelé au chargement ; idempotent (ne ré-injecte pas).
+function injectIcons(root){
+  if(typeof ic!=='function') return;
+  (root||document).querySelectorAll('[data-ic]:not([data-ic-done])').forEach(el=>{
+    const name = el.getAttribute('data-ic');
+    const svg = ic(name, el.getAttribute('data-ic-size') ? Number(el.getAttribute('data-ic-size')) : 16);
+    if(svg){
+      el.insertAdjacentHTML('afterbegin', `<span style="display:inline-flex;vertical-align:-0.15em;margin-right:6px">${svg}</span>`);
+      el.setAttribute('data-ic-done','1');
+    }
+  });
+}
+try { injectIcons(); } catch(e){}
 
 // ---------- UX : toasts, confirm, chargement ----------
 function toast(msg, type='info', ms=3200){
@@ -2191,7 +2223,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records','palmares'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -2209,7 +2241,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts};
+             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -4430,6 +4462,12 @@ const FAQ_DATA = [
      "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
     ['Que signifient les flèches ▲▼ dans le classement ?',
      "Elles montrent ton <b>évolution depuis la dernière journée clôturée</b> : <span style=\"color:#4ade80\">▲2</span> = tu as gagné 2 places, <span style=\"color:#e0574a\">▼1</span> = tu en as perdu 1, <b>=</b> = position stable. Tant qu’il n’y a pas encore <b>deux journées clôturées</b> (il faut une journée de référence pour comparer), un simple <b>–</b> s’affiche : les flèches apparaîtront dès la <b>2ᵉ journée clôturée</b>. L’écart de points avec l’équipe juste devant toi est aussi affiché sous ton total."],
+    ['Où voir toutes mes distinctions ? 🏆',
+     "Dans <b>Plus ⋮ → « 🏆 Palmarès »</b>. Cette page rassemble, pour chaque manager, <b>tout ce qu’il a accompli au-delà du budget</b> : titres de fin de saison, points d’honneur des défis tête-à-tête, victoires en duel (et série en cours), sélections au Onze type, record de série d’assiduité, prédictions justes et flair. C’est le tableau de gloire du jeu."],
+    ['C’est quoi la « Chronique de la saison » 📖 ?',
+     "À chaque journée clôturée, le jeu écrit tout seul un petit <b>récit</b> de ce qui s’est passé : le leader, la meilleure performance, la plus belle remontée et la plus grosse chute au classement, le transfert le plus cher, le coup de poker… Tu le retrouves dans l’onglet <b>Actu</b>. C’est la mémoire vivante de ta saison, à relire quand tu veux."],
+    ['C’est quoi le « Marché des prédictions » 🔮 ?',
+     "Dans l’onglet Classement, tu peux <b>prédire quel manager marquera le plus de points</b> à la prochaine journée. Si tu vises juste, tu gagnes du <b>flair</b> (prestige) et un <b>petit bonus de budget</b>. Tu peux changer ton pari tant que la journée est ouverte. C’est un jeu d’observation : il faut lire la forme des autres managers. Un classement récompense les meilleurs pronostiqueurs."],
     ['C’est quoi le « Défi tête-à-tête » 🤝 ?',
      "Tu peux <b>défier le manager de ton choix</b> pour la journée en cours (onglet Classement). Il <b>accepte ou décline</b>. À la clôture, celui qui a marqué le plus de points gagne un <b>point d’honneur</b> ; en cas d’égalité, <b>vous gagnez tous les deux</b> un point. Tu ne peux avoir qu’<b>un seul défi à la fois</b> par journée. C’est du pur prestige (aucun budget), parfait pour les rivalités. Différent du <b>Duel de la journée</b> (où l’organisateur t’apparie au hasard) : ici, c’est toi qui choisis ton adversaire."],
     ['C’est quoi le « Duel de la journée » ⚔️ ?',
@@ -4524,6 +4562,47 @@ const RECORD_META = {
   leader:        { ic:'👑', label:'En tête du classement',   money:false, suffix:'pts' },
 };
 const RECORD_ORDER = ['leader','biggest_buy','top_scout','richest_squad','biggest_squad','most_trades','top_bonus'];
+// ---------- Palmarès ----------
+async function renderPalmares(){
+  const box = $('palmaresBody'); if(!box) return;
+  box.innerHTML = '<div class="hint" style="text-align:center;padding:20px">Chargement…</div>';
+  let rows = [];
+  try { rows = await api.palmares(); } catch(e){}
+  if(!rows.length){ box.innerHTML = '<div class="empty">Aucune distinction pour le moment — la saison ne fait que commencer !</div>'; return; }
+
+  // Chaque distinction = une pastille, affichée seulement si > 0.
+  const chip = (icon, n, label, color) => (Number(n)>0)
+    ? `<span title="${label}" style="display:inline-flex;align-items:center;gap:4px;border:1px solid ${color};border-radius:14px;padding:3px 9px;font-size:.78rem;white-space:nowrap">${icon} <b>${n}</b></span>`
+    : '';
+
+  box.innerHTML = rows.map((m,i)=>{
+    const I = (typeof ic==='function')?ic:(()=>'');  // repli si lib absente
+    const chips = [
+      chip(I('trophy',15), m.titles, 'Titres remportés', 'var(--transfer)'),
+      chip(I('handshake',15), m.honor, 'Points d\'honneur (défis)', '#5fd0e0'),
+      chip(I('swords',15), m.duel_wins, 'Victoires en duel', '#4ade80'),
+      m.duel_streak>=2 ? chip(I('fire',15), m.duel_streak, 'Série de victoires en duel', '#ff8a3d') : '',
+      chip(I('star',15), m.tow_selections, 'Sélections au Onze type', 'var(--transfer)'),
+      chip(I('chart',15), m.best_attendance, 'Record de série d\'assiduité', '#4ade80'),
+      chip(I('crystalBall',15), m.predictions_ok, 'Prédictions justes', '#5fd0e0'),
+      chip(I('star',15), m.flair, 'Flair (prestige cumulé)', 'var(--line)'),
+    ].filter(Boolean).join(' ');
+    const isMe = ME && m.manager_id===ME.id;
+    const medalColors = ['#FFD700','#C0C0C0','#CD7F32'];
+    const medal = i<3
+      ? `<span style="color:${medalColors[i]}">${(typeof ic==='function')?ic('medal',22):''}</span>`
+      : `<span style="color:var(--muted)">${i+1}</span>`;
+    return `<div style="border:1px solid ${isMe?'var(--transfer)':'var(--line)'};border-radius:12px;padding:14px 16px;margin-bottom:12px;background:${isMe?'rgba(245,197,66,.06)':'var(--pitch-2,#111a2e)'}">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:${chips?'10px':'0'}">
+        <span style="font-size:1.2rem;min-width:28px;text-align:center">${medal}</span>
+        <b style="font-size:1rem">${m.display_name}</b>${isMe?' <span style="color:var(--transfer);font-size:.72rem">(toi)</span>':''}
+      </div>
+      ${chips?`<div style="display:flex;flex-wrap:wrap;gap:6px;padding-left:38px">${chips}</div>`
+             :`<div style="padding-left:38px;color:var(--muted);font-size:.8rem">Pas encore de distinction — à toi de jouer !</div>`}
+    </div>`;
+  }).join('');
+}
+
 async function renderRecords(){
   const grid = $('recordsGrid'); if(!grid) return;
   grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:20px">Chargement…</div>';
@@ -5251,6 +5330,62 @@ async function renderRank(){
   setupVersus(rows);
   renderDuelAndTow();   // Duel de la journée + Onze type (prestige)
   renderH2h(rows);      // Défi tête-à-tête (prestige)
+  renderPredictions(rows); // Marché des prédictions
+}
+
+// ---------- Marché des prédictions ----------
+async function renderPredictions(rows){
+  const box = $('predBlock'); if(!box || !ME) return;
+  let mine=[], standings=[];
+  try { [mine, standings] = await Promise.all([ api.myPrediction(), api.predictionStandings() ]); } catch(e){}
+  const pending = mine.find(m=>m.status && m.status.includes('attente'));
+  const recent  = mine.find(m=>m.correct!==null && m.status && !m.status.includes('attente'));
+
+  let html = `<div class="eyebrow" style="margin-bottom:10px">${(typeof ic==='function'?ic('crystalBall',16):'')} Marché des prédictions</div>
+    <p class="hint" style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Qui marquera le plus de points à la prochaine journée ? Prédis juste et gagne du <b>flair</b> + un petit bonus budget.</p>`;
+
+  if(pending){
+    html += `<div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--pitch-2,#111a2e)">
+      🔮 Ta prédiction pour la journée en cours : <b>${pending.picked}</b>. <span class="hint">Tu peux la changer tant que la journée est ouverte.</span>
+    </div>`;
+  }
+  // Sélecteur (poser/changer la prédiction) — proposé si une journée est ouverte.
+  const opts = (rows||[]).filter(m=>m.id!==ME.id)
+    .map(m=>`<option value="${m.id}"${pending&&pending.picked===m.display_name?' selected':''}>${m.display_name}</option>`).join('');
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
+      <select id="predTarget" style="padding:8px 10px;flex:1;min-width:150px"><option value="">— je parie sur… —</option>${opts}</select>
+      <button class="btn-primary btn-sm" id="predSubmit">${pending?'Changer':'Valider'} ma prédiction</button>
+    </div>
+    <div id="predMsg" class="hint" style="font-size:.8rem;margin-bottom:10px"></div>`;
+
+  if(recent){
+    const col = recent.correct?'#4ade80':'#e0574a';
+    html += `<div style="font-size:.85rem;margin-bottom:12px">Journée ${recent.matchday_number} : tu avais parié sur <b>${recent.picked}</b> → <span style="color:${col};font-weight:700">${recent.status}</span></div>`;
+  }
+
+  const withScore = (standings||[]).filter(s=>s.total>0);
+  if(withScore.length){
+    html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px">🔮 Meilleurs pronostiqueurs :</div>
+      <table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>Justes</th><th>Total</th></tr></thead><tbody>${
+        withScore.slice(0,10).map((s,i)=>`<tr${s.manager_id===ME.id?' style="background:rgba(74,222,128,.07)"':''}>
+          <td class="rank">${i+1}</td><td><b>${s.display_name}</b></td>
+          <td class="pts">${s.correct_count}</td><td style="color:var(--muted)">${s.total}</td>
+        </tr>`).join('')
+      }</tbody></table>`;
+  }
+
+  box.innerHTML = html;
+  box.style.display = 'block';
+
+  const submit = $('predSubmit');
+  if(submit) submit.onclick = async ()=>{
+    const tgt = $('predTarget').value;
+    if(!tgt){ $('predMsg').textContent = 'Choisis un manager.'; return; }
+    const r = await api.predict(tgt);
+    if(r.error){ $('predMsg').textContent = r.error.message; return; }
+    $('predMsg').textContent = '✅ Prédiction enregistrée !';
+    renderPredictions(rows);
+  };
 }
 
 // ---------- Défi tête-à-tête ----------
@@ -5261,7 +5396,7 @@ async function renderH2h(rows){
   const active = mine.find(m=>m.status==='pending' || m.status==='accepted');
   const recent = mine.filter(m=>m.outcome && ['Victoire','Défaite','Nul (chacun 1 pt)'].includes(m.outcome));
 
-  let html = `<div class="eyebrow" style="margin-bottom:10px">🤝 Défi tête-à-tête</div>
+  let html = `<div class="eyebrow" style="margin-bottom:10px">${(typeof ic==='function'?ic('handshake',16):'')} Défi tête-à-tête</div>
     <p class="hint" style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Défie le manager de ton choix sur la journée en cours : le meilleur score gagne un <b>point d'honneur</b>. Pur prestige, aucun budget en jeu.</p>`;
 
   if(active){
@@ -5352,7 +5487,7 @@ async function renderDuelAndTow(){
   if(dBox && lastClosed && ME){
     let duel=null, standings=[];
     try { [duel, standings] = await Promise.all([ api.myDuel(lastClosed.id), api.duelStandings() ]); } catch(e){}
-    let html = `<div class="eyebrow" style="margin-bottom:12px">⚔️ Duel de la journée</div>`;
+    let html = `<div class="eyebrow" style="margin-bottom:12px">${(typeof ic==='function'?ic('swords',16):'')} Duel de la journée</div>`;
     if(duel){
       const col = duel.outcome==='Victoire' ? '#4ade80' : duel.outcome==='Défaite' ? '#e0574a' : 'var(--muted)';
       html += `<div style="border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
@@ -5391,7 +5526,7 @@ async function renderDuelAndTow(){
     try { [eleven, counts] = await Promise.all([ api.teamOfWeek(lastClosed.id), api.towCounts() ]); } catch(e){}
     if(eleven && eleven.length){
       const POSFR = {GK:'G',DEF:'D',MID:'M',FWD:'A'};
-      let html = `<div class="eyebrow" style="margin-bottom:12px">⭐ Onze type — Journée ${lastClosed.number}</div>
+      let html = `<div class="eyebrow" style="margin-bottom:12px">${(typeof ic==='function'?ic('star',16):'')} Onze type — Journée ${lastClosed.number}</div>
         <p class="hint" style="color:var(--muted);font-size:.82rem;margin-bottom:12px">Les 11 meilleures notes de la journée, tous managers confondus.</p>
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">${
           eleven.map(p=>`<div style="flex:1;min-width:140px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--pitch-2,#111a2e)">
@@ -6073,7 +6208,7 @@ async function renderConseil(mdId, md, mine){
 
   box.style.display='block';
   box.innerHTML = `
-    <div class="eyebrow" style="margin-bottom:6px">🔮 Conseil d'avant-match</div>
+    <div class="eyebrow" style="margin-bottom:6px">${(typeof ic==='function'?ic('crystalBall',16):'')} Conseil d'avant-match</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <span class="hint" style="font-size:.82rem">Mise tes <b>jetons de flair</b> sur la journée. Gain = 2× la mise.</span>
       <span style="font-family:'Saira',sans-serif;font-weight:800;color:var(--transfer);white-space:nowrap">🎟️ ${myTokens} jetons</span>
@@ -7116,8 +7251,22 @@ async function renderTradesLog(){
   }).join('');
 }
 
+// Chronique de saison : le récit auto de chaque journée clôturée.
+async function renderChronicle(){
+  const box = $('chronicleBox'); if(!box) return;
+  let feed = [];
+  try { feed = await api.chronicleFeed(10); } catch(e){}
+  if(!feed.length){ box.innerHTML=''; return; }
+  box.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:10px">${(typeof ic==='function'?ic('scroll',16):'')} Chronique de la saison</div>
+    ${feed.map((c,i)=>`<div style="border-left:3px solid ${i===0?'var(--transfer)':'var(--line)'};padding:8px 0 8px 14px;margin-bottom:10px">
+        <div style="font-size:.92rem;line-height:1.5;color:${i===0?'var(--chalk)':'var(--muted)'}">${c.story}</div>
+      </div>`).join('')}`;
+}
+
 async function renderFeed(){
   renderTradesLog();
+  renderChronicle();
   const moves = await api.recentTransfers(30);
   if(!moves.length){
     $('feedList').innerHTML = `<div class="empty">Aucun mouvement pour l'instant. Le mercato va s'animer !</div>`;
@@ -8094,7 +8243,7 @@ const SEARCH_VIEWS = [
   {v:'chat',ic:'💬',t:'Chat'},{v:'pronos',ic:'🎲',t:'Pronos'},{v:'achievements',ic:'🏅',t:'Succès'},
   {v:'scouts',ic:'🏅',t:'Meilleurs dénicheurs'},
   {v:'alerts',ic:'🔔',t:'Mes alertes'},
-  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'records',ic:'🏆',t:'Mur des records'},{v:'faq',ic:'❓',t:'FAQ'}
+  {v:'gazette',ic:'📰',t:'Journal du mercato'},{v:'calendar',ic:'📅',t:'Calendrier'},{v:'rules',ic:'📜',t:'Règlement'},{v:'records',ic:'🏆',t:'Mur des records'},{v:'palmares',ic:'🏆',t:'Palmarès'},{v:'faq',ic:'❓',t:'FAQ'}
 ];
 let SEARCH_MANAGERS = [];   // cache des équipes (chargé à la 1re ouverture)
 let SEARCH_IDX = 0;         // index du résultat sélectionné (clavier)
