@@ -3463,6 +3463,21 @@ async function startBid(playerId){
     toast(`Plus de PASS sur ${playerName(auc.player)} : tu as atteint ta limite d'offres sur ce joueur.`,'err',4200);
     return;
   }
+  // Règle des 6 par championnat : on bloque AVANT d'enchérir si l'engagement
+  // (effectif + enchères déjà en tête de ce championnat) est déjà à 6.
+  // Si le manager est DÉJÀ en tête sur cette enchère, prendre/garder la tête
+  // n'ajoute rien — on le laisse surenchérir.
+  const champ = auc.player && auc.player.championship;
+  const alreadyLeadingHere = auc.top_bidder_id && ME && auc.top_bidder_id === ME.id;
+  if(champ && !alreadyLeadingHere){
+    try {
+      const commit = await api.championshipCommitment(ME.id, champ, auc.id);
+      if(commit >= 6){
+        toast(`Tu as déjà 6 joueurs du championnat « ${champ} » (effectif + enchères où tu es en tête). Libère ou cède un joueur de ce championnat, ou retire-toi d'une enchère, avant d'enchérir ici.`,'err',6000);
+        return;
+      }
+    } catch(e){ /* en cas d'échec de la vérif, le garde-fou serveur reste la barrière */ }
+  }
   const entryTax = await api.myEntryTax(auc.id);
 
   const ov = document.getElementById('uxOverlay');
@@ -3584,7 +3599,7 @@ async function quickBid(auctionId, amount, btn){
   await withLoading(btn, async ()=>{
     const { error } = await api.placeBid(auctionId, amount);
     if(error){ toast('Échec : '+error.message,'err',4200); return; }
-    toast(`⚡ Offre de ${fmtMoney(amount)} placée !`,'ok');
+    toast(`Offre de ${fmtMoney(amount)} placée !`,'ok');
     renderAuctions();
     if(typeof loadNotifications==='function') loadNotifications();
   });
@@ -3669,7 +3684,7 @@ function acard(a, status){
     const atCap = cap && price>=cap;
     // Bouton rapide seulement si je ne mène pas déjà et qu'on n'est pas au plafond.
     const quickBtn = (ME && !iLead && !atCap)
-      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:1 1 auto;min-width:0;margin-top:0;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:5px">${I('zap',14)} ${fmtMoney(next)}</button>`
+      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" data-pname="${(playerName(a.player)||'ce joueur').replace(/"/g,'&quot;')}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:1 1 auto;min-width:0;margin-top:0;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:5px">${I('zap',14)} ${fmtMoney(next)}</button>`
       : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span style="display:flex;gap:6px;align-items:center">${interestTag}${star}</span></div>
       <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
@@ -3968,7 +3983,15 @@ function applyAucFilters(){
   document.querySelectorAll('#k-live [data-bid]').forEach(btn=>
     btn.onclick = ()=> startBid(btn.dataset.bid));
   document.querySelectorAll('#k-live [data-quickbid]').forEach(btn=>
-    btn.onclick = ()=> quickBid(btn.dataset.quickbid, Number(btn.dataset.next), btn));
+    btn.onclick = async ()=>{
+      const amount = Number(btn.dataset.next);
+      const pname = btn.dataset.pname || 'ce joueur';
+      const ok = await uxConfirm(
+        `Tu vas enchérir <b>${fmtMoney(amount)}</b> sur <b>${pname}</b>.<br>Si tu remportes l'enchère, ce montant sera engagé.`,
+        {title:'Confirmer l\'enchère', okText:`Enchérir · ${fmtMoney(amount)}`});
+      if(!ok) return;
+      quickBid(btn.dataset.quickbid, amount, btn);
+    });
   document.querySelectorAll('#k-live [data-watch]').forEach(btn=>
     btn.onclick = async ()=>{
       const id = btn.dataset.watch;

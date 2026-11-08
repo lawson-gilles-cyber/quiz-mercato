@@ -232,6 +232,15 @@ export async function myNotifications() {
 export async function placeBid(auctionId, amount) {
   return sb.rpc('qm_place_bid', { p_auction_id: auctionId, p_amount: amount });
 }
+// Engagement d'un manager sur un championnat (joueurs possédés + enchères en tête).
+// Sert à prévenir côté UI avant une enchère qui violerait la règle des 6/championnat.
+// p_manager omis = le manager courant (résolu côté serveur si la fonction le gère),
+// sinon on passe l'id explicitement.
+export async function championshipCommitment(managerId, championship, excludeAuctionId = null) {
+  const { data } = await sb.rpc('qm_championship_commitment', {
+    p_manager: managerId, p_championship: championship, p_exclude_auction: excludeAuctionId });
+  return Number(data || 0);
+}
 export async function openAuction(playerId) {
   return sb.rpc('qm_open_auction', { p_player_id: playerId });
 }
