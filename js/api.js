@@ -863,6 +863,14 @@ export async function adminOverview() {
   return (data && data[0]) ? data[0] : null;
 }
 
+// Contrôle des effectifs par manager : agrégats + répartition club/championnat
+// avec signalement des dépassements (24 / 3 GK / 3 club / 6 championnat).
+export async function adminSquadControl() {
+  const { data, error } = await sb.rpc('qm_admin_squad_control');
+  if (error) { console.error('qm_admin_squad_control:', error.message); return []; }
+  return data ?? [];
+}
+
 // ---------- DRAFT ---------------------------------------------------
 export async function draftState() {
   const { data } = await sb.rpc('qm_draft_state');
