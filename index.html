@@ -5399,6 +5399,7 @@ async function renderPredictions(rows){
 
 // ---------- Défi tête-à-tête ----------
 async function renderH2h(rows){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('h2hBlock'); if(!box || !ME) return;
   let mine=[], standings=[];
   try { [mine, standings] = await Promise.all([ api.myH2h(), api.h2hStandings() ]); } catch(e){}
@@ -5446,7 +5447,7 @@ async function renderH2h(rows){
   // Classement des points d'honneur
   const withHonor = (standings||[]).filter(s=>s.played>0);
   if(withHonor.length){
-    html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px">🏅 Points d'honneur (défis) :</div>
+    html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px;display:flex;align-items:center;gap:5px">${I('medal',14)} Points d'honneur (défis) :</div>
       <table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>Points</th><th>Défis</th></tr></thead><tbody>${
         withHonor.slice(0,10).map((s,i)=>`<tr${s.manager_id===ME.id?' style="background:rgba(74,222,128,.07)"':''}>
           <td class="rank">${i+1}</td><td><b>${s.display_name}</b></td>
@@ -5520,7 +5521,7 @@ async function renderDuelAndTow(){
           <td style="color:#4ade80">${s.wins}</td>
           <td style="color:var(--muted)">${s.draws}</td>
           <td style="color:#e0574a">${s.losses}</td>
-          <td>${s.current_win_streak>=2?('🔥'+s.current_win_streak):(s.current_win_streak||'—')}</td>
+          <td>${s.current_win_streak>=2?(`<span style="display:inline-flex;align-items:center;gap:3px;color:#fb923c">${I('flame',13)}${s.current_win_streak}</span>`):(s.current_win_streak||'—')}</td>
         </tr>`).join('')
       }</tbody></table>`;
     }
@@ -5547,7 +5548,7 @@ async function renderDuelAndTow(){
       // Compteur de sélections (top)
       const top = (counts||[]).filter(c=>c.selections>0).slice(0,8);
       if(top.length){
-        html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px">🏅 Sélections au Onze type (saison) :</div>
+        html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px;display:flex;align-items:center;gap:5px">${I('medal',14)} Sélections au Onze type (saison) :</div>
           <div style="display:flex;flex-wrap:wrap;gap:6px">${
             top.map(c=>`<span style="border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:.78rem${ME&&c.manager_id===ME.id?';border-color:var(--transfer);color:var(--transfer)':''}"><b>${c.display_name}</b> · ${c.selections}</span>`).join('')
           }</div>`;
@@ -5569,11 +5570,12 @@ function trendChip(m){
 
 // Onglets de mode (sportif + annexes)
 function renderRankModeTabs(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const tabs = [
-    ['sportif','🏆 Classement sportif'],
-    ['journee','⚡ Dernière journée'],
-    ['valeur','💰 Valeur d\'effectif'],
-    ['regularite','📊 Régularité'],
+    ['sportif','trophy','Classement sportif'],
+    ['journee','zap','Dernière journée'],
+    ['valeur','coins','Valeur d\'effectif'],
+    ['regularite','chart','Régularité'],
   ];
   const hints = {
     sportif:'Classement officiel : cumul des points de performance de tes 11 titulaires. Le podium et la montée/descente se jouent ici.',
@@ -5581,9 +5583,9 @@ function renderRankModeTabs(){
     valeur:'Classement par valeur totale de l\'effectif (indicatif — ne compte pas pour le titre).',
     regularite:'Moyenne de points par journée jouée — la constance sur la durée.',
   };
-  $('rankModeTabs').innerHTML = tabs.map(([k,lbl])=>
+  $('rankModeTabs').innerHTML = tabs.map(([k,icn,lbl])=>
     `<button class="btn-ghost btn-sm rankmode${k===RANK_MODE?' on':''}" data-mode="${k}"
-      style="${k===RANK_MODE?'background:var(--accent,#4ade80);color:#06210f;font-weight:700':''}">${lbl}</button>`).join('');
+      style="${k===RANK_MODE?'background:var(--accent,#4ade80);color:#06210f;font-weight:700':''};display:inline-flex;align-items:center;gap:5px">${I(icn,14)} ${lbl}</button>`).join('');
   $('rankModeHint').textContent = hints[RANK_MODE]||'';
   $('rankModeTabs').querySelectorAll('.rankmode').forEach(b=>b.onclick=()=>{
     RANK_MODE = b.dataset.mode;
@@ -5800,6 +5802,7 @@ async function ensureRankEntry(mgrId){
   return entry;
 }
 async function showManagerSquad(mgrId){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const modal = $('squadModal');
   $('squadModalTitle').textContent = 'Profil';
   $('squadModalBody').innerHTML = `<div class="empty">Chargement…</div>`;
@@ -5889,7 +5892,7 @@ async function showManagerSquad(mgrId){
   if(balance){
     const net = Number(balance.net);
     balanceHtml = `<div style="background:var(--pitch-2);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:.86rem">
-      <div style="font-weight:800;margin-bottom:6px">💼 Bilan de la saison</div>
+      <div style="font-weight:800;margin-bottom:6px;display:flex;align-items:center;gap:6px">${I('briefcase',15)} Bilan de la saison</div>
       <div style="display:flex;gap:16px;flex-wrap:wrap">
         <span>Dépensé : <b>${fmtMoney(balance.spent)}</b></span>
         <span>Encaissé : <b style="color:#4ade80">${fmtMoney(balance.earned)}</b></span>
@@ -5897,7 +5900,7 @@ async function showManagerSquad(mgrId){
         <span>Mouvements : <b>${balance.moves}</b></span>
       </div>
       ${best && best.player_name ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line)">
-        🚀 Meilleur coup : <b>${best.player_name}</b> — acheté ${fmtMoney(best.bought)}, vaut ${fmtMoney(best.current_value)}
+        <span style="display:inline-flex;vertical-align:-.12em;margin-right:4px">${I('rocket',14)}</span>Meilleur coup : <b>${best.player_name}</b> — acheté ${fmtMoney(best.bought)}, vaut ${fmtMoney(best.current_value)}
         <b style="color:${Number(best.gain)>=0?'#4ade80':'var(--live,#e0574a)'}">(${Number(best.gain)>=0?'+':''}${fmtMoney(best.gain)})</b>
       </div>`:''}
     </div>`;
@@ -5914,7 +5917,7 @@ async function showManagerSquad(mgrId){
         <span style="white-space:nowrap">${Number(h.price)>0?fmtMoney(h.price):'—'} <span style="color:var(--muted);font-size:.72rem">${d}</span></span>
       </div>`;
     }).join('');
-    historyHtml = `<details style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:800;font-size:.9rem">📜 Historique des mouvements (${history.length})</summary>
+    historyHtml = `<details style="margin-bottom:14px"><summary style="cursor:pointer;font-weight:800;font-size:.9rem">${I('scroll',15)} Historique des mouvements (${history.length})</summary>
       <div style="margin-top:6px">${rows}</div></details>`;
   }
 
@@ -5924,9 +5927,9 @@ async function showManagerSquad(mgrId){
 
   // Bouton « Partager l'équipe » (image générée) + « Lien du profil » + « Inviter » (moi seulement)
   const shareHtml = prof ? `<div style="text-align:center;margin:4px 0 16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-      <button id="btnShareTeam" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">📲 Partager ${isMe?'mon équipe':'cette équipe'}</button>
-      <button id="btnShareProfile" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">🔗 Lien du profil</button>
-      ${isMe ? `<button id="btnInvite" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">🔗 Inviter un manager</button>` : ''}
+      <button id="btnShareTeam" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">${I('share',15)} Partager ${isMe?'mon équipe':'cette équipe'}</button>
+      <button id="btnShareProfile" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">${I('link',15)} Lien du profil</button>
+      ${isMe ? `<button id="btnInvite" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">${I('link',15)} Inviter un manager</button>` : ''}
     </div>` : '';
 
   $('squadModalBody').innerHTML = h2hHtml + statsHtml + badgesHtml + shareHtml + balanceHtml + awardsHtml + historyHtml + pitchHtml;
@@ -5968,6 +5971,7 @@ function shareProfileLink(mgrId, teamName){
 
 // ---------- Mon activité (timeline personnelle) ----------
 async function renderMyActivity(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   if(!ME || !$('myActivity')) return;
   const [moves, bonuses, releases] = await Promise.all([
     api.recentTransfers(50), api.myBonuses(), api.myReleases()
@@ -5976,19 +5980,19 @@ async function renderMyActivity(){
   // transferts me concernant
   for(const m of moves){
     if(m.to?.display_name===ME.display_name && !m.from){
-      events.push({t:m.created_at, ic:'📈', c:'#4ade80', txt:`Recruté <b>${m.player?.name??'?'}</b>${Number(m.price)>0?' pour '+fmtMoney(m.price):''}`});
+      events.push({t:m.created_at, ic:'trendingUp', c:'#4ade80', txt:`Recruté <b>${m.player?.name??'?'}</b>${Number(m.price)>0?' pour '+fmtMoney(m.price):''}`});
     } else if(m.to?.display_name===ME.display_name && m.from){
-      events.push({t:m.created_at, ic:'🔄', c:'#5fd0e0', txt:`Reçu <b>${m.player?.name??'?'}</b> de ${m.from.display_name}`});
+      events.push({t:m.created_at, ic:'repeat', c:'#5fd0e0', txt:`Reçu <b>${m.player?.name??'?'}</b> de ${m.from.display_name}`});
     } else if(m.from?.display_name===ME.display_name && m.to){
-      events.push({t:m.created_at, ic:'🔄', c:'#5fd0e0', txt:`Cédé <b>${m.player?.name??'?'}</b> à ${m.to.display_name}`});
+      events.push({t:m.created_at, ic:'repeat', c:'#5fd0e0', txt:`Cédé <b>${m.player?.name??'?'}</b> à ${m.to.display_name}`});
     }
   }
   for(const bn of bonuses){
     const isConv = bn.bonus_type==='convert';
-    events.push({t:bn.created_at, ic: isConv?'⭐':'💰', c: isConv?'#8fa79a':'#e0a800', txt:`${isConv?'Converti':'Bonus'} ${bn.detail??''}`});
+    events.push({t:bn.created_at, ic: isConv?'star':'coins', c: isConv?'#8fa79a':'#e0a800', txt:`${isConv?'Converti':'Bonus'} ${bn.detail??''}`});
   }
   for(const r of releases){
-    events.push({t:r.created_at, ic:'📉', c:'#e0574a', txt:`Libéré <b>${r.player_name}</b> (pénalité ${fmtMoney(r.penalty)})`});
+    events.push({t:r.created_at, ic:'trendingDown', c:'#e0574a', txt:`Libéré <b>${r.player_name}</b> (pénalité ${fmtMoney(r.penalty)})`});
   }
   events.sort((a,b)=>new Date(b.t)-new Date(a.t));
   const top = events.slice(0,10);
@@ -5997,7 +6001,7 @@ async function renderMyActivity(){
         const d = new Date(e.t);
         const when = d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
         return `<div style="display:flex;gap:10px;align-items:flex-start;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
-          <span style="flex-shrink:0">${e.ic}</span>
+          <span style="flex-shrink:0;display:inline-flex;color:${e.c}">${I(e.ic,16)}</span>
           <div style="flex:1"><span style="font-size:.88rem;color:var(--chalk)">${e.txt}</span>
             <span style="font-size:.72rem;color:var(--muted);margin-left:6px">${when}</span></div>
         </div>`;
