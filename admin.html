@@ -956,6 +956,22 @@
       <div id="bvalResult" style="margin-top:8px"></div>
     </div>
 
+    <!-- Forcer le salaire d'un joueur (override de masse salariale) -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label data-ic="scale">Forcer le salaire d'un joueur (remplace la grille)</label>
+      <input id="sov_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
+      <div id="sov_results" style="margin-top:4px"></div>
+      <input id="sov_player_id" type="hidden">
+      <div id="sov_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+      <div class="row c2" style="margin-top:8px;align-items:end">
+        <div><label>Salaire annuel forcé (M€)</label><input id="sov_amount" type="number" min="0" step="0.5" placeholder="ex. 4"></div>
+        <div><button class="btn-primary" id="btnSetSalaryOverride" style="width:100%">Forcer ce salaire</button></div>
+      </div>
+      <button class="btn-ghost" id="btnClearSalaryOverride" style="width:100%;margin-top:8px">Remettre sur la grille (retirer le forçage)</button>
+      <p class="hint">Fixe un <b>salaire annuel précis</b> pour ce joueur, indépendamment du prix de départ. Tant qu'un salaire est forcé, la grille ne s'applique plus à ce joueur. « Remettre sur la grille » annule le forçage et le salaire est de nouveau calculé normalement.</p>
+      <div id="sovResult" style="margin-top:8px"></div>
+    </div>
+
     <!-- Attribuer un joueur à un manager (cas Koundé) -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
       <label data-ic="plusNew">Attribuer un joueur (libre) à un manager</label>
@@ -2385,6 +2401,31 @@ if($('btnSetBaseValue')) $('btnSetBaseValue').onclick = async ()=>{
   if(r.error) return showMsg(out, r.error.message);
   showMsg(out, `Prix de départ fixé à ${m} M€ — le salaire est recalculé en conséquence.`, true);
   $('bval_player_id').value=''; $('bval_chosen').textContent=''; $('bval_search').value=''; $('bval_amount').value='';
+  if(typeof loadPlayers==='function') loadPlayers();
+  if(typeof loadAdminActions==='function') loadAdminActions();
+};
+
+// 4 bis) Forcer / retirer le salaire d'un joueur (override de masse salariale)
+wirePlayerSearch('sov_search','sov_results','sov_player_id','sov_chosen');
+if($('btnSetSalaryOverride')) $('btnSetSalaryOverride').onclick = async ()=>{
+  const out = $('sovResult'); const pid = $('sov_player_id').value;
+  const m = parseFloat($('sov_amount').value);
+  if(!pid) return showMsg(out,'Choisis d’abord un joueur.');
+  if(isNaN(m) || m<0) return showMsg(out,'Indique un salaire annuel (M€).');
+  const r = await api.adminSetSalaryOverride(pid, Math.round(m*1e6));
+  if(r.error) return showMsg(out, r.error.message);
+  showMsg(out, `Salaire forcé à ${m} M€/an — la grille ne s’applique plus à ce joueur.`, true);
+  $('sov_player_id').value=''; $('sov_chosen').textContent=''; $('sov_search').value=''; $('sov_amount').value='';
+  if(typeof loadPlayers==='function') loadPlayers();
+  if(typeof loadAdminActions==='function') loadAdminActions();
+};
+if($('btnClearSalaryOverride')) $('btnClearSalaryOverride').onclick = async ()=>{
+  const out = $('sovResult'); const pid = $('sov_player_id').value;
+  if(!pid) return showMsg(out,'Choisis d’abord un joueur à remettre sur la grille.');
+  const r = await api.adminSetSalaryOverride(pid, null);
+  if(r.error) return showMsg(out, r.error.message);
+  showMsg(out, 'Salaire remis sur la grille — il est de nouveau calculé selon le prix de départ.', true);
+  $('sov_player_id').value=''; $('sov_chosen').textContent=''; $('sov_search').value=''; $('sov_amount').value='';
   if(typeof loadPlayers==='function') loadPlayers();
   if(typeof loadAdminActions==='function') loadAdminActions();
 };

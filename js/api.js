@@ -1577,6 +1577,10 @@ export async function adminBackfillScoutReturns(dryRun = true) {
 export async function adminSetBaseValue(playerId, baseValue) {
   return sb.rpc('qm_admin_set_base_value', { p_player_id: playerId, p_base_value: baseValue });
 }
+// 1 bis. Forcer (ou retirer) le salaire d'un joueur. salary en euros/an, null = retour grille.
+export async function adminSetSalaryOverride(playerId, salary) {
+  return sb.rpc('qm_admin_set_salary_override', { p_player_id: playerId, p_salary: salary });
+}
 // 2. Attribuer un joueur libre à un manager (cas Koundé).
 export async function adminAssignPlayerTo(playerId, managerId) {
   return sb.rpc('qm_admin_assign_player_to', { p_player_id: playerId, p_manager_id: managerId });

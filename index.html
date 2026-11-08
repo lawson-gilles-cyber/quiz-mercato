@@ -4907,6 +4907,7 @@ async function renderPenalty(){
 // en un journal chronologique daté, avec montants signés (+ crédité / − débité).
 let LEDGER_DONE = false;
 async function renderMyLedger(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('myLedger'); if(!box || !ME) return;
   // Chargé une seule fois par session (évite de re-tirer à chaque rendu équipe).
   if(LEDGER_DONE) return;
@@ -4932,20 +4933,20 @@ async function renderMyLedger(){
     const price = Number(t.price)||0;
     if(t.to_manager === teamId){
       const via = t.from_manager ? `échange avec ${t.from?.display_name||'un manager'}` : 'achat aux enchères';
-      rows.push({ d:t.created_at, ic:'📥', amt:-price, desc:`Recrutement — <b>${pname}</b> <span style="color:var(--muted)">(${via})</span>` });
+      rows.push({ d:t.created_at, ic:'inbox', amt:-price, desc:`Recrutement — <b>${pname}</b> <span style="color:var(--muted)">(${via})</span>` });
     } else if(t.from_manager === teamId){
       const via = t.to_manager ? `cédé à ${t.to?.display_name||'un manager'}` : 'revente';
-      rows.push({ d:t.created_at, ic:'📤', amt:+price, desc:`Départ — <b>${pname}</b> <span style="color:var(--muted)">(${via})</span>` });
+      rows.push({ d:t.created_at, ic:'share', amt:+price, desc:`Départ — <b>${pname}</b> <span style="color:var(--muted)">(${via})</span>` });
     }
   });
   // Libérations : remboursement (crédit) — on note la pénalité perdue en détail
   (releases||[]).forEach(r=>{
-    rows.push({ d:r.created_at, ic:'🔓', amt:+Number(r.refund||0),
+    rows.push({ d:r.created_at, ic:'unlock', amt:+Number(r.refund||0),
       desc:`Libération — <b>${r.player_name}</b> <span style="color:var(--muted)">(pénalité ${r.penalty_pct}% : −${fmtMoney(r.penalty)})</span>` });
   });
   // Bonus : crédits (dénicheur, journée complète, quiz…)
   (bonuses||[]).forEach(b=>{
-    rows.push({ d:b.created_at, ic:'🎁', amt:+Number(b.amount||0),
+    rows.push({ d:b.created_at, ic:'gift', amt:+Number(b.amount||0),
       desc:`Bonus — <span>${b.detail||b.bonus_type}</span>` });
   });
 
@@ -4973,7 +4974,7 @@ async function renderMyLedger(){
       const sign = r.amt>0?'pos':'neg';
       const amt = (r.amt>0?'+':'−')+fmtMoney(Math.abs(r.amt));
       return `<div class="lg-row">
-        <span class="lg-ic">${r.ic}</span>
+        <span class="lg-ic">${I(r.ic,16)}</span>
         <span class="lg-desc">${r.desc}<span class="lg-date">${dt}</span></span>
         <span class="lg-amt ${sign}">${amt}</span>
       </div>`;
@@ -6592,6 +6593,7 @@ function announceAlert(){
 
 let HONOR_CACHE = null;   // hommage en cours (pour badge fiche), rafraîchi par renderHommage
 async function renderHommage(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('hommageBanner'); if(!box) return;
   let h = null;
   try { h = await api.getHonor(); } catch(e){ h = null; }
@@ -6607,7 +6609,7 @@ async function renderHommage(){
   box.innerHTML = `
     <div style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.22) 50%,transparent 70%);background-size:200% 100%;animation:honorShine 3.2s linear infinite;pointer-events:none"></div>
     <div style="position:relative">
-      <div style="font-size:1.6rem;line-height:1">🏆</div>
+      <div style="line-height:1;color:var(--transfer)">${I('trophy',30)}</div>
       <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.05rem;letter-spacing:.3px;margin-top:2px">${esc(h.title)}</div>
       ${sub}
       ${name ? `<button class="bid-btn ghost" id="honorCardBtn" data-player="${h.player_id}" style="width:auto;margin-top:10px;padding:6px 14px;font-size:.8rem">Voir sa fiche</button>` : ''}
@@ -6733,14 +6735,15 @@ function showHonorPopup(h){
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
   if(!ov || !md) return;
+  const I=(typeof ic==='function')?ic:(()=>'');
   const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
   const name = h.player_name ? esc(h.player_name) : '';
   md.innerHTML = `
     <div style="text-align:center;padding:6px 2px">
-      <div style="font-size:3rem;line-height:1">🏆</div>
+      <div style="line-height:1;color:var(--transfer)">${I('trophy',56)}</div>
       <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.3rem;margin-top:4px">${esc(h.title)}</div>
       ${name ? `<div style="font-size:1.05rem;color:var(--chalk);font-weight:700;margin-top:6px">${name}${h.player_club?` · ${esc(h.player_club)}`:''}</div>` : ''}
-      <p style="color:var(--muted);font-size:.88rem;margin:10px 0 0">Félicitations à ${name||'ce joueur'} pour cette distinction. 🎉</p>
+      <p style="color:var(--muted);font-size:.88rem;margin:10px 0 0">Félicitations à ${name||'ce joueur'} pour cette distinction.</p>
     </div>
     <div class="ux-actions" style="justify-content:center">
       ${h.player_id ? `<button class="ux-ok" data-honorcard style="background:var(--transfer);color:var(--pitch);border:none">Voir sa fiche</button>` : ''}
@@ -6757,6 +6760,7 @@ function showHonorPopup(h){
 // ---------- Message de remerciement / fin de phase de test ----------
 let THANKS_CACHE = null;
 async function renderThanks(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('thanksBanner'); if(!box) return;
   let t = null;
   try { t = await api.getThanks(); } catch(e){ t = null; }
@@ -6769,7 +6773,7 @@ async function renderThanks(){
   box.innerHTML = `
     <div style="position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.2) 50%,transparent 70%);background-size:200% 100%;animation:honorShine 3.4s linear infinite;pointer-events:none"></div>
     <div style="position:relative">
-      <div style="font-size:1.6rem;line-height:1">🎉</div>
+      <div style="line-height:1;color:var(--transfer)">${I('party',30)}</div>
       <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.1rem;letter-spacing:.3px;margin-top:2px">${esc(t.title)}</div>
       ${bodyHtml}
     </div>`;
@@ -6787,18 +6791,19 @@ function maybeCelebrateThanks(t){
   setTimeout(()=>showThanksPopup(t), 350);
 }
 function showThanksPopup(t){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
   if(!ov || !md) return;
   const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
   md.innerHTML = `
     <div style="text-align:center;padding:6px 2px">
-      <div style="font-size:3rem;line-height:1">🎉</div>
+      <div style="line-height:1;color:var(--transfer)">${I('party',56)}</div>
       <div style="font-family:'Archivo',sans-serif;font-weight:900;color:var(--transfer);font-size:1.3rem;margin-top:4px">${esc(t.title)}</div>
       ${t.body ? `<p style="color:var(--chalk);font-size:.92rem;margin:12px 0 0;line-height:1.55">${esc(t.body)}</p>` : ''}
     </div>
     <div class="ux-actions" style="justify-content:center">
-      <button class="ux-ok" data-no style="background:var(--transfer);color:var(--pitch);border:none">Merci à vous 🙌</button>
+      <button class="ux-ok" data-no style="background:var(--transfer);color:var(--pitch);border:none">Merci à vous</button>
     </div>`;
   ov.classList.add('show');
   const close = ()=>ov.classList.remove('show');
@@ -6815,6 +6820,8 @@ function marketIsClosedNow(){
   return false;
 }
 function renderMercatoBanner(){
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const P=(n,c)=>`<span style="display:inline-flex;vertical-align:-.15em;margin-right:5px${c?';color:'+c:''}">${I(n,15)}</span>`;
   const box = $('mercatoBanner'); if(!box) return;
   const w = MERCATO_WINDOW;
   if(!w || !w.id){
@@ -6828,13 +6835,13 @@ function renderMercatoBanner(){
         const when = opensAt.toLocaleString('fr-FR',{weekday:'long',day:'2-digit',month:'long',hour:'2-digit',minute:'2-digit'});
         const label = nx.label || 'Prochain mercato';
         box.style.cssText = 'display:block;background:rgba(245,197,66,.14);border:1px solid var(--transfer);border-radius:10px;padding:12px 16px;margin-bottom:18px;font-size:.9rem;color:var(--chalk);text-align:center;line-height:1.55';
-        box.innerHTML = `⏳ <b>${label}</b> ouvre dans <b data-mercato-countdown="${nx.opens_at}" style="color:var(--transfer)">${fmtCountdown(left)}</b>`
+        box.innerHTML = `${P('hourglass')}<b>${label}</b> ouvre dans <b data-mercato-countdown="${nx.opens_at}" style="color:var(--transfer)">${fmtCountdown(left)}</b>`
           + `<div style="font-size:.74rem;color:var(--muted);margin-top:3px">Le ${when} · les enchères et recrutements reprendront alors.</div>`;
         return;
       }
     }
     box.style.cssText = 'display:block;background:rgba(224,87,74,.12);border:1px solid var(--live,#e0574a);border-radius:10px;padding:10px 16px;margin-bottom:18px;font-size:.88rem;color:var(--live,#e0574a);text-align:center';
-    box.innerHTML = '🔒 Aucun mercato ouvert actuellement — les enchères et recrutements sont en pause.';
+    box.innerHTML = `${P('lock')}Aucun mercato ouvert actuellement — les enchères et recrutements sont en pause.`;
     return;
   }
   const now = new Date();
@@ -6857,7 +6864,7 @@ function renderMercatoBanner(){
 
   let msg, level = 'ok';   // ok | soon | urgent
   if(opens && now < opens){
-    msg = `🗓️ <b>${w.label}</b> — ouvre dans <b>${fmtCountdown(opens-now)}</b>`;
+    msg = `${P('calendar')}<b>${w.label}</b> — ouvre dans <b>${fmtCountdown(opens-now)}</b>`;
   } else if(closes){
     const left = closes-now;
     const D1 = 24*3600*1000, D3 = 3*D1;
@@ -6865,16 +6872,16 @@ function renderMercatoBanner(){
     if(left <= 0){
       // Date de fermeture dépassée : le mercato d'été est clos.
       level = 'urgent';
-      msg = `🔒 <b>${w.label} terminé.</b> Les enchères et propositions sont fermées.`;
+      msg = `${P('lock')}<b>${w.label} terminé.</b> Les enchères et propositions sont fermées.`;
     } else if(left < D1){
       level = 'urgent';
-      msg = `🔥 <b>Dernières heures !</b> ${w.label} ferme dans ${cd}${squadNudge(0)}`;
+      msg = `${P('flame','#e0574a')}<b>Dernières heures !</b> ${w.label} ferme dans ${cd}${squadNudge(0)}`;
     } else if(left < D3){
       level = 'soon';
       const d = Math.ceil(left/D1);
-      msg = `⏳ <b>Plus que ${d} jour${d>1?'s':''} !</b> ${w.label} ferme dans ${cd}${squadNudge(d)}`;
+      msg = `${P('hourglass')}<b>Plus que ${d} jour${d>1?'s':''} !</b> ${w.label} ferme dans ${cd}${squadNudge(d)}`;
     } else {
-      msg = `🟢 <b>${w.label}</b> — ferme dans ${cd}${squadNudge(99)}`;
+      msg = `${P('dot','#4ade80')}<b>${w.label}</b> — ferme dans ${cd}${squadNudge(99)}`;
     }
   } else {
     msg = `🟢 <b>${w.label}</b> — ouvert`;
@@ -6952,13 +6959,13 @@ async function renderHome(){
   $('homeFeed').innerHTML = moves.length
     ? moves.map(m=>{
         const pname = m.player?.name ?? 'Un joueur';
-        let ic, txt, c;
-        if(m.to && m.from){ ic='🔄'; c='#5fd0e0'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
-        else if(m.to){ ic='📈'; c='#4ade80'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
-        else if(m.from){ ic='📉'; c='#e0574a'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
-        else { ic='•'; c='var(--muted)'; txt=pname; }
+        let icn, txt, c;
+        if(m.to && m.from){ icn='repeat'; c='#5fd0e0'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
+        else if(m.to){ icn='trendingUp'; c='#4ade80'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
+        else if(m.from){ icn='trendingDown'; c='#e0574a'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
+        else { icn='dot'; c='var(--muted)'; txt=pname; }
         return `<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
-          <span>${ic}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
+          <span style="display:inline-flex;color:${c}">${(typeof ic==='function'?ic(icn,16):'')}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
       }).join('')
     : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
   renderTicker(moves, auctions);
@@ -7086,6 +7093,7 @@ async function renderMarketTrends(auctions){
 // Assemble en une to-do les rappels épars : compo, propositions du jour,
 // défis à réclamer, enchères à surveiller. Pousse à revenir chaque jour.
 async function renderDailyChecklist(auctions){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('dailyChecklist'); if(!box) return;
   if(!ME){ box.style.display='none'; box.innerHTML=''; return; }
 
@@ -7145,7 +7153,7 @@ async function renderDailyChecklist(auctions){
   const allOk = doneCount===items.length;
   box.innerHTML =
     `<div class="dc-head">
-       <div class="dc-title">✅ Ta checklist du jour</div>
+       <div class="dc-title" style="display:flex;align-items:center;gap:6px">${I('check',16)} Ta checklist du jour</div>
        <div class="dc-progress">${doneCount}/${items.length}</div>
      </div>`+
     items.map((it,idx)=>`
@@ -7154,7 +7162,7 @@ async function renderDailyChecklist(auctions){
         <span class="dc-label">${it.label}</span>
         <span class="dc-go">${it.go||''}</span>
       </div>`).join('')+
-    (allOk ? `<div class="dc-allok">🎉 Tout est à jour pour aujourd'hui !</div>` : '');
+    (allOk ? `<div class="dc-allok" style="display:flex;align-items:center;gap:6px">${I('party',16)} Tout est à jour pour aujourd'hui !</div>` : '');
   box.style.display='block';
 
   // Clic sur une tâche à faire → navigue vers le bon écran.
@@ -7182,18 +7190,18 @@ function renderTicker(moves, auctions){
     .forEach(a=>{
       const nm = a.player?.name || 'Joueur';
       const intr = a.interest||0;
-      items.push(`<span class="ticker-item"><span class="ticker-ic">🔥</span><span>Enchère : <b>${nm}</b> à <b>${fmtMoney(a.current_price)}</b>${intr>0?` · ${intr} intéressé${intr>1?'s':''}`:''}</span></span>`);
+      items.push(`<span class="ticker-item"><span class="ticker-ic">${(typeof ic==='function'?ic('flame',13):'')}</span><span>Enchère : <b>${nm}</b> à <b>${fmtMoney(a.current_price)}</b>${intr>0?` · ${intr} intéressé${intr>1?'s':''}`:''}</span></span>`);
     });
 
   // Derniers mouvements
   (moves||[]).forEach(m=>{
     const pname = m.player?.name || 'Un joueur';
-    let ic, txt;
-    if(m.to && m.from){ ic='🔄'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
-    else if(m.to){ ic='📈'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
-    else if(m.from){ ic='📉'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
-    else { ic='•'; txt=pname; }
-    items.push(`<span class="ticker-item"><span class="ticker-ic">${ic}</span><span>${txt}</span></span>`);
+    let icn, txt;
+    if(m.to && m.from){ icn='repeat'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
+    else if(m.to){ icn='trendingUp'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
+    else if(m.from){ icn='trendingDown'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
+    else { icn='dot'; txt=pname; }
+    items.push(`<span class="ticker-item"><span class="ticker-ic">${(typeof ic==='function'?ic(icn,13):'')}</span><span>${txt}</span></span>`);
   });
 
   if(!items.length){
