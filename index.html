@@ -3583,6 +3583,7 @@ function playerInitials(p){
   return (a+b).toUpperCase();
 }
 function acard(a, status){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const tag={scheduled:'Programmée',live:'En direct',ended:'Terminée',transferred:'Transféré'}[status];
   const p = a.player || {};
   const posClass = 'pos-'+(p.position||'').toLowerCase();
@@ -3599,7 +3600,7 @@ function acard(a, status){
     const pre = left<=0?'🏁' : left<HOT?'🔥' : left<FINAL?'⚡' : '⏱';
     const urgent = left>0 && left < LAST_MIN_MS;  // halo si toute dernière minute
     const interest = a.interest || 0;
-    const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri">👥 ${interest}</span>` : '';
+    const interestTag = interest>0 ? `<span class="interest" title="${interest} manager(s) ont enchéri" style="display:inline-flex;align-items:center;gap:3px">${I('users',13)} ${interest}</span>` : '';
     const watched = AUC_WATCH.has(a.id);
     const star = ME ? `<button class="watch-star${watched?' on':''}" data-watch="${a.id}" title="${watched?'Ne plus suivre':'Suivre cette enchère (alertes sniping)'}">${watched?'★':'☆'}</button>` : '';
     // Enchère rapide : offre minimale au palier (bornée au plafond), un clic.
@@ -3611,33 +3612,33 @@ function acard(a, status){
     const atCap = cap && price>=cap;
     // Bouton rapide seulement si je ne mène pas déjà et qu'on n'est pas au plafond.
     const quickBtn = (ME && !iLead && !atCap)
-      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:1 1 auto;min-width:0;margin-top:0;white-space:nowrap">⚡ ${fmtMoney(next)}</button>`
+      ? `<button class="bid-btn quick" data-quickbid="${a.id}" data-next="${next}" title="Surenchérir en un clic à ${fmtMoney(next)}" style="flex:1 1 auto;min-width:0;margin-top:0;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:5px">${I('zap',14)} ${fmtMoney(next)}</button>`
       : '';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span style="display:flex;gap:6px;align-items:center">${interestTag}${star}</span></div>
       <div class="clock ${cls}" data-ends="${a.ends_at}">${pre} ${fmtClock(left)} · ${a.top_bidder?.display_name??'—'}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px;width:100%;min-width:0">
         ${quickBtn}
         <button class="bid-btn${quickBtn?' secondary':''}" data-bid="${p.id}" style="flex:1 1 auto;min-width:0;margin-top:0">${quickBtn?'Offre…':'Enchérir'}</button>
-        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:1 0 100%;min-width:0;padding:8px;margin-top:0">📜 Journal des offres</button>
+        <button class="bid-btn ghost" data-journal="${a.id}" title="Journal des offres" style="flex:1 0 100%;min-width:0;padding:8px;margin-top:0;display:inline-flex;align-items:center;justify-content:center;gap:6px">${I('scroll',14)} Journal des offres</button>
       </div>`;
   } else if(status==='scheduled'){
     // Enchère planifiée : on montre quand elle démarre (date + heure).
     const st = a.starts_at ? new Date(a.starts_at) : null;
     const when = st ? st.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' à '+st.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) : '—';
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span></div>
-      <div class="clock safe" style="margin-top:6px">🗓️ Démarre le ${when}</div>`;
+      <div class="clock safe" style="margin-top:6px;display:flex;align-items:center;gap:5px">${I('calendar',13)} Démarre le ${when}</div>`;
   } else {
     const d = new Date(a.ends_at ?? a.created_at).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
     bottom = `<div class="line"><span class="price">${fmtMoney(a.current_price)}</span><span class="date">${d}</span></div>`;
   }
   const urgentCls = (status==='live' && new Date(a.ends_at)-new Date() > 0 && new Date(a.ends_at)-new Date() < LAST_MIN_MS) ? ' urgent' : '';
-  const flashBadge = a.flash ? `<span class="tag" style="background:var(--transfer);color:var(--pitch);font-weight:800;top:auto;bottom:8px;left:8px">⚡ ÉCLAIR</span>` : '';
+  const flashBadge = a.flash ? `<span class="tag" style="background:var(--transfer);color:var(--pitch);font-weight:800;top:auto;bottom:8px;left:8px;display:inline-flex;align-items:center;gap:4px">${I('zap',12)} ÉCLAIR</span>` : '';
   const posChip = p.position ? `<span class="pos-chip ${posClass}">${POS[p.position]??p.position}</span>` : '';
   const club = p.club ? `<span class="acard-club">${p.club}</span>` : '';
   return `<div class="acard${urgentCls}${a.flash?' flash':''}${hasPhoto?'':' nophoto'}" data-acard="${a.id||''}">
     <div class="photo">${photo}<span class="tag t-${status}">${tag}</span>${flashBadge}</div>
     <div class="info">
-      <div class="title" data-player="${p.id}" style="cursor:pointer" title="Voir la fiche & la courbe de valeur">${playerName(p)||'—'} <span style="color:var(--muted);font-size:.7rem">📈</span></div>
+      <div class="title" data-player="${p.id}" style="cursor:pointer" title="Voir la fiche & la courbe de valeur">${playerName(p)||'—'} <span style="color:var(--muted);display:inline-flex;vertical-align:-.1em">${I('trendingUp',12)}</span></div>
       <div class="acard-meta">${posChip}${club}</div>
       ${bottom}
     </div></div>`;
@@ -3705,6 +3706,7 @@ function aucConcernsMe(a){
 // Bandeau « dernière minute » + halo sur les cartes + pastille sur l'onglet.
 // Appelé au rendu et chaque seconde (léger : lecture de AUC_LIVE en mémoire).
 function renderLastMinute(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('lastMinute'); if(!box) return;
   const now = Date.now();
   // Enchères en direct qui se terminent dans les 5 min (les miennes d'abord).
@@ -3722,7 +3724,7 @@ function renderLastMinute(){
   }
   const mineCount = soon.filter(x=>x.mine).length;
   box.innerHTML =
-    `<div class="lm-head"><span class="lm-dot"></span>⏰ Dernière minute — ${soon.length} enchère${soon.length>1?'s':''} se termine${soon.length>1?'nt':''} bientôt</div>`+
+    `<div class="lm-head"><span class="lm-dot"></span>${I('clock',15)} Dernière minute — ${soon.length} enchère${soon.length>1?'s':''} se termine${soon.length>1?'nt':''} bientôt</div>`+
     soon.map(x=>{
       const nm = x.a.player?.name || 'Joueur';
       const mm = Math.floor(x.left/60000), ss = Math.floor((x.left%60000)/1000);
@@ -3943,9 +3945,10 @@ function updateColsHasMore(){
 
 // Journal des offres d'une enchère (modale)
 async function showAuctionJournal(auctionId){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
-  md.innerHTML = `<h3>📜 Journal des offres</h3><div class="hint">Chargement…</div>
+  md.innerHTML = `<h3 style="display:flex;align-items:center;gap:7px">${I('scroll',18)} Journal des offres</h3><div class="hint">Chargement…</div>
     <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
   ov.classList.add('show');
   md.querySelector('[data-no]').onclick = ()=>ov.classList.remove('show');
@@ -3956,7 +3959,7 @@ async function showAuctionJournal(auctionId){
     return `<div class="ux-row"><span class="l">${b.is_mine?'<b style="color:var(--transfer)">Toi</b>':b.bidder}</span>
       <span>${fmtMoney(b.amount)} <span style="color:var(--muted);font-size:.74rem">· ${t}</span></span></div>`;
   }).join('') : '<div class="hint">Aucune offre pour l\'instant.</div>';
-  md.innerHTML = `<h3>📜 Journal des offres</h3>
+  md.innerHTML = `<h3 style="display:flex;align-items:center;gap:7px">${I('scroll',18)} Journal des offres</h3>
     <p class="hint" style="margin:0 0 8px">${bids.length} offre${bids.length>1?'s':''} — de la plus récente à la plus ancienne.</p>
     <div style="max-height:46vh;overflow:auto">${rows}</div>
     <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
@@ -4214,6 +4217,7 @@ function formWidget(form){
 // dernière journée + mini-courbe des cotes. Repli sur l'ancienne courbe de
 // valeur interne tant qu'aucune journée n'a encore fait bouger la cote.
 function bourseBlock(quote, qhist, valueHist, deltaFallbackTxt){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const hasQuote = quote && quote.has_history;
   if(hasQuote){
     const q = Number(quote.quote);
@@ -4229,7 +4233,7 @@ function bourseBlock(quote, qhist, valueHist, deltaFallbackTxt){
       `<div class="hint" style="text-align:center;padding:10px 0">Courbe disponible après quelques journées.</div>`;
     return `
       <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px">
-        <span style="font-weight:800;font-size:.9rem">📈 Bourse — cote du joueur</span>
+        <span style="font-weight:800;font-size:.9rem;display:inline-flex;align-items:center;gap:6px">${I('trendingUp',16)} Bourse — cote du joueur</span>
         <span style="font-family:'Saira',sans-serif;font-weight:800;font-size:1.05rem">${fmtMoney(q)}</span>
       </div>
       <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${curve}</div>
@@ -4238,12 +4242,13 @@ function bourseBlock(quote, qhist, valueHist, deltaFallbackTxt){
   }
   // Pas encore d'historique de cote -> ancienne courbe de valeur interne.
   return `
-    <div style="font-weight:800;font-size:.9rem;margin-bottom:4px">📈 Évolution de la valeur</div>
+    <div style="font-weight:800;font-size:.9rem;margin-bottom:4px;display:flex;align-items:center;gap:6px">${I('trendingUp',16)} Évolution de la valeur</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(valueHist)}</div>
     <div style="text-align:center;margin-top:6px">${deltaFallbackTxt||''}</div>
     <div class="hint" style="text-align:center;font-size:.72rem;margin-top:2px">La cote de Bourse apparaîtra dès la première journée clôturée.</div>`;
 }
 async function showPlayerCard(playerId){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
   md.innerHTML = `<h3>Fiche joueur</h3><div class="hint">Chargement…</div>
@@ -4269,20 +4274,20 @@ async function showPlayerCard(playerId){
   const name = p.name ? (playerName ? playerName(p) : p.name) : 'Joueur';
   // Badge d'hommage (ex. Ballon d'Or) si ce joueur est le distingué du moment.
   const honorBadge = (HONOR_CACHE && HONOR_CACHE.player_id === playerId)
-    ? `<div style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,197,66,.28),rgba(224,168,0,.1));border:1px solid var(--transfer);border-radius:20px;padding:4px 12px;margin:0 0 10px;font-family:'Archivo Narrow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:.74rem;color:var(--transfer)">🏆 ${String(HONOR_CACHE.title).replace(/[<>&]/g,'')}</div>`
+    ? `<div style="display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,rgba(245,197,66,.28),rgba(224,168,0,.1));border:1px solid var(--transfer);border-radius:20px;padding:4px 12px;margin:0 0 10px;font-family:'Archivo Narrow',sans-serif;font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:.74rem;color:var(--transfer)">${I('trophy',14)} ${String(HONOR_CACHE.title).replace(/[<>&]/g,'')}</div>`
     : '';
   md.innerHTML = `
     <h3>${name}</h3>
     <div class="hint" style="margin:0 0 10px">${p.club||''}${p.position?' · '+(POS[p.position]||p.position):''}${p.current_value!=null?' · '+fmtMoney(p.current_value):''}</div>
     ${honorBadge}
     ${valueForMoney(p)}
-    <div style="font-weight:800;font-size:.9rem;margin-bottom:6px">💓 Forme récente</div>
+    <div style="font-weight:800;font-size:.9rem;margin-bottom:6px;display:flex;align-items:center;gap:6px">${I('heart',16)} Forme récente</div>
     <div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">${formWidget(form)}</div>
     ${bourseBlock(quote, qhist, hist, deltaTxt)}
-    <button class="bid-btn ghost" id="pcJournalBtn" style="width:100%;margin-top:12px;font-size:.84rem;padding:9px">📜 Journal des offres</button>
+    <button class="bid-btn ghost" id="pcJournalBtn" style="width:100%;margin-top:12px;font-size:.84rem;padding:9px;display:inline-flex;align-items:center;justify-content:center;gap:6px">${I('scroll',15)} Journal des offres</button>
     <div id="pcJournalBox" style="margin-top:10px"></div>
     <div class="ux-actions">
-      ${(ME && p.owner_id===ME.id) ? `<button class="ux-ok" data-share style="background:var(--transfer);color:var(--pitch);border:none">📲 Partager ce coup</button>` : ''}
+      ${(ME && p.owner_id===ME.id) ? `<button class="ux-ok" data-share style="background:var(--transfer);color:var(--pitch);border:none;display:inline-flex;align-items:center;gap:6px">${I('share',15)} Partager ce coup</button>` : ''}
       <button class="ux-cancel" data-no>Fermer</button>
     </div>`;
   md.querySelector('[data-no]').onclick = close;
