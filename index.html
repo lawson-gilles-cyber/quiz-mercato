@@ -1121,7 +1121,7 @@
     <!-- Bourse : top mouvements de cote de la dernière journée -->
     <div id="bourseMovers" class="trends" style="display:none"></div>
     <div id="challengesWrap" style="margin-top:26px;display:none">
-      <div class="eyebrow" style="margin-bottom:12px">🎯 Objectifs & défis</div>
+      <div class="eyebrow" data-ic="target" style="margin-bottom:12px;display:flex;align-items:center">Objectifs & défis</div>
       <div id="challengesList"></div>
     </div>
     <div style="margin-top:26px">
@@ -1140,14 +1140,14 @@
 
     <!-- Agents libres (joueurs libérés) -->
     <div id="freeAgentsWrap" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
-      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:8px">🆓 Agents libres</div>
+      <div data-ic="unlock" style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:8px;display:flex;align-items:center">Agents libres</div>
       <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Des joueurs libérés par leurs managers. Après <b>24h de visibilité</b>, le <b>premier</b> qui réclame le recrute <b>gratuitement</b> (seul le salaire compte dans ta masse salariale).</p>
       <div id="freeAgentsList"></div>
     </div>
 
     <!-- Vérifier si un joueur est déjà dans le jeu (avant de le dénicher) -->
     <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
-      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">🔎 Ce joueur est-il déjà pris ?</div>
+      <div data-ic="search" style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px;display:flex;align-items:center">Ce joueur est-il déjà pris ?</div>
       <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Tape un nom avant de le dénicher : tu verras s'il est déjà <b>libre</b>, <b>en enchère</b> ou <b>déjà dans une équipe</b>.</p>
       <input id="chkSearch" type="text" placeholder="Nom du joueur (ex. Mbappé)…" style="width:100%;padding:9px;margin-bottom:10px">
       <div id="chkResult"></div>
@@ -1188,7 +1188,7 @@
 
     <!-- Offres reçues sur mes joueurs en vitrine -->
     <div id="offersReceivedCard" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--transfer);border-radius:14px;padding:18px;margin-bottom:26px">
-      <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px">📥 Offres reçues sur tes joueurs</div>
+      <div data-ic="inbox" style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px;display:flex;align-items:center">Offres reçues sur tes joueurs</div>
       <div id="offersReceivedList"></div>
     </div>
 
@@ -1197,12 +1197,12 @@
     <div id="tradeUI" style="display:none">
       <!-- Bandeau Coach : les actions de marché sont réservées au Manager -->
       <div id="coachTradeNotice" style="display:none;margin-bottom:22px;padding:14px 16px;border:1px solid #2b4a7a;border-radius:12px;background:rgba(40,70,120,.28);color:var(--chalk);font-size:.9rem;line-height:1.45">
-        🧢 <b>Espace Coach</b> — le recrutement, les échanges, les offres en vitrine et les prêts sont pilotés par le <b>Manager</b> de l'équipe. Tu peux consulter le marché et les mouvements, mais c'est le Manager qui engage l'effectif.
+        <span data-ic="cap" style="vertical-align:-2px;margin-right:4px"></span><b>Espace Coach</b> — le recrutement, les échanges, les offres en vitrine et les prêts sont pilotés par le <b>Manager</b> de l'équipe. Tu peux consulter le marché et les mouvements, mais c'est le Manager qui engage l'effectif.
       </div>
       <!-- Dénicher un joueur -->
       <div class="card coach-hide" id="scoutCard" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:26px;position:relative">
         <div id="scoutClosedOverlay" style="display:none;position:absolute;inset:0;background:rgba(10,20,40,.78);backdrop-filter:blur(2px);border-radius:14px;z-index:2;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:20px">
-          <div style="font-size:1.6rem">🔒</div>
+          <div data-ic="lock" data-ic-size="26" style="display:flex;justify-content:center"></div>
           <div style="font-weight:800;color:var(--chalk);margin-top:6px">Dénichage fermé hors mercato</div>
           <p style="color:var(--muted);font-size:.84rem;max-width:340px;margin-top:4px">Tu ne peux pas proposer de nouveau joueur en dehors d'une fenêtre de mercato. Mais tu peux toujours <b>échanger</b> et <b>prêter</b> des joueurs entre managers ci-dessous. 👇</p>
         </div>
@@ -1397,7 +1397,7 @@
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div><div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 titulaires</div>
           <div id="benchCounter" style="font-size:.8rem;color:var(--muted)">0 / 3 réservistes</div></div>
-        <button id="btnSuggestLineup" class="bid-btn" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem">🧩 Suggérer mon 11</button>
+        <button id="btnSuggestLineup" class="bid-btn" data-ic="puzzle" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem;display:inline-flex;align-items:center;justify-content:center">Suggérer mon 11</button>
       </div>
       <div id="lineupPlayers" class="grid"></div>
       <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
@@ -5198,10 +5198,10 @@ async function saveIdentity(){
 
 // Construit la vue terrain par compartiment (GK / DEF / MID / FWD)
 const PITCH_LINES = [
-  { pos:'GK',  label:'Gardiens',   max:2, ic:'🧤' },
-  { pos:'DEF', label:'Défenseurs', max:7, ic:'🛡️' },
-  { pos:'MID', label:'Milieux',    max:7, ic:'⚙️' },
-  { pos:'FWD', label:'Attaquants', max:5, ic:'⚽' }
+  { pos:'GK',  label:'Gardiens',   max:2, ic:'glove' },
+  { pos:'DEF', label:'Défenseurs', max:7, ic:'shield' },
+  { pos:'MID', label:'Milieux',    max:7, ic:'gear' },
+  { pos:'FWD', label:'Attaquants', max:5, ic:'soccer' }
 ];
 // Couleurs des maillots par club : [principale, secondaire (col/manches)]
 const CLUB_KITS = {
@@ -5249,7 +5249,7 @@ function jerseyCard(p, readonly, colors){
     <div class="jersey-nm">${playerName(p)}</div>
     <div class="jersey-cl">${p.club||''}</div>
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
-    <div class="jersey-sal" title="Salaire annuel">💰 ${fmtMoney(playerSalary(p.current_value))}/an</div>
+    <div class="jersey-sal" title="Salaire annuel" style="display:flex;align-items:center;justify-content:center;gap:3px">${(typeof ic==='function'?ic('coins',11):'')} ${fmtMoney(playerSalary(p.current_value))}/an</div>
   </div>`;
 }
 function buildPitch(mine, readonly, colors){
@@ -5259,7 +5259,7 @@ function buildPitch(mine, readonly, colors){
     // cases vides pour visualiser ce qu'il reste (jusqu'au quota)
     const emptyCount = Math.max(0, line.max - players.length);
     const empties = Array.from({length:emptyCount}).map(()=>`<div class="jersey empty"><span>+</span></div>`).join('');
-    return `<div class="pitch-count">${line.ic} ${line.label} · ${players.length}/${line.max}</div>
+    return `<div class="pitch-count" style="display:flex;align-items:center;justify-content:center;gap:5px">${(typeof ic==='function'?ic(line.ic,13):'')} ${line.label} · ${players.length}/${line.max}</div>
       <div class="pitch-line">${jerseys}${empties}</div>`;
   }).join('');
   return `<div class="pitch">${lines}</div>`;
@@ -6257,6 +6257,7 @@ async function renderConseil(mdId, md, mine){
 }
 
 function renderLineupPlayers(mine){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const POSORDER = {GK:0,DEF:1,MID:2,FWD:3};
   mine.sort((a,b)=>(POSORDER[a.position]-POSORDER[b.position]) || Number(b.current_value)-Number(a.current_value));
   $('lineupPlayers').innerHTML = mine.map(p=>{
@@ -6268,7 +6269,7 @@ function renderLineupPlayers(mine){
     const mark = on ? '✓' : (isBench ? ('R'+(benchIdx+1)) : '+');
     const markCol = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--muted)');
     // Bouton banc : ajoute/retire le joueur des réservistes (si pas titulaire).
-    const benchBtn = `<button class="lp-bench" data-bench="${p.id}" style="margin-top:8px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;border:1px solid ${isBench?'#5fd0e0':'var(--line)'};background:${isBench?'rgba(95,208,224,.12)':'transparent'};color:${isBench?'#5fd0e0':'var(--muted)'}">${isBench?('🪑 Réserviste R'+(benchIdx+1)+' — retirer'):'🪑 Mettre au banc'}</button>`;
+    const benchBtn = `<button class="lp-bench" data-bench="${p.id}" style="margin-top:8px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;border:1px solid ${isBench?'#5fd0e0':'var(--line)'};background:${isBench?'rgba(95,208,224,.12)':'transparent'};color:${isBench?'#5fd0e0':'var(--muted)'}"><span style="display:inline-flex;vertical-align:-.15em;margin-right:4px">${I('chair',12)}</span>${isBench?('Réserviste R'+(benchIdx+1)+' — retirer'):'Mettre au banc'}</button>`;
     return `<div class="lineup-pick ${on?'on':''}" style="border:2px solid ${border};border-radius:10px;padding:10px;background:${bg};transition:.15s">
       <div data-lp="${p.id}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
         <div><span style="font-family:'Archivo Narrow';font-size:.68rem;text-transform:uppercase;color:var(--muted)">${POS[p.position]}</span>
@@ -7488,6 +7489,7 @@ async function renderChat(){
   }
 }
 async function loadChatMessages(keepScroll){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('chatMessages'); if(!box) return;
   const atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
   const msgs = await api.chatRecent(80);
@@ -7500,13 +7502,13 @@ async function loadChatMessages(keepScroll){
       : m.author;
     // Badge de rôle : admin / coach (avec son équipe) / sinon rien (manager par défaut).
     const roleBadge = m.is_admin
-      ? ` <span style="color:var(--transfer);font-size:.68rem">⚙️ ADMIN</span>`
-      : (m.is_coach ? ` <span title="Coach${m.coach_team?' de '+m.coach_team:''}" style="color:#5a96ff;font-size:.66rem;font-weight:700">🧢 COACH${m.coach_team?' ('+String(m.coach_team).replace(/[<>]/g,'')+')':''}</span>` : '');
+      ? ` <span style="color:var(--transfer);font-size:.68rem;display:inline-flex;align-items:center;gap:3px">${I('gear',11)} ADMIN</span>`
+      : (m.is_coach ? ` <span title="Coach${m.coach_team?' de '+m.coach_team:''}" style="color:#5a96ff;font-size:.66rem;font-weight:700;display:inline-flex;align-items:center;gap:3px">${I('cap',11)} COACH${m.coach_team?' ('+String(m.coach_team).replace(/[<>]/g,'')+')':''}</span>` : '');
     const name = (m.is_admin ? m.author : authorClickable) + roleBadge;
     const canDel = m.is_mine || isAdmin;
     const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
     // Épingler : réservé à l'admin.
-    const pin = isAdmin ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none">📌</a>` : '';
+    const pin = isAdmin ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none;vertical-align:-.1em">${I('pin',13)}</a>` : '';
     return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
       <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${pin}${del}</div>
       <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
@@ -7524,7 +7526,7 @@ async function loadChatMessages(keepScroll){
     ev.preventDefault();
     const { error } = await api.adminPinMessage(a.dataset.chatpin, a.dataset.on==='1');
     if(error) return toast(error.message,'err');
-    toast(a.dataset.on==='1'?'Message épinglé 📌':'Message désépinglé','ok');
+    toast(a.dataset.on==='1'?'Message épinglé':'Message désépinglé','ok');
     loadChatPinned(); loadChatMessages(true);
   });
   if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
@@ -7540,7 +7542,7 @@ async function loadChatPinned(){
   const unpin = isAdmin ? `<a href="#" id="chatUnpin" data-id="${p.id}" style="color:var(--muted);font-size:.74rem;text-decoration:none;white-space:nowrap">Retirer ✕</a>` : '';
   box.style.display='block';
   box.innerHTML = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.14),transparent);border:1px solid var(--transfer);border-radius:10px;padding:11px 14px;display:flex;gap:10px;align-items:flex-start">
-      <span style="font-size:1.05rem">📌</span>
+      <span style="display:inline-flex">${(typeof ic==='function'?ic('pin',16):'')}</span>
       <div style="flex:1;min-width:0">
         <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.66rem;color:var(--transfer);font-weight:700;margin-bottom:2px">Épinglé par ${p.author||'l\'organisation'}</div>
         <div style="font-size:.88rem;color:var(--chalk);word-break:break-word">${(p.body||'').replace(/</g,'&lt;')}</div>
@@ -7844,6 +7846,8 @@ async function shareBilan(b){
 // Compile l'actu des 7 derniers jours à partir des données publiques :
 // plus gros transferts, qui a le plus dépensé, pépite la plus disputée, podium.
 async function renderGazette(){
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const H=(n)=>`<span style="display:inline-flex;vertical-align:-.12em;margin-right:6px">${I(n,16)}</span>`;
   const box = $('gazetteBody'); if(!box) return;
   box.innerHTML = '<div class="empty">Chargement…</div>';
   let transfers=[], managers=[], auctions=[];
@@ -7878,7 +7882,7 @@ async function renderGazette(){
   const dateNow = new Date().toLocaleDateString('fr-FR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
 
   const blocBiggest = `<div class="gz-block">
-    <div class="gz-h">💰 Les gros transferts de la semaine</div>
+    <div class="gz-h">${H('coins')}Les gros transferts de la semaine</div>
     ${biggest.length ? biggest.map(t=>{
       const nm = t.player?.name || 'Un joueur';
       const to = t.to?.display_name ? ` → <b>${t.to.display_name}</b>` : '';
@@ -7887,16 +7891,16 @@ async function renderGazette(){
   </div>`;
 
   const blocSpend = `<div class="gz-block">
-    <div class="gz-h">🤑 Les plus gros dépensiers</div>
+    <div class="gz-h">${H('banknote')}Les plus gros dépensiers</div>
     ${topSpenders.length ? topSpenders.map(([name,sum],i)=>
       `<div class="gz-row"><span class="gz-name">${i===0?'🥇 ':''}<b>${name}</b></span><span class="gz-val">${fmtMoney(sum)}</span></div>`
     ).join('') : '<div class="gz-empty">Personne n\'a (encore) sorti le chéquier cette semaine.</div>'}
   </div>`;
 
   const blocHot = `<div class="gz-block">
-    <div class="gz-h">🔥 La pépite la plus disputée</div>
+    <div class="gz-h">${H('flame')}La pépite la plus disputée</div>
     ${hottest && (hottest.interest||0)>0
-      ? `<div class="gz-lead"><span style="font-size:1.8rem">⚡</span><div>
+      ? `<div class="gz-lead"><span style="display:inline-flex">${I('zap',26)}</span><div>
            <div class="gz-big">${hottest.player.name}</div>
            <div style="font-size:.84rem;color:var(--muted)">${fmtMoney(hottest.current_price)} · ${hottest.interest} manager${hottest.interest>1?'s':''} à la lutte</div>
          </div></div>`
@@ -7905,7 +7909,7 @@ async function renderGazette(){
 
   const medals = ['🥇','🥈','🥉'];
   const blocPodium = `<div class="gz-block">
-    <div class="gz-h">🏆 Le podium du moment</div>
+    <div class="gz-h">${H('trophy')}Le podium du moment</div>
     ${podium.length ? podium.map((m,i)=>
       `<div class="gz-rank"><span class="gz-medal">${medals[i]}</span><span class="gz-team">${m.team_name||m.display_name}</span><span class="gz-pts">${m.season_points} pts</span></div>`
     ).join('') : '<div class="gz-empty">Classement pas encore établi.</div>'}
@@ -7921,6 +7925,9 @@ async function renderGazette(){
 // Frise chronologique : fenêtres de mercato (ouverture/clôture) + dates limites
 // de composition des journées. Regroupé en Passé / Aujourd'hui / À venir.
 async function renderCalendar(){
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const EMO2IC={'🟢':'dot','🔴':'dot','📋':'clipboard','⏰':'clock'};
+  const icTitle=(e)=>{ const n=EMO2IC[e.ic]; const col=e.ic==='🟢'?'#4ade80':e.ic==='🔴'?'#e0574a':''; return n?`<span style="display:inline-flex;vertical-align:-.12em;margin-right:5px${col?';color:'+col:''}">${I(n,14)}</span>`:(e.ic+' '); };
   const box = $('calendarBody'); if(!box) return;
   box.innerHTML = '<div class="empty">Chargement…</div>';
   let windows=[], mds=[];
@@ -7981,12 +7988,12 @@ async function renderCalendar(){
     // Bouton rappel : seulement pour un événement futur (date dans > 2 min).
     const canRemind = ME && e.diff > 2*60000;
     const remBtn = canRemind
-      ? `<button class="cal-remind" data-remind="${e.when}" data-label="${(e.ic+' '+e.title).replace(/"/g,'&quot;')}" title="Programmer un rappel">⏰ Me rappeler</button>` : '';
+      ? `<button class="cal-remind" data-remind="${e.when}" data-label="${(e.ic+' '+e.title).replace(/"/g,'&quot;')}" title="Programmer un rappel" style="display:inline-flex;align-items:center;gap:5px">${I('clock',13)} Me rappeler</button>` : '';
     return `<div class="cal-item ${nodeCls(e)}">
       <div class="cal-rail"><div class="cal-node"></div><div class="cal-line"></div></div>
       <div class="cal-card">
         <div class="cal-top">
-          <span class="cal-title">${e.ic} ${e.title}</span>
+          <span class="cal-title">${icTitle(e)}${e.title}</span>
           <span class="cal-when">${fmtWhen(e.when)}</span>
         </div>
         ${e.sub?`<div style="font-size:.78rem;color:var(--muted);margin-top:2px">${e.sub}</div>`:''}
@@ -8003,7 +8010,7 @@ async function renderCalendar(){
   if(ME){
     const rems = remGet().filter(r=>!r.done).sort((a,b)=> new Date(a.fireAt)-new Date(b.fireAt));
     if(rems.length){
-      remHtml = `<div class="cal-group"><div class="cal-gh">⏰ Mes rappels (${rems.length})</div>`+
+      remHtml = `<div class="cal-group"><div class="cal-gh" style="display:flex;align-items:center;gap:6px">${I('clock',14)} Mes rappels (${rems.length})</div>`+
         rems.map(r=>`<div class="rem-row">
           <span class="rem-txt">${r.label}</span>
           <span class="rem-when">${fmtWhen(r.fireAt)}</span>
@@ -8605,10 +8612,10 @@ function remCheck(){
 }
 // Vérifie au démarrage puis toutes les 30 s.
 setInterval(remCheck, 30000);
-const NOTIF_ICONS = {outbid:'⚠️', trade:'🔄', winning:'✅',
-  proposal_published:'📣', proposal_changes:'✏️', proposal_rejected:'🚫',
-  auction_won:'🏆', bonus:'💰', watch_ending:'⏰', chat:'💬',
-  remind_lineup:'⏰', remind_idle_budget:'💰', remind_market_end:'🔔'};
+const NOTIF_ICONS = {outbid:'warning', trade:'repeat', winning:'check',
+  proposal_published:'megaphone', proposal_changes:'edit', proposal_rejected:'ban',
+  auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat',
+  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
   auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0',
@@ -8695,9 +8702,9 @@ function renderNotifPanel(){
           : '';
         return `<div class="notif-item" data-nkey="${notifKey(n).replace(/"/g,'&quot;')}" data-nidx="${idx}"
             style="display:flex;gap:10px;align-items:flex-start;padding:10px;border-bottom:1px solid var(--line);cursor:pointer;opacity:${isRead?'.55':'1'};${isTodo?'border-left:3px solid var(--live);background:rgba(255,90,77,.05)':''}">
-          <span>${NOTIF_ICONS[n.kind]||'•'}</span>
+          <span style="display:inline-flex;flex:0 0 auto;color:${NOTIF_COLORS[n.kind]||'var(--chalk)'}">${(typeof ic==='function'?ic(NOTIF_ICONS[n.kind]||'dot',16):'•')}</span>
           <div style="flex:1">
-            <div style="font-size:.85rem;font-weight:700;color:${NOTIF_COLORS[n.kind]||'var(--chalk)'}">${isTodo?'🔴 ':''}${n.title}</div>
+            <div style="font-size:.85rem;font-weight:700;color:${NOTIF_COLORS[n.kind]||'var(--chalk)'};display:flex;align-items:center;gap:5px">${isTodo?'<span style="color:var(--live)">'+(typeof ic==='function'?ic('dot',9):'')+'</span>':''}${n.title}</div>
             <div style="font-size:.8rem;color:var(--muted);margin-top:2px">${n.detail}</div>
             ${tradeBtns}
             ${act && !tradeBtns?`<div style="font-size:.74rem;color:var(--transfer);margin-top:4px;font-weight:700">${act} ▸</div>`:''}
