@@ -1896,10 +1896,12 @@ try { injectIcons(); } catch(e){}
 function toast(msg, type='info', ms=3200){
   const wrap = document.getElementById('toastWrap');
   if(!wrap){ console.log(msg); return; }
-  const ic = type==='ok'?'✅':type==='err'?'⚠️':'ℹ️';
+  const icName = type==='ok'?'check':type==='err'?'warning':'info';
+  const icHtml = (typeof ic==='function' && ic(icName,16)) ? ic(icName,16)
+                 : (type==='ok'?'✅':type==='err'?'⚠️':'ℹ️');
   const el = document.createElement('div');
   el.className = 'toast '+type;
-  el.innerHTML = `<span class="ti">${ic}</span><span>${msg}</span>`;
+  el.innerHTML = `<span class="ti" style="display:inline-flex;align-items:center">${icHtml}</span><span>${msg}</span>`;
   wrap.appendChild(el);
   const kill = ()=>{ el.classList.add('out'); setTimeout(()=>el.remove(),200); };
   el.onclick = kill;
@@ -1910,7 +1912,7 @@ function toast(msg, type='info', ms=3200){
 // explique. Renvoie true si l'action doit être bloquée.
 function coachBlocked(){
   if(ME && ME.is_coach && ME.coach_of){
-    toast('🧢 Réservé au Manager — le Coach ne peut pas engager l\'équipe (échanges, offres, prêts, recrutement).','err',4200);
+    toast('Réservé au Manager — le Coach ne peut pas engager l\'équipe (échanges, offres, prêts, recrutement).','err',4200);
     return true;
   }
   return false;
@@ -2772,7 +2774,7 @@ async function renderOffersReceived(){
     btn.disabled=true; const old=btn.textContent; btn.textContent='⏳…';
     const { error } = await api.listingAcceptOffer(btn.dataset.acceptoffer);
     if(error){ btn.disabled=false; btn.textContent=old; toast('Échec : '+error.message,'err',4500); return; }
-    toast('Échange conclu ! 🤝','ok',4000);
+    toast('Échange conclu !','ok',4000);
     ME = await api.currentManager();
     if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
     await loadPlayers();
@@ -2814,7 +2816,7 @@ async function renderFreeAgents(){
     btn.disabled = true; const old = btn.textContent; btn.textContent='⏳…';
     const { error } = await api.claimFreeAgent(btn.dataset.claimfa);
     if(error){ btn.disabled=false; btn.textContent=old; toast('Échec : '+error.message,'err',4500); return; }
-    toast('Agent libre recruté gratuitement ! 🆓','ok',4000);
+    toast('Agent libre recruté gratuitement !','ok',4000);
     ME = await api.currentManager();
     if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked));
     await loadPlayers();
@@ -5344,6 +5346,7 @@ async function renderRank(){
 
 // ---------- Marché des prédictions ----------
 async function renderPredictions(rows){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('predBlock'); if(!box || !ME) return;
   let mine=[], standings=[];
   try { [mine, standings] = await Promise.all([ api.myPrediction(), api.predictionStandings() ]); } catch(e){}
@@ -5355,7 +5358,7 @@ async function renderPredictions(rows){
 
   if(pending){
     html += `<div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:var(--pitch-2,#111a2e)">
-      🔮 Ta prédiction pour la journée en cours : <b>${pending.picked}</b>. <span class="hint">Tu peux la changer tant que la journée est ouverte.</span>
+      <span style="display:inline-flex;vertical-align:-.12em;margin-right:4px">${I('crystalBall',15)}</span>Ta prédiction pour la journée en cours : <b>${pending.picked}</b>. <span class="hint">Tu peux la changer tant que la journée est ouverte.</span>
     </div>`;
   }
   // Sélecteur (poser/changer la prédiction) — proposé si une journée est ouverte.
@@ -5374,7 +5377,7 @@ async function renderPredictions(rows){
 
   const withScore = (standings||[]).filter(s=>s.total>0);
   if(withScore.length){
-    html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px">🔮 Meilleurs pronostiqueurs :</div>
+    html += `<div class="hint" style="font-size:.8rem;margin-bottom:6px;display:flex;align-items:center;gap:5px">${I('crystalBall',14)} Meilleurs pronostiqueurs :</div>
       <table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>Justes</th><th>Total</th></tr></thead><tbody>${
         withScore.slice(0,10).map((s,i)=>`<tr${s.manager_id===ME.id?' style="background:rgba(74,222,128,.07)"':''}>
           <td class="rank">${i+1}</td><td><b>${s.display_name}</b></td>
@@ -5413,18 +5416,18 @@ async function renderH2h(rows){
     if(active.status==='pending' && active.role==='opponent'){
       // J'ai reçu un défi : accepter / décliner
       html += `<div style="border:1px solid var(--transfer);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
-        <div style="margin-bottom:8px">⚔️ <b>${active.other}</b> te défie cette journée !</div>
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px">${I('swords',16)} <b>${active.other}</b> te défie cette journée !</div>
         <button class="btn-primary btn-sm" data-h2h-accept="${active.id}">Accepter</button>
         <button class="btn-ghost btn-sm" data-h2h-decline="${active.id}" style="margin-left:6px">Décliner</button>
       </div>`;
     } else if(active.status==='pending' && active.role==='challenger'){
       html += `<div style="border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
-        <div style="margin-bottom:8px">⏳ Tu as défié <b>${active.other}</b> — en attente de sa réponse.</div>
+        <div style="margin-bottom:8px;display:flex;align-items:center;gap:6px">${I('hourglass',16)} Tu as défié <b>${active.other}</b> — en attente de sa réponse.</div>
         <button class="btn-ghost btn-sm" data-h2h-cancel="${active.id}">Annuler mon défi</button>
       </div>`;
     } else if(active.status==='accepted'){
       html += `<div style="border:1px solid #4ade80;border-radius:12px;padding:14px;margin-bottom:14px;background:var(--pitch-2,#111a2e)">
-        ⚔️ Duel accepté : <b>toi</b> contre <b>${active.other}</b> cette journée. Que le meilleur gagne ! Résultat à la clôture.
+        <span style="display:inline-flex;vertical-align:-.12em;margin-right:4px">${I('swords',16)}</span>Duel accepté : <b>toi</b> contre <b>${active.other}</b> cette journée. Que le meilleur gagne ! Résultat à la clôture.
       </div>`;
     }
   } else {
@@ -5704,6 +5707,7 @@ function setupVersus(managers){
   }
 }
 async function renderVersus(){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const idA=$('vsA').value, idB=$('vsB').value;
   if(!idA || !idB) return toast('Choisis deux équipes à comparer.','err');
   if(idA===idB) return toast('Choisis deux équipes différentes.','err');
@@ -5751,12 +5755,12 @@ async function renderVersus(){
     const bestB = totB.best_player ? `${totB.best_player} (${fmtMoney(totB.best_value)})` : '—';
     verdictHtml = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.1),transparent);border:1px solid var(--transfer);border-radius:12px;padding:14px 16px;margin-bottom:16px">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-family:'Saira Condensed',sans-serif;font-weight:800;text-transform:uppercase;letter-spacing:1px;font-size:.82rem;margin-bottom:8px">
-        <span>⚔️ ${nameA}</span><span style="color:var(--muted)">face-à-face</span><span>${nameB}</span>
+        <span style="display:inline-flex;align-items:center;gap:5px">${I('swords',14)} ${nameA}</span><span style="color:var(--muted)">face-à-face</span><span>${nameB}</span>
       </div>
       <div style="text-align:center;font-size:.9rem;margin-bottom:10px">${headline}</div>
       <div style="display:flex;gap:10px;font-size:.78rem;color:var(--muted)">
-        <div style="flex:1">💎 Pièce maîtresse : <b style="color:var(--chalk)">${bestA}</b></div>
-        <div style="flex:1;text-align:right">💎 Pièce maîtresse : <b style="color:var(--chalk)">${bestB}</b></div>
+        <div style="flex:1;display:flex;align-items:center;gap:4px">${I('gem',12)} Pièce maîtresse : <b style="color:var(--chalk)">${bestA}</b></div>
+        <div style="flex:1;text-align:right;display:flex;align-items:center;justify-content:flex-end;gap:4px">${I('gem',12)} Pièce maîtresse : <b style="color:var(--chalk)">${bestB}</b></div>
       </div>
     </div>`;
   }
@@ -5843,7 +5847,7 @@ async function showManagerSquad(mgrId){
     };
     h2hHtml = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.1),transparent);border:1px solid var(--transfer);border-radius:12px;padding:14px 16px;margin-bottom:16px">
       <div style="display:flex;justify-content:space-between;align-items:center;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-weight:800;font-size:.82rem;margin-bottom:8px">
-        <span>⚔️ Toi</span><span style="color:var(--muted)">tête-à-tête</span><span>${entry.name}</span>
+        <span style="display:inline-flex;align-items:center;gap:5px">${I('swords',14)} Toi</span><span style="color:var(--muted)">tête-à-tête</span><span>${entry.name}</span>
       </div>
       <div style="text-align:center;font-size:.9rem;margin-bottom:8px">${headline}</div>
       ${line('Points', myProf.season_points, prof.season_points)}
@@ -6160,6 +6164,7 @@ async function loadLineupForMatchday(mdId){
 
 // ---------- Conseil d'avant-match (pronostics / jetons de flair) ----------
 async function renderConseil(mdId, md, mine){
+  const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('conseilBox'); if(!box) return;
   // Les coachs ne pronostiquent pas (engage l'équipe = Manager).
   if(ME && ME.is_coach && ME.coach_of){ box.style.display='none'; return; }
@@ -6183,8 +6188,8 @@ async function renderConseil(mdId, md, mine){
       const yesOn = mine2==='yes', noOn = mine2==='no';
       answerUI = `
         <div style="display:flex;gap:8px;margin-top:8px">
-          <button class="bid-btn ${yesOn?'':'ghost'}" data-prono="${q.question_id}" data-ans="yes" ${canBet?'':'disabled'} style="flex:1;margin:0;padding:8px">Oui ✅</button>
-          <button class="bid-btn ${noOn?'':'ghost'}" data-prono="${q.question_id}" data-ans="no" ${canBet?'':'disabled'} style="flex:1;margin:0;padding:8px">Non ❌</button>
+          <button class="bid-btn ${yesOn?'':'ghost'}" data-prono="${q.question_id}" data-ans="yes" ${canBet?'':'disabled'} style="flex:1;margin:0;padding:8px;display:inline-flex;align-items:center;justify-content:center;gap:5px">Oui ${I('check',14)}</button>
+          <button class="bid-btn ${noOn?'':'ghost'}" data-prono="${q.question_id}" data-ans="no" ${canBet?'':'disabled'} style="flex:1;margin:0;padding:8px;display:inline-flex;align-items:center;justify-content:center;gap:5px">Non ${I('x',14)}</button>
         </div>`;
     } else {
       answerUI = `
@@ -6200,9 +6205,9 @@ async function renderConseil(mdId, md, mine){
       const won = q.my_won;
       status = mine2==null
         ? `<div class="hint" style="font-size:.78rem;margin-top:8px">Résolu — tu n'avais pas pronostiqué.</div>`
-        : `<div style="font-size:.82rem;margin-top:8px;font-weight:700;color:${won?'#4ade80':'var(--live,#e0574a)'}">${won?`✅ Gagné ! +${q.my_payout} jetons`:'❌ Perdu'}</div>`;
+        : `<div style="font-size:.82rem;margin-top:8px;font-weight:700;color:${won?'#4ade80':'var(--live,#e0574a)'};display:flex;align-items:center;gap:5px">${won?`${I('check',14)} Gagné ! +${q.my_payout} jetons`:`${I('x',14)} Perdu`}</div>`;
     } else if(mine2!=null){
-      status = `<div class="hint" style="font-size:.78rem;margin-top:8px">Ton prono est enregistré${q.my_hidden?' (masqué 🤫)':''}. Mise : ${q.stake} jetons.</div>`;
+      status = `<div class="hint" style="font-size:.78rem;margin-top:8px">Ton prono est enregistré${q.my_hidden?` (masqué ${I('eyeOff',12)})`:''}. Mise : ${q.stake} jetons.</div>`;
     } else if(!canBet){
       status = `<div class="hint" style="font-size:.78rem;margin-top:8px">Pronostics fermés pour cette journée.</div>`;
     }
@@ -6224,10 +6229,10 @@ async function renderConseil(mdId, md, mine){
     <div class="eyebrow" style="margin-bottom:6px">${(typeof ic==='function'?ic('crystalBall',16):'')} Conseil d'avant-match</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <span class="hint" style="font-size:.82rem">Mise tes <b>jetons de flair</b> sur la journée. Gain = 2× la mise.</span>
-      <span style="font-family:'Saira',sans-serif;font-weight:800;color:var(--transfer);white-space:nowrap">🎟️ ${myTokens} jetons</span>
+      <span style="font-family:'Saira',sans-serif;font-weight:800;color:var(--transfer);white-space:nowrap;display:inline-flex;align-items:center;gap:5px">${I('ticket',14)} ${myTokens} jetons</span>
     </div>
     ${questions.map(card).join('')}
-    <button class="bid-btn ghost" id="flairRankBtn" style="width:auto;margin-top:4px;padding:7px 14px;font-size:.82rem">🏆 Classement flair</button>
+    <button class="bid-btn ghost" id="flairRankBtn" style="width:auto;margin-top:4px;padding:7px 14px;font-size:.82rem;display:inline-flex;align-items:center;gap:6px">${I('trophy',14)} Classement flair</button>
     <div id="flairRankBox" style="margin-top:12px"></div>`;
 
   // Câblage — player_over (oui/non)
@@ -6235,7 +6240,7 @@ async function renderConseil(mdId, md, mine){
     const hide = box.querySelector(`[data-prono-hide="${b.dataset.prono}"]`);
     const { error } = await api.pronoPlace(b.dataset.prono, b.dataset.ans, hide && hide.checked);
     if(error) return toast(error.message,'err');
-    toast('Prono enregistré 🔮','ok'); renderConseil(mdId, md, mine);
+    toast('Prono enregistré','ok'); renderConseil(mdId, md, mine);
   });
   // Câblage — top_score (select + valider)
   box.querySelectorAll('[data-prono-go]').forEach(b=>b.onclick=async()=>{
@@ -6244,7 +6249,7 @@ async function renderConseil(mdId, md, mine){
     const hide = box.querySelector(`[data-prono-hide="${b.dataset.pronoGo}"]`);
     const { error } = await api.pronoPlace(b.dataset.pronoGo, sel.value, hide && hide.checked);
     if(error) return toast(error.message,'err');
-    toast('Prono enregistré 🔮','ok'); renderConseil(mdId, md, mine);
+    toast('Prono enregistré','ok'); renderConseil(mdId, md, mine);
   });
   // Classement flair
   const rankBtn = box.querySelector('#flairRankBtn');
@@ -6254,7 +6259,7 @@ async function renderConseil(mdId, md, mine){
     if(!lb.length){ rb.innerHTML = '<div class="hint">Classement indisponible.</div>'; return; }
     rb.innerHTML = `<table style="width:100%"><thead><tr><th>#</th><th>Manager</th><th>Jetons</th><th>Gagnés</th></tr></thead><tbody>${
       lb.map((m,i)=>`<tr><td class="rank">${i+1}</td><td><b>${esc(m.team_name||m.display_name)}</b></td>
-        <td style="font-family:'Saira';font-weight:700">🎟️ ${m.flair_tokens}</td>
+        <td style="font-family:'Saira';font-weight:700"><span style="display:inline-flex;align-items:center;gap:4px">${I('ticket',13)} ${m.flair_tokens}</span></td>
         <td style="color:var(--muted)">${m.won}/${m.played}</td></tr>`).join('')
     }</tbody></table>`;
   };
@@ -8069,7 +8074,7 @@ async function promptReminder(whenIso, label){
   md.querySelectorAll('[data-rem]').forEach(b=>b.onclick=()=>{
     const fireAt = new Date(target - Number(b.dataset.rem)*60000);
     if(remAdd('Bientôt : '+label, fireAt)){
-      toast('Rappel programmé ✓','ok');
+      toast('Rappel programmé','ok');
       close(); renderCalendar();
     }
   });
@@ -8595,9 +8600,9 @@ function remFireNotice(r){
   // Notification système si autorisée, sinon toast dans l'app.
   if(('Notification' in window) && Notification.permission==='granted'){
     try { const n=new Notification('⏰ Rappel — Ultimate Squad', { body:r.label, icon:'icon-192.png', tag:r.id }); n.onclick=()=>{ window.focus(); n.close(); }; }
-    catch(e){ toast('⏰ '+r.label, 'info', 6000); }
+    catch(e){ toast(r.label, 'info', 6000); }
   } else {
-    toast('⏰ '+r.label, 'info', 6000);
+    toast(r.label, 'info', 6000);
   }
 }
 function remCheck(){
@@ -8730,7 +8735,7 @@ function renderNotifPanel(){
     b.disabled = true;
     const { error } = await api.acceptTrade(b.dataset.ntradeOk);
     if(error){ b.disabled=false; toast('Échec : '+error.message,'err',4000); return; }
-    toast('Échange accepté ✅','ok',3000);
+    toast('Échange accepté','ok',3000);
     await loadNotifications(); renderNotifPanel();
     if(CURRENT_VIEW==='market') renderMarket();
   });
