@@ -960,6 +960,7 @@
         <button data-v="rank" data-ic="trophy">Classement</button>
         <button data-v="feed" data-ic="megaphone">Actu</button>
         <button data-v="chat" id="chatMenuBtn" data-ic="chat">Chat <span id="chatMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
+        <button data-v="messages" id="dmMenuBtn" data-ic="mail">Messages <span id="dmMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
         <button data-v="pronos" data-ic="dice">Pronos</button>
         <button data-v="achievements" data-ic="medal">Succès</button>
         <button data-v="mystats" data-ic="chart">Mes stats</button>
@@ -1302,7 +1303,7 @@
     <div id="priorityPanel" style="display:none"></div>
     <!-- Fil speaker : commentaire live du marché -->
     <div id="speaker" class="speaker" style="display:none">
-      <div class="sp-head"><span class="sp-dot"></span>🎙️ Le direct du marché</div>
+      <div class="sp-head"><span class="sp-dot"></span><span data-ic="mic" style="vertical-align:-2px;margin-right:4px"></span>Le direct du marché</div>
       <div id="speakerFeed"></div>
     </div>
     <div id="aucFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
@@ -1339,7 +1340,7 @@
     <div id="squadReport" class="card" style="display:none;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:18px"></div>
     <!-- Relevé personnel : achats, ventes, bonus, taxes… -->
     <details id="myLedger" class="ledger" style="display:none">
-      <summary class="ledger-sum"><span>📒 Mon relevé de transactions</span><span class="ledger-hint" id="ledgerHint"></span></summary>
+      <summary class="ledger-sum"><span><span data-ic="book" style="vertical-align:-2px;margin-right:5px"></span>Mon relevé de transactions</span><span class="ledger-hint" id="ledgerHint"></span></summary>
       <div id="ledgerBody"></div>
     </details>
     <!-- Identité d'équipe (nom + couleurs), Manager seulement -->
@@ -1363,7 +1364,7 @@
       <div id="tiResult" style="margin-top:8px;font-size:.85rem"></div>
     </div>
     <a class="tm-link" href="https://www.transfermarkt.com/spieler-statistik/wertvollstespieler/marktwertetop" target="_blank" rel="noopener noreferrer">
-      <span class="tm-ic">📊</span>
+      <span class="tm-ic" data-ic="chart"></span>
       <span class="tm-txt"><b>Vérifie la valeur réelle des joueurs</b> — les cotes du marché sur Transfermarkt pour affiner tes enchères.</span>
       <span class="tm-arrow">↗</span>
     </a>
@@ -1457,7 +1458,7 @@
 
     <!-- Journal des échanges entre managers -->
     <details id="tradesLogWrap" style="margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:var(--pitch-2);overflow:hidden">
-      <summary style="cursor:pointer;padding:12px 16px;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1rem;color:var(--chalk)">🤝 Journal des échanges</summary>
+      <summary style="cursor:pointer;padding:12px 16px;font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1rem;color:var(--chalk);display:flex;align-items:center;gap:7px"><span data-ic="handshake"></span>Journal des échanges</summary>
       <div id="tradesLogList" style="padding:4px 16px 14px"></div>
     </details>
 
@@ -1484,6 +1485,17 @@
     </div>
   </section>
 
+  <!-- MESSAGES PRIVÉS (DM) -->
+  <section class="view" id="messages">
+    <div class="eyebrow">Tes conversations privées</div>
+    <h1>Mes <em>messages</em></h1>
+    <div id="dmGate" style="display:none" class="empty">Connecte-toi pour accéder à tes messages.</div>
+    <div id="dmUI" style="display:none">
+      <p class="hint" style="font-size:.82rem;margin-bottom:14px">Échange en privé avec un autre manager. Pour démarrer une nouvelle conversation, ouvre le profil d'un manager (depuis le classement ou le chat) puis « Envoyer un message ».</p>
+      <div id="dmConvList"><div class="empty">Chargement…</div></div>
+    </div>
+  </section>
+
   <!-- PRONOSTICS -->
   <!-- MES STATISTIQUES (bilan de performance) -->
   <section class="view" id="mystats">
@@ -1496,7 +1508,7 @@
     <div id="bilanWrap" style="margin-top:24px">
       <h3 class="rule-h" data-ic="flag" style="margin-bottom:12px">Mon bilan de mercato</h3>
       <div id="bilanCard" style="max-width:520px"></div>
-      <button class="bid-btn" id="bilanShare" style="max-width:520px;margin-top:12px;display:none">📤 Partager mon bilan</button>
+      <button class="bid-btn" id="bilanShare" data-ic="share" style="max-width:520px;margin-top:12px;display:none;align-items:center;justify-content:center">Partager mon bilan</button>
     </div>
   </section>
 
@@ -1530,7 +1542,7 @@
     <div id="pronosUI" style="display:none">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:18px">
         <div style="font-size:.9rem">Ton capital : <b id="pronosCapital" style="color:var(--transfer)">—</b> pts</div>
-        <button id="pronosRankBtn" class="btn-ghost btn-sm" style="font-size:.8rem">🏆 Classement pronostiqueurs</button>
+        <button id="pronosRankBtn" class="btn-ghost btn-sm" data-ic="trophy" style="font-size:.8rem;display:inline-flex;align-items:center;gap:5px">Classement pronostiqueurs</button>
       </div>
       <div id="pronosList"></div>
       <div id="pronosRank" style="display:none;margin-top:18px"></div>
@@ -1542,7 +1554,7 @@
     <div class="eyebrow">La répartition de début de saison</div>
     <h1>Le <em>draft</em></h1>
     <details style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:12px 16px;margin-bottom:18px">
-      <summary style="cursor:pointer;font-weight:800;color:var(--transfer)">❓ C'est quoi le draft ?</summary>
+      <summary style="cursor:pointer;font-weight:800;color:var(--transfer);display:flex;align-items:center;gap:6px"><span data-ic="help"></span>C'est quoi le draft ?</summary>
       <div style="margin-top:10px;font-size:.9rem;line-height:1.6;color:var(--chalk)">
         <p style="margin:0 0 8px;padding:8px 10px;background:rgba(224,168,0,.1);border-radius:8px"><b>Mode secondaire, optionnel.</b> Le mercato se joue normalement <b>aux enchères</b> — c'est elles qui départagent les coachs qui visent le même joueur. Le draft n'est utilisé que si l'organisateur décide ponctuellement de répartir des joueurs autrement (saison détente, dépannage).</p>
         <p style="margin:0 0 8px">Son principe : <b>sans argent, à tour de rôle</b>. Chacun pioche un joueur libre quand vient son tour, attribué <b>gratuitement</b>. L'ordre est tiré au sort et s'inverse à chaque tour (format <b>serpent</b> : 1→2→3 puis 3→2→1).</p>
@@ -2226,7 +2238,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records','palmares'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records','palmares'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -2244,7 +2256,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -6031,6 +6043,9 @@ async function openDM(otherId, otherName){
   const close = ()=>{
     ov.style.display='none';
     try { if(DM_SUB && DM_SUB.unsubscribe){ DM_SUB.unsubscribe(); } DM_SUB=null; } catch(e){}
+    // Le fil a été marqué lu : on rafraîchit la pastille et, si ouvert, la liste.
+    try { if(typeof refreshDmBadge==='function') refreshDmBadge(); } catch(e){}
+    try { if(CURRENT_VIEW==='messages' && typeof renderMessages==='function') renderMessages(); } catch(e){}
   };
   document.getElementById('dmCloseBtn').onclick = close;
 }
@@ -7548,6 +7563,68 @@ async function refreshChatBadge(){
   }
 }
 
+// ---------- Messagerie privée : onglet « Messages » + pastille non-lus ----------
+let DM_RT_CHANNEL = null;
+function updateDmBadge(n){
+  const badge = $('dmMenuBadge');
+  if(badge){
+    if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+    else badge.style.display='none';
+  }
+  const dmBtn = $('dmMenuBtn');
+  if(dmBtn) dmBtn.classList.toggle('live-pulse', n>0);
+  const more = $('tabMore');
+  // L'onglet Plus pulse s'il reste du non-lu (chat ou DM) et qu'on n'est pas dessus.
+  if(more && CURRENT_VIEW!=='messages' && CURRENT_VIEW!=='chat') {
+    const anyUnread = n>0 || (typeof CHAT_NOTIF!=='undefined' && CHAT_NOTIF.length>0);
+    more.classList.toggle('live-pulse', anyUnread);
+  }
+}
+async function refreshDmBadge(){
+  if(!ME){ updateDmBadge(0); return; }
+  let n = 0;
+  try { n = await api.dmUnreadCount(); } catch(e){ return; }
+  updateDmBadge(n);
+}
+// Démarre l'abonnement temps réel DM (global, pour la pastille même hors onglet).
+function startDmRealtime(){
+  if(DM_RT_CHANNEL || !ME) return;
+  try {
+    DM_RT_CHANNEL = api.subscribeDM(async ()=>{
+      if(CURRENT_VIEW==='messages'){ await renderMessages(); }
+      else { await refreshDmBadge(); }
+    });
+  } catch(e){}
+}
+async function renderMessages(){
+  if(!ME){ $('dmGate').style.display='block'; $('dmUI').style.display='none'; return; }
+  $('dmGate').style.display='none'; $('dmUI').style.display='block';
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const box = $('dmConvList'); if(!box) return;
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  let convs = [];
+  try { convs = await api.dmConversations(); } catch(e){ convs = []; }
+  box.innerHTML = convs.length ? convs.map(c=>{
+    const t = new Date(c.last_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const preview = (c.last_is_mine?'Toi : ':'') + (c.last_body||'');
+    const unread = Number(c.unread)||0;
+    const badge = unread>0 ? `<span style="background:var(--live);color:#fff;font-size:.68rem;font-weight:800;padding:1px 8px;border-radius:9px;flex-shrink:0">${unread>99?'99+':unread}</span>` : '';
+    return `<div data-dmopen="${c.other_id}" data-name="${esc(c.other_name).replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--pitch-2);cursor:pointer">
+      <span style="flex-shrink:0;display:inline-flex;color:${c.other_color||'var(--transfer)'}">${I('chat',18)}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.92rem;color:var(--chalk)">${esc(c.other_name)}</div>
+        <div style="font-size:.78rem;color:${unread>0?'var(--chalk)':'var(--muted)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preview)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+        <span style="font-size:.68rem;color:var(--muted)">${t}</span>${badge}
+      </div>
+    </div>`;
+  }).join('') : '<div class="empty">Aucune conversation pour le moment. Ouvre le profil d\'un manager pour lui écrire.</div>';
+  box.querySelectorAll('[data-dmopen]').forEach(el=>el.onclick=()=>openDM(el.dataset.dmopen, el.dataset.name));
+  // On a (r)ouvert l'onglet : les non-lus affichés se résorbent au fil des ouvertures.
+  await refreshDmBadge();
+}
+
 async function renderChat(){
   if(!ME){ $('chatGate').style.display='block'; $('chatUI').style.display='none'; return; }
   $('chatGate').style.display='none'; $('chatUI').style.display='block';
@@ -7740,6 +7817,8 @@ async function renderAchievements(){
 // Calcule, côté client, les points par journée, les meilleurs contributeurs
 // de l'effectif, la régularité de compo et le meilleur coup au mercato.
 async function renderMyStats(){
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const H=(n)=>`<span style="display:inline-flex;vertical-align:-.12em;margin-right:6px">${I(n,16)}</span>`;
   const gate=$('mystatsGate'), body=$('mystatsBody'); if(!body) return;
   if(!ME){ if(gate) gate.style.display='block'; body.innerHTML=''; return; }
   if(gate) gate.style.display='none';
@@ -7784,7 +7863,7 @@ async function renderMyStats(){
   // Courbe des points par journée (réutilise sparkline)
   const curveData = byMd.map(x=>({ value:x.total }));
   const curve = `<div class="ms-block">
-    <div class="ms-h">📈 Points par journée</div>
+    <div class="ms-h">${H('trendingUp')}Points par journée</div>
     ${byMd.length>=2
       ? `<div style="background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:10px">${sparkline(curveData)}</div>
          ${bestMd?`<div style="text-align:center;font-size:.82rem;color:var(--muted);margin-top:8px">Meilleure journée : <b style="color:var(--transfer)">${bestMd.label}</b> avec ${bestMd.total.toFixed(1)} pts</div>`:''}`
@@ -7809,7 +7888,7 @@ async function renderMyStats(){
                  : delta<0 ? `<span style="color:var(--live,#e0574a)">▼ ${delta} place${delta<-1?'s':''}</span>`
                  : `<span style="color:var(--muted)">= stable</span>`;
     trajectory = `<div class="ms-block">
-      <div class="ms-h">🧭 Ta trajectoire de classement</div>
+      <div class="ms-h">${H('compass')}Ta trajectoire de classement</div>
       <div style="background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:12px">
         <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" style="display:block">
           <polyline points="${pts}" fill="none" stroke="var(--transfer)" stroke-width="2" stroke-linejoin="round"/>
@@ -7830,7 +7909,7 @@ async function renderMyStats(){
 
   // Top contributeurs de l'effectif
   const top = `<div class="ms-block">
-    <div class="ms-h">⭐ Tes meilleurs joueurs (saison)</div>
+    <div class="ms-h">${H('star')}Tes meilleurs joueurs (saison)</div>
     ${topPlayers.length
       ? topPlayers.map(([name,pts],i)=>`<div class="ms-trow"><span class="r">${i+1}</span><span class="n">${name}</span><span class="p">${pts.toFixed(1)} pts</span></div>`).join('')
       : '<div class="ms-empty">Aucune note enregistrée pour l\'instant.</div>'}
@@ -7838,7 +7917,7 @@ async function renderMyStats(){
 
   // Meilleur coup au mercato
   const deal = (best && best.player_name) ? `<div class="ms-block">
-    <div class="ms-h">🚀 Ton meilleur coup au mercato</div>
+    <div class="ms-h">${H('rocket')}Ton meilleur coup au mercato</div>
     <div style="font-size:.9rem"><b>${best.player_name}</b> — acheté ${fmtMoney(best.bought)}, vaut ${fmtMoney(best.current_value)}
       <b style="color:${Number(best.gain)>=0?'#4ade80':'var(--live,#e0574a)'}">(${Number(best.gain)>=0?'+':''}${fmtMoney(best.gain)})</b></div>
   </div>` : '';
@@ -7875,8 +7954,8 @@ async function renderBilan(managerId){
       ${line('Budget restant', M(b.budget_remaining))}
       ${line('Masse salariale', M(b.salary_total))}
       ${line('Points de classement', `${b.season_points||0} pts`)}
-      ${b.best_player ? line('🏆 Meilleur coup', `${b.best_player} (${Number(b.best_gain)>=0?'+':''}${M(b.best_gain)})`, gainCol) : ''}
-      ${b.top_player ? line('💸 Plus grosse dépense', `${b.top_player} (${M(b.top_price)})`) : ''}
+      ${b.best_player ? line(`${H('trophy')}Meilleur coup`, `${b.best_player} (${Number(b.best_gain)>=0?'+':''}${M(b.best_gain)})`, gainCol) : ''}
+      ${b.top_player ? line(`${H('banknote')}Plus grosse dépense`, `${b.top_player} (${M(b.top_price)})`) : ''}
     </div>`;
   if(btn){ btn.style.display='block'; btn.onclick = ()=>shareBilan(b); }
 }
@@ -8480,6 +8559,7 @@ async function init(){
   renderAuctions();
   startRealtime();
   if(ME){ startChatRealtime(); refreshChatBadge().then(()=>{ if(CHAT_NOTIF.length){ loadNotifications(); } }); }
+  if(ME){ startDmRealtime(); refreshDmBadge(); }
   refreshDraftMenu();
   if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
   remCheck();                     // déclenche les rappels échus au démarrage
