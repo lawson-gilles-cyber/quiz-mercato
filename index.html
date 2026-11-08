@@ -975,8 +975,8 @@
       </div>
     </div>
   </nav>
-  <div class="wallet" id="walletBox"><small><span class="lbl-long">💰 BUDGET DISPO</span><span class="lbl-short">💰 BUDGET</span></small><span id="wallet">—</span></div>
-  <div class="wallet" id="salaryBox" style="display:none"><small><span class="lbl-long">⚖️ MASSE SALARIALE</span><span class="lbl-short">⚖️ SALAIRE</span></small><span id="walletSalary">—</span></div>
+  <div class="wallet" id="walletBox"><small><span data-ic="coins" style="vertical-align:-2px;margin-right:4px"></span><span class="lbl-long">BUDGET DISPO</span><span class="lbl-short">BUDGET</span></small><span id="wallet">—</span></div>
+  <div class="wallet" id="salaryBox" style="display:none"><small><span data-ic="scale" style="vertical-align:-2px;margin-right:4px"></span><span class="lbl-long">MASSE SALARIALE</span><span class="lbl-short">SALAIRE</span></small><span id="walletSalary">—</span></div>
   <button id="searchBtn" data-ic="search" title="Recherche globale" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)"></button>
   <button id="themeBtn" title="Thème clair / sombre / auto" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)">🌓</button>
   <button id="bellBtn" data-ic="bell" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem"><span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
@@ -1012,7 +1012,7 @@
 <div id="announceModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:200;align-items:center;justify-content:center;padding:20px">
   <div style="background:var(--pitch);border:1px solid var(--transfer);border-radius:16px;padding:0;width:420px;max-width:94vw;max-height:88vh;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)">
     <div style="background:linear-gradient(135deg,rgba(245,197,66,.22),transparent);padding:18px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px">
-      <span style="font-size:1.5rem">📣</span>
+      <span data-ic="megaphone" style="color:var(--transfer)"></span>
       <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1.5px;font-size:.78rem;color:var(--transfer);font-weight:800">Annonce de l'organisation</div>
     </div>
     <div style="padding:22px">
@@ -1175,7 +1175,7 @@
     <!-- Place de marché (vitrine des échanges) -->
     <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px">
-        <div style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem">🏪 Place de marché</div>
+        <div data-ic="store" style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;display:flex;align-items:center">Place de marché</div>
         <span id="marketCount" style="font-size:.78rem;color:var(--muted)"></span>
       </div>
       <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Les joueurs que les autres managers proposent à l'échange. Clique pour lancer une proposition.</p>
@@ -2408,6 +2408,7 @@ $('doLogin').onclick = async ()=>{
 
 // ---------- Rendu carte joueur ----------
 function playerCard(p){
+  const I = (typeof ic==='function')?ic:(()=>'');
   const r=rarity(p.current_value);
   const owned=p.status!=='free';
   const ownerName = p.owner?.display_name ?? null;
@@ -2423,8 +2424,8 @@ function playerCard(p){
       <div class="val">${fmtMoney(p.current_value)}<small>VALEUR DE MARCHÉ</small></div>
       ${scoutSheet(p)}
       ${(ME && p.owner_id===ME.id)
-        ? `<div class="owner">Ton joueur${p.for_trade?' · <span style="color:var(--transfer)">🏪 en vitrine</span>':''}</div>
-           <button class="bid-btn trade-toggle${p.for_trade?' on':''}" data-trade="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" data-on="${p.for_trade?1:0}" data-ask="${p.asking_price||''}" style="margin-top:6px">${p.for_trade?'🏪 Retirer de la vitrine':'🏪 Proposer à l\'échange'}</button>
+        ? `<div class="owner">Ton joueur${p.for_trade?' · <span style="color:var(--transfer);display:inline-flex;align-items:center;gap:4px">'+I('store',13)+' en vitrine</span>':''}</div>
+           <button class="bid-btn trade-toggle${p.for_trade?' on':''}" data-trade="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" data-on="${p.for_trade?1:0}" data-ask="${p.asking_price||''}" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;justify-content:center">${I('store',15)} ${p.for_trade?'Retirer de la vitrine':'Proposer à l\'échange'}</button>
            <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e;margin-top:6px">Libérer</button>
            <button class="bid-btn" data-injury="${p.id}" data-iname="${(p.name||'').replace(/"/g,'&quot;')}" style="background:transparent;border:1px solid var(--line);color:var(--muted);margin-top:6px">Déclarer blessé</button>`
         : owned
@@ -2473,27 +2474,28 @@ function valueForMoney(p){
     'vert-clair': [45, 105],  // Bon
     'vert-vif':   [90, 185]   // Élite
   };
+  const I = (typeof ic==='function')?ic:(()=>'');
   const [lo, hi] = BANDS[p.note_color] || [0, 200];
   const mid = (lo+hi)/2;
   const priceM = Number(p.current_value)/1e6;
   // Position du prix dans/hors de la fourchette attendue.
   let verdict, vcol, icon, pos;
-  if(priceM <= lo){           verdict='Affaire';  vcol='#4ade80'; icon='💎'; pos=12; }
-  else if(priceM < mid){      verdict='Bon prix'; vcol='#7bc96f'; icon='👍'; pos=35; }
-  else if(priceM <= hi){      verdict='Prix juste';vcol='var(--transfer)'; icon='⚖️'; pos=62; }
-  else if(priceM <= hi*1.25){ verdict='Un peu cher';vcol='#fb923c'; icon='💸'; pos=84; }
-  else {                      verdict='Surcoté';  vcol='#e0574a'; icon='⚠️'; pos=96; }
+  if(priceM <= lo){           verdict='Affaire';  vcol='#4ade80'; icon=I('gem',15); pos=12; }
+  else if(priceM < mid){      verdict='Bon prix'; vcol='#7bc96f'; icon=I('thumbUp',15); pos=35; }
+  else if(priceM <= hi){      verdict='Prix juste';vcol='var(--transfer)'; icon=I('scale',15); pos=62; }
+  else if(priceM <= hi*1.25){ verdict='Un peu cher';vcol='#fb923c'; icon=I('banknote',15); pos=84; }
+  else {                      verdict='Surcoté';  vcol='#e0574a'; icon=I('warning',15); pos=96; }
   return `<div style="background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px">
-      <span style="font-weight:800;font-size:.9rem">💰 Rapport qualité / prix</span>
-      <span style="font-weight:800;color:${vcol};font-size:.9rem">${icon} ${verdict}</span>
+      <span style="font-weight:800;font-size:.9rem;display:inline-flex;align-items:center;gap:6px">${I('coins',16)} Rapport qualité / prix</span>
+      <span style="font-weight:800;color:${vcol};font-size:.9rem;display:inline-flex;align-items:center;gap:5px">${icon} ${verdict}</span>
     </div>
     <div style="position:relative;height:10px;border-radius:6px;overflow:hidden;
       background:linear-gradient(90deg,#4ade80,#7bc96f 30%,#e0a800 60%,#fb923c 82%,#e0574a)">
       <span style="position:absolute;top:-4px;left:calc(${pos}% - 9px);width:3px;height:18px;border-radius:2px;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.35)"></span>
     </div>
     <div style="display:flex;justify-content:space-between;font-size:.66rem;color:var(--muted);margin-top:5px;text-transform:uppercase;letter-spacing:.5px">
-      <span>💎 Affaire</span><span>⚖️ Juste</span><span>⚠️ Surcoté</span>
+      <span style="display:inline-flex;align-items:center;gap:4px">${I('gem',12)} Affaire</span><span style="display:inline-flex;align-items:center;gap:4px">${I('scale',12)} Juste</span><span style="display:inline-flex;align-items:center;gap:4px">${I('warning',12)} Surcoté</span>
     </div>
     <div style="font-size:.74rem;color:var(--muted);margin-top:8px">Qualité estimée : <b style="color:${tier.c}">${tier.label}</b> · prix actuel <b>${fmtMoney(p.current_value)}</b>${p.note!=null?'':' <span style="font-style:italic">(note exacte cachée avant l\'achat)</span>'}</div>
   </div>`;
@@ -2724,6 +2726,7 @@ function applyMarketStateUI(){
 }
 
 async function renderMarketplace(){
+  const I = (typeof ic==='function')?ic:(()=>'');
   const list = $('marketList'); if(!list) return;
   try { MARKET_LISTINGS = await api.marketListings(); } catch(e){ MARKET_LISTINGS = []; }
   applyMarketFilters();
@@ -2758,7 +2761,7 @@ async function renderOffersReceived(){
       </div>`;
     }).join('');
     return `<div style="margin-bottom:12px">
-      <div style="font-weight:700;color:var(--chalk);margin-bottom:2px">🏪 ${g.name} <span style="color:var(--muted);font-size:.76rem">· ${g.items.length} offre${g.items.length>1?'s':''}</span></div>
+      <div style="font-weight:700;color:var(--chalk);margin-bottom:2px;display:flex;align-items:center;gap:5px">${I('store',15)} ${g.name} <span style="color:var(--muted);font-size:.76rem">· ${g.items.length} offre${g.items.length>1?'s':''}</span></div>
       ${rows}
     </div>`;
   }).join('');
