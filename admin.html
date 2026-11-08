@@ -923,6 +923,54 @@
       <div id="champFixResult" style="margin-top:8px"></div>
     </div>
 
+    <!-- Modifier l'identité d'un joueur (prénom, nom, club) -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>✏️ Modifier le nom / le club d'un joueur</label>
+      <input id="idn_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
+      <div id="idn_results" style="margin-top:4px"></div>
+      <input id="idn_player_id" type="hidden">
+      <div id="idn_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+      <div class="row c3" style="margin-top:8px;align-items:end">
+        <div><label>Prénom</label><input id="idn_first" placeholder="(inchangé si vide)"></div>
+        <div><label>Nom</label><input id="idn_name" placeholder="(inchangé si vide)"></div>
+        <div><label>Club</label><input id="idn_club" list="clubsDatalistAdmin" placeholder="(inchangé si vide)"></div>
+      </div>
+      <datalist id="clubsDatalistAdmin"></datalist>
+      <div style="margin-top:8px"><button class="btn-primary" id="btnFixIdentity">Enregistrer</button></div>
+      <p class="hint">Corrige une faute de saisie sur le prénom, le nom ou le club d'un joueur, même déjà détenu. Laisse un champ vide pour ne pas le modifier.</p>
+      <div id="idnResult" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Modifier le prix de départ -> masse salariale -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>💵 Modifier le prix de départ d'un joueur (→ ajuste son salaire)</label>
+      <input id="bval_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
+      <div id="bval_results" style="margin-top:4px"></div>
+      <input id="bval_player_id" type="hidden">
+      <div id="bval_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+      <div class="row c2" style="margin-top:8px;align-items:end">
+        <div><label>Prix de départ (M€)</label><input id="bval_amount" type="number" min="0" step="0.5" placeholder="ex. 60"></div>
+        <div><button class="btn-primary" id="btnSetBaseValue" style="width:100%">Appliquer</button></div>
+      </div>
+      <p class="hint">La <b>masse salariale</b> d'un joueur dépend désormais de son <b>prix de départ</b> (base_value) : ≥180M→15M, ≥100M→10M, ≥50M→6M, ≥20M→3M, sinon 1M. Modifier le prix de départ recalcule automatiquement son salaire selon cette grille.</p>
+      <div id="bvalResult" style="margin-top:8px"></div>
+    </div>
+
+    <!-- Attribuer un joueur à un manager (cas Koundé) -->
+    <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
+      <label>➕ Attribuer un joueur (libre) à un manager</label>
+      <input id="asg_search" type="text" placeholder="Tape un nom de joueur libre…" autocomplete="off" style="width:100%;margin-top:6px">
+      <div id="asg_results" style="margin-top:4px"></div>
+      <input id="asg_player_id" type="hidden">
+      <div id="asg_chosen" style="margin-top:6px;font-size:.85rem;color:var(--transfer)"></div>
+      <div class="row c2" style="margin-top:8px;align-items:end">
+        <div><select id="asg_manager"><option value="">— manager —</option></select></div>
+        <div><button class="btn-primary" id="btnAssignPlayer" style="width:100%">Attribuer (gratuit)</button></div>
+      </div>
+      <p class="hint">Place un joueur <b>libre</b> dans l'effectif d'un manager, gratuitement (cas d'un joueur manquant comme Jules Koundé). Respecte les limites d'effectif (24 / 3 gardiens / 3 par club / 6 par championnat), sinon c'est refusé.</p>
+      <div id="asgResult" style="margin-top:8px"></div>
+    </div>
+
     <!-- Forcer un bonus dénicheur -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
       <label>Forcer un bonus dénicheur (10 % du prix, plafonné à 20 M€)</label>
@@ -966,6 +1014,15 @@
     <table>
       <thead><tr><th>Date</th><th>Joueur</th><th>De</th><th>Vers</th><th>Prix</th></tr></thead>
       <tbody id="txRows"><tr><td colspan="5" class="hint" style="text-align:center;padding:20px">Aucune transaction.</td></tr></tbody>
+    </table>
+  </div>
+
+  <!-- Historique des échanges entre managers -->  <h2>Historique des échanges entre managers</h2>
+  <div class="card">
+    <p class="hint" style="margin-bottom:14px">Tous les échanges proposés entre managers, avec le cash, les <b>commissions</b> appliquées et le statut. Pour chaque échange accepté, la colonne « versements » montre ce que chaque camp a payé/reçu (cash + commissions) — pratique pour vérifier qu'un versement a bien été effectué.</p>
+    <table>
+      <thead><tr><th>Date</th><th>Initiateur</th><th>Destinataire</th><th>Offre</th><th>Demande</th><th>Cash</th><th>Versements</th><th>Statut</th></tr></thead>
+      <tbody id="tradesRows"><tr><td colspan="8" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
     </table>
   </div>
 
@@ -1171,7 +1228,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1185,7 +1242,7 @@ const ADMIN_TABS = [
       "Vue d'ensemble","Santé du mercato","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
-      "Historique des transactions","Enchères clôturées","Acquisitions reportées","Libérations & pénalités","Historique des propositions"] },
+      "Historique des transactions","Historique des échanges entre managers","Enchères clôturées","Acquisitions reportées","Libérations & pénalités","Historique des propositions"] },
   { id:'joueurs', label:'⚽ Joueurs', titles:[
       "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
   { id:'managers', label:'👥 Managers', titles:[
@@ -1577,8 +1634,49 @@ async function loadClubList(){
   if(!dl || typeof api.clubList!=='function') return;
   try{
     const rows = await api.clubList();
-    dl.innerHTML = (rows||[]).map(c=>`<option value="${(c.club||'').replace(/"/g,'&quot;')}">${c.nb} joueur${c.nb>1?'s':''}</option>`).join('');
+    const html = (rows||[]).map(c=>`<option value="${(c.club||'').replace(/"/g,'&quot;')}">${c.nb} joueur${c.nb>1?'s':''}</option>`).join('');
+    dl.innerHTML = html;
+    if($('clubsDatalistAdmin')) $('clubsDatalistAdmin').innerHTML = html;  // champ « modifier le club »
   }catch(e){ /* best-effort : l'autocomplétion n'est pas bloquante */ }
+}
+
+// Historique des échanges entre managers (admin).
+async function loadTradesHistory(){
+  if(!$('tradesRows')) return;
+  let rows = [];
+  try { rows = await api.adminTradesHistory(300); } catch(e){}
+  const stLabel = {pending:'En attente', accepted:'Accepté', refused:'Refusé', cancelled:'Annulé'};
+  const stColor = {pending:'var(--transfer)', accepted:'#4ade80', refused:'#e0574a', cancelled:'var(--muted)'};
+  paginate('tradesRows', rows, t=>{
+    const d = new Date(t.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    const cash = Number(t.cash_from_to)||0;
+    const cashTxt = cash>0 ? `${t.from_manager} → ${t.to_manager} : ${fmtM(cash)}`
+                  : cash<0 ? `${t.to_manager} → ${t.from_manager} : ${fmtM(-cash)}`
+                  : '—';
+    // Versements (commissions + cash) côté accepté
+    let vers = '—';
+    if(t.status==='accepted'){
+      const fp = Number(t.from_pays)||0, tp = Number(t.to_pays)||0, fg = Number(t.from_gets)||0, tg = Number(t.to_gets)||0;
+      const parts = [];
+      if(cash>0) parts.push(`${t.from_manager} verse ${fmtM(cash)} cash`);
+      if(cash<0) parts.push(`${t.to_manager} verse ${fmtM(-cash)} cash`);
+      if(tp>0) parts.push(`${t.to_manager} paie ${fmtM(tp)} comm.`);
+      if(fp>0) parts.push(`${t.from_manager} paie ${fmtM(fp)} comm.`);
+      if(fg>0) parts.push(`${t.from_manager} touche ${fmtM(fg)}`);
+      if(tg>0) parts.push(`${t.to_manager} touche ${fmtM(tg)}`);
+      vers = parts.length ? parts.join(' · ') : 'Aucun flux';
+    }
+    return `<tr>
+      <td class="hint">${d}</td>
+      <td><b>${t.from_manager||'?'}</b></td>
+      <td><b>${t.to_manager||'?'}</b></td>
+      <td>${t.offer_players||'—'}</td>
+      <td>${t.ask_players||'—'}</td>
+      <td class="val">${cashTxt}</td>
+      <td style="font-size:.78rem;color:var(--muted)">${vers}</td>
+      <td><span style="color:${stColor[t.status]||'var(--muted)'};font-weight:700">${stLabel[t.status]||t.status}</span></td>
+    </tr>`;
+  }, 8, 'Aucun échange enregistré.');
 }
 
 // Applique la recherche + le filtre de statut, puis rend le tableau.
@@ -2077,6 +2175,7 @@ async function loadAdminTools(){
   $('ex_manager').innerHTML = mgrOpts;
   $('sb_manager').innerHTML = mgrOpts;
   if($('ml_manager')) $('ml_manager').innerHTML = mgrOpts;
+  if($('asg_manager')) $('asg_manager').innerHTML = mgrOpts;
 
   // Enchères ouvertes (exemption de taxe + annulation).
   const aucs = await api.listOpenAuctions();
@@ -2217,6 +2316,83 @@ if($('btnFixPosition')) $('btnFixPosition').onclick = async ()=>{
     }, 250);
   };
 })();
+// Helper réutilisable : branche une recherche de joueur (champ texte -> liste
+// -> stocke l'id dans un champ caché). onPick(player) optionnel.
+function wirePlayerSearch(searchId, resultsId, hiddenId, chosenId, opts){
+  const search = $(searchId); if(!search) return;
+  opts = opts || {};
+  let t = null;
+  search.oninput = ()=>{
+    clearTimeout(t); const q = search.value;
+    t = setTimeout(async ()=>{
+      const box = $(resultsId);
+      if((q||'').trim().length < 2){ box.innerHTML=''; return; }
+      let res = [];
+      try { res = await api.searchPlayersByName(q); } catch(e){}
+      if(opts.freeOnly) res = res.filter(p=>!p.owner_id);
+      box.innerHTML = res.map(p=>`<button type="button" class="btn-ghost btn-sm" data-pid="${p.id}" data-pname="${(p.name||'').replace(/"/g,'&quot;')}" data-pclub="${(p.club||'').replace(/"/g,'&quot;')}" style="display:block;width:100%;text-align:left;margin:3px 0">${p.first_name?p.first_name+' ':''}${p.name} <span style="color:var(--muted)">· ${p.club||'—'}${p.owner_id?' · détenu':' · libre'}</span></button>`).join('')
+        || '<p class="hint" style="font-size:.8rem">Aucun joueur trouvé.</p>';
+      box.querySelectorAll('[data-pid]').forEach(b=>b.onclick=()=>{
+        $(hiddenId).value = b.dataset.pid;
+        if(chosenId) $(chosenId).textContent = `✓ ${b.dataset.pname} (${b.dataset.pclub||'—'})`;
+        box.innerHTML = '';
+        search.value = b.dataset.pname;
+        if(opts.onPick) opts.onPick(b.dataset);
+      });
+    }, 250);
+  };
+}
+
+// 3) Modifier l'identité (prénom / nom / club)
+wirePlayerSearch('idn_search','idn_results','idn_player_id','idn_chosen', { onPick:(d)=>{
+  if($('idn_name')) $('idn_name').value = d.pname || '';
+  if($('idn_club')) $('idn_club').value = d.pclub || '';
+}});
+if($('btnFixIdentity')) $('btnFixIdentity').onclick = async ()=>{
+  const out = $('idnResult'); const pid = $('idn_player_id').value;
+  if(!pid) return showMsg(out,'Choisis d’abord un joueur.');
+  const r = await api.adminSetPlayerIdentity(pid,
+    $('idn_first').value, $('idn_name').value, $('idn_club').value);
+  if(r.error) return showMsg(out, r.error.message);
+  showMsg(out, 'Identité mise à jour.', true);
+  $('idn_player_id').value=''; $('idn_chosen').textContent=''; $('idn_search').value='';
+  $('idn_first').value=''; $('idn_name').value=''; $('idn_club').value='';
+  if(typeof loadPlayers==='function') loadPlayers();
+  if(typeof loadAdminActions==='function') loadAdminActions();
+};
+
+// 4) Modifier le prix de départ -> salaire
+wirePlayerSearch('bval_search','bval_results','bval_player_id','bval_chosen');
+if($('btnSetBaseValue')) $('btnSetBaseValue').onclick = async ()=>{
+  const out = $('bvalResult'); const pid = $('bval_player_id').value;
+  const m = parseFloat($('bval_amount').value);
+  if(!pid) return showMsg(out,'Choisis d’abord un joueur.');
+  if(isNaN(m) || m<0) return showMsg(out,'Indique un prix de départ (M€).');
+  const r = await api.adminSetBaseValue(pid, Math.round(m*1e6));
+  if(r.error) return showMsg(out, r.error.message);
+  showMsg(out, `Prix de départ fixé à ${m} M€ — le salaire est recalculé en conséquence.`, true);
+  $('bval_player_id').value=''; $('bval_chosen').textContent=''; $('bval_search').value=''; $('bval_amount').value='';
+  if(typeof loadPlayers==='function') loadPlayers();
+  if(typeof loadAdminActions==='function') loadAdminActions();
+};
+
+// 5) Attribuer un joueur libre à un manager (Koundé)
+wirePlayerSearch('asg_search','asg_results','asg_player_id','asg_chosen', { freeOnly:true });
+if($('btnAssignPlayer')) $('btnAssignPlayer').onclick = async ()=>{
+  const out = $('asgResult'); const pid = $('asg_player_id').value;
+  const mgr = $('asg_manager').value;
+  if(!pid) return showMsg(out,'Choisis d’abord un joueur libre.');
+  if(!mgr) return showMsg(out,'Choisis un manager.');
+  const label = $('asg_manager').selectedOptions[0].textContent;
+  if(!confirm(`Attribuer ce joueur à ${label} (gratuit) ?`)) return;
+  const { data, error } = await api.adminAssignPlayerTo(pid, mgr);
+  if(error) return showMsg(out, error.message);
+  showMsg(out, data || 'Joueur attribué.', true);
+  $('asg_player_id').value=''; $('asg_chosen').textContent=''; $('asg_search').value='';
+  if(typeof loadPlayers==='function') loadPlayers();
+  if(typeof loadAdminActions==='function') loadAdminActions();
+};
+
 if($('btnFixChamp')) $('btnFixChamp').onclick = async ()=>{
   const out = $('champFixResult');
   const pid = $('champ_player_id').value;

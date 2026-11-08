@@ -178,7 +178,7 @@ export async function searchPlayersByName(q, limit = 8) {
   const term = (q || '').trim();
   if (term.length < 2) return [];
   const { data } = await sb.from('qm_players')
-    .select('id, name, first_name, club, position, current_value, championship')
+    .select('id, name, first_name, club, position, current_value, base_value, championship, owner_id')
     .ilike('name', `%${term}%`)
     .order('current_value', { ascending: false })
     .limit(limit);
@@ -1537,4 +1537,24 @@ export async function clubList() {
 // Rattrapage : joueurs déniché restés sans propriétaire -> retour au dénicheur.
 export async function adminBackfillScoutReturns(dryRun = true) {
   return sb.rpc('qm_admin_backfill_scout_returns', { p_dry_run: dryRun });
+}
+
+// ===== Outils admin (demandes Audrey) =====
+// 1. Prix de départ (base_value) -> recalcule le salaire via la grille.
+export async function adminSetBaseValue(playerId, baseValue) {
+  return sb.rpc('qm_admin_set_base_value', { p_player_id: playerId, p_base_value: baseValue });
+}
+// 2. Attribuer un joueur libre à un manager (cas Koundé).
+export async function adminAssignPlayerTo(playerId, managerId) {
+  return sb.rpc('qm_admin_assign_player_to', { p_player_id: playerId, p_manager_id: managerId });
+}
+// 3. Modifier l'identité d'un joueur (prénom, nom, club ; null = inchangé).
+export async function adminSetPlayerIdentity(playerId, firstName, name, club) {
+  return sb.rpc('qm_admin_set_player_identity', {
+    p_player_id: playerId, p_first_name: firstName ?? null, p_name: name ?? null, p_club: club ?? null });
+}
+// 4. Historique admin des échanges entre managers.
+export async function adminTradesHistory(limit = 200) {
+  const { data } = await sb.rpc('qm_admin_trades_history', { p_limit: limit });
+  return data ?? [];
 }
