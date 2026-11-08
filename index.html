@@ -2716,7 +2716,8 @@ function applyMarketStateUI(){
     if(closed){
       info.style.display='block';
       info.style.cssText = 'display:block;background:linear-gradient(135deg,rgba(90,150,255,.12),transparent);border:1px solid var(--line);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:.88rem;line-height:1.5';
-      info.innerHTML = `🔒 <b>Mercato fermé</b> — le dénichage et les enchères sont en pause. Mais le <b>marché entre managers reste ouvert</b> : tu peux toujours <b>échanger</b> 🤝, faire des <b>offres en vitrine</b> 🏪 et <b>prêter</b> des joueurs 🔄. Le jeu continue !`;
+      { const J=(n)=>`<span style="display:inline-flex;vertical-align:-.15em">${(typeof ic==='function'?ic(n,15):'')}</span>`;
+      info.innerHTML = `${J('lock')} <b>Mercato fermé</b> — le dénichage et les enchères sont en pause. Mais le <b>marché entre managers reste ouvert</b> : tu peux toujours <b>échanger</b> ${J('handshake')}, faire des <b>offres en vitrine</b> ${J('store')} et <b>prêter</b> des joueurs ${J('repeat')}. Le jeu continue !`; }
     } else {
       info.style.display='none'; info.innerHTML='';
     }
@@ -4737,7 +4738,7 @@ async function loadMyAlerts(){
       : `Tous les <b>${POS_FR_ALERT[a.pos]||a.pos}s</b>`;
     const seuil = (Number(a.max_price)/1000000);
     return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px">
-      <div style="font-size:.9rem">🔔 ${cible} <span style="color:var(--muted)">— enchère ≤ ${seuil} M€</span></div>
+      <div style="font-size:.9rem;display:flex;align-items:center;gap:6px">${(typeof ic==='function'?ic('bell',16):'')} <span>${cible} <span style="color:var(--muted)">— enchère ≤ ${seuil} M€</span></span></div>
       <button class="bid-btn ghost" data-delalert="${a.id}" style="flex:0 0 auto;width:auto;padding:6px 12px;margin-top:0;font-size:.8rem">Supprimer</button>
     </div>`;
   }).join('');
@@ -6535,21 +6536,23 @@ async function renderDailyRecap(force){
   if(!force && moves===0 && newAuc===0){ box.style.display='none'; try{localStorage.setItem(recapDayKey(),'1');}catch(e){} return; }
 
   const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const P=(n)=>`<span style="display:inline-flex;vertical-align:-.15em;margin-right:5px">${I(n,15)}</span>`;
   const lines = [];
-  if(newAuc>0) lines.push(`🏷️ <b>${newAuc}</b> nouvelle${newAuc>1?'s':''} enchère${newAuc>1?'s':''} ouverte${newAuc>1?'s':''}`);
-  if(moves>0) lines.push(`🔁 <b>${moves}</b> mouvement${moves>1?'s':''} (achats, échanges, libérations)`);
+  if(newAuc>0) lines.push(`${P('tag')} <b>${newAuc}</b> nouvelle${newAuc>1?'s':''} enchère${newAuc>1?'s':''} ouverte${newAuc>1?'s':''}`);
+  if(moves>0) lines.push(`${P('repeat')} <b>${moves}</b> mouvement${moves>1?'s':''} (achats, échanges, libérations)`);
   if(r.biggest && r.biggest.player){
-    lines.push(`💸 Plus gros transfert : <b>${esc(r.biggest.player)}</b>${r.biggest.to?` → ${esc(r.biggest.to)}`:''}${r.biggest.price?` (${fmtMoney(r.biggest.price)})`:''}`);
+    lines.push(`${P('banknote')}Plus gros transfert : <b>${esc(r.biggest.player)}</b>${r.biggest.to?` → ${esc(r.biggest.to)}`:''}${r.biggest.price?` (${fmtMoney(r.biggest.price)})`:''}`);
   }
-  if(Number(r.active_managers||0)>0) lines.push(`👥 <b>${r.active_managers}</b> manager${Number(r.active_managers)>1?'s':''} actif${Number(r.active_managers)>1?'s':''}`);
+  if(Number(r.active_managers||0)>0) lines.push(`${P('users')} <b>${r.active_managers}</b> manager${Number(r.active_managers)>1?'s':''} actif${Number(r.active_managers)>1?'s':''}`);
   const leader = (Array.isArray(r.top) && r.top[0]) ? r.top[0] : null;
-  if(leader) lines.push(`🥇 En tête : <b>${esc(leader.team||leader.name)}</b> (${leader.points||0} pts)`);
+  if(leader) lines.push(`${P('medal')} En tête : <b>${esc(leader.team||leader.name)}</b> (${leader.points||0} pts)`);
 
   box.style.display='block';
   box.style.cssText = 'display:block;background:linear-gradient(135deg,rgba(90,150,255,.12),transparent);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px';
   box.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
-      <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:var(--transfer);font-weight:700">📅 Ce qui s'est passé (24h)</div>
+      <div style="font-family:'Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:var(--transfer);font-weight:700;display:inline-flex;align-items:center;gap:6px">${P('calendar')}Ce qui s'est passé (24h)</div>
       <button id="recapClose" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:0 2px">✕</button>
     </div>
     <ul style="margin:0;padding-left:2px;list-style:none;display:flex;flex-direction:column;gap:5px">
@@ -6863,6 +6866,8 @@ async function renderHome(){
 // ---------- Bourse : top mouvements de cote (dernière journée) ----------
 async function renderBourseMovers(){
   const box = $('bourseMovers'); if(!box) return;
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const H=(n,c)=>`<span style="display:inline-flex;vertical-align:-.12em;margin-right:6px${c?';color:'+c:''}">${I(n,15)}</span>`;
   let movers = [];
   try { movers = await api.quoteTopMovers(4); } catch(e){ movers = []; }
   if(!movers || !movers.length){ box.style.display='none'; box.innerHTML=''; return; }
@@ -6886,10 +6891,10 @@ async function renderBourseMovers(){
     </div>`;
   box.style.display='block';
   box.innerHTML = `
-    <div class="eyebrow" style="margin-bottom:12px">📈 Bourse · mouvements de la dernière journée</div>
+    <div class="eyebrow" style="margin-bottom:12px">${H('trendingUp')}Bourse · mouvements de la dernière journée</div>
     <div style="display:flex;gap:16px;flex-wrap:wrap">
-      ${col('🟢 Plus fortes hausses', up, 'Aucune hausse cette journée.')}
-      ${col('🔴 Plus fortes baisses', down, 'Aucune baisse cette journée.')}
+      ${col(`${H('trendingUp','#4ade80')}Plus fortes hausses`, up, 'Aucune hausse cette journée.')}
+      ${col(`${H('trendingDown','#e0574a')}Plus fortes baisses`, down, 'Aucune baisse cette journée.')}
     </div>
     <div class="hint" style="font-size:.72rem;margin-top:10px">La cote d'un joueur monte avec les bonnes notes et baisse sinon. Clique un nom pour voir sa courbe.</div>`;
 }
@@ -6901,6 +6906,8 @@ async function renderBourseMovers(){
 const POS_FR = {GK:'Gardiens', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants'};
 async function renderMarketTrends(auctions){
   const box = $('marketTrends'); if(!box) return;
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const H=(n)=>`<span style="display:inline-flex;vertical-align:-.12em;margin-right:6px">${I(n,16)}</span>`;
   const live = (auctions||[]).filter(a=>a.player);
   if(!live.length){ box.style.display='none'; box.innerHTML=''; return; }
 
@@ -6934,15 +6941,15 @@ async function renderMarketTrends(auctions){
   } catch(e){ /* indispo : on saute */ }
 
   const colWanted = `<div class="tr-col">
-    <div class="tr-h">🔥 Les plus convoités</div>
+    <div class="tr-h">${H('flame')}Les plus convoités</div>
     ${wanted.length ? wanted.map(a=>`<div class="tr-row">
       <span class="tr-name"><b>${a.player.name}</b> <span style="color:var(--muted);font-size:.78rem">${fmtMoney(a.current_price)}</span></span>
-      <span class="tr-badge hot">👥 ${a.interest}</span>
+      <span class="tr-badge hot">${I('users',13)} ${a.interest}</span>
     </div>`).join('') : '<div class="tr-empty">Pas encore d\'enchère disputée.</div>'}
   </div>`;
 
   const colRising = `<div class="tr-col">
-    <div class="tr-h">📈 Cotes qui grimpent</div>
+    <div class="tr-h">${H('trendingUp')}Cotes qui grimpent</div>
     ${rising.length ? rising.map(x=>`<div class="tr-row">
       <span class="tr-name"><b>${x.name}</b></span>
       <span class="tr-badge up">+${x.pct}%</span>
@@ -6950,7 +6957,7 @@ async function renderMarketTrends(auctions){
   </div>`;
 
   const colDemand = `<div class="tr-col">
-    <div class="tr-h">🎯 Postes les plus demandés</div>
+    <div class="tr-h">${H('target')}Postes les plus demandés</div>
     ${demandRows.length ? demandRows.map(([p,v])=>`<div class="tr-row">
       <span class="tr-name">${POS_FR[p]||p}</span>
       <span class="tr-badge hot">${v} offre${v>1?'s':''}</span>
@@ -6958,14 +6965,14 @@ async function renderMarketTrends(auctions){
   </div>`;
 
   const colScarce = `<div class="tr-col">
-    <div class="tr-h">💎 Postes les plus rares</div>
+    <div class="tr-h">${H('gem')}Postes les plus rares</div>
     ${scarce.length ? scarce.map(s=>`<div class="tr-row">
       <span class="tr-name">${POS_FR[s.pos]||s.pos}</span>
       <span class="tr-badge rare">${s.free_count} libre${Number(s.free_count)>1?'s':''}</span>
     </div>`).join('') : '<div class="tr-empty">Stock de joueurs libres confortable.</div>'}
   </div>`;
 
-  box.innerHTML = `<div class="tr-title">📊 Tendances du marché</div>
+  box.innerHTML = `<div class="tr-title">${H('chart')}Tendances du marché</div>
     <div class="tr-grid">${colWanted}${colRising}${colDemand}${colScarce}</div>`;
   box.style.display='block';
 }
@@ -7550,25 +7557,25 @@ async function loadChatPinned(){
 // partir des données du manager (transferts, bonus, effectif, propositions).
 // Distinct des badges compétitifs du classement (un seul gagnant).
 const ACHIEVEMENTS = [
-  { code:'first_recruit', ic:'⚽', name:'Premier pas', desc:'Recrute ton tout premier joueur.', target:1,
+  { code:'first_recruit', ic:'soccer', name:'Premier pas', desc:'Recrute ton tout premier joueur.', target:1,
     calc:c=>c.buys },
-  { code:'squad_11', ic:'👥', name:'Une équipe sur le terrain', desc:'Atteins 11 joueurs — de quoi aligner une compo complète.', target:11,
+  { code:'squad_11', ic:'users', name:'Une équipe sur le terrain', desc:'Atteins 11 joueurs — de quoi aligner une compo complète.', target:11,
     calc:c=>c.squad },
-  { code:'squad_full', ic:'✅', name:'Effectif au complet', desc:'Constitue ton effectif de 21 joueurs.', target:21,
+  { code:'squad_full', ic:'check', name:'Effectif au complet', desc:'Constitue ton effectif de 21 joueurs.', target:21,
     calc:c=>c.squad },
-  { code:'scout_1', ic:'🔎', name:'Dénicheur', desc:'Fais valider une première proposition de joueur.', target:1,
+  { code:'scout_1', ic:'search', name:'Dénicheur', desc:'Fais valider une première proposition de joueur.', target:1,
     calc:c=>c.proposalsOk },
-  { code:'scout_5', ic:'🕵️', name:'Dénicheur confirmé', desc:'Fais valider 5 propositions de joueurs.', target:5,
+  { code:'scout_5', ic:'userSearch', name:'Dénicheur confirmé', desc:'Fais valider 5 propositions de joueurs.', target:5,
     calc:c=>c.proposalsOk },
-  { code:'big_spender', ic:'💸', name:'Flambeur', desc:'Remporte une enchère à plus de 150 M€.', target:1,
+  { code:'big_spender', ic:'banknote', name:'Flambeur', desc:'Remporte une enchère à plus de 150 M€.', target:1,
     calc:c=>c.over150 },
-  { code:'collector', ic:'🧲', name:'Collectionneur', desc:'Réalise 10 recrutements au total.', target:10,
+  { code:'collector', ic:'magnet', name:'Collectionneur', desc:'Réalise 10 recrutements au total.', target:10,
     calc:c=>c.buys },
-  { code:'bonus_hunter', ic:'💰', name:'Chasseur de bonus', desc:'Décroche 5 bonus de budget.', target:5,
+  { code:'bonus_hunter', ic:'coins', name:'Chasseur de bonus', desc:'Décroche 5 bonus de budget.', target:5,
     calc:c=>c.bonusCount },
-  { code:'poker', ic:'🎲', name:'Coup de poker', desc:'Décroche un bonus « coup de poker ».', target:1,
+  { code:'poker', ic:'dice', name:'Coup de poker', desc:'Décroche un bonus « coup de poker ».', target:1,
     calc:c=>c.pokerCount },
-  { code:'trader', ic:'🤝', name:'Négociateur', desc:'Conclus un échange avec un autre manager.', target:1,
+  { code:'trader', ic:'handshake', name:'Négociateur', desc:'Conclus un échange avec un autre manager.', target:1,
     calc:c=>c.trades },
 ];
 async function renderAchievements(){
@@ -7616,7 +7623,7 @@ async function renderAchievements(){
   const todo = items.filter(i=>!i.done).sort((a,b)=> (b.cur/b.target)-(a.cur/a.target));
 
   const card = (a)=>`<div class="ach-card ${a.done?'done':'locked'}">
-      <div class="ach-ic">${a.ic}</div>
+      <div class="ach-ic">${(typeof ic==='function'?ic(a.ic,30):'')}</div>
       <div class="ach-name">${a.name}</div>
       <div class="ach-desc">${a.desc}</div>
       <div class="ach-prog"><i style="width:${Math.round(a.cur/a.target*100)}%"></i></div>
@@ -7634,8 +7641,8 @@ async function renderAchievements(){
         <div class="sub">Continue à jouer pour tout débloquer — chaque action compte.</div>
       </div>
     </div>`+
-    (done.length ? `<div class="ach-grouptitle">🏆 Débloqués (${done.length})</div><div class="ach-grid">${done.map(card).join('')}</div>` : '')+
-    (todo.length ? `<div class="ach-grouptitle">🔒 À débloquer (${todo.length})</div><div class="ach-grid">${todo.map(card).join('')}</div>` : '');
+    (done.length ? `<div class="ach-grouptitle" style="display:flex;align-items:center;gap:7px">${(typeof ic==='function'?ic('trophy',18):'')} Débloqués (${done.length})</div><div class="ach-grid">${done.map(card).join('')}</div>` : '')+
+    (todo.length ? `<div class="ach-grouptitle" style="display:flex;align-items:center;gap:7px">${(typeof ic==='function'?ic('lock',18):'')} À débloquer (${todo.length})</div><div class="ach-grid">${todo.map(card).join('')}</div>` : '');
 }
 
 // ---------- Mes statistiques (bilan de performance) ----------

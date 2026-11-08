@@ -65,6 +65,14 @@
     dot:       '<circle cx="12" cy="12" r="5" fill="currentColor" stroke="none"/>',
     scale:     '<path d="m16 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="m2 16 3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h2c2 0 5-1 7-2 2 1 5 2 7 2h2"/>',
     banknote:  '<rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+    soccer:    '<circle cx="12" cy="12" r="10"/><path d="M12 7.5l4.33 3.15-1.65 5.1h-5.36l-1.65-5.1z"/><path d="M12 2v5.5M4.5 10.6l3.9 2.9M19.5 10.6l-3.9 2.9M7.3 20.3l1.7-4.6M16.7 20.3l-1.7-4.6"/>',
+    userSearch:'<circle cx="10" cy="8" r="4"/><path d="M3.5 20a7 7 0 0 1 10.5-5.8"/><circle cx="17" cy="16" r="3"/><path d="m21 20-1.9-1.9"/>',
+    magnet:    '<path d="m6 15-4-4 6-6 4 4"/><path d="m18 9 4 4-6 6-4-4"/><path d="m6 15 4 4"/><path d="m14 5 4 4"/><path d="M5 20 2 23M22 2l-3 3M8 17l-2 2"/>',
+    repeat:    '<path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>',
+    tag:        '<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor"/>',
+    flame:      '<path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>',
+    trendingUp: '<path d="M16 7h6v6"/><path d="m22 7-8.5 8.5-5-5L2 17"/>',
+    trendingDown:'<path d="M16 17h6v-6"/><path d="m22 17-8.5-8.5-5 5L2 7"/>',
   };
   function ic(name, size, color){
     const body = P[name];
