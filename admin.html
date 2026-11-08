@@ -21,6 +21,10 @@
   :root{
     --pitch:#0a1428;--pitch-2:#0f1d38;--line:#1c3358;--chalk:#eef3ea;
     --muted:#8095b5;--transfer:#f5c542;--gold-bright:#ffd76a;--live:#ff5a4d;--ok:#4ade80;--r:12px;
+    --r-lg:16px;
+    --shadow-1:0 1px 2px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.18);
+    --shadow-2:0 8px 24px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.20);
+    --ring:0 0 0 3px rgba(245,197,66,.35);
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:linear-gradient(180deg,#0a1428,#0c1730 50%,#081020);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
@@ -47,7 +51,8 @@
   main{max-width:1100px;margin:0 auto;padding:28px 22px 80px}
   h2{font-family:'Archivo';font-weight:900;font-size:1.4rem;margin:28px 0 14px;letter-spacing:-.4px}
   h2:first-child{margin-top:0}
-  .card{background:var(--pitch-2);border:1px solid var(--line);border-radius:var(--r);padding:20px;margin-bottom:20px}
+  .card{background:linear-gradient(165deg,#122240,#0d1a33);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;margin-bottom:20px;box-shadow:var(--shadow-1)}
+  a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;box-shadow:var(--ring)}
 
   /* Formulaires */
   label{display:block;font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;
@@ -61,8 +66,9 @@
   .row.c4{grid-template-columns:1fr 1fr 1fr 1fr}
   button{font-family:'Archivo Narrow';font-weight:700;text-transform:uppercase;letter-spacing:1px;
     cursor:pointer;border:none;border-radius:8px;padding:10px 16px;font-size:.85rem;transition:.15s}
-  .btn-primary{background:var(--transfer);color:var(--pitch)}
-  .btn-primary:hover{background:#fff}
+  .btn-primary{background:linear-gradient(180deg,#ffd76a,#f5c542);color:#2a1e00;box-shadow:0 3px 12px rgba(245,197,66,.24);transition:transform .12s, box-shadow .2s, background .2s}
+  .btn-primary:hover{background:linear-gradient(180deg,#ffe089,#f8cf52);transform:translateY(-1px);box-shadow:0 7px 20px rgba(245,197,66,.36)}
+  .btn-primary:active{transform:translateY(0)}
   .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--line)}
   .btn-ghost:hover{color:var(--chalk)}
   .btn-danger{background:transparent;color:var(--live);border:1px solid var(--live);padding:6px 10px;font-size:.75rem}
