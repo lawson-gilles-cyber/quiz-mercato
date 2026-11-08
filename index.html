@@ -977,9 +977,9 @@
   </nav>
   <div class="wallet" id="walletBox"><small><span class="lbl-long">💰 BUDGET DISPO</span><span class="lbl-short">💰 BUDGET</span></small><span id="wallet">—</span></div>
   <div class="wallet" id="salaryBox" style="display:none"><small><span class="lbl-long">⚖️ MASSE SALARIALE</span><span class="lbl-short">⚖️ SALAIRE</span></small><span id="walletSalary">—</span></div>
-  <button id="searchBtn" title="Recherche globale" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)">🔍</button>
+  <button id="searchBtn" data-ic="search" title="Recherche globale" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)"></button>
   <button id="themeBtn" title="Thème clair / sombre / auto" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.05rem;color:var(--chalk)">🌓</button>
-  <button id="bellBtn" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem">🔔<span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
+  <button id="bellBtn" data-ic="bell" title="Notifications" style="display:none;position:relative;background:var(--pitch-2);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;margin-left:10px;font-size:1.1rem"><span id="bellBadge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--live);color:#fff;font-size:.62rem;font-weight:700;min-width:17px;height:17px;border-radius:9px;line-height:17px;text-align:center"></span></button>
   <div id="userBadge" style="display:none;align-items:center;gap:8px;margin-left:10px">
     <span id="userInitials" title="" style="display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--transfer),var(--transfer-deep));color:var(--pitch);font-family:'Anton','Saira Condensed';font-size:.85rem;letter-spacing:.5px"></span>
     <span id="userName" style="font-family:'Archivo Narrow';font-weight:700;font-size:.8rem;color:var(--chalk);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
@@ -991,7 +991,7 @@
 <!-- Recherche globale (palette de commandes) -->
 <div id="searchOverlay" class="search-overlay" style="display:none">
   <div class="search-box">
-    <div class="search-inp"><span>🔍</span><input id="searchInput" type="text" placeholder="Rechercher un joueur, une équipe, un onglet…" autocomplete="off"></div>
+    <div class="search-inp"><span data-ic="search"></span><input id="searchInput" type="text" placeholder="Rechercher un joueur, une équipe, un onglet…" autocomplete="off"></div>
     <div id="searchResults" class="search-results"></div>
     <div class="search-hint">Entrée pour ouvrir · Échap pour fermer</div>
   </div>
@@ -1263,7 +1263,7 @@
       <div id="tradeList"></div>
 
       <!-- Prêts de joueurs -->
-      <h2 class="coach-hide" style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">🤝 Prêts de joueurs</h2>
+      <h2 class="coach-hide" data-ic="handshake" style="font-family:'Archivo';font-weight:900;font-size:1.3rem;margin:28px 0 14px">Prêts de joueurs</h2>
       <div class="trade-compose coach-hide">
         <div class="trade-mid" style="flex:1">
           <label class="trade-l">Prêter un de mes joueurs</label>
@@ -1494,7 +1494,7 @@
 
     <!-- Bilan de fin de mercato (carte partageable) -->
     <div id="bilanWrap" style="margin-top:24px">
-      <h3 class="rule-h" style="margin-bottom:12px">🏁 Mon bilan de mercato</h3>
+      <h3 class="rule-h" data-ic="flag" style="margin-bottom:12px">Mon bilan de mercato</h3>
       <div id="bilanCard" style="max-width:520px"></div>
       <button class="bid-btn" id="bilanShare" style="max-width:520px;margin-top:12px;display:none">📤 Partager mon bilan</button>
     </div>
@@ -8015,6 +8015,7 @@ async function renderCalendar(){
 
 // Propose un décalage de rappel (via AskUserQuestion si dispo, sinon menu simple).
 async function promptReminder(whenIso, label){
+  const I = (typeof ic==='function')?ic:(()=>'');
   await askNotifPermission();
   const target = new Date(whenIso).getTime();
   const now = Date.now();
@@ -8028,7 +8029,7 @@ async function promptReminder(whenIso, label){
   if(!OPTS.length){ toast('Trop tard pour programmer un rappel sur cette échéance.','info'); return; }
   // Petit sélecteur maison (overlay ux)
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
-  md.innerHTML = `<h3>⏰ Me rappeler</h3>
+  md.innerHTML = `<h3>${I('bell',16)} Me rappeler</h3>
     <p style="font-size:.86rem;color:var(--muted);margin-bottom:12px">${label}</p>
     <div style="display:flex;flex-direction:column;gap:8px">
       ${OPTS.map(o=>`<button class="ux-ok" data-rem="${o.m}" style="width:100%">${o.t}</button>`).join('')}
@@ -8050,6 +8051,7 @@ async function promptReminder(whenIso, label){
 
 // ---------- Pronostics ----------
 async function renderPronos(){
+  const I = (typeof ic==='function')?ic:(()=>'');
   if(!ME){ $('pronosGate').style.display='block'; $('pronosUI').style.display='none'; return; }
   $('pronosGate').style.display='none'; $('pronosUI').style.display='block';
   const [list, capital] = await Promise.all([
@@ -8095,7 +8097,7 @@ async function renderPronos(){
     const box = $('pronosRank');
     if(box.style.display==='block'){ box.style.display='none'; return; }
     const rank = await api.pronosLeaderboard();
-    box.innerHTML = `<h3 style="font-family:'Archivo';font-weight:900;font-size:1.1rem;margin-bottom:10px">🏆 Meilleurs pronostiqueurs</h3>
+    box.innerHTML = `<h3 style="font-family:'Archivo';font-weight:900;font-size:1.1rem;margin-bottom:10px">${I('trophy',16)} Meilleurs pronostiqueurs</h3>
       <table style="width:100%"><thead><tr><th>#</th><th>Équipe</th><th>Points pronos</th></tr></thead><tbody>${
         rank.map((r,i)=>`<tr><td>${i+1}</td><td>${r.team}</td><td style="color:var(--transfer);font-family:'Space Mono'">${r.pronos_points}</td></tr>`).join('')
       }</tbody></table>`;

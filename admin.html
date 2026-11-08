@@ -238,7 +238,7 @@
   <!-- La barre d'onglets est injectée ici par makeSectionsCollapsible() -->
 
   <!-- Éditeur de barèmes -->
-  <h2>🎛️ Éditeur de barèmes</h2>
+  <h2 data-ic="sliders">Éditeur de barèmes</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:10px">Tous les réglages du jeu au même endroit. Les montants sont en M€. Modifie ce que tu veux puis « Enregistrer ». Un aperçu des grilles est affiché sous l'éditeur.</p>
     <div id="baremesEditor"><p class="hint">Chargement…</p></div>
@@ -250,7 +250,7 @@
   </div>
 
   <!-- Récap de journée -->
-  <h2>📣 Récap de journée</h2>
+  <h2 data-ic="megaphone">Récap de journée</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:10px">Génère un résumé des dernières heures (mouvements, top classement, plus gros transfert) à partager sur WhatsApp — en texte à copier ou en image.</p>
     <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px">
@@ -278,7 +278,7 @@
   </div>
 
   <!-- Santé du mercato (alertes) -->
-  <h2>🩺 Santé du mercato</h2>
+  <h2 data-ic="point">Santé du mercato</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:10px">Les points qui demandent peut-être ton attention, en un coup d'œil.</p>
     <div id="healthAlerts"><p class="hint">Analyse…</p></div>
@@ -289,7 +289,7 @@
   </div>
 
   <!-- Annonce aux joueurs -->
-  <h2>📣 Annonce aux joueurs</h2>
+  <h2 data-ic="megaphone">Annonce aux joueurs</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:12px">Publie un message qui <b>surgit en pop-up</b> sur l'écran de tous les managers (et reste affiché en haut de l'accueil). Chaque nouvelle publication déclenche le pop-up une fois chez chacun. Laisse la date vide pour une annonce permanente, ou fixe une expiration : le bandeau disparaît tout seul après.</p>
     <div id="annonceCurrent" style="display:none;margin-bottom:12px"></div>
@@ -305,7 +305,7 @@
   </div>
 
   <!-- Hommage / distinction (ex. Ballon d'Or) -->
-  <h2>🏆 Hommage à un joueur</h2>
+  <h2 data-ic="trophy">Hommage à un joueur</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:12px">Mets un joueur à l'honneur (ex. Ballon d'Or) : une <b>bannière festive</b> apparaît en haut de l'accueil et un <b>badge</b> sur sa fiche. Laisse la date vide pour un hommage permanent, ou fixe une fin : il disparaît tout seul après.</p>
     <div id="honorCurrent" style="display:none;margin-bottom:12px"></div>
@@ -331,7 +331,7 @@
   </div>
 
   <!-- Message de remerciement / fin de phase de test -->
-  <h2>🎉 Message de remerciement</h2>
+  <h2 data-ic="party">Message de remerciement</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:12px">Affiche un message chaleureux (ex. fin de la phase de test, remerciements) : une <b>bannière festive</b> en haut de l'accueil et une <b>pop-up avec confettis</b> à la première visite. Laisse la date vide pour un message permanent.</p>
     <div id="thanksCurrent" style="display:none;margin-bottom:12px"></div>
@@ -348,14 +348,14 @@
   </div>
 
   <!-- Journal des actions admin + annulation -->
-  <h2>↩️ Journal des actions (annulation)</h2>
+  <h2 data-ic="refresh">Journal des actions (annulation)</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Historique des actions admin réversibles (crédits, ouvertures d'enchères, corrections de valeur). Tu peux <b>annuler</b> une action tant qu'elle est réversible — pratique en cas de fausse manip.</p>
     <div id="adminActionsList"><p class="hint">Chargement…</p></div>
   </div>
 
   <!-- Tableau de bord financier -->
-  <h2>💰 Tableau de bord financier</h2>
+  <h2 data-ic="cash">Tableau de bord financier</h2>
   <div id="financeGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px">
     <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
   </div>
@@ -407,7 +407,7 @@
 
     <!-- Dates du mercato : le VRAI verrou (ouverture/fermeture) -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>🗓️ Dates du mercato (verrou réel — bloque enchères & propositions)</label>
+      <label data-ic="calendar">Dates du mercato (verrou réel — bloque enchères & propositions)</label>
       <p class="hint" style="margin:6px 0 10px">Ces dates déterminent concrètement si le marché est <b>ouvert ou fermé</b> pour tous. Laisse un champ vide = pas de borne de ce côté.</p>
       <div id="marketDatesStatus" style="margin-bottom:10px"></div>
       <div class="row c3" style="margin-bottom:8px;align-items:end">
@@ -469,7 +469,7 @@
   </div>
 
   <!-- Ligues / divisions -->
-  <h2>🏆 Ligues & divisions</h2>
+  <h2 data-ic="trophy">Ligues & divisions</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Répartis les managers en divisions (niveau 1 = élite). Le classement s'affiche par division côté managers. En fin de saison, applique la montée/descente : les meilleurs montent, les derniers descendent.</p>
     <div class="row c3" style="margin-bottom:10px">
@@ -495,7 +495,7 @@
   </div>
 
   <!-- Modération du chat -->
-  <h2>💬 Modération du chat</h2>
+  <h2 data-ic="chat">Modération du chat</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Réduis un manager au silence (il ne pourra plus écrire) ou vide tout le salon. Les messages se suppriment un à un directement dans le chat.</p>
     <div id="muteList"><p class="hint">Chargement…</p></div>
@@ -503,7 +503,7 @@
   </div>
 
   <!-- Supprimer un manager -->
-  <h2>🗑 Supprimer un manager</h2>
+  <h2 data-ic="trash">Supprimer un manager</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:8px;padding:8px 10px;background:rgba(224,87,74,.12);border-radius:8px;color:var(--chalk)">⚠️ <b>Action définitive.</b> Supprime le compte du manager et toutes ses données de jeu (offres, compositions, cartes, bonus, paris…). Ses <b>joueurs retournent au marché</b> (libres, à leur valeur de base). Le compte de connexion est <b>effacé</b> : la personne ne pourra plus se reconnecter.</p>
     <p class="hint" style="margin-bottom:12px">Si le manager <b>mène une enchère en cours</b>, clôture ou annule d'abord cette enchère (onglet « Enchères »), sinon la suppression sera refusée. Les comptes <b>admin</b> ne sont pas supprimables ici.</p>
@@ -514,7 +514,7 @@
   </div>
 
   <!-- Suspendre le dénichement (sanction temporaire) -->
-  <h2>⛔ Suspendre le dénichement</h2>
+  <h2 data-ic="lock">Suspendre le dénichement</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Sanction <b>temporaire</b> pour faute grave : le manager (et son coach) ne pourront <b>plus proposer de joueur</b> pendant la durée choisie. Le reste du jeu (enchères, compo, échanges) n'est pas affecté. La suspension se lève automatiquement à l'échéance.</p>
     <div class="row c2" style="align-items:end;margin-bottom:10px">
@@ -545,7 +545,7 @@
   </div>
 
   <!-- Défis hebdomadaires -->
-  <h2>🎯 Défis & objectifs</h2>
+  <h2 data-ic="target">Défis & objectifs</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Crée des défis pour animer la semaine. Chaque manager voit sa progression et réclame la récompense (crédit de budget) une fois le défi atteint.</p>
     <div class="row c3" style="margin-bottom:10px">
@@ -575,7 +575,7 @@
   </div>
 
   <!-- Pronostics -->
-  <h2>🎲 Pronostics</h2>
+  <h2 data-ic="dice">Pronostics</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Ouvre un pronostic : les managers parient des points pronos sur une option. À la résolution, les bons parieurs doublent leur mise.</p>
     <label>Question</label>
@@ -591,7 +591,7 @@
   </div>
 
   <!-- Draft -->
-  <h2>🎯 Draft de début de saison</h2>
+  <h2 data-ic="target">Draft de début de saison</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:8px;padding:8px 10px;background:rgba(224,87,74,.1);border-radius:8px;color:var(--chalk)">⚠️ <b>Mode secondaire — à n'utiliser que ponctuellement.</b> Par défaut, la saison s'ouvre <b>aux enchères</b> : ce sont elles qui départagent les coachs convoitant le même joueur. Ne lance un draft que pour un cas particulier (saison détente, dépannage).</p>
     <p class="hint" style="margin-bottom:12px">Principe : recrutement <b>sans enchère et gratuit</b>. Tu fixes un nombre de tours, l'ordre est tiré au sort, chacun pioche à son tour un joueur libre (format <b>serpent</b> : 1→N puis N→1). Déroulé : <b>Créer</b> → <b>Démarrer</b> → pioche en direct → fin automatique.</p>
@@ -830,7 +830,7 @@
 
     <!-- Malus (sanction) : retirer du budget -->
     <div style="padding-top:16px;border-top:1px solid var(--line)">
-      <label>⛔ Retirer du budget à un manager — MALUS / sanction (M€)</label>
+      <label data-ic="lock">Retirer du budget à un manager — MALUS / sanction (M€)</label>
       <div class="row c3" style="margin-top:6px;margin-bottom:6px">
         <div><select id="ml_manager"><option value="">— manager —</option></select></div>
         <div><input id="ml_amount" type="number" min="0" step="0.5" placeholder="Montant à retirer (ex. 10)"></div>
@@ -854,7 +854,7 @@
 
     <!-- Annuler une enchère en cours -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>⚠️ Annuler une enchère en cours (ouverte par erreur)</label>
+      <label data-ic="warning">Annuler une enchère en cours (ouverte par erreur)</label>
       <div class="row c3" style="margin-top:6px;margin-bottom:6px">
         <div style="grid-column:span 2"><select id="ca_auction"><option value="">— enchère ouverte —</option></select></div>
         <div><button class="btn-danger" id="btnCancelAuction" style="width:100%">Annuler l'enchère</button></div>
@@ -864,7 +864,7 @@
 
     <!-- Corriger le prix de départ d'une enchère -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>🔧 Corriger le prix de départ d'une enchère (erreur du dénicheur)</label>
+      <label data-ic="wrench">Corriger le prix de départ d'une enchère (erreur du dénicheur)</label>
       <div class="row c3" style="margin-top:6px;margin-bottom:6px">
         <div><select id="fix_auction"><option value="">— enchère ouverte —</option></select></div>
         <div><input id="fix_price" type="number" min="1" step="1" placeholder="Nouveau prix (M€)"></div>
@@ -875,7 +875,7 @@
 
     <!-- Corriger le poste d'un joueur (même détenu) -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>🧭 Corriger le poste d'un joueur (même déjà détenu)</label>
+      <label data-ic="compass">Corriger le poste d'un joueur (même déjà détenu)</label>
       <input id="pos_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
       <div id="pos_results" style="margin-top:4px"></div>
       <input id="pos_player_id" type="hidden">
@@ -894,7 +894,7 @@
 
     <!-- Corriger le championnat d'un joueur (même détenu) -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>🏆 Corriger le championnat d'un joueur (même déjà détenu)</label>
+      <label data-ic="trophy">Corriger le championnat d'un joueur (même déjà détenu)</label>
       <input id="champ_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
       <div id="champ_results" style="margin-top:4px"></div>
       <input id="champ_player_id" type="hidden">
@@ -925,7 +925,7 @@
 
     <!-- Modifier l'identité d'un joueur (prénom, nom, club) -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>✏️ Modifier le nom / le club d'un joueur</label>
+      <label data-ic="wrench">Modifier le nom / le club d'un joueur</label>
       <input id="idn_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
       <div id="idn_results" style="margin-top:4px"></div>
       <input id="idn_player_id" type="hidden">
@@ -943,7 +943,7 @@
 
     <!-- Modifier le prix de départ -> masse salariale -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>💵 Modifier le prix de départ d'un joueur (→ ajuste son salaire)</label>
+      <label data-ic="cash">Modifier le prix de départ d'un joueur (→ ajuste son salaire)</label>
       <input id="bval_search" type="text" placeholder="Tape un nom de joueur…" autocomplete="off" style="width:100%;margin-top:6px">
       <div id="bval_results" style="margin-top:4px"></div>
       <input id="bval_player_id" type="hidden">
@@ -958,7 +958,7 @@
 
     <!-- Attribuer un joueur à un manager (cas Koundé) -->
     <div style="padding-top:16px;border-top:1px solid var(--line);margin-top:16px">
-      <label>➕ Attribuer un joueur (libre) à un manager</label>
+      <label data-ic="plusNew">Attribuer un joueur (libre) à un manager</label>
       <input id="asg_search" type="text" placeholder="Tape un nom de joueur libre…" autocomplete="off" style="width:100%;margin-top:6px">
       <div id="asg_results" style="margin-top:4px"></div>
       <input id="asg_player_id" type="hidden">
@@ -1062,7 +1062,7 @@
   </div>
 
   <!-- Validation du marché (dénichage -> validation -> publication) -->
-  <h2>🗓️ Enchères programmées</h2>
+  <h2 data-ic="calendar">Enchères programmées</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Les enchères planifiées pour démarrer plus tard. Elles démarrent automatiquement à l'heure prévue (le joueur reste libre d'ici là). Leur durée est réglable dans <b>Config → Éditeur de barèmes</b> (« Durée d'une enchère programmée », 24 h par défaut). Pour en programmer une, utilise le bouton « 🗓️ Programmer » dans « Joueurs en base ».</p>
     <div id="schedList"><p class="hint">Chargement…</p></div>
@@ -1144,7 +1144,7 @@
   </div>
 
   <!-- FAQ ADMIN -->
-  <h2>❓ FAQ admin</h2>
+  <h2 data-ic="help">FAQ admin</h2>
   <div class="card">
     <p class="hint" style="margin-bottom:10px">Aide-mémoire pour l'organisation : comment gérer les enchères, valider les joueurs, piloter le mercato, régler les barèmes et dépanner.</p>
     <input id="afaqSearch" type="search" placeholder="🔍 Rechercher (ex. « enchère », « coach », « reset », « barème »)…" style="width:100%;margin-bottom:8px">
@@ -1160,6 +1160,19 @@ import * as api from './js/api.js';
 import { sb } from './js/api.js';
 
 const $ = id => document.getElementById(id);
+
+// Injecte une icône SVG devant chaque [data-ic] (remplace les emojis des labels).
+function injectIcons(root){
+  if(typeof ic!=='function') return;
+  (root||document).querySelectorAll('[data-ic]:not([data-ic-done])').forEach(el=>{
+    const svg = ic(el.getAttribute('data-ic'), el.getAttribute('data-ic-size') ? Number(el.getAttribute('data-ic-size')) : 15);
+    if(svg){
+      el.insertAdjacentHTML('afterbegin', `<span style="display:inline-flex;vertical-align:-0.15em;margin-right:6px">${svg}</span>`);
+      el.setAttribute('data-ic-done','1');
+    }
+  });
+}
+try { injectIcons(); } catch(e){}
 
 // ---------- Pop-up d'accueil (une fois par session) ----------
 function maybeShowWelcome(){
