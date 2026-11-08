@@ -1689,6 +1689,7 @@
       <div class="rule-block">
         <h3 class="rule-h">10. Libérer un joueur</h3>
         <ul class="rule-ul">
+          <li><b>Comment faire</b> : dans l'onglet <b>Mon effectif</b>, utilise le bouton <b>Libérer</b> sur la fiche du joueur (ou la croix <b>×</b> sur le maillot en vue terrain). Une fenêtre récapitule la pénalité et le remboursement avant validation. L'action est définitive et réservée au <b>Manager</b>.</li>
           <li>Tu peux libérer un joueur après <b>24h</b> de détention : il retourne sur le marché et tu récupères une partie de son prix.</li>
           <li><b>Pénalité progressive</b> : 15 % (24-48h), 10 % (48h-7j), 5 % (+7j).</li>
           <li>Maximum <b>2 libérations par période de 7 jours</b>. Une erreur de recrutement a un coût — réfléchis avant d'enchérir.</li>
@@ -4457,8 +4458,10 @@ const FAQ_DATA = [
      "Dans la <b>place de marché</b>, un encart <b>« 📥 Offres reçues sur tes joueurs »</b> regroupe toutes les offres par joueur, côte à côte (budget et/ou joueur proposé, + petit mot). Clique <b>« Accepter »</b> sur la meilleure : l’échange est conclu et les autres offres sur ce joueur sont automatiquement refusées."],
     ['Comment fonctionne un prêt ?',
      "Tu prêtes un joueur pour <b>1 à 60 jours</b>, avec indemnité optionnelle. Pendant le prêt, l’<b>emprunteur</b> aligne le joueur et porte son salaire ; le retour est automatique à l’échéance. Une <b>option d’achat</b> ou un <b>prêt ferme</b> peuvent être prévus."],
+    ['Comment libérer un joueur ?',
+     "Ouvre l’onglet <b>« Mon effectif »</b>. Sur la fiche du joueur à libérer, clique <b>« Libérer »</b> (ou la petite croix <b>×</b> sur le maillot, en vue terrain). Une confirmation t’indique la <b>durée de détention</b>, le <b>pourcentage de pénalité</b> appliqué et le <b>montant remboursé</b> avant de valider. Attention : l’action est <b>définitive</b>. Seul le <b>Manager</b> peut libérer un joueur (pas le Coach). Rappel : un joueur n’est libérable qu’après <b>24h</b> de détention."],
     ['Que se passe-t-il si je libère un joueur ?',
-     "Il retourne sur le marché et tu es remboursé d’une partie du prix d’achat. Pénalité progressive : 15 % (24-48h), 10 % (48h-7j), 5 % (+7j). Détention minimale <b>24h</b>, maximum <b>2 libérations par 7 jours</b>."],
+     "Il retourne sur le marché et tu es remboursé d’une partie du prix d’achat. Pénalité progressive : 15 % (24-48h), 10 % (48h-7j), 5 % (+7j). Détention minimale <b>24h</b>, maximum <b>2 libérations par 7 jours</b>. Tu peux suivre tes libérations et le total de pénalités dans l’onglet <b>« Mes pénalités »</b>."],
     ['C’est quoi un « agent libre » ?',
      "Un joueur <b>libéré</b> par un manager devient <b>agent libre</b>. Il est visible 24h (le temps que tout le monde le voie), puis le <b>premier</b> qui le réclame le recrute <b>gratuitement</b> — pas de frais de transfert, seul son salaire compte dans ta masse salariale. Ça se passe dans la section « 🆓 Agents libres » du Marché, où un compte à rebours indique quand il devient réclamable."],
   ]],
@@ -5931,6 +5934,7 @@ async function showManagerSquad(mgrId){
 
   // Bouton « Partager l'équipe » (image générée) + « Lien du profil » + « Inviter » (moi seulement)
   const shareHtml = prof ? `<div style="text-align:center;margin:4px 0 16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+      ${(!isMe && ME && !(ME.is_coach && ME.coach_of)) ? `<button id="btnDmManager" class="bid-btn" data-dm="${mgrId}" data-name="${String(entry.name).replace(/"/g,'&quot;')}" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">${I('chat',15)} Envoyer un message</button>` : ''}
       <button id="btnShareTeam" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px">${I('share',15)} Partager ${isMe?'mon équipe':'cette équipe'}</button>
       <button id="btnShareProfile" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">${I('link',15)} Lien du profil</button>
       ${isMe ? `<button id="btnInvite" class="bid-btn" style="width:auto;margin:0;padding:10px 18px;display:inline-flex;align-items:center;gap:8px;background:transparent;border:1px solid var(--transfer);color:var(--transfer)">${I('link',15)} Inviter un manager</button>` : ''}
@@ -5958,6 +5962,77 @@ async function showManagerSquad(mgrId){
   if(inviteBtn) inviteBtn.onclick = ()=> shareInvite((ME && ME.display_name) || entry.name || '');
   const shareProfBtn = $('btnShareProfile');
   if(shareProfBtn) shareProfBtn.onclick = ()=> shareProfileLink(mgrId, entry.name);
+  const dmBtn = $('btnDmManager');
+  if(dmBtn) dmBtn.onclick = ()=> openDM(dmBtn.dataset.dm, dmBtn.dataset.name);
+}
+
+// ---------- Messagerie privée (DM) ----------------------------------
+// Fenêtre de conversation privée avec un manager (overlay réutilisable).
+let DM_SUB = null;
+async function openDM(otherId, otherName){
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  if(!ov || !md) return;
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+
+  md.innerHTML = `
+    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${I('chat',18)} ${esc(otherName)}</h3>
+    <p class="hint" style="font-size:.76rem;margin-bottom:10px">Conversation privée — visible seulement par vous deux.</p>
+    <div id="dmThread" style="height:min(48vh,380px);overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--pitch-2);display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
+      <div class="hint" style="margin:auto">Chargement…</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <input id="dmInput" type="text" maxlength="2000" placeholder="Ton message…" autocomplete="off"
+        style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk)">
+      <button id="dmSendBtn" class="bid-btn" style="margin:0;width:auto;padding:10px 16px">${I('share',15)}</button>
+    </div>
+    <button class="ux-ok" id="dmCloseBtn" style="margin-top:12px;background:transparent;border:1px solid var(--line);color:var(--muted)">Fermer</button>`;
+  ov.style.display = 'flex';
+
+  const threadBox = document.getElementById('dmThread');
+  async function refresh(keepScroll){
+    const atBottom = threadBox.scrollHeight - threadBox.scrollTop - threadBox.clientHeight < 60;
+    const msgs = await api.dmThread(otherId, 200).catch(()=>[]);
+    threadBox.innerHTML = msgs.length ? msgs.map(m=>{
+      const t = new Date(m.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const del = m.is_mine ? ` <a href="#" data-dmdel="${m.id}" style="color:var(--muted);font-size:.7rem;text-decoration:none">${I('x',11)}</a>` : '';
+      return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
+        <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);word-break:break-word">${esc(m.body)}</div>
+        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${t}${del}</div>
+      </div>`;
+    }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
+    threadBox.querySelectorAll('[data-dmdel]').forEach(a=>a.onclick=async(ev)=>{
+      ev.preventDefault();
+      await api.dmDeleteMine(a.dataset.dmdel);
+      refresh(true);
+    });
+    if(atBottom || !keepScroll) threadBox.scrollTop = threadBox.scrollHeight;
+  }
+  await refresh();
+
+  const input = document.getElementById('dmInput');
+  const send = async ()=>{
+    const body = input.value.trim();
+    if(!body) return;
+    input.value='';
+    const { error } = await api.dmSend(otherId, body);
+    if(error){ toast(error.message,'err'); return; }
+    refresh(true);
+  };
+  document.getElementById('dmSendBtn').onclick = send;
+  input.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } };
+  setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 100);
+
+  // Temps réel : rafraîchit le fil si un message arrive pendant qu'il est ouvert.
+  try { if(DM_SUB && DM_SUB.unsubscribe){ DM_SUB.unsubscribe(); } } catch(e){}
+  try { DM_SUB = api.subscribeDM(()=>refresh(true)); } catch(e){}
+
+  const close = ()=>{
+    ov.style.display='none';
+    try { if(DM_SUB && DM_SUB.unsubscribe){ DM_SUB.unsubscribe(); } DM_SUB=null; } catch(e){}
+  };
+  document.getElementById('dmCloseBtn').onclick = close;
 }
 
 // Partage un lien direct vers un profil (?profile=<id>).

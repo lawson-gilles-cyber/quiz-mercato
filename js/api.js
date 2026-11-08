@@ -976,6 +976,39 @@ export function subscribeChat(onChange) {
     .subscribe();
 }
 
+// ---------- MESSAGES PRIVÉS (DM) ------------------------------------
+// Envoyer un DM à un manager.
+export async function dmSend(recipientId, body) {
+  return sb.rpc('qm_dm_send', { p_recipient: recipientId, p_body: body });
+}
+// Fil de conversation avec un manager (du plus ancien au plus récent).
+// Marque aussi comme lus les messages reçus de ce correspondant.
+export async function dmThread(otherId, limit = 100) {
+  const { data } = await sb.rpc('qm_dm_thread', { p_other: otherId, p_limit: limit });
+  return data ?? [];
+}
+// Liste de mes conversations privées (dernier message + non-lus).
+export async function dmConversations() {
+  const { data } = await sb.rpc('qm_dm_conversations');
+  return data ?? [];
+}
+// Nombre total de DM non lus (pour une pastille).
+export async function dmUnreadCount() {
+  const { data } = await sb.rpc('qm_dm_unread_count');
+  return Number(data || 0);
+}
+// Supprimer un de mes messages (pour moi uniquement).
+export async function dmDeleteMine(id) {
+  return sb.rpc('qm_dm_delete_mine', { p_id: id });
+}
+// Abonnement temps réel aux DM : onChange() à chaque nouveau message me concernant.
+export function subscribeDM(onChange) {
+  return sb.channel('dm:me')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'qm_dm_messages' },
+      () => { try { onChange(); } catch(e){} })
+    .subscribe();
+}
+
 // ---------- RÉACTIONS (stickers) sur les transferts -----------------
 export async function react(transferId, kind) {
   return sb.rpc('qm_react', { p_transfer_id: transferId, p_kind: kind });
