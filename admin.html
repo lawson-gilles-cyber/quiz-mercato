@@ -3471,9 +3471,11 @@ function renderSquadControl(){
               <div>${chips(r.clubs,3)}</div>
             </div>
           </div>
-          <div style="margin-top:10px;font-size:.78rem;color:var(--muted)">
-            Détail postes : ${r.gk_count} GK · ${r.def_count} DÉF · ${r.mid_count} MIL · ${r.fwd_count} ATT
+          <div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span>Détail postes : ${r.gk_count} GK · ${r.def_count} DÉF · ${r.mid_count} MIL · ${r.fwd_count} ATT</span>
+            <button class="btn-ghost btn-sm" data-ledger="${r.manager_id}" data-lname="${(r.display_name||'').replace(/"/g,'&quot;')}">Relevé de budget</button>
           </div>
+          <div data-ledgerbox="${r.manager_id}" style="margin-top:10px"></div>
         </div>
       </td></tr>`;
     }).join('')}</tbody></table>`;
@@ -3482,6 +3484,51 @@ function renderSquadControl(){
   body.querySelectorAll('.sc-row').forEach(row=>row.onclick=()=>{
     const d = body.querySelector(`[data-scd="${row.dataset.sc}"]`);
     if(d) d.style.display = (d.style.display==='none') ? '' : 'none';
+  });
+  // Relevé de budget (chargé à la demande)
+  body.querySelectorAll('[data-ledger]').forEach(btn=>btn.onclick=async(e)=>{
+    e.stopPropagation();
+    const id = btn.dataset.ledger;
+    const box = body.querySelector(`[data-ledgerbox="${id}"]`);
+    if(!box) return;
+    if(box.innerHTML.trim()){ box.innerHTML=''; return; }  // toggle
+    box.innerHTML = '<p class="hint">Chargement du relevé…</p>';
+    const [sum, ops] = await Promise.all([
+      api.adminBudgetSummary(id).catch(()=>null),
+      api.adminBudgetLedger(id).catch(()=>[])
+    ]);
+    const M = 1000000;
+    const fmt = v => (Number(v||0)/M).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
+    const kindColor = {achat:'var(--live)', taxe:'#fb923c', malus:'var(--live)', bonus:'var(--ok)', vente:'var(--ok)', liberation:'var(--ok)'};
+    let running = sum ? Number(sum.start_budget) : 0;
+    const rowsHtml = (ops||[]).map(o=>{
+      running += Number(o.amount);
+      const amt = Number(o.amount);
+      const col = amt<0 ? 'var(--live)' : 'var(--ok)';
+      return `<tr>
+        <td style="color:var(--muted);font-size:.74rem;white-space:nowrap">${o.ts?new Date(o.ts).toLocaleDateString('fr-FR'):''}</td>
+        <td><span style="font-size:.7rem;text-transform:uppercase;letter-spacing:.5px;color:${kindColor[o.kind]||'var(--muted)'}">${o.kind}</span></td>
+        <td style="font-size:.82rem">${(o.label||'').replace(/</g,'&lt;')}</td>
+        <td class="val" style="color:${col};white-space:nowrap">${amt>0?'+':''}${fmt(amt)}</td>
+        <td class="val" style="color:var(--muted);white-space:nowrap">${fmt(running)}</td>
+      </tr>`;
+    }).join('');
+    const summaryHtml = sum ? `
+      <div style="display:flex;gap:14px;flex-wrap:wrap;font-size:.82rem;margin-bottom:10px">
+        <span>Départ : <b>${fmt(sum.start_budget)}</b></span>
+        <span style="color:var(--live)">Achats : <b>-${fmt(sum.achats)}</b></span>
+        <span style="color:var(--ok)">Bonus/malus : <b>${Number(sum.bonus_malus)>=0?'+':''}${fmt(sum.bonus_malus)}</b></span>
+        <span style="color:#fb923c">Taxes : <b>-${fmt(sum.taxes)}</b></span>
+        <span style="color:var(--ok)">Remb. : <b>+${fmt(sum.refunds)}</b></span>
+        <span>Recalculé : <b>${fmt(sum.budget_recalcule)}</b></span>
+        <span>Stocké : <b>${fmt(sum.budget_stocke)}</b></span>
+        <span style="color:${Math.abs(Number(sum.ecart))>5000000?'var(--live)':'var(--muted)'}">Écart : <b>${fmt(sum.ecart)}</b></span>
+      </div>` : '';
+    box.innerHTML = `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--pitch)">
+      ${summaryHtml}
+      <p class="hint" style="font-size:.74rem;margin-bottom:8px">Note : le montant des taxes d'entrée est estimé au barème actuel (la trace ne stocke pas le montant historique). Un écart faible vient de là.</p>
+      ${(ops&&ops.length)?`<table style="width:100%"><thead><tr><th>Date</th><th>Type</th><th>Opération</th><th>Montant</th><th>Solde</th></tr></thead><tbody>${rowsHtml}</tbody></table>`:'<p class="hint">Aucune opération.</p>'}
+    </div>`;
   });
 }
 if($('scReload')) $('scReload').onclick = ()=> loadSquadControl();

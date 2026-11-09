@@ -871,6 +871,19 @@ export async function adminSquadControl() {
   return data ?? [];
 }
 
+// Relevé de budget détaillé d'un manager (chaque opération signée).
+export async function adminBudgetLedger(managerId) {
+  const { data, error } = await sb.rpc('qm_admin_budget_ledger', { p_manager: managerId });
+  if (error) { console.error('qm_admin_budget_ledger:', error.message); return []; }
+  return data ?? [];
+}
+// Résumé budget d'un manager (départ, totaux par poste, recalculé vs stocké).
+export async function adminBudgetSummary(managerId) {
+  const { data, error } = await sb.rpc('qm_admin_budget_summary', { p_manager: managerId });
+  if (error) { console.error('qm_admin_budget_summary:', error.message); return null; }
+  return (data && data[0]) ? data[0] : null;
+}
+
 // ---------- DRAFT ---------------------------------------------------
 export async function draftState() {
   const { data } = await sb.rpc('qm_draft_state');
