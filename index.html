@@ -1070,7 +1070,8 @@
     <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Email</label>
     <input id="authEmail" type="email" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 12px;font-family:inherit">
     <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.7rem;color:var(--muted)">Mot de passe</label>
-    <input id="authPass" type="password" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 16px;font-family:inherit">
+    <input id="authPass" type="password" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:5px 0 6px;font-family:inherit">
+    <div id="authForgotRow" style="text-align:right;margin:0 0 14px"><button id="forgotPass" type="button" style="background:none;border:none;color:var(--transfer);cursor:pointer;font-size:.78rem;padding:0;text-decoration:underline">Mot de passe oublié ?</button></div>
     <input id="authName" type="text" placeholder="Pseudo (inscription)" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:0 0 10px;font-family:inherit;display:none">
     <input id="authTeam" type="text" placeholder="Nom de ton équipe (inscription)" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:9px 11px;border-radius:8px;margin:0 0 16px;font-family:inherit;display:none">
     <div style="display:flex;gap:10px">
@@ -1999,6 +2000,28 @@ function uxConfirm(message, {title='Confirmer', okText='Confirmer', danger=false
     ov.onclick = (e)=>{ if(e.target===ov) close(false); };
   });
 }
+// Invite de saisie (ex. nouveau mot de passe). Renvoie la valeur ou null.
+function uxPrompt(message, {title='Saisie', okText='Valider', type='text', placeholder=''}={}){
+  return new Promise(resolve=>{
+    const ov = document.getElementById('uxOverlay');
+    const md = document.getElementById('uxModal');
+    md.innerHTML = `<h3>${title}</h3><p>${message}</p>
+      <input id="uxPromptInput" type="${type}" placeholder="${placeholder}" autocomplete="new-password"
+        style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:10px 12px;border-radius:8px;margin:6px 0 14px;font-family:inherit">
+      <div class="ux-actions">
+        <button class="ux-cancel" data-no>Annuler</button>
+        <button class="ux-ok" data-yes>${okText}</button>
+      </div>`;
+    ov.classList.add('show');
+    const inp = md.querySelector('#uxPromptInput');
+    setTimeout(()=>{ try{ inp.focus(); }catch(e){} }, 30);
+    const close = (val)=>{ ov.classList.remove('show'); resolve(val); };
+    md.querySelector('[data-no]').onclick = ()=>close(null);
+    md.querySelector('[data-yes]').onclick = ()=>close(inp.value);
+    inp.onkeydown = (e)=>{ if(e.key==='Enter') close(inp.value); };
+    ov.onclick = (e)=>{ if(e.target===ov) close(null); };
+  });
+}
 // Exécute une action async en gérant l'état de chargement d'un bouton.
 async function withLoading(btn, fn){
   if(btn){ btn.classList.add('is-loading'); btn.disabled = true; }
@@ -2419,6 +2442,51 @@ function setSignupMode(on){
   $('authTeam').style.display = on?'block':'none';
   $('authTitle').textContent = on?'Inscription manager':'Connexion manager';
   $('doLogin').textContent = on?"Créer mon compte":"Se connecter";
+  // Le lien "Mot de passe oublié" n'a de sens qu'en mode connexion.
+  const fr = $('authForgotRow'); if(fr) fr.style.display = on ? 'none' : 'block';
+}
+// Bouton "Mot de passe oublié ?" : envoie l'e-mail de réinitialisation.
+(function wireForgot(){
+  const btn = document.getElementById('forgotPass');
+  if(!btn) return;
+  btn.onclick = async ()=>{
+    const email = ($('authEmail').value||'').trim();
+    if(!email){ authMsg('Saisis d’abord ton adresse e-mail, puis clique sur « Mot de passe oublié ? ».'); $('authEmail').focus(); return; }
+    btn.disabled = true;
+    const { error } = await api.requestPasswordReset(email);
+    btn.disabled = false;
+    if(error){ authMsg('Échec de l’envoi : '+error.message); return; }
+    authMsg(`Si un compte existe pour ${email}, un e-mail de réinitialisation vient d’être envoyé. Vérifie ta boîte (et les spams).`, true);
+  };
+})();
+// Détection du retour depuis l'e-mail de réinitialisation : on propose de
+// saisir un nouveau mot de passe. Supabase place "type=recovery" dans le hash.
+async function handleRecoveryLink(){
+  let isRecovery = false;
+  try {
+    const h = (location.hash||'').toLowerCase();
+    isRecovery = h.includes('type=recovery');
+  } catch(e){}
+  // Supabase émet aussi un évènement PASSWORD_RECOVERY une fois la session posée.
+  try {
+    api.sb.auth.onAuthStateChange((event)=>{ if(event==='PASSWORD_RECOVERY') promptNewPassword(); });
+  } catch(e){}
+  if(isRecovery) promptNewPassword();
+}
+let RECOVERY_IN_PROGRESS = false;
+async function promptNewPassword(){
+  if(RECOVERY_IN_PROGRESS) return;
+  RECOVERY_IN_PROGRESS = true;
+  const pass = await uxPrompt('Choisis ton nouveau mot de passe (8 caractères minimum) :',
+    { title:'Réinitialisation', okText:'Enregistrer', type:'password', placeholder:'Nouveau mot de passe' });
+  if(pass===null || pass===undefined){ RECOVERY_IN_PROGRESS=false; return; }   // annulé
+  if(String(pass).length < 8){ toast('Mot de passe trop court (8 caractères minimum).','err',4000); RECOVERY_IN_PROGRESS=false; return promptNewPassword(); }
+  const { error } = await api.updatePassword(String(pass));
+  if(error){ toast('Échec : '+error.message,'err',5000); RECOVERY_IN_PROGRESS=false; return; }
+  toast('Mot de passe mis à jour ! Tu es connecté.','ok',4000);
+  RECOVERY_IN_PROGRESS = false;
+  // Nettoie le hash de récupération de l'URL.
+  try { history.replaceState(null,'',location.pathname + location.search); } catch(e){}
 }
 function handleInviteLink(){
   let from=null;
@@ -8875,6 +8943,7 @@ async function init(){
   wireOnboarding();
   wireSearch();                // recherche globale
   handleInviteLink();          // accueil « invité » (lien de parrainage), sans dépendre du réseau
+  handleRecoveryLink();        // retour depuis l'e-mail « mot de passe oublié »
   initColorScheme();           // mode clair/sombre avant tout
   // Thème personnalisé (couleurs admin) — appliqué en premier
   try { ADMIN_THEME = await api.getTheme(); api.applyTheme(ADMIN_THEME); } catch(e){ /* thème par défaut */ }

@@ -57,6 +57,18 @@ export async function signUp(email, password, displayName, teamName) {
   });
   return { data, error: mErr };
 }
+// Envoie l'e-mail de réinitialisation de mot de passe (self-service).
+// Le lien ramène sur le site avec un jeton de récupération ; le front
+// détecte alors le mode "recovery" et demande un nouveau mot de passe.
+export async function requestPasswordReset(email) {
+  const redirectTo = window.location.origin + window.location.pathname;
+  return sb.auth.resetPasswordForEmail(email, { redirectTo });
+}
+// Définit le nouveau mot de passe (une fois la session de récupération active).
+export async function updatePassword(newPassword) {
+  return sb.auth.updateUser({ password: newPassword });
+}
+
 export async function currentManager() {
   const { data: { user } } = await sb.auth.getUser();
   if (!user) return null;
