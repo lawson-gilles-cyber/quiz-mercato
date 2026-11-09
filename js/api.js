@@ -1027,6 +1027,12 @@ export async function dmUnreadCount() {
   const { data } = await sb.rpc('qm_dm_unread_count');
   return Number(data || 0);
 }
+// Marque « reçus » tous mes messages en attente (accusé de réception WhatsApp).
+// À appeler quand je suis en ligne / j'ouvre la messagerie.
+export async function dmMarkDelivered() {
+  const { data } = await sb.rpc('qm_dm_mark_delivered');
+  return Number(data || 0);
+}
 // Supprimer un de mes messages (pour moi uniquement).
 export async function dmDeleteMine(id) {
   return sb.rpc('qm_dm_delete_mine', { p_id: id });

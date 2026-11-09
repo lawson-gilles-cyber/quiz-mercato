@@ -6086,12 +6086,27 @@ async function openDM(otherId, otherName){
   async function refresh(keepScroll){
     const atBottom = threadBox.scrollHeight - threadBox.scrollTop - threadBox.clientHeight < 60;
     const msgs = await api.dmThread(otherId, 200).catch(()=>[]);
+    // Accusés de réception/lecture (façon WhatsApp), affichés sous MES messages.
+    const ticks = (m)=>{
+      if(!m.is_mine) return '';
+      if(m.read_at)      return `<span title="Lu" style="color:var(--transfer);font-weight:700;margin-left:4px">✓✓</span>`;
+      if(m.delivered_at) return `<span title="Reçu" style="color:var(--muted);margin-left:4px">✓✓</span>`;
+      return `<span title="Envoyé" style="color:var(--muted);margin-left:4px">✓</span>`;
+    };
+    const stamp = (m)=>{
+      const fmt = d => new Date(d).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      // Pour mes messages : au survol, détail envoi/réception/lecture.
+      if(!m.is_mine) return fmt(m.created_at);
+      const parts = [`Envoyé ${fmt(m.created_at)}`];
+      if(m.delivered_at) parts.push(`Reçu ${fmt(m.delivered_at)}`);
+      if(m.read_at)      parts.push(`Lu ${fmt(m.read_at)}`);
+      return `<span title="${parts.join(' · ')}">${fmt(m.created_at)}</span>`;
+    };
     threadBox.innerHTML = msgs.length ? msgs.map(m=>{
-      const t = new Date(m.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
       const del = m.is_mine ? ` <a href="#" data-dmdel="${m.id}" style="color:var(--muted);font-size:.7rem;text-decoration:none">${I('x',11)}</a>` : '';
       return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
         <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);word-break:break-word">${esc(m.body)}</div>
-        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${t}${del}</div>
+        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${stamp(m)}${ticks(m)}${del}</div>
       </div>`;
     }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
     threadBox.querySelectorAll('[data-dmdel]').forEach(a=>a.onclick=async(ev)=>{
@@ -6101,6 +6116,8 @@ async function openDM(otherId, otherName){
     });
     if(atBottom || !keepScroll) threadBox.scrollTop = threadBox.scrollHeight;
   }
+  // Je suis en train de consulter : marque « reçus » mes messages en attente.
+  try { await api.dmMarkDelivered(); } catch(e){}
   await refresh();
 
   const input = document.getElementById('dmInput');
@@ -7692,6 +7709,9 @@ async function renderMessages(){
   const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('dmConvList'); if(!box) return;
   const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  // En ouvrant la messagerie, je marque « reçus » les messages en attente
+  // (ceux qui m'ont été envoyés) : l'expéditeur verra la double coche.
+  try { await api.dmMarkDelivered(); } catch(e){}
   let convs = [];
   try { convs = await api.dmConversations(); } catch(e){ convs = []; }
   box.innerHTML = convs.length ? convs.map(c=>{
