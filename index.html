@@ -6140,8 +6140,8 @@ async function openDM(otherId, otherName){
   const close = ()=>{
     ov.style.display='none';
     try { if(DM_SUB && DM_SUB.unsubscribe){ DM_SUB.unsubscribe(); } DM_SUB=null; } catch(e){}
-    // Le fil a été marqué lu : on rafraîchit la pastille et, si ouvert, la liste.
-    try { if(typeof refreshDmBadge==='function') refreshDmBadge(); } catch(e){}
+    // Le fil a été marqué lu : on rafraîchit la pastille, la cloche et, si ouvert, la liste.
+    try { if(typeof refreshDmBadge==='function') refreshDmBadge().then(()=>{ if(typeof loadNotifications==='function') loadNotifications(); }); } catch(e){}
     try { if(CURRENT_VIEW==='messages' && typeof renderMessages==='function') renderMessages(); } catch(e){}
   };
   document.getElementById('dmCloseBtn').onclick = close;
@@ -7688,18 +7688,38 @@ function updateDmBadge(n){
   }
 }
 async function refreshDmBadge(){
-  if(!ME){ updateDmBadge(0); return; }
-  let n = 0;
-  try { n = await api.dmUnreadCount(); } catch(e){ return; }
-  updateDmBadge(n);
+  if(!ME){ updateDmBadge(0); DM_NOTIF=[]; return; }
+  // On lit les conversations pour (a) la pastille et (b) alimenter la cloche
+  // avec les correspondants qui ont des messages non lus.
+  let convs = [];
+  try { convs = await api.dmConversations(); } catch(e){
+    // Repli : au moins le compteur pour la pastille.
+    try { updateDmBadge(await api.dmUnreadCount()); } catch(_){}
+    return;
+  }
+  const unreadConvs = convs.filter(c => (Number(c.unread)||0) > 0);
+  const total = unreadConvs.reduce((s,c)=> s + (Number(c.unread)||0), 0);
+  updateDmBadge(total);
+  // Une entrée de cloche par correspondant non lu (comme un fil WhatsApp).
+  DM_NOTIF = unreadConvs.map(c=>{
+    const nb = Number(c.unread)||0;
+    return {
+      kind:'dm',
+      title: nb>1 ? `${nb} messages privés de ${c.other_name}` : `Message privé de ${c.other_name}`,
+      detail: String(c.last_body||'').slice(0,80).replace(/</g,'&lt;'),
+      ref: c.other_id, sender_name: c.other_name, created_at: c.last_at
+    };
+  });
 }
 // Démarre l'abonnement temps réel DM (global, pour la pastille même hors onglet).
 function startDmRealtime(){
   if(DM_RT_CHANNEL || !ME) return;
   try {
     DM_RT_CHANNEL = api.subscribeDM(async ()=>{
-      if(CURRENT_VIEW==='messages'){ await renderMessages(); }
+      if(CURRENT_VIEW==='messages'){ await renderMessages(); await refreshDmBadge(); }
       else { await refreshDmBadge(); }
+      // Rattache le DM à la cloche : met à jour la liste + badge + notif système.
+      try { if(typeof loadNotifications==='function') await loadNotifications(); } catch(e){}
     });
   } catch(e){}
 }
@@ -8670,7 +8690,7 @@ async function init(){
   renderAuctions();
   startRealtime();
   if(ME){ startChatRealtime(); refreshChatBadge().then(()=>{ if(CHAT_NOTIF.length){ loadNotifications(); } }); }
-  if(ME){ startDmRealtime(); refreshDmBadge(); }
+  if(ME){ startDmRealtime(); refreshDmBadge().then(()=>{ if(DM_NOTIF.length){ loadNotifications(); } }); }
   refreshDraftMenu();
   if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
   remCheck();                     // déclenche les rappels échus au démarrage
@@ -8764,11 +8784,13 @@ function notifReadSave(set){
 let WATCH_NOTIFS = [];
 // Signalement local « nouveaux messages dans le chat » (0 ou 1 entrée).
 let CHAT_NOTIF = [];
+// Signalement local « messages privés non lus » (1 entrée par correspondant).
+let DM_NOTIF = [];
 async function loadNotifications(){
   if(!ME) return;
   const server = await api.myNotifications();
-  // On place les signalements locaux (chat, fins d'enchères suivies) en tête.
-  NOTIFS = [...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
+  // On place les signalements locaux (DM, chat, fins d'enchères suivies) en tête.
+  NOTIFS = [...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
   updateNotifBadge();
   maybeSystemNotify(NOTIFS);
   // Si le panneau est ouvert, on le rafraîchit en direct.
@@ -8818,10 +8840,10 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat'];
-  // Clé de dédoublonnage : pour watch_ending, on distingue les seuils (le detail
-  // change « reste ~30 min » / « ~10 min »), sinon un seul rappel par enchère.
-  const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm'];
+  // Clé de dédoublonnage : pour watch_ending/chat/dm, on distingue par horodatage
+  // du dernier message (sinon un seul rappel par enchère).
+  const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat' || n.kind==='dm') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
   const fresh = list.filter(n=> PUSH_KINDS.includes(n.kind) && n.ref && !seen.has(seenKey(n)));
   fresh.slice(0,3).forEach(n=>{
     try {
@@ -8889,23 +8911,23 @@ function remCheck(){
 setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'warning', trade:'repeat', winning:'check',
   proposal_published:'megaphone', proposal_changes:'edit', proposal_rejected:'ban',
-  auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat',
+  auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat', dm:'mail',
   remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
-  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0',
+  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0', dm:'var(--transfer)',
   remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
-  watch_ending:'Enchérir', chat:'Ouvrir le chat',
+  watch_ending:'Enchérir', chat:'Ouvrir le chat', dm:'Ouvrir la conversation',
   remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','remind_lineup','remind_market_end']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','remind_lineup','remind_market_end']);
 function notifTodoCount(){
   const read = notifReadSet();
   return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
@@ -8944,6 +8966,15 @@ function notifAction(n){
       break;
     case 'chat':
       goView('chat');
+      break;
+    case 'dm':
+      // Ouvre directement la conversation avec l'expéditeur si on la connaît,
+      // sinon la liste des messages.
+      if(n.ref && n.sender_name && typeof openDM==='function'){
+        openDM(n.ref, n.sender_name);
+      } else {
+        goView('messages');
+      }
       break;
     case 'remind_lineup':
       goView('lineup');   // va directement à la Compo
