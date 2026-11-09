@@ -3445,11 +3445,14 @@ function renderSquadControl(){
     </tr></thead>
     <tbody>${rows.map(r=>{
       const dispo = Number(r.budget) - Number(r.budget_locked||0);
+      const noChamp = Number(r.no_champ)||0, noClub = Number(r.no_club)||0;
       const flag = r.over_quota
-        ? '<span style="display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:800;color:var(--live);background:rgba(255,90,77,.12);border:1px solid var(--live);border-radius:6px;padding:2px 7px;display:inline-flex;align-items:center;gap:4px">'+I('warning',12)+' DÉPASSEMENT</span>'
+        ? '<span style="display:inline-flex;align-items:center;gap:4px;font-size:.7rem;font-weight:800;color:var(--live);background:rgba(255,90,77,.12);border:1px solid var(--live);border-radius:6px;padding:2px 7px">'+I('warning',12)+' DÉPASSEMENT</span>'
         : '<span style="font-size:.7rem;color:var(--ok)">✓ Conforme</span>';
+      const dataWarn = noChamp>0
+        ? `<div style="font-size:.68rem;color:var(--warn,#fb923c);margin-top:3px">⚠ ${noChamp} joueur${noChamp>1?'s':''} sans championnat</div>` : '';
       return `<tr class="sc-row" data-sc="${r.manager_id}" style="cursor:pointer">
-        <td><b>${r.display_name}</b>${r.team_name?` <span style="color:var(--muted);font-size:.75rem">· ${r.team_name}</span>`:''} <span style="color:var(--muted);font-size:.72rem">▸ détail</span></td>
+        <td><b>${r.display_name}</b>${r.team_name?` <span style="color:var(--muted);font-size:.75rem">· ${r.team_name}</span>`:''} <span style="color:var(--muted);font-size:.72rem">▸ détail</span>${dataWarn}</td>
         <td ${warn(r.squad_count,24)}>${r.squad_count} / 24</td>
         <td ${warn(r.gk_count,3)}>${r.gk_count} / 3</td>
         <td class="val">${fmtM(Number(r.salary_total))}</td>
@@ -3471,6 +3474,10 @@ function renderSquadControl(){
               <div>${chips(r.clubs,3)}</div>
             </div>
           </div>
+          ${noChamp>0||noClub>0 ? `<div style="margin-top:10px;font-size:.76rem;color:var(--warn,#fb923c);background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.35);border-radius:8px;padding:8px 10px">
+            ⚠ ${noChamp>0?`${noChamp} joueur${noChamp>1?'s':''} sans championnat renseigné`:''}${noChamp>0&&noClub>0?' · ':''}${noClub>0?`${noClub} sans club`:''}.
+            Ces joueurs <b>échappent aux quotas</b> (6/championnat, 3/club) et faussent le comptage ci-dessus. À corriger via « Corriger le championnat d'un joueur » dans l'onglet Interventions.
+          </div>` : ''}
           <div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span>Détail postes : ${r.gk_count} GK · ${r.def_count} DÉF · ${r.mid_count} MIL · ${r.fwd_count} ATT</span>
             <button class="btn-ghost btn-sm" data-ledger="${r.manager_id}" data-lname="${(r.display_name||'').replace(/"/g,'&quot;')}">Relevé de budget</button>
