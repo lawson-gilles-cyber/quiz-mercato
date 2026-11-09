@@ -178,7 +178,7 @@ export async function searchPlayersByName(q, limit = 8) {
   const term = (q || '').trim();
   if (term.length < 2) return [];
   const { data } = await sb.from('qm_players')
-    .select('id, name, first_name, club, position, current_value, base_value, championship, owner_id')
+    .select('id, name, first_name, club, position, current_value, base_value, salary_override, championship, owner_id')
     .ilike('name', `%${term}%`)
     .order('current_value', { ascending: false })
     .limit(limit);

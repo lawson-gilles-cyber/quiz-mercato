@@ -2025,6 +2025,15 @@ function playerSalary(v){ v=Number(v);
   if(v>= 20e6) return 3e6;
   return 1e6;
 }
+// Salaire effectif d'un joueur possédé (identique au calcul serveur qm_player_salary) :
+//  1) salary_override si défini (salaire forcé par l'admin),
+//  2) sinon la grille appliquée au PRIX DE DÉPART (base_value), ou à current_value si base vide.
+function playerSalaryOf(p){
+  if(!p) return 0;
+  if(p.salary_override != null) return Number(p.salary_override);
+  const base = Number(p.base_value)>0 ? Number(p.base_value) : Number(p.current_value||0);
+  return playerSalary(base);
+}
 // Plafond d'enchère d'un joueur = valeur de base × 1,5 (synchronisé avec qm_bid_cap).
 function bidCap(baseValue){ return Math.round(Number(baseValue) * 1.5); }
 
@@ -2598,14 +2607,14 @@ function renderComparator(players){
   };
   const bQual  = bestOf(quality, 'max');
   const bVal   = bestOf(p=>Number(p.current_value), 'max');
-  const bSal   = bestOf(p=>salaryOf(p.current_value), 'min');   // salaire bas = mieux
+  const bSal   = bestOf(p=>playerSalaryOf(p), 'min');   // salaire bas = mieux
   const bDem   = bestOf(p=>Number(p.demand_score||0), 'max');
   const win = (v,b)=> (b!=null && v===b && ps.length>1) ? 'color:var(--transfer);font-weight:800' : 'font-weight:700';
   const cols = ps.map(p=>{
     const color = p.note_color ? NOTE_COLORS[p.note_color] : null;
     const noteTxt = (p.note!=null) ? p.note+'/100' : (color?color.label:'—');
     const barC = color?color.c:'#ccc';
-    const sal = salaryOf(p.current_value);
+    const sal = playerSalaryOf(p);
     const dem = Number(p.demand_score||0);
     const q = quality(p);
     const row = (lbl, val, style)=> `<div style="font-size:.68rem;color:var(--muted);margin-top:7px">${lbl}</div><div style="font-family:'Saira',sans-serif;${style||'font-weight:700'}">${val}</div>`;
@@ -5336,7 +5345,7 @@ function jerseyCard(p, readonly, colors){
     <div class="jersey-nm">${playerName(p)}</div>
     <div class="jersey-cl">${p.club||''}</div>
     <div class="jersey-val">${fmtMoney(p.current_value)}</div>
-    <div class="jersey-sal" title="Salaire annuel" style="display:flex;align-items:center;justify-content:center;gap:3px">${(typeof ic==='function'?ic('coins',11):'')} ${fmtMoney(playerSalary(p.current_value))}/an</div>
+    <div class="jersey-sal" title="Salaire annuel" style="display:flex;align-items:center;justify-content:center;gap:3px">${(typeof ic==='function'?ic('coins',11):'')} ${fmtMoney(playerSalaryOf(p))}/an</div>
   </div>`;
 }
 function buildPitch(mine, readonly, colors){
