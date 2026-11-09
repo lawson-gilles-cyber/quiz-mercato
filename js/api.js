@@ -1045,6 +1045,49 @@ export function subscribeDM(onChange) {
     .subscribe();
 }
 
+// ---------- RÉSEAU DE MANAGERS (amis / présence) --------------------
+// Battement de présence (« en ligne ») — à appeler périodiquement.
+export async function heartbeat() {
+  try { await sb.rpc('qm_heartbeat'); } catch(e){}
+}
+// Mes amis (avec statut en ligne).
+export async function friendList() {
+  const { data } = await sb.rpc('qm_friend_list');
+  return data ?? [];
+}
+// Demandes d'ami en cours (reçues à accepter + envoyées).
+export async function friendPending() {
+  const { data } = await sb.rpc('qm_friend_pending');
+  return data ?? [];
+}
+// Suggestions d'ajout (amis communs + actifs récemment).
+export async function friendSuggestions(limit = 12) {
+  const { data } = await sb.rpc('qm_friend_suggestions', { p_limit: limit });
+  return data ?? [];
+}
+// Annuaire complet des managers avec mon statut relationnel.
+export async function friendDirectory() {
+  const { data } = await sb.rpc('qm_friend_directory');
+  return data ?? [];
+}
+// Envoyer une demande d'ami (renvoie 'requested' | 'accepted' | 'already_*').
+export async function friendRequest(otherId) {
+  return sb.rpc('qm_friend_request', { p_other: otherId });
+}
+// Répondre à une demande reçue.
+export async function friendRespond(otherId, accept) {
+  return sb.rpc('qm_friend_respond', { p_other: otherId, p_accept: accept });
+}
+// Retirer un ami ou annuler une demande envoyée.
+export async function friendRemove(otherId) {
+  return sb.rpc('qm_friend_remove', { p_other: otherId });
+}
+// Compteur de demandes reçues (pour une pastille).
+export async function friendPendingCount() {
+  const { data } = await sb.rpc('qm_friend_pending');
+  return (data ?? []).filter(d => d.direction === 'incoming').length;
+}
+
 // ---------- RÉACTIONS (stickers) sur les transferts -----------------
 export async function react(transferId, kind) {
   return sb.rpc('qm_react', { p_transfer_id: transferId, p_kind: kind });

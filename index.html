@@ -997,6 +997,7 @@
         <button data-v="feed" data-ic="megaphone">Actu</button>
         <button data-v="chat" id="chatMenuBtn" data-ic="chat">Chat <span id="chatMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
         <button data-v="messages" id="dmMenuBtn" data-ic="mail">Messages <span id="dmMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
+        <button data-v="managers" id="mgrMenuBtn" data-ic="users">Managers <span id="mgrMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
         <button data-v="pronos" data-ic="dice">Pronos</button>
         <button data-v="achievements" data-ic="medal">Succès</button>
         <button data-v="mystats" data-ic="chart">Mes stats</button>
@@ -1529,6 +1530,20 @@
     <div id="dmUI" style="display:none">
       <p class="hint" style="font-size:.82rem;margin-bottom:14px">Échange en privé avec un autre manager. Pour démarrer une nouvelle conversation, ouvre le profil d'un manager (depuis le classement ou le chat) puis « Envoyer un message ».</p>
       <div id="dmConvList"><div class="empty">Chargement…</div></div>
+    </div>
+  </section>
+
+  <!-- RÉSEAU DE MANAGERS (amis / en ligne) -->
+  <section class="view" id="managers">
+    <div class="eyebrow">Le réseau des managers</div>
+    <h1>Mes <em>managers</em></h1>
+    <div id="mgrNetGate" style="display:none" class="empty">Connecte-toi pour accéder au réseau des managers.</div>
+    <div id="mgrNetUI" style="display:none">
+      <p class="hint" style="font-size:.82rem;margin-bottom:14px">Ajoute des managers, vois qui est <b>en ligne</b> (visible entre amis), et lance une conversation privée en un clic.</p>
+      <div id="mgrPendingWrap" style="margin-bottom:22px"></div>
+      <div id="mgrFriendsWrap" style="margin-bottom:22px"></div>
+      <div id="mgrSuggWrap" style="margin-bottom:22px"></div>
+      <div id="mgrDirWrap"></div>
     </div>
   </section>
 
@@ -2284,7 +2299,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records','palmares'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records','palmares'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -2302,7 +2317,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -7755,6 +7770,211 @@ async function renderMessages(){
   await refreshDmBadge();
 }
 
+// ---------- Réseau de managers : amis, en ligne, suggestions ----------
+let MGR_NET_BOUND = false;
+function mgrSince(ts){
+  if(!ts) return '';
+  const diff = Date.now() - new Date(ts).getTime();
+  const min = Math.floor(diff/60000);
+  if(min < 1) return 'à l’instant';
+  if(min < 60) return `il y a ${min} min`;
+  const h = Math.floor(min/60);
+  if(h < 24) return `il y a ${h} h`;
+  return `il y a ${Math.floor(h/24)} j`;
+}
+// Pastille verte "en ligne" ou point gris "hors ligne" + dernière vue.
+function mgrDot(online){
+  return online
+    ? '<span title="En ligne" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 2px rgba(74,222,128,.25);flex-shrink:0"></span>'
+    : '<span title="Hors ligne" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--muted);opacity:.5;flex-shrink:0"></span>';
+}
+function mgrAvatar(name, color){
+  const initials = String(name||'?').trim().slice(0,2).toUpperCase();
+  return `<span style="display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:${color||'#4ade80'}22;border:1px solid ${color||'#4ade80'}66;color:${color||'#4ade80'};font-weight:800;font-size:.8rem;flex-shrink:0">${initials}</span>`;
+}
+async function renderManagers(){
+  const I=(typeof ic==='function')?ic:(()=>'');
+  if(!ME){ $('mgrNetGate').style.display='block'; $('mgrNetUI').style.display='none'; return; }
+  $('mgrNetGate').style.display='none'; $('mgrNetUI').style.display='block';
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const nm = s => esc(s).replace(/"/g,'&quot;');
+
+  // Battement de présence à l'ouverture (et périodique géré ailleurs).
+  try { await api.heartbeat(); } catch(e){}
+
+  const [pending, friends, suggs, dir] = await Promise.all([
+    api.friendPending().catch(()=>[]),
+    api.friendList().catch(()=>[]),
+    api.friendSuggestions(12).catch(()=>[]),
+    api.friendDirectory().catch(()=>[])
+  ]);
+
+  // ----- Demandes reçues / envoyées -----
+  const incoming = pending.filter(p=>p.direction==='incoming');
+  const outgoing = pending.filter(p=>p.direction==='outgoing');
+  const pendWrap = $('mgrPendingWrap');
+  if(incoming.length || outgoing.length){
+    const inc = incoming.map(p=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+        ${mgrAvatar(p.display_name,p.color)}
+        <div style="flex:1"><div style="font-weight:700">${esc(p.display_name)}</div>${p.team_name?`<div class="hint" style="font-size:.74rem">${esc(p.team_name)}</div>`:''}</div>
+        <button class="bid-btn" data-fr-acc="${p.manager_id}" data-nm="${nm(p.display_name)}" style="width:auto;margin:0;padding:6px 12px;font-size:.76rem">Accepter</button>
+        <button class="btn-ghost btn-sm" data-fr-dec="${p.manager_id}" style="font-size:.76rem">Refuser</button>
+      </div>`).join('');
+    const out = outgoing.map(p=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+        ${mgrAvatar(p.display_name,p.color)}
+        <div style="flex:1"><div style="font-weight:700">${esc(p.display_name)}</div><div class="hint" style="font-size:.74rem">Demande envoyée · en attente</div></div>
+        <button class="btn-ghost btn-sm" data-fr-cancel="${p.manager_id}" style="font-size:.76rem">Annuler</button>
+      </div>`).join('');
+    pendWrap.innerHTML = `<div class="card" style="padding:16px">
+      <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:8px">${I('userPlus',18)||I('users',18)} Demandes ${incoming.length?`<span style="background:var(--live);color:#fff;font-size:.68rem;font-weight:800;padding:1px 8px;border-radius:9px">${incoming.length}</span>`:''}</h3>
+      ${inc||''}${out||''}</div>`;
+  } else pendWrap.innerHTML='';
+
+  // ----- Mes amis -----
+  const onlineN = friends.filter(f=>f.online).length;
+  const fWrap = $('mgrFriendsWrap');
+  fWrap.innerHTML = `<div class="card" style="padding:16px">
+    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:10px">${I('users',18)} Mes amis <span class="hint" style="font-weight:400;font-size:.8rem">(${friends.length}${onlineN?` · ${onlineN} en ligne`:''})</span></h3>
+    ${friends.length ? friends.map(f=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line)">
+        <div style="position:relative">${mgrAvatar(f.display_name,f.color)}<span style="position:absolute;bottom:-1px;right:-1px">${mgrDot(f.online)}</span></div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700">${esc(f.display_name)}</div>
+          <div class="hint" style="font-size:.74rem">${f.online?'<span style="color:#4ade80">En ligne</span>':(f.last_seen_at?('Vu '+mgrSince(f.last_seen_at)):(f.team_name?esc(f.team_name):'Hors ligne'))}</div>
+        </div>
+        <button class="btn-ghost btn-sm" data-fr-msg="${f.manager_id}" data-nm="${nm(f.display_name)}" title="Message privé" style="font-size:.76rem">${I('mail',14)} Message</button>
+        <button class="btn-ghost btn-sm" data-fr-profile="${f.manager_id}" title="Voir l'équipe" style="font-size:.76rem">${I('eye',14)}</button>
+        <button class="btn-ghost btn-sm" data-fr-remove="${f.manager_id}" data-nm="${nm(f.display_name)}" title="Retirer" style="font-size:.76rem;color:var(--muted)">${I('x',13)}</button>
+      </div>`).join('') : '<div class="hint" style="padding:8px 0">Tu n’as pas encore d’amis. Ajoute des managers ci-dessous !</div>'}
+  </div>`;
+
+  // ----- Suggestions -----
+  const sWrap = $('mgrSuggWrap');
+  sWrap.innerHTML = suggs.length ? `<div class="card" style="padding:16px">
+    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:10px">${I('sparkles',18)||I('bulb',18)} Suggestions</h3>
+    <div style="display:flex;flex-wrap:wrap;gap:10px">
+    ${suggs.map(s=>`<div style="flex:1 1 200px;min-width:180px;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--pitch-2)">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <div style="position:relative">${mgrAvatar(s.display_name,s.color)}${s.online?`<span style="position:absolute;bottom:-1px;right:-1px">${mgrDot(true)}</span>`:''}</div>
+          <div style="min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(s.display_name)}</div>
+          <div class="hint" style="font-size:.72rem">${esc(s.reason)}</div></div>
+        </div>
+        <button class="bid-btn" data-fr-add="${s.manager_id}" data-nm="${nm(s.display_name)}" style="width:100%;margin:0;padding:6px;font-size:.78rem">${I('userPlus',14)||'+'} Ajouter</button>
+      </div>`).join('')}
+    </div></div>` : '';
+
+  // ----- Annuaire complet -----
+  const dWrap = $('mgrDirWrap');
+  const others = dir.filter(d=>d.relation!=='self');
+  dWrap.innerHTML = `<div class="card" style="padding:16px">
+    <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${I('book',18)||I('users',18)} Tous les managers <span class="hint" style="font-weight:400;font-size:.8rem">(${others.length})</span></h3>
+    <input id="mgrDirSearch" type="text" placeholder="Rechercher un manager…" autocomplete="off" style="width:100%;margin-bottom:10px">
+    <div id="mgrDirList">${renderMgrDirList(others,'')}</div>
+  </div>`;
+  const search = $('mgrDirSearch');
+  if(search) search.oninput = ()=>{ $('mgrDirList').innerHTML = renderMgrDirList(others, search.value); bindMgrButtons($('mgrDirList')); };
+
+  // Câblage des boutons (tous les blocs)
+  bindMgrButtons($('mgrNetUI'));
+  // Synchronise pastille + cloche (les demandes affichées ici en sortent).
+  refreshMgrBadge().then(()=>{ if(typeof loadNotifications==='function') loadNotifications(); });
+}
+function renderMgrDirList(list, q){
+  const esc = s => String(s||'').replace(/[<>&]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const nm = s => esc(s).replace(/"/g,'&quot;');
+  const I=(typeof ic==='function')?ic:(()=>'');
+  const term = (q||'').trim().toLowerCase();
+  const rows = term ? list.filter(d=> (d.display_name||'').toLowerCase().includes(term) || (d.team_name||'').toLowerCase().includes(term)) : list;
+  if(!rows.length) return '<div class="hint" style="padding:8px 0">Aucun manager.</div>';
+  const btnFor = d => {
+    if(d.relation==='friends') return `<button class="btn-ghost btn-sm" data-fr-msg="${d.manager_id}" data-nm="${nm(d.display_name)}" style="font-size:.74rem">${I('mail',13)} Message</button><span class="hint" style="font-size:.72rem;color:#4ade80;margin-left:6px">✓ Ami</span>`;
+    if(d.relation==='incoming') return `<button class="bid-btn" data-fr-acc="${d.manager_id}" data-nm="${nm(d.display_name)}" style="width:auto;margin:0;padding:5px 10px;font-size:.74rem">Accepter</button>`;
+    if(d.relation==='outgoing') return `<button class="btn-ghost btn-sm" data-fr-cancel="${d.manager_id}" style="font-size:.74rem">Demande envoyée · annuler</button>`;
+    return `<button class="btn-ghost btn-sm" data-fr-add="${d.manager_id}" data-nm="${nm(d.display_name)}" style="font-size:.74rem">${I('userPlus',13)||'+'} Ajouter</button>`;
+  };
+  return rows.map(d=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)">
+    <div style="position:relative">${mgrAvatar(d.display_name,d.color)}${d.online?`<span style="position:absolute;bottom:-1px;right:-1px">${mgrDot(true)}</span>`:''}</div>
+    <div style="flex:1;min-width:0"><div style="font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.display_name)}</div>${d.team_name?`<div class="hint" style="font-size:.72rem">${esc(d.team_name)}</div>`:''}</div>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0">${btnFor(d)}</div>
+  </div>`).join('');
+}
+// Branche tous les boutons d'action du réseau dans un conteneur donné.
+function bindMgrButtons(root){
+  if(!root) return;
+  const refresh = ()=>{ if(CURRENT_VIEW==='managers') renderManagers(); refreshMgrBadge().then(()=>{ if(typeof loadNotifications==='function') loadNotifications(); }); };
+  root.querySelectorAll('[data-fr-add]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    const { data, error } = await api.friendRequest(b.dataset.frAdd);
+    if(error){ toast('Échec : '+error.message,'err',4000); b.disabled=false; return; }
+    toast(data==='accepted'?`Vous êtes maintenant amis !`:`Demande envoyée à ${b.dataset.nm||'ce manager'}.`,'ok',3500);
+    refresh();
+  });
+  root.querySelectorAll('[data-fr-acc]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    const { error } = await api.friendRespond(b.dataset.frAcc, true);
+    if(error){ toast('Échec : '+error.message,'err',4000); b.disabled=false; return; }
+    toast(`Tu es maintenant ami avec ${b.dataset.nm||'ce manager'} !`,'ok',3500);
+    refresh();
+  });
+  root.querySelectorAll('[data-fr-dec]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    const { error } = await api.friendRespond(b.dataset.frDec, false);
+    if(error){ toast('Échec : '+error.message,'err',4000); b.disabled=false; return; }
+    toast('Demande refusée.','info',2500); refresh();
+  });
+  root.querySelectorAll('[data-fr-cancel]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true;
+    const { error } = await api.friendRemove(b.dataset.frCancel);
+    if(error){ toast('Échec : '+error.message,'err',4000); b.disabled=false; return; }
+    toast('Demande annulée.','info',2500); refresh();
+  });
+  root.querySelectorAll('[data-fr-remove]').forEach(b=>b.onclick=async()=>{
+    if(!await uxConfirm(`Retirer ${b.dataset.nm||'ce manager'} de tes amis ?`)) return;
+    b.disabled=true;
+    const { error } = await api.friendRemove(b.dataset.frRemove);
+    if(error){ toast('Échec : '+error.message,'err',4000); b.disabled=false; return; }
+    toast('Ami retiré.','info',2500); refresh();
+  });
+  root.querySelectorAll('[data-fr-msg]').forEach(b=>b.onclick=()=>{
+    if(typeof openDM==='function') openDM(b.dataset.frMsg, b.dataset.nm||'Manager');
+  });
+  root.querySelectorAll('[data-fr-profile]').forEach(b=>b.onclick=()=>{
+    if(typeof showManagerSquad==='function') showManagerSquad(b.dataset.frProfile);
+    else { location.search='?profile='+b.dataset.frProfile; }
+  });
+}
+// Pastille "demandes d'ami reçues" + alimentation de la cloche.
+async function refreshMgrBadge(){
+  if(!ME){ FRIEND_NOTIF=[]; return; }
+  let pending = [];
+  try { pending = await api.friendPending(); } catch(e){ return; }
+  const incoming = pending.filter(p=>p.direction==='incoming');
+  const n = incoming.length;
+  const badge = $('mgrMenuBadge');
+  if(badge){
+    if(n>0){ badge.textContent = n>99?'99+':n; badge.style.display='inline-block'; }
+    else badge.style.display='none';
+  }
+  const btn = $('mgrMenuBtn');
+  if(btn) btn.classList.toggle('live-pulse', n>0);
+  // Une entrée de cloche par demande d'ami reçue.
+  FRIEND_NOTIF = incoming.map(p=>({
+    kind:'friend',
+    title:`Demande d'ami de ${p.display_name}`,
+    detail: p.team_name ? String(p.team_name) : 'Souhaite t\'ajouter comme ami',
+    ref: p.manager_id, sender_name: p.display_name, created_at: p.created_at
+  }));
+}
+// Battement de présence périodique tant que l'app est ouverte.
+let HEARTBEAT_TIMER = null;
+function startHeartbeat(){
+  if(HEARTBEAT_TIMER || !ME) return;
+  const beat = ()=>{ if(document.visibilityState==='visible'){ api.heartbeat(); } };
+  beat();
+  HEARTBEAT_TIMER = setInterval(beat, 60000);  // toutes les 60 s
+  document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') beat(); });
+}
+
 async function renderChat(){
   if(!ME){ $('chatGate').style.display='block'; $('chatUI').style.display='none'; return; }
   $('chatGate').style.display='none'; $('chatUI').style.display='block';
@@ -8691,6 +8911,7 @@ async function init(){
   startRealtime();
   if(ME){ startChatRealtime(); refreshChatBadge().then(()=>{ if(CHAT_NOTIF.length){ loadNotifications(); } }); }
   if(ME){ startDmRealtime(); refreshDmBadge().then(()=>{ if(DM_NOTIF.length){ loadNotifications(); } }); }
+  if(ME){ startHeartbeat(); refreshMgrBadge().then(()=>{ if(FRIEND_NOTIF.length){ loadNotifications(); } }); }
   refreshDraftMenu();
   if(ME) checkLineupTabPulse();   // nudge Compo si compo incomplète
   remCheck();                     // déclenche les rappels échus au démarrage
@@ -8786,11 +9007,13 @@ let WATCH_NOTIFS = [];
 let CHAT_NOTIF = [];
 // Signalement local « messages privés non lus » (1 entrée par correspondant).
 let DM_NOTIF = [];
+// Signalement local « demandes d'ami reçues » (1 entrée par demande).
+let FRIEND_NOTIF = [];
 async function loadNotifications(){
   if(!ME) return;
   const server = await api.myNotifications();
-  // On place les signalements locaux (DM, chat, fins d'enchères suivies) en tête.
-  NOTIFS = [...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
+  // On place les signalements locaux (demandes d'ami, DM, chat, enchères) en tête.
+  NOTIFS = [...FRIEND_NOTIF, ...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
   updateNotifBadge();
   maybeSystemNotify(NOTIFS);
   // Si le panneau est ouvert, on le rafraîchit en direct.
@@ -8840,9 +9063,9 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm'];
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend'];
   // Clé de dédoublonnage : pour watch_ending/chat/dm, on distingue par horodatage
-  // du dernier message (sinon un seul rappel par enchère).
+  // (sinon un seul rappel par enchère). Une demande d'ami ne notifie qu'une fois.
   const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat' || n.kind==='dm') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
   const fresh = list.filter(n=> PUSH_KINDS.includes(n.kind) && n.ref && !seen.has(seenKey(n)));
   fresh.slice(0,3).forEach(n=>{
@@ -8911,23 +9134,23 @@ function remCheck(){
 setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'warning', trade:'repeat', winning:'check',
   proposal_published:'megaphone', proposal_changes:'edit', proposal_rejected:'ban',
-  auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat', dm:'mail',
+  auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat', dm:'mail', friend:'userPlus',
   remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
-  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0', dm:'var(--transfer)',
+  auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0', dm:'var(--transfer)', friend:'#4ade80',
   remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
-  watch_ending:'Enchérir', chat:'Ouvrir le chat', dm:'Ouvrir la conversation',
+  watch_ending:'Enchérir', chat:'Ouvrir le chat', dm:'Ouvrir la conversation', friend:'Voir la demande',
   remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','remind_lineup','remind_market_end']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','friend','remind_lineup','remind_market_end']);
 function notifTodoCount(){
   const read = notifReadSet();
   return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
@@ -8975,6 +9198,10 @@ function notifAction(n){
       } else {
         goView('messages');
       }
+      break;
+    case 'friend':
+      // Demande d'ami : va à l'onglet Managers (section Demandes).
+      goView('managers');
       break;
     case 'remind_lineup':
       goView('lineup');   // va directement à la Compo
