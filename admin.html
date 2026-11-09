@@ -3474,10 +3474,18 @@ function renderSquadControl(){
               <div>${chips(r.clubs,3)}</div>
             </div>
           </div>
-          ${noChamp>0||noClub>0 ? `<div style="margin-top:10px;font-size:.76rem;color:var(--warn,#fb923c);background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.35);border-radius:8px;padding:8px 10px">
-            ⚠ ${noChamp>0?`${noChamp} joueur${noChamp>1?'s':''} sans championnat renseigné`:''}${noChamp>0&&noClub>0?' · ':''}${noClub>0?`${noClub} sans club`:''}.
-            Ces joueurs <b>échappent aux quotas</b> (6/championnat, 3/club) et faussent le comptage ci-dessus. À corriger via « Corriger le championnat d'un joueur » dans l'onglet Interventions.
-          </div>` : ''}
+          ${noChamp>0||noClub>0 ? (()=>{
+            const escN = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+            // Puce cliquable par joueur fautif -> pré-remplit l'outil de correction d'identité.
+            const nameChip = (x,kind)=>`<button class="btn-ghost btn-sm" data-fixid="${x.id}" data-fixlabel="${escN(x.label)}" data-fixkind="${kind}" style="font-size:.72rem;padding:2px 8px;margin:2px 4px 2px 0">${escN(x.label)} ✎</button>`;
+            const champList = (r.no_champ_names||[]).map(x=>nameChip(x,'champ')).join('');
+            const clubList  = (r.no_club_names||[]).map(x=>nameChip(x,'club')).join('');
+            return `<div style="margin-top:10px;font-size:.76rem;color:var(--warn,#fb923c);background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.35);border-radius:8px;padding:8px 10px">
+            ⚠ ${noChamp>0?`${noChamp} joueur${noChamp>1?'s':''} sans championnat`:''}${noChamp>0&&noClub>0?' · ':''}${noClub>0?`${noClub} sans club`:''} — ils <b>échappent aux quotas</b> et faussent le comptage.
+            ${champList?`<div style="margin-top:6px"><span style="color:var(--muted)">Sans championnat :</span> ${champList}</div>`:''}
+            ${clubList?`<div style="margin-top:4px"><span style="color:var(--muted)">Sans club :</span> ${clubList}</div>`:''}
+            <div style="margin-top:4px;color:var(--muted);font-size:.72rem">Clique un joueur pour le corriger directement.</div>
+          </div>`; })() : ''}
           <div style="margin-top:10px;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span>Détail postes : ${r.gk_count} GK · ${r.def_count} DÉF · ${r.mid_count} MIL · ${r.fwd_count} ATT</span>
             <button class="btn-ghost btn-sm" data-ledger="${r.manager_id}" data-lname="${(r.display_name||'').replace(/"/g,'&quot;')}">Relevé de budget</button>
@@ -3491,6 +3499,35 @@ function renderSquadControl(){
   body.querySelectorAll('.sc-row').forEach(row=>row.onclick=()=>{
     const d = body.querySelector(`[data-scd="${row.dataset.sc}"]`);
     if(d) d.style.display = (d.style.display==='none') ? '' : 'none';
+  });
+  // Correction directe : cliquer un joueur incomplet pré-remplit l'outil de
+  // correction d'identité/championnat et y amène Audrey.
+  body.querySelectorAll('[data-fixid]').forEach(btn=>btn.onclick=(e)=>{
+    e.stopPropagation();
+    const pid = btn.dataset.fixid, label = btn.dataset.fixlabel||'', kind = btn.dataset.fixkind;
+    let toolInput, msg;
+    if(kind==='club'){
+      // Sans club -> outil « Modifier l'identité (prénom / nom / club) ».
+      if($('idn_player_id')) $('idn_player_id').value = pid;
+      if($('idn_chosen'))    $('idn_chosen').textContent = `✓ ${label} (renseigne le club)`;
+      if($('idn_search'))    $('idn_search').value = label;
+      if($('idn_results'))   $('idn_results').innerHTML = '';
+      toolInput = $('idn_club') || $('idn_search');
+      msg = `« ${label} » sélectionné : renseigne son club puis « Modifier ».`;
+    } else {
+      // Sans championnat -> outil « Corriger le championnat d'un joueur ».
+      if($('champ_player_id')) $('champ_player_id').value = pid;
+      if($('champ_chosen'))    $('champ_chosen').textContent = `✓ ${label} (choisis le championnat)`;
+      if($('champ_search'))    $('champ_search').value = label;
+      if($('champ_results'))   $('champ_results').innerHTML = '';
+      toolInput = $('champ_search');
+      msg = `« ${label} » sélectionné : choisis le championnat puis « Corriger ».`;
+    }
+    if(toolInput && toolInput.scrollIntoView){
+      toolInput.scrollIntoView({behavior:'smooth', block:'center'});
+      try{ toolInput.focus({preventScroll:true}); }catch(_){}
+    }
+    toast(msg,'ok',4200);
   });
   // Relevé de budget (chargé à la demande)
   body.querySelectorAll('[data-ledger]').forEach(btn=>btn.onclick=async(e)=>{
