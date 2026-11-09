@@ -1133,7 +1133,7 @@
     </div>
     <p class="hint" style="margin-bottom:8px;font-size:.78rem">🟢 propre · ⚠️ à vérifier (doublon, championnat « Autre », valeur suspecte). Les propositions à problème sont remontées en tête.</p>
     <table>
-      <thead><tr><th style="width:28px"><input type="checkbox" id="propSelAll" title="Tout sélectionner (propres)"></th><th>Proposé par</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th>Signaux</th><th>Statut</th><th>Actions</th></tr></thead>
+      <thead><tr><th style="width:28px"><input type="checkbox" id="propSelAll" title="Tout sélectionner (propres)"></th><th>Proposé par</th><th>Joueur (prénom · nom · poste)</th><th>Club / Champ.</th><th>Valeur</th><th>Signaux</th><th>Statut</th><th>Actions</th></tr></thead>
       <tbody id="proposalRows"><tr><td colspan="8" class="hint" style="text-align:center;padding:20px">Aucune proposition active.</td></tr></tbody>
     </table>
   </div>
@@ -3951,10 +3951,19 @@ async function loadProposals(){
   const enriched = props.map(p=>({ p, flags: analyze(p) }))
     .sort((a,b)=> b.flags.length - a.flags.length || (new Date(a.p.created_at)-new Date(b.p.created_at)));
 
+  // Échappement : les champs ci-dessous sont saisis librement par les managers.
+  const escP = s => String(s==null?'':s).replace(/[<>&"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const POS_FR = {GK:'Gardien', DEF:'Défenseur', MID:'Milieu', FWD:'Attaquant'};
   tbody.innerHTML = enriched.map(({p,flags})=>{
     const st = PROP_STATUS[p.status] || {txt:p.status, cls:'s-closed'};
     const own = p.is_own ? ' <span class="hint">(ta proposition)</span>' : '';
-    const reason = p.decision_reason ? `<div class="hint" style="margin-top:4px">Motif : ${p.decision_reason}</div>` : '';
+    const reason = p.decision_reason ? `<div class="hint" style="margin-top:4px">Motif : ${escP(p.decision_reason)}</div>` : '';
+    // Visu total du dénichage : prénom + NOM tels que saisis, + poste.
+    const first = (p.first_name||'').trim();
+    const last  = (p.last_name||p.player_name||'').trim();
+    const ident = first ? `${escP(first)} ${escP(last).toUpperCase()}` : escP(last).toUpperCase();
+    const posFr = p.pos ? `<span class="hint" style="font-size:.72rem;border:1px solid var(--line);border-radius:6px;padding:1px 6px;margin-left:6px">${POS_FR[p.pos]||escP(p.pos)}</span>` : '';
+    const noFirst = first ? '' : ` <span title="Prénom manquant — à faire compléter" style="color:var(--transfer);font-size:.72rem">⚠ sans prénom</span>`;
     const clean = flags.length===0;
     // Case à cocher : seulement pour les propositions propres et pas les miennes.
     const selectable = clean && !p.is_own && (p.status==='pending'||p.status==='needs_changes'||p.status==='approved');
@@ -3977,9 +3986,9 @@ async function loadProposals(){
     }
     return `<tr${clean?'':' style="background:rgba(245,197,66,.05)"'}>
       <td style="text-align:center">${check}</td>
-      <td><b>${p.proposer_name}</b>${own}</td>
-      <td>${p.player_name}${reason}</td>
-      <td>${p.club ?? '—'}${p.championship?' · '+p.championship:''}</td>
+      <td><b>${escP(p.proposer_name)}</b>${own}</td>
+      <td><b>${ident}</b>${posFr}${noFirst}${reason}</td>
+      <td>${escP(p.club ?? '—')}${p.championship?' · '+escP(p.championship):''}</td>
       <td class="val">${p.value?fmtM(p.value):'—'}</td>
       <td>${signals}</td>
       <td><span class="status ${st.cls}">${st.txt}</span></td>
