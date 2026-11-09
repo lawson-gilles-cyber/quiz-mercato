@@ -8,7 +8,7 @@
  * incrémenter CACHE_VERSION ci-dessous (v1 -> v2 -> v3...).
  * L'ancien cache est alors supprimé automatiquement.
  */
-const CACHE_VERSION = 'us-v176';
+const CACHE_VERSION = 'us-v177';
 const CACHE_NAME = 'ultimate-squad-' + CACHE_VERSION;
 
 // Coquille minimale mise en cache à l'installation (ouverture rapide hors-ligne).
@@ -51,6 +51,16 @@ self.addEventListener('fetch', (event) => {
   // Ne JAMAIS mettre en cache les appels Supabase (données live : enchères,
   // budgets, classement...). On laisse passer au réseau tel quel.
   if (url.hostname.endsWith('supabase.co')) return;
+
+  // Ne JAMAIS intercepter ni cacher la publicité / Google (AdSense, Consent,
+  // mesure) : le Service Worker fausserait les impressions et casserait les
+  // scripts cross-origin opaques. On laisse le navigateur gérer directement.
+  const AD_HOSTS = [
+    'googlesyndication.com', 'googleadservices.com', 'doubleclick.net',
+    'googletagservices.com', 'googletagmanager.com', 'google-analytics.com',
+    'adtrafficquality.google', 'g.doubleclick.net'
+  ];
+  if (AD_HOSTS.some((h) => url.hostname === h || url.hostname.endsWith('.' + h))) return;
 
   // Pour tout le reste (pages, JS, CSS, images du site) : network-first.
   event.respondWith(

@@ -1,0 +1,4 @@
+# ads.txt — Authorized Digital Sellers (IAB)
+# À COMPLÉTER : remplace pub-XXXXXXXXXXXXXXXX par ton ID éditeur AdSense
+# (le même que dans js/us-ads.js, SANS le préfixe "ca-").
+google.com, pub-XXXXXXXXXXXXXXXX, DIRECT, f08c47fec0942fa0

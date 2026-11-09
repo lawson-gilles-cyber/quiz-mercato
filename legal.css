@@ -1,0 +1,48 @@
+/* Charte commune aux pages légales d'Ultimate Squad (cohérente avec le jeu). */
+:root{
+  --pitch:#0a1428; --pitch-2:#0f1d38; --line:#1c3358;
+  --chalk:#eef3ea; --muted:#8095b5; --transfer:#f5c542; --transfer-deep:#d4a017;
+  --live:#ff5a4d; --r:14px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--pitch); color:var(--chalk);
+  font-family:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  line-height:1.6; font-size:16px;
+}
+.wrap{max-width:820px; margin:0 auto; padding:28px 18px 80px}
+header.topbar{
+  display:flex; align-items:center; gap:12px; padding:16px 18px;
+  border-bottom:1px solid var(--line); background:var(--pitch-2);
+}
+header.topbar a.brand{
+  color:var(--transfer); font-weight:900; text-decoration:none; font-size:1.1rem;
+  letter-spacing:-.3px;
+}
+header.topbar nav{margin-left:auto; display:flex; gap:14px; flex-wrap:wrap}
+header.topbar nav a{color:var(--muted); text-decoration:none; font-size:.9rem}
+header.topbar nav a:hover{color:var(--chalk)}
+h1{font-size:1.8rem; font-weight:900; letter-spacing:-.5px; margin:10px 0 4px}
+h1 em{color:var(--transfer); font-style:normal}
+h2{font-size:1.2rem; font-weight:800; margin:28px 0 8px; color:var(--chalk)}
+.updated{color:var(--muted); font-size:.85rem; margin-bottom:8px}
+p,li{color:#d6deec}
+a{color:var(--transfer)}
+a:hover{color:var(--transfer-deep)}
+.todo{
+  background:rgba(255,90,77,.12); border:1px solid var(--live); color:#ffd3cd;
+  border-radius:8px; padding:2px 8px; font-weight:700; font-size:.92em;
+}
+.note{
+  background:var(--pitch-2); border:1px solid var(--line); border-radius:var(--r);
+  padding:14px 16px; margin:18px 0;
+}
+hr{border:none; border-top:1px solid var(--line); margin:28px 0}
+footer.sitefoot{
+  border-top:1px solid var(--line); background:var(--pitch-2);
+  padding:22px 18px; color:var(--muted); font-size:.85rem; text-align:center;
+}
+footer.sitefoot a{color:var(--muted); text-decoration:none; margin:0 8px}
+footer.sitefoot a:hover{color:var(--chalk)}
+.backlink{display:inline-block; margin-top:24px; color:var(--transfer); text-decoration:none; font-weight:700}

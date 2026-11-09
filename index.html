@@ -1935,6 +1935,7 @@
   </section>
 </main>
 
+<script src="./js/consent.js"></script>
 <script src="./js/icons.js"></script>
 <script type="module">
 import * as api from './js/api.js';
@@ -9367,5 +9368,18 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- Pied de page légal (requis pour AdSense : liens publics visibles) -->
+<footer id="siteFoot" style="border-top:1px solid var(--line);background:var(--pitch-2);padding:20px 16px;margin-top:40px;color:var(--muted);font-size:.82rem;text-align:center">
+  <div style="max-width:980px;margin:0 auto">
+    <a href="confidentialite.html" style="color:var(--muted);text-decoration:none;margin:0 7px">Confidentialité</a>·
+    <a href="mentions-legales.html" style="color:var(--muted);text-decoration:none;margin:0 7px">Mentions légales</a>·
+    <a href="cgu.html" style="color:var(--muted);text-decoration:none;margin:0 7px">CGU</a>·
+    <a href="#" style="color:var(--muted);text-decoration:none;margin:0 7px" onclick="try{window.USConsent&&window.USConsent.open()}catch(e){};return false">Gérer mes cookies</a>
+    <div style="margin-top:8px">© <span id="footYear"></span> Ultimate Squad</div>
+  </div>
+</footer>
+<script>try{document.getElementById('footYear').textContent=new Date().getFullYear();}catch(e){}</script>
+<script src="./js/us-ads.js"></script>
 </body>
 </html>
