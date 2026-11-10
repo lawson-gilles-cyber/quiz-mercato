@@ -1599,6 +1599,7 @@
     <div id="dmGate" style="display:none" class="empty">Connecte-toi pour accéder à tes messages.</div>
     <div id="dmUI" style="display:none">
       <p class="hint" style="font-size:.82rem;margin-bottom:14px">Échange en privé avec un autre manager. Pour démarrer une nouvelle conversation, ouvre le profil d'un manager (depuis le classement ou le chat) puis « Envoyer un message ».</p>
+      <input id="dmConvSearch" type="search" class="us-search" placeholder="Rechercher une conversation…" autocomplete="off" style="margin-bottom:12px">
       <div id="dmConvList"><div class="empty">Chargement…</div></div>
     </div>
   </section>
@@ -6293,6 +6294,38 @@ async function showManagerSquad(mgrId){
 // ---------- Messagerie privée (DM) ----------------------------------
 // Fenêtre de conversation privée avec un manager (overlay réutilisable).
 let DM_SUB = null;
+let DM_TYPING = null;
+// Rend le corps d'un message : carte joueur si format spécial, sinon texte échappé.
+// Format de partage : [[player:<id>|<nom>|<poste>|<valeur>]]
+function renderDmBody(body, esc){
+  const m = String(body||'').match(/^\[\[player:([0-9a-f-]+)\|([^|]*)\|([^|]*)\|([^\]]*)\]\]$/i);
+  if(!m) return esc(body);
+  const [,pid,name,pos,val] = m;
+  const POSL = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
+  return `<span data-playercard="${esc(pid)}" style="cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+    <span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(245,197,66,.18);color:var(--transfer);font-weight:800;font-size:.72rem">${esc((POSL[pos]||pos||'').slice(0,3))}</span>
+    <span><b>${esc(name)}</b><br><span style="font-size:.72rem;color:var(--muted)">${esc(val)} · voir la fiche →</span></span>
+  </span>`;
+}
+// Sélecteur de joueur à partager dans un DM.
+async function openPlayerShareForDM(otherId, refresh){
+  const q = await (typeof uxPrompt==='function'
+    ? uxPrompt('Nom du joueur à partager :', { title:'Partager un joueur', okText:'Chercher', placeholder:'ex. Mbappé' })
+    : Promise.resolve(prompt('Nom du joueur à partager :')));
+  if(!q) return;
+  let found = [];
+  try { found = await api.searchPlayersByName(q, 6); } catch(e){}
+  if(!found.length){ toast('Aucun joueur trouvé pour « '+q+' ».','info',3000); return; }
+  const p = found[0];  // on partage le meilleur résultat
+  const name = (p.first_name? p.first_name+' ' : '') + p.name;
+  const val = (typeof fmtMoney==='function') ? fmtMoney(p.current_value) : (Math.round(Number(p.current_value||0)/1e6)+' M€');
+  const payload = `[[player:${p.id}|${name.replace(/[|\]]/g,'')}|${p.position||''}|${val}]]`;
+  const { error } = await api.dmSend(otherId, payload);
+  if(error){ toast(error.message,'err'); return; }
+  toast(`${name} partagé dans la conversation.`,'ok',2500);
+  if(typeof refresh==='function') refresh(true);
+}
+
 async function openDM(otherId, otherName){
   const I=(typeof ic==='function')?ic:(()=>'');
   const ov = document.getElementById('uxOverlay');
@@ -6302,11 +6335,17 @@ async function openDM(otherId, otherName){
 
   md.innerHTML = `
     <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:4px">${I('chat',18)} ${esc(otherName)}</h3>
-    <p class="hint" style="font-size:.76rem;margin-bottom:10px">Conversation privée — visible seulement par vous deux.</p>
+    <p class="hint" style="font-size:.76rem;margin-bottom:2px">Conversation privée — visible seulement par vous deux.</p>
+    <div id="dmTyping" style="height:16px;font-size:.74rem;color:#4ade80;margin-bottom:8px;transition:opacity .2s;opacity:0">${esc(otherName)} écrit…</div>
     <div id="dmThread" style="height:min(48vh,380px);overflow-y:auto;border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--pitch-2);display:flex;flex-direction:column;gap:8px;margin-bottom:10px">
       <div class="hint" style="margin:auto">Chargement…</div>
     </div>
+    <div id="dmReplyBanner" style="display:none;align-items:center;gap:8px;background:rgba(245,197,66,.08);border:1px solid var(--line);border-left:3px solid var(--transfer);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:.78rem;color:var(--muted)">
+      <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="dmReplyText"></span>
+      <a href="#" id="dmReplyCancel" style="color:var(--muted);text-decoration:none">${I('x',13)}</a>
+    </div>
     <div style="display:flex;gap:8px">
+      <button id="dmShareBtn" title="Partager un joueur" style="flex:0 0 auto;background:var(--pitch);border:1px solid var(--line);color:var(--transfer);border-radius:8px;padding:0 12px;cursor:pointer;font-size:1.1rem">${I('soccer',16)||'⚽'}</button>
       <input id="dmInput" type="text" maxlength="2000" placeholder="Ton message…" autocomplete="off"
         style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk)">
       <button id="dmSendBtn" class="bid-btn" style="margin:0;width:auto;padding:10px 16px">${I('share',15)}</button>
@@ -6334,16 +6373,53 @@ async function openDM(otherId, otherName){
       if(m.read_at)      parts.push(`Lu ${fmt(m.read_at)}`);
       return `<span title="${parts.join(' · ')}">${fmt(m.created_at)}</span>`;
     };
+    // Bloc citation (si le message répond à un autre).
+    const quote = (m)=>{
+      if(!m.reply_to || !m.reply_body) return '';
+      return `<div style="border-left:3px solid var(--transfer);padding:2px 8px;margin-bottom:4px;background:rgba(255,255,255,.04);border-radius:4px;font-size:.76rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.reply_mine?'Toi':esc(otherName)} : ${esc(String(m.reply_body).slice(0,80))}</div>`;
+    };
+    // Puces de réactions (emoji + compte).
+    const reacts = (m)=>{
+      const r = m.reactions && typeof m.reactions==='object' ? m.reactions : {};
+      const keys = Object.keys(r);
+      if(!keys.length) return '';
+      return `<div style="margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;${m.is_mine?'justify-content:flex-end':''}">`+
+        keys.map(e=>`<span data-react="${m.id}" data-emoji="${e}" title="Réagir" style="cursor:pointer;background:var(--pitch);border:1px solid ${m.my_reaction===e?'var(--transfer)':'var(--line)'};border-radius:10px;padding:0 6px;font-size:.78rem">${e} ${r[e]}</span>`).join('')+
+        `</div>`;
+    };
     threadBox.innerHTML = msgs.length ? msgs.map(m=>{
       const del = m.is_mine ? ` <a href="#" data-dmdel="${m.id}" style="color:var(--muted);font-size:.7rem;text-decoration:none">${I('x',11)}</a>` : '';
-      return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
-        <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);word-break:break-word">${esc(m.body)}</div>
-        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${stamp(m)}${ticks(m)}${del}</div>
+      // Actions rapides (répondre / réagir) au survol.
+      const actions = `<span class="dm-acts" style="opacity:.55;white-space:nowrap">
+        <a href="#" data-dmreply="${m.id}" data-body="${esc(m.body).replace(/"/g,'&quot;')}" title="Répondre" style="color:var(--muted);font-size:.7rem;text-decoration:none;margin-left:6px">${I('repeat',11)}</a>
+        <a href="#" data-dmreact="${m.id}" title="Réagir" style="color:var(--muted);font-size:.72rem;text-decoration:none;margin-left:6px">☺</a>${del}</span>`;
+      return `<div data-msgid="${m.id}" style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:88%':'max-width:88%'}">
+        ${quote(m)}
+        <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);word-break:break-word;text-align:left">${renderDmBody(m.body, esc)}</div>
+        ${reacts(m)}
+        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${stamp(m)}${ticks(m)}${actions}</div>
       </div>`;
     }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
     threadBox.querySelectorAll('[data-dmdel]').forEach(a=>a.onclick=async(ev)=>{
       ev.preventDefault();
       await api.dmDeleteMine(a.dataset.dmdel);
+      refresh(true);
+    });
+    // Répondre : arme la citation au-dessus de l'input.
+    threadBox.querySelectorAll('[data-dmreply]').forEach(a=>a.onclick=(ev)=>{
+      ev.preventDefault();
+      setReplyTo(a.dataset.dmreply, a.dataset.body);
+    });
+    // Réagir : ouvre le petit sélecteur d'emoji.
+    threadBox.querySelectorAll('[data-dmreact]').forEach(a=>a.onclick=(ev)=>{
+      ev.preventDefault();
+      openReactionPicker(a.dataset.dmreact, ev.currentTarget);
+    });
+    // Cliquer une réaction existante = toggle de la mienne.
+    threadBox.querySelectorAll('[data-react]').forEach(s=>s.onclick=async()=>{
+      const mid = s.dataset.react, emoji = s.dataset.emoji;
+      const msg = msgs.find(x=>x.id===mid);
+      await api.dmReact(mid, (msg && msg.my_reaction===emoji) ? null : emoji);
       refresh(true);
     });
     if(atBottom || !keepScroll) threadBox.scrollTop = threadBox.scrollHeight;
@@ -6353,16 +6429,77 @@ async function openDM(otherId, otherName){
   await refresh();
 
   const input = document.getElementById('dmInput');
+  // --- Amélioration 2 : état de citation (répondre à) ---
+  let DM_REPLY_TO = null;
+  function setReplyTo(id, body){
+    DM_REPLY_TO = id;
+    const b = $('dmReplyBanner'), t = $('dmReplyText');
+    if(t) t.textContent = 'Réponse à : ' + String(body||'').slice(0,90);
+    if(b) b.style.display='flex';
+    try{ input.focus(); }catch(e){}
+  }
+  function clearReplyTo(){ DM_REPLY_TO=null; const b=$('dmReplyBanner'); if(b) b.style.display='none'; }
+  { const c = $('dmReplyCancel'); if(c) c.onclick=(e)=>{ e.preventDefault(); clearReplyTo(); }; }
+
+  // Petit sélecteur d'emoji pour réagir.
+  async function openReactionPicker(msgId, anchor){
+    const EMO = ['👍','❤️','😂','😮','🔥','👏'];
+    const existing = document.getElementById('dmEmojiPicker'); if(existing) existing.remove();
+    const pick = document.createElement('div');
+    pick.id='dmEmojiPicker';
+    pick.style.cssText='position:absolute;z-index:3000;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:5px 7px;display:flex;gap:4px;box-shadow:0 8px 20px rgba(0,0,0,.4)';
+    pick.innerHTML = EMO.map(e=>`<span data-e="${e}" style="cursor:pointer;font-size:1.15rem;padding:1px 3px">${e}</span>`).join('');
+    document.body.appendChild(pick);
+    const r = anchor.getBoundingClientRect();
+    pick.style.left = Math.max(8, Math.min(r.left-20, window.innerWidth-pick.offsetWidth-8))+'px';
+    pick.style.top = (r.top - pick.offsetHeight - 6 + window.scrollY)+'px';
+    pick.querySelectorAll('[data-e]').forEach(s=>s.onclick=async()=>{
+      await api.dmReact(msgId, s.dataset.e);
+      pick.remove(); refresh(true);
+    });
+    const off = (ev)=>{ if(!pick.contains(ev.target)){ pick.remove(); document.removeEventListener('click', off, true); } };
+    setTimeout(()=>document.addEventListener('click', off, true), 50);
+  }
+
   const send = async ()=>{
     const body = input.value.trim();
     if(!body) return;
     input.value='';
-    const { error } = await api.dmSend(otherId, body);
+    const { error } = await api.dmSend(otherId, body, DM_REPLY_TO);
+    clearReplyTo();
     if(error){ toast(error.message,'err'); return; }
     refresh(true);
   };
+  // --- Amélioration 3 : partager un joueur dans le DM ---
+  { const sb2 = $('dmShareBtn'); if(sb2) sb2.onclick = ()=> openPlayerShareForDM(otherId, refresh); }
   document.getElementById('dmSendBtn').onclick = send;
-  input.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } };
+
+  // --- Amélioration 1 : indicateur « en train d'écrire… » ---
+  const typingEl = document.getElementById('dmTyping');
+  let hideTypingTimer = null;
+  try { if(DM_TYPING && DM_TYPING.close){ DM_TYPING.close(); } } catch(e){}
+  try {
+    DM_TYPING = api.dmTypingChannel(ME.id, otherId, (p)=>{
+      if(!p || p.from===ME.id) return;
+      if(p.typing){
+        if(typingEl) typingEl.style.opacity='1';
+        clearTimeout(hideTypingTimer);
+        hideTypingTimer = setTimeout(()=>{ if(typingEl) typingEl.style.opacity='0'; }, 3500);
+      } else {
+        if(typingEl) typingEl.style.opacity='0';
+      }
+    });
+  } catch(e){ DM_TYPING = null; }
+  // Signale que je tape (throttlé) + "stop" après une pause.
+  let lastTypingSent = 0, stopTypingTimer = null;
+  const signalTyping = ()=>{
+    const now = Date.now();
+    if(now - lastTypingSent > 1500){ lastTypingSent = now; try{ DM_TYPING && DM_TYPING.send(true); }catch(e){} }
+    clearTimeout(stopTypingTimer);
+    stopTypingTimer = setTimeout(()=>{ try{ DM_TYPING && DM_TYPING.send(false); }catch(e){} }, 2500);
+  };
+  input.oninput = signalTyping;
+  input.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); try{ DM_TYPING && DM_TYPING.send(false); }catch(_){} send(); } };
   setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 100);
 
   // Temps réel : rafraîchit le fil si un message arrive pendant qu'il est ouvert.
@@ -6372,6 +6509,7 @@ async function openDM(otherId, otherName){
   const close = ()=>{
     ov.style.display='none';
     try { if(DM_SUB && DM_SUB.unsubscribe){ DM_SUB.unsubscribe(); } DM_SUB=null; } catch(e){}
+    try { if(DM_TYPING && DM_TYPING.close){ DM_TYPING.close(); } DM_TYPING=null; } catch(e){}
     // Le fil a été marqué lu : on rafraîchit la pastille, la cloche et, si ouvert, la liste.
     try { if(typeof refreshDmBadge==='function') refreshDmBadge().then(()=>{ if(typeof loadNotifications==='function') loadNotifications(); }); } catch(e){}
     try { if(CURRENT_VIEW==='messages' && typeof renderMessages==='function') renderMessages(); } catch(e){}
@@ -8022,23 +8160,37 @@ async function renderMessages(){
   try { await api.dmMarkDelivered(); } catch(e){}
   let convs = [];
   try { convs = await api.dmConversations(); } catch(e){ convs = []; }
-  box.innerHTML = convs.length ? convs.map(c=>{
-    const t = new Date(c.last_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-    const preview = (c.last_is_mine?'Toi : ':'') + (c.last_body||'');
-    const unread = Number(c.unread)||0;
-    const badge = unread>0 ? `<span style="background:var(--live);color:#fff;font-size:.68rem;font-weight:800;padding:1px 8px;border-radius:9px;flex-shrink:0">${unread>99?'99+':unread}</span>` : '';
-    return `<div data-dmopen="${c.other_id}" data-name="${esc(c.other_name).replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--pitch-2);cursor:pointer">
-      <span style="flex-shrink:0;display:inline-flex;color:${c.other_color||'var(--transfer)'}">${I('chat',18)}</span>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:700;font-size:.92rem;color:var(--chalk)">${esc(c.other_name)}</div>
-        <div style="font-size:.78rem;color:${unread>0?'var(--chalk)':'var(--muted)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preview)}</div>
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
-        <span style="font-size:.68rem;color:var(--muted)">${t}</span>${badge}
-      </div>
-    </div>`;
-  }).join('') : '<div class="empty">Aucune conversation pour le moment. Ouvre le profil d\'un manager pour lui écrire.</div>';
-  box.querySelectorAll('[data-dmopen]').forEach(el=>el.onclick=()=>openDM(el.dataset.dmopen, el.dataset.name));
+  const paintConvs = (list)=>{
+    box.innerHTML = list.length ? list.map(c=>{
+      const t = new Date(c.last_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const preview = (c.last_is_mine?'Toi : ':'') + (c.last_body||'');
+      const unread = Number(c.unread)||0;
+      const badge = unread>0 ? `<span style="background:var(--live);color:#fff;font-size:.68rem;font-weight:800;padding:1px 8px;border-radius:9px;flex-shrink:0">${unread>99?'99+':unread}</span>` : '';
+      return `<div data-dmopen="${c.other_id}" data-name="${esc(c.other_name).replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--pitch-2);cursor:pointer">
+        <span style="flex-shrink:0;display:inline-flex;color:${c.other_color||'var(--transfer)'}">${I('chat',18)}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:.92rem;color:var(--chalk)">${esc(c.other_name)}</div>
+          <div style="font-size:.78rem;color:${unread>0?'var(--chalk)':'var(--muted)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(preview)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+          <span style="font-size:.68rem;color:var(--muted)">${t}</span>${badge}
+        </div>
+      </div>`;
+    }).join('') : '<div class="empty" style="padding:16px">Aucune conversation.</div>';
+    box.querySelectorAll('[data-dmopen]').forEach(el=>el.onclick=()=>openDM(el.dataset.dmopen, el.dataset.name));
+  };
+  if(!convs.length){
+    box.innerHTML = '<div class="empty">Aucune conversation pour le moment. Ouvre le profil d\'un manager pour lui écrire.</div>';
+  } else {
+    paintConvs(convs);
+  }
+  // Recherche dans les conversations (par nom du correspondant ou dernier message).
+  const cs = $('dmConvSearch');
+  if(cs){ cs.oninput = ()=>{
+    const q = cs.value.trim().toLowerCase();
+    if(!q){ paintConvs(convs); return; }
+    paintConvs(convs.filter(c=> (c.other_name||'').toLowerCase().includes(q) || (c.last_body||'').toLowerCase().includes(q) ));
+  }; }
   // On a (r)ouvert l'onglet : les non-lus affichés se résorbent au fil des ouvertures.
   await refreshDmBadge();
 }

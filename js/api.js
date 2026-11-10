@@ -1020,8 +1020,12 @@ export function subscribeChat(onChange) {
 
 // ---------- MESSAGES PRIVÉS (DM) ------------------------------------
 // Envoyer un DM à un manager.
-export async function dmSend(recipientId, body) {
-  return sb.rpc('qm_dm_send', { p_recipient: recipientId, p_body: body });
+export async function dmSend(recipientId, body, replyTo = null) {
+  return sb.rpc('qm_dm_send', { p_recipient: recipientId, p_body: body, p_reply_to: replyTo });
+}
+// Réagir à un message DM (emoji), ou retirer ma réaction (emoji vide/null).
+export async function dmReact(messageId, emoji) {
+  return sb.rpc('qm_dm_react', { p_message: messageId, p_emoji: emoji || null });
 }
 // Fil de conversation avec un manager (du plus ancien au plus récent).
 // Marque aussi comme lus les messages reçus de ce correspondant.
@@ -1038,6 +1042,22 @@ export async function dmConversations() {
 export async function dmUnreadCount() {
   const { data } = await sb.rpc('qm_dm_unread_count');
   return Number(data || 0);
+}
+// Canal « en train d'écrire… » entre deux managers (broadcast, sans table).
+// Nom déterministe à partir de la paire triée → les deux rejoignent le même.
+export function dmTypingChannel(myId, otherId, onTyping) {
+  const pair = [String(myId), String(otherId)].sort().join('_');
+  const ch = sb.channel('dm-typing:' + pair, { config: { broadcast: { self: false } } });
+  ch.on('broadcast', { event: 'typing' }, (payload) => {
+    try { onTyping(payload?.payload || {}); } catch (e) {}
+  }).subscribe();
+  return {
+    // Signale que JE tape (ou que j'ai arrêté).
+    send(isTyping) {
+      try { ch.send({ type: 'broadcast', event: 'typing', payload: { from: myId, typing: !!isTyping } }); } catch (e) {}
+    },
+    close() { try { sb.removeChannel(ch); } catch (e) {} }
+  };
 }
 // Marque « reçus » tous mes messages en attente (accusé de réception WhatsApp).
 // À appeler quand je suis en ligne / j'ouvre la messagerie.
