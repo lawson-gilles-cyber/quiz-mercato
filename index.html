@@ -2075,8 +2075,12 @@ function uxConfirm(message, {title='Confirmer', okText='Confirmer', danger=false
 // Invite de saisie (ex. nouveau mot de passe). Renvoie la valeur ou null.
 function uxPrompt(message, {title='Saisie', okText='Valider', type='text', placeholder=''}={}){
   return new Promise(resolve=>{
-    const ov = document.getElementById('uxOverlay');
-    const md = document.getElementById('uxModal');
+    // Si un modal est déjà ouvert (DM…), on s'empile sur le 2e overlay pour ne
+    // pas écraser son contenu ni hériter de ses gestionnaires de clic.
+    const primary = document.getElementById('uxOverlay');
+    const primaryOpen = primary && (primary.classList.contains('show') || getComputedStyle(primary).display!=='none');
+    const ov = document.getElementById(primaryOpen ? 'uxOverlay2' : 'uxOverlay');
+    const md = document.getElementById(primaryOpen ? 'uxModal2' : 'uxModal');
     md.innerHTML = `<h3>${title}</h3><p>${message}</p>
       <input id="uxPromptInput" type="${type}" placeholder="${placeholder}" autocomplete="new-password"
         style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:10px 12px;border-radius:8px;margin:6px 0 14px;font-family:inherit">
@@ -2085,9 +2089,10 @@ function uxPrompt(message, {title='Saisie', okText='Valider', type='text', place
         <button class="ux-ok" data-yes>${okText}</button>
       </div>`;
     ov.classList.add('show');
+    if(ov.id==='uxOverlay2') ov.style.display='flex';
     const inp = md.querySelector('#uxPromptInput');
     setTimeout(()=>{ try{ inp.focus(); }catch(e){} }, 30);
-    const close = (val)=>{ ov.classList.remove('show'); resolve(val); };
+    const close = (val)=>{ ov.classList.remove('show'); if(ov.id==='uxOverlay2') ov.style.display='none'; resolve(val); };
     md.querySelector('[data-no]').onclick = ()=>close(null);
     md.querySelector('[data-yes]').onclick = ()=>close(inp.value);
     inp.onkeydown = (e)=>{ if(e.key==='Enter') close(inp.value); };
