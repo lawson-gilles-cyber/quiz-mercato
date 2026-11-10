@@ -1025,6 +1025,8 @@
 </nav>
 <!-- UX : modale générique (confirmation + enchère) -->
 <div id="uxOverlay" class="ux-ov"><div class="ux-modal" id="uxModal"></div></div>
+<!-- Overlay secondaire : fiche joueur empilée au-dessus d'un DM ouvert -->
+<div id="uxOverlay2" class="ux-ov" style="z-index:10002"><div class="ux-modal" id="uxModal2"></div></div>
 
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
@@ -4573,12 +4575,19 @@ function bourseBlock(quote, qhist, valueHist, deltaFallbackTxt){
 }
 async function showPlayerCard(playerId){
   const I=(typeof ic==='function')?ic:(()=>'');
-  const ov = document.getElementById('uxOverlay');
-  const md = document.getElementById('uxModal');
+  // Si un modal est déjà ouvert (DM, etc.), on empile la fiche sur un 2e overlay
+  // pour ne pas écraser la conversation en cours.
+  const primary = document.getElementById('uxOverlay');
+  const primaryOpen = primary && (primary.classList.contains('show') || getComputedStyle(primary).display!=='none');
+  const ov = document.getElementById(primaryOpen ? 'uxOverlay2' : 'uxOverlay');
+  const md = document.getElementById(primaryOpen ? 'uxModal2' : 'uxModal');
   md.innerHTML = `<h3>Fiche joueur</h3><div class="hint">Chargement…</div>
     <div class="ux-actions"><button class="ux-cancel" data-no>Fermer</button></div>`;
   ov.classList.add('show');
-  const close = ()=>ov.classList.remove('show');
+  // Le 2e overlay utilise aussi .show ; on force l'affichage au cas où un style
+  // inline display:none traînerait.
+  if(ov.id==='uxOverlay2') ov.style.display='flex';
+  const close = ()=>{ ov.classList.remove('show'); if(ov.id==='uxOverlay2') ov.style.display='none'; };
   md.querySelector('[data-no]').onclick = close;
   ov.onclick = (e)=>{ if(e.target===ov) close(); };
   // Infos joueur depuis la liste déjà chargée, sinon valeurs minimales
