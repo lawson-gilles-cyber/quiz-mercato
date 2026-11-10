@@ -6309,10 +6309,19 @@ async function showManagerSquad(mgrId){
 // Fenêtre de conversation privée avec un manager (overlay réutilisable).
 let DM_SUB = null;
 let DM_TYPING = null;
-// Rend le corps d'un message : carte joueur si format spécial, sinon texte échappé.
-// Format de partage : [[player:<id>|<nom>|<poste>|<valeur>]]
+// Rend le corps d'un message : carte joueur / offre d'échange si format spécial,
+// sinon texte échappé.
+// Partage joueur : [[player:<id>|<nom>|<poste>|<valeur>]]
+// Offre d'échange : [[trade:<trade_id>]]  (hydratée après coup, async)
 function renderDmBody(body, esc){
-  const m = String(body||'').match(/^\[\[player:([0-9a-f-]+)\|([^|]*)\|([^|]*)\|([^\]]*)\]\]$/i);
+  const s = String(body||'');
+  const mt = s.match(/^\[\[trade:([0-9a-f-]+)\]\]$/i);
+  if(mt){
+    // Conteneur hydraté par hydrateTradeCards() après le rendu.
+    return `<span class="dm-trade-card" data-trade="${esc(mt[1])}" style="display:inline-block;min-width:200px">
+      <span style="color:var(--muted);font-size:.8rem">Chargement de l'offre…</span></span>`;
+  }
+  const m = s.match(/^\[\[player:([0-9a-f-]+)\|([^|]*)\|([^|]*)\|([^\]]*)\]\]$/i);
   if(!m) return esc(body);
   const [,pid,name,pos,val] = m;
   const POSL = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
@@ -6320,6 +6329,59 @@ function renderDmBody(body, esc){
     <span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:rgba(245,197,66,.18);color:var(--transfer);font-weight:800;font-size:.72rem">${esc((POSL[pos]||pos||'').slice(0,3))}</span>
     <span><b>${esc(name)}</b><br><span style="font-size:.72rem;color:var(--muted)">${esc(val)} · voir la fiche →</span></span>
   </span>`;
+}
+// Remplit les cartes d'offre d'échange présentes dans le fil (statut live + actions).
+async function hydrateTradeCards(threadBox, refresh){
+  const cards = threadBox.querySelectorAll('.dm-trade-card[data-trade]');
+  if(!cards.length) return;
+  let mine = [];
+  try { mine = await api.myTrades(); } catch(e){}
+  const esc = s => String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const ST = {pending:'En attente', accepted:'Accepté ✓', refused:'Refusé', cancelled:'Annulé'};
+  cards.forEach(card=>{
+    const t = mine.find(x=>x.id===card.dataset.trade);
+    if(!t){ card.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Offre introuvable (expirée ?)</span>'; return; }
+    const iSent = t.from_manager===ME.id;
+    const cash = Number(t.cash_from_to||0);
+    const cashTxt = cash>0?` + ${fmtMoney(cash)}`:cash<0?` (reçoit ${fmtMoney(-cash)})`:'';
+    const nm = id => { const a=[...(TRADE_MINE||[]),...(TRADE_THEIRS||[])].find(x=>x.id===id); return a?a.name:'joueur'; };
+    const offer = (t.offer_players||[]).map(nm).join(', ')||'—';
+    const ask = (t.ask_players||[]).map(nm).join(', ')||'—';
+    let actions='';
+    if(t.status==='pending' && !iSent){
+      actions = `<div style="display:flex;gap:6px;margin-top:8px">
+        <button class="bid-btn" data-trade-acc="${t.id}" style="margin:0;padding:6px 12px;font-size:.78rem;width:auto">Accepter</button>
+        <button class="btn-ghost btn-sm" data-trade-ref="${t.id}" style="font-size:.78rem">Refuser</button></div>`;
+    } else if(t.status==='pending' && iSent){
+      actions = `<div style="margin-top:6px"><button class="btn-ghost btn-sm" data-trade-cancel="${t.id}" style="font-size:.76rem">Annuler l'offre</button></div>`;
+    }
+    const stColor = t.status==='accepted'?'#4ade80':t.status==='pending'?'var(--transfer)':'var(--muted)';
+    card.innerHTML = `<div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--pitch);text-align:left;min-width:200px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <b style="font-size:.82rem">${(typeof ic==='function'?ic('repeat',14):'')} Offre d'échange</b>
+        <span style="font-size:.72rem;color:${stColor};font-weight:700">${ST[t.status]||t.status}</span>
+      </div>
+      <div style="font-size:.82rem;color:var(--chalk)">${iSent?'Tu offres':'On t\'offre'} : <b>${esc(offer)}</b>${iSent?cashTxt:''}</div>
+      <div style="font-size:.82rem;color:var(--chalk)">${iSent?'Contre':'Contre tes'} : <b>${esc(ask)}</b></div>
+      ${actions}</div>`;
+  });
+  // Actions
+  threadBox.querySelectorAll('[data-trade-acc]').forEach(b=>b.onclick=async()=>{
+    if(typeof coachBlocked==='function' && coachBlocked()) return;
+    b.disabled=true; const { error } = await api.acceptTrade(b.dataset.tradeAcc);
+    if(error){ toast('Échec : '+error.message,'err',4500); b.disabled=false; return; }
+    toast('Échange accepté !','ok'); if(typeof refresh==='function') refresh(true);
+  });
+  threadBox.querySelectorAll('[data-trade-ref]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true; const { error } = await api.refuseTrade(b.dataset.tradeRef);
+    if(error){ toast(error.message,'err'); b.disabled=false; return; }
+    toast('Offre refusée.','info'); if(typeof refresh==='function') refresh(true);
+  });
+  threadBox.querySelectorAll('[data-trade-cancel]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true; const { error } = await api.cancelTrade(b.dataset.tradeCancel);
+    if(error){ toast(error.message,'err'); b.disabled=false; return; }
+    toast('Offre annulée.','info'); if(typeof refresh==='function') refresh(true);
+  });
 }
 // Sélecteur de joueur à partager dans un DM.
 async function openPlayerShareForDM(otherId, refresh){
@@ -6338,6 +6400,73 @@ async function openPlayerShareForDM(otherId, refresh){
   if(error){ toast(error.message,'err'); return; }
   toast(`${name} partagé dans la conversation.`,'ok',2500);
   if(typeof refresh==='function') refresh(true);
+}
+
+// Constructeur d'offre d'échange depuis un DM : crée un vrai trade (règles
+// d'effectif/salaire/budget déjà validées) puis poste la carte dans le fil.
+async function openTradeBuilderForDM(otherId, otherName, refresh){
+  if(!ME) return;
+  if(typeof coachBlocked==='function' && coachBlocked()) return;
+  const esc = s => String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  // Charge les deux effectifs.
+  let mine=[], theirs=[];
+  try { [mine, theirs] = await Promise.all([api.myTeam(ME.id), api.myTeam(otherId)]); } catch(e){}
+  if(!mine.length){ toast('Ton effectif est vide — rien à offrir.','info',3000); return; }
+  if(!theirs.length){ toast(`${otherName} n'a aucun joueur à échanger.`,'info',3000); return; }
+  // Mémorise les noms pour la carte (TRADE_MINE/THEIRS sont utilisés par hydrateTradeCards).
+  TRADE_MINE = mine.map(p=>({id:p.id, name:(p.first_name?p.first_name+' ':'')+p.name}));
+  TRADE_THEIRS = theirs.map(p=>({id:p.id, name:(p.first_name?p.first_name+' ':'')+p.name}));
+
+  const primary = document.getElementById('uxOverlay');
+  const primaryOpen = primary && (primary.classList.contains('show') || getComputedStyle(primary).display!=='none');
+  const ov = document.getElementById(primaryOpen ? 'uxOverlay2' : 'uxOverlay');
+  const md = document.getElementById(primaryOpen ? 'uxModal2' : 'uxModal');
+  const opt = (p)=>`<option value="${p.id}">${esc((p.first_name?p.first_name+' ':'')+p.name)} · ${fmtMoney(p.current_value)}</option>`;
+  md.innerHTML = `<h3>Proposer un échange à ${esc(otherName)}</h3>
+    <label style="font-size:.82rem;color:var(--muted)">Ton joueur à offrir</label>
+    <select id="trOffer" class="us-search" style="background-image:none;padding-left:12px;margin:4px 0 10px">${mine.map(opt).join('')}</select>
+    <label style="font-size:.82rem;color:var(--muted)">Son joueur que tu veux</label>
+    <select id="trAsk" class="us-search" style="background-image:none;padding-left:12px;margin:4px 0 10px">${theirs.map(opt).join('')}</select>
+    <label style="font-size:.82rem;color:var(--muted)">Cash en plus (M€, négatif = tu reçois)</label>
+    <input id="trCash" type="number" step="0.5" value="0" class="us-search" style="background-image:none;padding-left:12px;margin:4px 0 14px">
+    <div class="ux-actions">
+      <button class="ux-cancel" data-no>Annuler</button>
+      <button class="ux-ok" data-yes>Envoyer l'offre</button>
+    </div>`;
+  ov.classList.add('show'); if(ov.id==='uxOverlay2') ov.style.display='flex';
+  const close = ()=>{ ov.classList.remove('show'); if(ov.id==='uxOverlay2') ov.style.display='none'; };
+  md.querySelector('[data-no]').onclick = close;
+  ov.onclick = (e)=>{ if(e.target===ov) close(); };
+  md.querySelector('[data-yes]').onclick = async ()=>{
+    const offerId = md.querySelector('#trOffer').value;
+    const askId = md.querySelector('#trAsk').value;
+    const cashM = parseFloat(md.querySelector('#trCash').value)||0;
+    const { data, error } = await api.proposeTrade({
+      to_manager: otherId, offer_players:[offerId], ask_players:[askId],
+      cash_from_to: Math.round(cashM*1e6), message:null
+    });
+    if(error){ toast('Échec : '+error.message,'err',4800); return; }
+    // L'id peut venir directement du RPC, sinon on retrouve le trade qu'on vient
+    // de créer (le plus récent, en attente, vers ce destinataire).
+    let tradeId = (data && (data.id || (typeof data==='string'?data:null))) || null;
+    if(!tradeId){
+      try {
+        const mt = await api.myTrades();
+        const cand = (mt||[]).filter(t=>t.status==='pending' && t.from_manager===ME.id && t.to_manager===otherId)
+          .sort((a,b)=> new Date(b.created_at||0)-new Date(a.created_at||0))[0];
+        if(cand) tradeId = cand.id;
+      } catch(e){}
+    }
+    close();
+    if(tradeId){
+      await api.dmSend(otherId, `[[trade:${tradeId}]]`);
+      toast('Offre d\'échange envoyée dans la conversation.','ok',3000);
+      if(typeof refresh==='function') refresh(true);
+    } else {
+      // Au pire, l'offre existe (visible dans l'onglet Échanges) même sans carte DM.
+      toast('Offre créée (visible dans l\'onglet Échanges).','ok',3500);
+    }
+  };
 }
 
 async function openDM(otherId, otherName){
@@ -6360,6 +6489,7 @@ async function openDM(otherId, otherName){
     </div>
     <div style="display:flex;gap:8px">
       <button id="dmShareBtn" title="Partager un joueur" style="flex:0 0 auto;background:var(--pitch);border:1px solid var(--line);color:var(--transfer);border-radius:8px;padding:0 12px;cursor:pointer;font-size:1.1rem">${I('soccer',16)||'⚽'}</button>
+      <button id="dmTradeBtn" title="Proposer un échange" style="flex:0 0 auto;background:var(--pitch);border:1px solid var(--line);color:var(--transfer);border-radius:8px;padding:0 12px;cursor:pointer;font-size:1.05rem">${I('repeat',16)||'⇄'}</button>
       <input id="dmInput" type="text" maxlength="2000" placeholder="Ton message…" autocomplete="off"
         style="flex:1;padding:10px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk)">
       <button id="dmSendBtn" class="bid-btn" style="margin:0;width:auto;padding:10px 16px">${I('share',15)}</button>
@@ -6401,23 +6531,32 @@ async function openDM(otherId, otherName){
         keys.map(e=>`<span data-react="${m.id}" data-emoji="${e}" title="Réagir" style="cursor:pointer;background:var(--pitch);border:1px solid ${m.my_reaction===e?'var(--transfer)':'var(--line)'};border-radius:10px;padding:0 6px;font-size:.78rem">${e} ${r[e]}</span>`).join('')+
         `</div>`;
     };
+    // Peut-on encore éditer (mon message, < 15 min, non supprimé) ?
+    const editable = (m)=> m.is_mine && !m.deleted_for_all && (Date.now() - new Date(m.created_at).getTime() < 15*60000);
     threadBox.innerHTML = msgs.length ? msgs.map(m=>{
-      const del = m.is_mine ? ` <a href="#" data-dmdel="${m.id}" style="color:var(--muted);font-size:.7rem;text-decoration:none">${I('x',11)}</a>` : '';
-      // Actions rapides (répondre / réagir) au survol.
-      const actions = `<span class="dm-acts" style="opacity:.55;white-space:nowrap">
+      const tomb = !!m.deleted_for_all;
+      // Menu d'actions (⋯) sur MES messages non supprimés.
+      const menu = (m.is_mine && !tomb) ? `<a href="#" data-dmmenu="${m.id}" title="Options" style="color:var(--muted);font-size:.8rem;text-decoration:none;margin-left:6px">⋯</a>` : '';
+      // Répondre/réagir : pas sur un tombstone.
+      const quickActs = tomb ? '' : `
         <a href="#" data-dmreply="${m.id}" data-body="${esc(m.body).replace(/"/g,'&quot;')}" title="Répondre" style="color:var(--muted);font-size:.7rem;text-decoration:none;margin-left:6px">${I('repeat',11)}</a>
-        <a href="#" data-dmreact="${m.id}" title="Réagir" style="color:var(--muted);font-size:.72rem;text-decoration:none;margin-left:6px">☺</a>${del}</span>`;
+        <a href="#" data-dmreact="${m.id}" title="Réagir" style="color:var(--muted);font-size:.72rem;text-decoration:none;margin-left:6px">☺</a>`;
+      const actions = `<span class="dm-acts" style="opacity:.55;white-space:nowrap">${quickActs}${menu}</span>`;
+      const editedTag = m.edited_at && !tomb ? ` <span style="color:var(--muted);font-size:.64rem">(modifié)</span>` : '';
+      const bodyStyle = tomb ? 'color:var(--muted);font-style:italic' : 'color:var(--chalk)';
+      const bodyHtml = tomb ? esc(m.body) : renderDmBody(m.body, esc);
       return `<div data-msgid="${m.id}" style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:88%':'max-width:88%'}">
-        ${quote(m)}
-        <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);word-break:break-word;text-align:left">${renderDmBody(m.body, esc)}</div>
-        ${reacts(m)}
-        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${stamp(m)}${ticks(m)}${actions}</div>
+        ${tomb?'':quote(m)}
+        <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;${bodyStyle};word-break:break-word;text-align:left">${bodyHtml}</div>
+        ${tomb?'':reacts(m)}
+        <div style="font-size:.66rem;color:var(--muted);margin-top:2px">${stamp(m)}${editedTag}${tomb?'':ticks(m)}${actions}</div>
       </div>`;
     }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
-    threadBox.querySelectorAll('[data-dmdel]').forEach(a=>a.onclick=async(ev)=>{
+    // Menu d'options (Modifier / Supprimer) sur mes messages.
+    threadBox.querySelectorAll('[data-dmmenu]').forEach(a=>a.onclick=(ev)=>{
       ev.preventDefault();
-      await api.dmDeleteMine(a.dataset.dmdel);
-      refresh(true);
+      const m = msgs.find(x=>x.id===a.dataset.dmmenu); if(!m) return;
+      openMsgMenu(m, a, { editable: editable(m), refresh, otherId });
     });
     // Répondre : arme la citation au-dessus de l'input.
     threadBox.querySelectorAll('[data-dmreply]').forEach(a=>a.onclick=(ev)=>{
@@ -6436,6 +6575,17 @@ async function openDM(otherId, otherName){
       await api.dmReact(mid, (msg && msg.my_reaction===emoji) ? null : emoji);
       refresh(true);
     });
+    // Offres d'échange : hydrate les cartes (statut live + Accepter/Refuser).
+    try { await hydrateTradeCards(threadBox, refresh); } catch(e){}
+    // « Vu à HH:MM » sous mon dernier message lu (plus précis que la coche).
+    const myRead = [...msgs].reverse().find(m=>m.is_mine && m.read_at);
+    if(myRead){
+      const hh = new Date(myRead.read_at).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+      const seen = document.createElement('div');
+      seen.style.cssText='align-self:flex-end;font-size:.66rem;color:var(--transfer);margin-top:-2px';
+      seen.textContent = 'Vu à '+hh;
+      threadBox.appendChild(seen);
+    }
     if(atBottom || !keepScroll) threadBox.scrollTop = threadBox.scrollHeight;
   }
   // Je suis en train de consulter : marque « reçus » mes messages en attente.
@@ -6453,7 +6603,51 @@ async function openDM(otherId, otherName){
     try{ input.focus(); }catch(e){}
   }
   function clearReplyTo(){ DM_REPLY_TO=null; const b=$('dmReplyBanner'); if(b) b.style.display='none'; }
-  { const c = $('dmReplyCancel'); if(c) c.onclick=(e)=>{ e.preventDefault(); clearReplyTo(); }; }
+  { const c = $('dmReplyCancel'); if(c) c.onclick=(e)=>{ e.preventDefault(); clearReplyTo(); clearEdit(); input.value=''; }; }
+
+  // --- État d'édition d'un message ---
+  let DM_EDIT_ID = null;
+  function startEdit(m){
+    DM_EDIT_ID = m.id;
+    clearReplyTo();
+    input.value = m.body;
+    const b = $('dmReplyBanner'), t = $('dmReplyText');
+    if(t) t.textContent = '✎ Modification du message…';
+    if(b) b.style.display='flex';
+    try{ input.focus(); }catch(e){}
+  }
+  function clearEdit(){ DM_EDIT_ID=null; const b=$('dmReplyBanner'); if(b) b.style.display='none'; }
+  // Menu d'options sur un de mes messages (Modifier / Supprimer).
+  function openMsgMenu(m, anchor, ctx){
+    const old = document.getElementById('dmMsgMenu'); if(old) old.remove();
+    const menu = document.createElement('div');
+    menu.id='dmMsgMenu';
+    menu.style.cssText='position:absolute;z-index:3000;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:4px;min-width:190px;box-shadow:0 8px 20px rgba(0,0,0,.45);font-size:.84rem';
+    const item = (label, color)=>`<div class="dmmi" style="padding:8px 10px;border-radius:6px;cursor:pointer;color:${color||'var(--chalk)'}">${label}</div>`;
+    menu.innerHTML =
+      (ctx.editable ? `<div data-act="edit">${item('✎ Modifier')}</div>` : '')+
+      `<div data-act="delmine">${item('Supprimer pour moi')}</div>`+
+      `<div data-act="delall">${item('Supprimer pour tout le monde','#e0574a')}</div>`;
+    document.body.appendChild(menu);
+    const r = anchor.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(r.left-120, window.innerWidth-menu.offsetWidth-8))+'px';
+    menu.style.top = (r.bottom + 4 + window.scrollY)+'px';
+    menu.querySelectorAll('.dmmi').forEach(el=>{ el.onmouseenter=()=>el.style.background='rgba(255,255,255,.06)'; el.onmouseleave=()=>el.style.background='none'; });
+    menu.querySelector('[data-act="edit"]')?.addEventListener('click', ()=>{ menu.remove(); startEdit(m); });
+    menu.querySelector('[data-act="delmine"]')?.addEventListener('click', async ()=>{
+      menu.remove();
+      await api.dmDeleteMine(m.id); ctx.refresh(true);
+    });
+    menu.querySelector('[data-act="delall"]')?.addEventListener('click', async ()=>{
+      menu.remove();
+      if(!await uxConfirm('Supprimer ce message pour tout le monde ? Il laissera « Message supprimé ».',{okText:'Supprimer',danger:true})) return;
+      const { error } = await api.dmDeleteForAll(m.id);
+      if(error){ toast(error.message,'err'); return; }
+      ctx.refresh(true);
+    });
+    const off=(ev)=>{ if(!menu.contains(ev.target)){ menu.remove(); document.removeEventListener('click',off,true); } };
+    setTimeout(()=>document.addEventListener('click',off,true),50);
+  }
 
   // Petit sélecteur d'emoji pour réagir.
   async function openReactionPicker(msgId, anchor){
@@ -6478,7 +6672,17 @@ async function openDM(otherId, otherName){
   const send = async ()=>{
     const body = input.value.trim();
     if(!body) return;
+    // Mode édition : on modifie le message au lieu d'en envoyer un nouveau.
+    if(DM_EDIT_ID){
+      const id = DM_EDIT_ID;
+      input.value=''; clearEdit();
+      const { error } = await api.dmEdit(id, body);
+      if(error){ toast(error.message,'err',4500); return; }
+      refresh(true);
+      return;
+    }
     input.value='';
+    try { localStorage.removeItem('us_dm_draft_'+otherId); } catch(e){}
     const { error } = await api.dmSend(otherId, body, DM_REPLY_TO);
     clearReplyTo();
     if(error){ toast(error.message,'err'); return; }
@@ -6486,6 +6690,8 @@ async function openDM(otherId, otherName){
   };
   // --- Amélioration 3 : partager un joueur dans le DM ---
   { const sb2 = $('dmShareBtn'); if(sb2) sb2.onclick = ()=> openPlayerShareForDM(otherId, refresh); }
+  // --- Offre d'échange dans le DM ---
+  { const tb = $('dmTradeBtn'); if(tb) tb.onclick = ()=> openTradeBuilderForDM(otherId, otherName, refresh); }
   document.getElementById('dmSendBtn').onclick = send;
 
   // --- Amélioration 1 : indicateur « en train d'écrire… » ---
@@ -6512,7 +6718,11 @@ async function openDM(otherId, otherName){
     clearTimeout(stopTypingTimer);
     stopTypingTimer = setTimeout(()=>{ try{ DM_TYPING && DM_TYPING.send(false); }catch(e){} }, 2500);
   };
-  input.oninput = signalTyping;
+  // --- Amélioration 2 : brouillon auto (par conversation, localStorage) ---
+  const draftKey = 'us_dm_draft_' + otherId;
+  try { const d = localStorage.getItem(draftKey); if(d && !input.value){ input.value = d; } } catch(e){}
+  const saveDraft = ()=>{ try{ if(input.value.trim()) localStorage.setItem(draftKey, input.value); else localStorage.removeItem(draftKey); }catch(e){} };
+  input.oninput = ()=>{ signalTyping(); saveDraft(); };
   input.onkeydown = (e)=>{ if(e.key==='Enter'){ e.preventDefault(); try{ DM_TYPING && DM_TYPING.send(false); }catch(_){} send(); } };
   setTimeout(()=>{ try{ input.focus(); }catch(e){} }, 100);
 
@@ -8180,7 +8390,9 @@ async function renderMessages(){
       const preview = (c.last_is_mine?'Toi : ':'') + (c.last_body||'');
       const unread = Number(c.unread)||0;
       const badge = unread>0 ? `<span style="background:var(--live);color:#fff;font-size:.68rem;font-weight:800;padding:1px 8px;border-radius:9px;flex-shrink:0">${unread>99?'99+':unread}</span>` : '';
-      return `<div data-dmopen="${c.other_id}" data-name="${esc(c.other_name).replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--pitch-2);cursor:pointer">
+      const pinned = !!c.pinned;
+      const pinIcon = `<a href="#" data-dmpin="${c.other_id}" data-on="${pinned?'0':'1'}" title="${pinned?'Désépingler':'Épingler'}" style="flex-shrink:0;color:${pinned?'var(--transfer)':'var(--muted)'};text-decoration:none;font-size:1rem" onclick="event.stopPropagation()">${pinned?'📌':'📍'}</a>`;
+      return `<div data-dmopen="${c.other_id}" data-name="${esc(c.other_name).replace(/"/g,'&quot;')}" style="display:flex;align-items:center;gap:10px;padding:11px 12px;border:1px solid ${pinned?'rgba(245,197,66,.4)':'var(--line)'};border-radius:10px;margin-bottom:8px;background:var(--pitch-2);cursor:pointer">
         <span style="flex-shrink:0;display:inline-flex;color:${c.other_color||'var(--transfer)'}">${I('chat',18)}</span>
         <div style="flex:1;min-width:0">
           <div style="font-weight:700;font-size:.92rem;color:var(--chalk)">${esc(c.other_name)}</div>
@@ -8189,9 +8401,15 @@ async function renderMessages(){
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
           <span style="font-size:.68rem;color:var(--muted)">${t}</span>${badge}
         </div>
+        ${pinIcon}
       </div>`;
     }).join('') : '<div class="empty" style="padding:16px">Aucune conversation.</div>';
     box.querySelectorAll('[data-dmopen]').forEach(el=>el.onclick=()=>openDM(el.dataset.dmopen, el.dataset.name));
+    box.querySelectorAll('[data-dmpin]').forEach(a=>a.onclick=async(ev)=>{
+      ev.preventDefault(); ev.stopPropagation();
+      await api.dmPin(a.dataset.dmpin, a.dataset.on==='1');
+      renderMessages();
+    });
   };
   if(!convs.length){
     box.innerHTML = '<div class="empty">Aucune conversation pour le moment. Ouvre le profil d\'un manager pour lui écrire.</div>';

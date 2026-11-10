@@ -1027,6 +1027,18 @@ export async function dmSend(recipientId, body, replyTo = null) {
 export async function dmReact(messageId, emoji) {
   return sb.rpc('qm_dm_react', { p_message: messageId, p_emoji: emoji || null });
 }
+// Épingler / désépingler une conversation.
+export async function dmPin(otherId, on) {
+  return sb.rpc('qm_dm_pin', { p_other: otherId, p_on: !!on });
+}
+// Supprimer un message POUR TOUT LE MONDE (laisse « Message supprimé »).
+export async function dmDeleteForAll(id) {
+  return sb.rpc('qm_dm_delete_for_all', { p_id: id });
+}
+// Modifier un message (fenêtre de 15 min, mes messages).
+export async function dmEdit(id, body) {
+  return sb.rpc('qm_dm_edit', { p_id: id, p_body: body });
+}
 // Fil de conversation avec un manager (du plus ancien au plus récent).
 // Marque aussi comme lus les messages reçus de ce correspondant.
 export async function dmThread(otherId, limit = 100) {
