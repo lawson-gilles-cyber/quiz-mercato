@@ -530,6 +530,37 @@
   .dc-item.done .dc-go{display:none}
   .dc-allok{text-align:center;padding:8px 0 2px;color:#4ade80;font-size:.88rem;font-weight:700}
 
+  /* Barre d'enchère flottante (sticky) — action toujours à portée en scrollant */
+  #aucStickyBar{position:fixed;left:50%;transform:translateX(-50%) translateY(120%);
+    bottom:16px;width:min(560px,calc(100% - 24px));z-index:800;
+    background:linear-gradient(180deg,var(--pitch-2,#101d38),#0c1a33);
+    border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 34px rgba(0,0,0,.45);
+    padding:10px 12px;display:flex;align-items:center;gap:12px;
+    transition:transform .28s cubic-bezier(.2,.8,.2,1),opacity .2s;opacity:0;pointer-events:none}
+  #aucStickyBar.show{transform:translateX(-50%) translateY(0);opacity:1;pointer-events:auto}
+  #aucStickyBar.urgent{border-color:rgba(224,87,74,.65);box-shadow:0 12px 34px rgba(224,87,74,.28)}
+  #aucStickyBar .sb-info{flex:1;min-width:0}
+  #aucStickyBar .sb-name{font-weight:800;font-size:.92rem;color:var(--chalk);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #aucStickyBar .sb-meta{font-size:.76rem;color:var(--muted);display:flex;gap:8px;align-items:center}
+  #aucStickyBar .sb-time{font-variant-numeric:tabular-nums;font-weight:700}
+  #aucStickyBar.urgent .sb-time{color:#ff8a7d}
+  #aucStickyBar .sb-act{flex:0 0 auto;margin:0;width:auto;padding:10px 16px;white-space:nowrap}
+  #aucStickyBar .sb-close{flex:0 0 auto;background:none;border:none;color:var(--muted);cursor:pointer;font-size:1.1rem;line-height:1;padding:4px}
+  @media (max-width:480px){ #aucStickyBar .sb-name{font-size:.86rem} #aucStickyBar .sb-act{padding:9px 12px;font-size:.82rem} }
+
+  /* Flash de succès sur un bouton après une action réussie */
+  @keyframes sb-pop{0%{transform:scale(.6);opacity:0}40%{transform:scale(1.15);opacity:1}100%{transform:scale(1);opacity:1}}
+  button.ok-flash{position:relative;color:transparent!important;pointer-events:none}
+  button.ok-flash::after{content:'✓';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+    color:#07210f;font-weight:900;font-size:1.05rem;animation:sb-pop .4s ease both}
+
+  /* Skeletons de chargement (listes) */
+  @keyframes skel-sheen{0%{background-position:-180px 0}100%{background-position:180px 0}}
+  .skel{border-radius:8px;background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.10) 37%,rgba(255,255,255,.04) 63%);
+    background-size:360px 100%;animation:skel-sheen 1.1s linear infinite}
+  .skel-card{height:92px;margin-bottom:12px}
+  @media (prefers-reduced-motion: reduce){ .skel{animation:none} #aucStickyBar{transition:none} button.ok-flash::after{animation:none} }
+
   /* Relevé personnel (ledger) */
   .ledger{border:1px solid var(--line);border-radius:12px;background:var(--pitch-2);margin-bottom:18px;overflow:hidden}
   .ledger-sum{list-style:none;cursor:pointer;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;gap:10px;
@@ -2349,6 +2380,9 @@ function goView(v){
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
+  // Barre d'enchère flottante : on la ré-arme en entrant, on la masque en sortant.
+  if(v==='auctions'){ SB_DISMISSED = false; if(typeof updateAucStickyBar==='function') updateAucStickyBar(); }
+  else { const sb=$('aucStickyBar'); if(sb) sb.classList.remove('show'); }
   window.scrollTo({top:0, behavior:'smooth'});
 }
 $('nav').addEventListener('click', e=>{
@@ -3696,11 +3730,81 @@ async function quickBid(auctionId, amount, btn){
   await withLoading(btn, async ()=>{
     const { error } = await api.placeBid(auctionId, amount);
     if(error){ toast('Échec : '+error.message,'err',4200); return; }
+    flashOk(btn);                       // retour visuel immédiat (✓)
     toast(`Offre de ${fmtMoney(amount)} placée !`,'ok');
     renderAuctions();
     if(typeof loadNotifications==='function') loadNotifications();
   });
 }
+// Brève confirmation ✓ sur un bouton après une action réussie.
+function flashOk(btn){
+  if(!btn) return;
+  try {
+    btn.classList.remove('is-loading');
+    btn.classList.add('ok-flash');
+    setTimeout(()=>{ try{ btn.classList.remove('ok-flash'); }catch(e){} }, 650);
+  } catch(e){}
+}
+
+// ---------- Barre d'enchère flottante (sticky) ----------
+// Choisit l'enchère la plus pertinente à suivre et la garde à portée de clic
+// pendant qu'on scrolle la salle des enchères.
+let SB_TARGET = null;          // { id, name, amount, ends_at, urgent }
+let SB_TICK = null;
+var SB_DISMISSED = false;      // l'utilisateur a masqué la barre pour cette session de vue
+function pickStickyAuction(){
+  if(!ME || !Array.isArray(AUC_LIVE) || !AUC_LIVE.length) return null;
+  const watch = AUC_WATCH || new Set();
+  const mineOrWatched = AUC_LIVE.filter(a=>{
+    const tb = a.top_bidder_id || a.top_bidder?.id;
+    return watch.has(a.id) || (tb && tb===ME.id);
+  });
+  const outbid = mineOrWatched.filter(a=>{ const tb=a.top_bidder_id||a.top_bidder?.id; return tb && tb!==ME.id; });
+  // Priorité : enchères où je suis dépassé → sinon suivies/menées, par fin la plus proche.
+  const pool = outbid.length ? outbid : mineOrWatched;
+  if(!pool.length) return null;
+  const a = [...pool].sort((x,y)=> new Date(x.ends_at)-new Date(y.ends_at))[0];
+  const nextAmount = (typeof minIncrement==='function')
+    ? Number(a.current_price) + minIncrement(Number(a.current_price))
+    : Number(a.current_price);
+  const tb = a.top_bidder_id || a.top_bidder?.id;
+  return { id:a.id, name:a.player?.name||'Enchère', amount:nextAmount, ends_at:a.ends_at,
+           urgent: !!(tb && tb!==ME.id) };
+}
+function updateAucStickyBar(){
+  const bar = $('aucStickyBar'); if(!bar) return;
+  // Visible uniquement dans la salle des enchères.
+  if(CURRENT_VIEW!=='auctions'){ bar.classList.remove('show'); return; }
+  if(SB_DISMISSED){ bar.classList.remove('show'); return; }
+  const t = pickStickyAuction();
+  SB_TARGET = t;
+  if(!t){ bar.classList.remove('show'); return; }
+  $('sbName').textContent = t.name;
+  $('sbStatus').innerHTML = t.urgent
+    ? '<span style="color:#ff8a7d;font-weight:700">Tu es dépassé</span> · '
+    : '<span style="color:#4ade80">Tu suis</span> · ';
+  $('sbBid').textContent = `Renchérir ${fmtMoney(t.amount)}`;
+  bar.classList.toggle('urgent', t.urgent);
+  tickStickyBar();
+  bar.classList.add('show');
+}
+function tickStickyBar(){
+  if(!SB_TARGET){ return; }
+  const left = new Date(SB_TARGET.ends_at) - Date.now();
+  const el = $('sbTime'); if(el) el.textContent = left>0 ? ('· '+fmtClock(left)) : '· terminée';
+  if(left<=0){ updateAucStickyBar(); }   // enchère finie → recalcule la cible
+}
+function startStickyTick(){
+  if(SB_TICK) return;
+  SB_TICK = setInterval(()=>{ if(CURRENT_VIEW==='auctions') tickStickyBar(); }, 1000);
+}
+(function wireStickyBar(){
+  const bid = document.getElementById('sbBid');
+  const close = document.getElementById('sbClose');
+  if(bid) bid.onclick = ()=>{ if(SB_TARGET) quickBid(SB_TARGET.id, SB_TARGET.amount, bid); };
+  if(close) close.onclick = ()=>{ SB_DISMISSED = true; const b=$('aucStickyBar'); if(b) b.classList.remove('show'); };
+  startStickyTick();
+})();
 
 // Bloc "enchère automatique" dans la modale d'enchère
 async function renderAutoBidBox(md, auc, minNext, cap){
@@ -3959,6 +4063,11 @@ async function renderPriorityPanel(){
 }
 async function renderAuctions(){
   renderPriorityPanel();
+  // Skeletons pendant le chargement (évite l'écran vide / le saut de contenu).
+  const liveCol = $('k-live');
+  if(liveCol && !liveCol.children.length){
+    liveCol.innerHTML = '<div class="skel skel-card"></div>'.repeat(3);
+  }
   const open = await api.listOpenAuctions();
   AUC_WATCH = ME ? await api.myWatchlist().catch(()=>new Set()) : new Set();
   const now = new Date();
@@ -3984,6 +4093,7 @@ async function renderAuctions(){
   applyAucFilters();  // remplit la colonne "live" selon les filtres (+ updateColsHasMore)
   updateSpeaker(open, transfers||[]);  // commentaire live du marché
   updateColsHasMore();
+  updateAucStickyBar();  // barre d'enchère flottante (action à portée de clic)
 }
 
 // ---------- Fil speaker : commentaire live du marché ----------
@@ -9497,6 +9607,16 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- Barre d'enchère flottante (visible seulement en vue Enchères) -->
+<div id="aucStickyBar" role="region" aria-label="Enchère à suivre">
+  <div class="sb-info">
+    <div class="sb-name" id="sbName">—</div>
+    <div class="sb-meta"><span id="sbStatus"></span><span class="sb-time" id="sbTime"></span></div>
+  </div>
+  <button class="bid-btn sb-act" id="sbBid">Renchérir</button>
+  <button class="sb-close" id="sbClose" title="Masquer" aria-label="Masquer">×</button>
+</div>
 
 <!-- Pied de page légal (requis pour AdSense : liens publics visibles) -->
 <footer id="siteFoot" style="border-top:1px solid var(--line);background:var(--pitch-2);padding:20px 16px;margin-top:40px;color:var(--muted);font-size:.82rem;text-align:center">
