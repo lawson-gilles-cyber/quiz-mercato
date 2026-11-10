@@ -109,6 +109,40 @@
   .search-inp span{font-size:1.1rem}
   .search-inp input{flex:1;background:none;border:none;outline:none;color:var(--chalk);font-size:1rem;font-family:inherit}
   .search-results{max-height:50vh;overflow-y:auto}
+
+  /* ---- Barre de recherche unifiée (tout le site) ---- */
+  .us-search{
+    width:100%;
+    appearance:none;-webkit-appearance:none;
+    background-color:var(--pitch);
+    /* loupe SVG intégrée (stroke = muted) */
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%238095b5' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;
+    background-position:13px 50%;
+    background-size:18px 18px;
+    border:1px solid var(--line);
+    border-radius:12px;
+    color:var(--chalk);
+    font-family:inherit;font-size:.95rem;
+    padding:11px 14px 11px 40px;   /* place pour la loupe à gauche */
+    transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+  }
+  .us-search::placeholder{color:var(--muted);opacity:1}
+  .us-search:hover{border-color:#2a4878}
+  .us-search:focus,.us-search:focus-visible{
+    outline:none;border-color:var(--transfer);
+    background-color:var(--pitch-2);
+    box-shadow:0 0 0 3px rgba(245,197,66,.18);
+  }
+  /* croix de effacement native (type=search) stylée sombre */
+  .us-search::-webkit-search-cancel-button{
+    -webkit-appearance:none;appearance:none;height:16px;width:16px;cursor:pointer;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238095b5' stroke-width='2.4' stroke-linecap='round'%3E%3Cline x1='18' y1='6' x2='6' y2='18'/%3E%3Cline x1='6' y1='6' x2='18' y2='18'/%3E%3C/svg%3E");
+    background-size:contain;background-repeat:no-repeat;background-position:center;
+  }
+  .us-search::-webkit-search-cancel-button:hover{filter:brightness(1.6)}
+  /* variante compacte (barres d'outils serrées) */
+  .us-search.sm{padding:8px 12px 8px 36px;background-position:11px 50%;background-size:16px 16px;font-size:.88rem}
   .search-cat{font-family:'Archivo Narrow','Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;
     font-size:.68rem;color:var(--muted);padding:10px 16px 4px}
   .search-item{display:flex;align-items:center;gap:12px;padding:10px 16px;cursor:pointer;border-left:3px solid transparent}
@@ -1223,7 +1257,7 @@
     <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:26px">
       <div data-ic="search" style="font-family:'Saira Condensed';text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:1.05rem;margin-bottom:10px;display:flex;align-items:center">Ce joueur est-il déjà pris ?</div>
       <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Tape un nom avant de le dénicher : tu verras s'il est déjà <b>libre</b>, <b>en enchère</b> ou <b>déjà dans une équipe</b>.</p>
-      <input id="chkSearch" type="text" placeholder="Nom du joueur (ex. Mbappé)…" style="width:100%;padding:9px;margin-bottom:10px">
+      <input id="chkSearch" type="search" class="us-search" placeholder="Nom du joueur (ex. Mbappé)…" style="margin-bottom:10px">
       <div id="chkResult"></div>
     </div>
 
@@ -1254,7 +1288,7 @@
       </div>
       <p style="color:var(--muted);font-size:.84rem;margin-bottom:12px">Les joueurs que les autres managers proposent à l'échange. Clique pour lancer une proposition.</p>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <input id="mktSearch" type="search" placeholder="🔍 Rechercher…" style="flex:1;min-width:150px;padding:8px 10px">
+        <input id="mktSearch" type="search" class="us-search sm" placeholder="Rechercher…" style="flex:1;min-width:150px">
         <select id="mktPos" style="padding:8px 10px"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
       </div>
       <div id="marketList"></div>
@@ -1380,7 +1414,7 @@
       <div id="speakerFeed"></div>
     </div>
     <div id="aucFilters" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:18px;align-items:center">
-      <input id="aucSearch" type="search" placeholder="🔍 Rechercher un joueur…" style="flex:1;min-width:180px">
+      <input id="aucSearch" type="search" class="us-search sm" placeholder="Rechercher un joueur…" style="flex:1;min-width:180px">
       <select id="aucPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
       <select id="aucChamp"><option value="">Tous championnats</option><option value="Premier League">Premier League</option><option value="Liga">Liga</option><option value="Serie A">Serie A</option><option value="Bundesliga">Bundesliga</option><option value="Ligue 1">Ligue 1</option><option value="Primeira Liga">Primeira Liga</option><option value="Eredivisie">Eredivisie</option><option value="Pro League">Pro League (Belgique)</option><option value="Süper Lig">Süper Lig</option><option value="Brasileirão">Brasileirão</option><option value="Primera División">Primera División</option><option value="MLS">MLS</option><option value="Saudi Pro League">Saudi Pro League</option><option value="Autre">Autre</option></select>
       <select id="aucPrice"><option value="">Tout prix</option><option value="0-20">&lt; 20 M€</option><option value="20-50">20–50 M€</option><option value="50-100">50–100 M€</option><option value="100-180">100–180 M€</option><option value="180-99999">180 M€ +</option></select>
@@ -1653,7 +1687,7 @@
       <div id="draftStatus" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px"></div>
       <div id="draftMyTurn" style="display:none">
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-          <input id="draftSearch" type="search" placeholder="🔍 Chercher un joueur libre…" style="flex:1;min-width:160px">
+          <input id="draftSearch" type="search" class="us-search sm" placeholder="Chercher un joueur libre…" style="flex:1;min-width:160px">
           <select id="draftPos"><option value="">Tous postes</option><option value="GK">Gardien</option><option value="DEF">Défenseur</option><option value="MID">Milieu</option><option value="FWD">Attaquant</option></select>
         </div>
         <div id="draftPlayers" style="max-height:46vh;overflow-y:auto"></div>
@@ -1895,7 +1929,7 @@
     <div class="eyebrow">Foire aux questions · tout ce qu'on nous demande</div>
     <h1>La <em>FAQ</em></h1>
     <div style="max-width:760px">
-      <input id="faqSearch" type="search" placeholder="🔍 Rechercher une question (ex. « enchère », « blessé », « coach »)…" style="width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);padding:11px 13px;border-radius:10px;margin-bottom:8px;font-family:inherit">
+      <input id="faqSearch" type="search" class="us-search" placeholder="Rechercher une question (ex. « enchère », « blessé », « coach »)…" style="margin-bottom:8px">
       <div id="faqCount" style="font-size:.82rem;color:var(--muted);margin-bottom:14px"></div>
       <div id="faqList"></div>
       <p class="rule-p" style="color:var(--muted);margin-top:18px">Une question qui n'est pas ici ? Pose-la dans le <b>chat de ligue</b> ou à l'organisateur. Pour le détail des règles, voir le <b>Règlement</b>.</p>
@@ -8107,7 +8141,7 @@ async function renderManagers(){
   const others = dir.filter(d=>d.relation!=='self');
   dWrap.innerHTML = `<div class="card" style="padding:16px">
     <h3 style="display:flex;align-items:center;gap:8px;margin-bottom:6px">${I('book',18)||I('users',18)} Tous les managers <span class="hint" style="font-weight:400;font-size:.8rem">(${others.length})</span></h3>
-    <input id="mgrDirSearch" type="text" placeholder="Rechercher un manager…" autocomplete="off" style="width:100%;margin-bottom:10px">
+    <input id="mgrDirSearch" type="search" class="us-search" placeholder="Rechercher un manager…" autocomplete="off" style="margin-bottom:10px">
     <div id="mgrDirList">${renderMgrDirList(others,'')}</div>
   </div>`;
   const search = $('mgrDirSearch');
