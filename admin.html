@@ -3391,18 +3391,26 @@ async function loadRanking(){
     const squad = await api.adminManagerSquad(id);
     if(!squad.length){ box.innerHTML = '<span class="hint">Aucun joueur dans cet effectif.</span>'; return; }
     const POSL = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
-    box.innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th></th></tr></thead><tbody>${
+    // Masse salariale totale de l'effectif (salaire effectif, forçage inclus).
+    const totalSal = squad.reduce((s,p)=> s + Number(p.salary||0), 0);
+    box.innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th>Salaire</th><th></th></tr></thead><tbody>${
       squad.map(p=>{
         const full = ((p.first_name||'').trim()? (p.first_name.trim()+' ') : '') + p.name;
+        const forced = p.salary_override != null;
+        const salTxt = p.salary != null ? fmtM(Number(p.salary)) : '—';
+        const salCell = forced
+          ? `<span style="color:var(--transfer);font-weight:700" title="Salaire forcé (la grille ne s'applique pas)">${salTxt} <span style="font-size:.7rem">⚙︎ forcé</span></span>`
+          : salTxt;
         return `<tr>
           <td><span class="pos-tag">${POSL[p.pos]||p.pos}</span></td>
           <td><b>${full}</b></td>
           <td style="color:var(--muted);font-size:.82rem">${p.club||'—'}${p.championship?' · '+p.championship:''}</td>
           <td class="val">${fmtM(Number(p.current_value))}</td>
+          <td class="val">${salCell}</td>
           <td><button class="btn-danger btn-sm" data-eject="${p.player_id}" data-name="${full.replace(/"/g,'&quot;')}">Éjecter</button></td>
         </tr>`;
       }).join('')
-    }</tbody></table>`;
+    }<tr style="border-top:2px solid var(--line)"><td colspan="4" style="text-align:right;color:var(--muted)">Masse salariale totale</td><td class="val"><b>${fmtM(totalSal)}</b></td><td></td></tr></tbody></table>`;
     // Boutons éjecter
     box.querySelectorAll('[data-eject]').forEach(b=>b.onclick=async(e)=>{
       e.stopPropagation();
@@ -4157,6 +4165,8 @@ async function dataEffectifs(){
         'Club': p.club||'',
         'Championnat': p.championship||'',
         'Valeur': fmtMx(p.current_value),
+        'Salaire': fmtMx(p.salary),
+        'Salaire forcé': p.salary_override != null ? 'Oui' : '',
       });
     }
   }
