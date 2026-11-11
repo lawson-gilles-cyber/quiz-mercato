@@ -1043,12 +1043,33 @@ export async function adminSetPlayerNote(playerId, matchdayId, note, played = tr
 export async function adminDeletePlayerNote(playerId, matchdayId) {
   return sb.rpc('qm_admin_delete_player_note', { p_player_id: playerId, p_matchday_id: matchdayId || null });
 }
-// Import en masse (option B) : rows = [{q, note, played}]. Renvoie le compte-rendu.
+// Import en masse (option B) : rows = [{q, club?, note, played}]. Compte-rendu.
 export async function adminImportNotes(matchdayId, rows) {
   const { data, error } = await sb.rpc('qm_admin_import_notes', {
     p_matchday_id: matchdayId || null, p_rows: rows,
   });
   if (error) throw error;
+  return data ?? [];
+}
+
+// ---- Saisie PAR MATCH + mapping club↔équipe (prop. 1) ----
+export async function adminMatchdayMatches(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_matchday_matches', { p_matchday_id: matchdayId || null });
+  return data ?? [];
+}
+export async function adminMatchNotesGrid(pronoId) {
+  const { data } = await sb.rpc('qm_admin_match_notes_grid', { p_prono_id: pronoId });
+  return data ?? [];
+}
+export async function adminClubMap() {
+  const { data } = await sb.rpc('qm_admin_club_map');
+  return data ?? [];
+}
+export async function adminSetClubMap(club, team) {
+  return sb.rpc('qm_admin_set_club_map', { p_club: club, p_team: team });
+}
+export async function adminAutomapClubs() {
+  const { data } = await sb.rpc('qm_admin_automap_clubs');
   return data ?? [];
 }
 

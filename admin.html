@@ -690,15 +690,30 @@
     </div>
 
     <!-- Onglets méthode -->
-    <div style="display:flex;gap:6px;margin-bottom:10px">
-      <button class="btn-ghost btn-sm" id="noteTabGrid">⌨️ Saisie rapide</button>
+    <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+      <button class="btn-ghost btn-sm" id="noteTabMatch">⚽ Par match</button>
+      <button class="btn-ghost btn-sm" id="noteTabGrid">⌨️ Tous les joueurs</button>
       <button class="btn-ghost btn-sm" id="noteTabImport">📋 Import (coller)</button>
+      <button class="btn-ghost btn-sm" id="noteTabMap" style="margin-left:auto">🔗 Clubs ↔ équipes</button>
     </div>
 
-    <!-- Méthode A : grille -->
-    <div id="notePanelGrid">
+    <!-- Méthode « par match » (recommandée) -->
+    <div id="notePanelMatch">
+      <div style="margin-bottom:10px"><label>Match de la journée</label>
+        <select id="noteMatchSel" style="min-width:240px"><option value="">— Choisir un match —</option></select></div>
+      <div id="noteMatchGrid" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
+      <p class="hint" style="font-size:.76rem;margin-top:6px">Seuls les joueurs des deux clubs du match s'affichent (domicile d'abord). Même saisie clavier : note + <b>Entrée</b>. Si un joueur manque, son club n'est peut-être pas relié à une équipe → onglet « Clubs ↔ équipes ».</p>
+    </div>
+
+    <!-- Méthode A : grille (tous les joueurs) -->
+    <div id="notePanelGrid" style="display:none">
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyMissing"> Seulement les manquants</label>
+        <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyNoMatch"> Sans match cette semaine</label>
+        <span id="noteGridCount" class="hint" style="font-size:.78rem;margin-left:auto"></span>
+      </div>
       <div id="noteGrid" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
-      <p class="hint" style="font-size:.76rem;margin-top:6px">Astuce : tape la note et appuie sur <b>Entrée</b> ou <b>Tab</b> pour passer au joueur suivant. Enregistrement automatique. Laisse vide + coche « n'a pas joué » si le joueur n'a pas disputé la journée.</p>
+      <p class="hint" style="font-size:.76rem;margin-top:6px">Astuce : tape la note et appuie sur <b>Entrée</b> ou <b>Tab</b> pour passer au joueur suivant. Enregistrement automatique. « Sans match cette semaine » isole les joueurs dont le club ne joue pas (championnats hors des 5 grands) — à noter ici à la main.</p>
     </div>
 
     <!-- Méthode B : import -->
@@ -712,6 +727,17 @@
         <span id="noteImportMsg" class="hint" style="font-size:.8rem;align-self:center"></span>
       </div>
       <div id="noteImportReport" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Panneau mapping club ↔ équipe -->
+    <div id="notePanelMap" style="display:none">
+      <p class="hint" style="font-size:.8rem;margin-bottom:8px">Relie chaque <b>club de joueur</b> (tel que saisi) à une <b>équipe de match</b>. Le rapprochement est fait automatiquement ; corrige ici les clubs non reliés (souvent des championnats non importés, ou des orthographes particulières).</p>
+      <div style="display:flex;gap:8px;margin-bottom:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn-ghost btn-sm" id="btnReautomap">🔄 Relancer le rapprochement auto</button>
+        <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="mapOnlyUnset"> N'afficher que les non reliés</label>
+        <span id="noteMapMsg" class="hint" style="font-size:.8rem"></span>
+      </div>
+      <div id="noteMapList" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
     </div>
   </div>
 
@@ -3307,6 +3333,7 @@ async function loadPlayerNotes(){
     } catch(e){}
   }
   await renderNoteGrid();
+  await loadMatchSelector();
 }
 async function renderNoteGrid(){
   const grid = $('noteGrid'); if(!grid) return;
@@ -3318,17 +3345,28 @@ async function renderNoteGrid(){
   _noteGridData = rows;
   paintNoteGrid();
 }
+function noteIsSet(r){ return r.note!=null || r.played===false; }
 function paintNoteGrid(){
   const grid = $('noteGrid'); if(!grid) return;
   const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const f = ($('noteFilter') && $('noteFilter').value || '').trim().toLowerCase();
+  const onlyMissing = $('noteOnlyMissing') && $('noteOnlyMissing').checked;
+  const onlyNoMatch = $('noteOnlyNoMatch') && $('noteOnlyNoMatch').checked;
   const list = _noteGridData.filter(r=>{
+    if(onlyMissing && noteIsSet(r)) return false;
+    if(onlyNoMatch && r.has_match) return false;
     if(!f) return true;
     return (r.name||'').toLowerCase().includes(f) || (r.club||'').toLowerCase().includes(f) || (r.first_name||'').toLowerCase().includes(f);
   });
-  const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
-  if($('noteProgress')) $('noteProgress').textContent = `${noted}/${_noteGridData.length} joueurs notés`;
-  if(!list.length){ grid.innerHTML = '<p class="hint" style="padding:12px">Aucun joueur.</p>'; return; }
+  // Compteurs de complétude (sur l'ensemble, pas le filtre)
+  const total = _noteGridData.length;
+  const noted = _noteGridData.filter(noteIsSet).length;
+  const noMatch = _noteGridData.filter(r=>!r.has_match).length;
+  const noMatchNoted = _noteGridData.filter(r=>!r.has_match && noteIsSet(r)).length;
+  if($('noteProgress')) $('noteProgress').textContent = `${noted}/${total} joueurs notés`;
+  if($('noteGridCount')) $('noteGridCount').innerHTML =
+    `${noted}/${total} notés · <span title="joueurs dont le club ne joue pas cette journée">sans match : ${noMatchNoted}/${noMatch}</span> · ${list.length} affiché(s)`;
+  if(!list.length){ grid.innerHTML = '<p class="hint" style="padding:12px">Aucun joueur (filtre trop restrictif ou tout est noté).</p>'; return; }
   let html = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
   let lastGroup = '';
   list.forEach((r)=>{
@@ -3391,18 +3429,127 @@ async function saveNote(playerId, noteVal, played){
     }
   });
 })();
-if($('noteMatchday')) $('noteMatchday').onchange = renderNoteGrid;
-if($('noteFilter'))   $('noteFilter').oninput   = paintNoteGrid;
+if($('noteMatchday')) $('noteMatchday').onchange = ()=>{ renderNoteGrid(); loadMatchSelector(); };
+if($('noteFilter'))      $('noteFilter').oninput        = paintNoteGrid;
+if($('noteOnlyMissing')) $('noteOnlyMissing').onchange  = paintNoteGrid;
+if($('noteOnlyNoMatch')) $('noteOnlyNoMatch').onchange  = paintNoteGrid;
 
 // Onglets méthode
 function noteSwitch(which){
-  const g = $('notePanelGrid'), im = $('notePanelImport');
-  if(!g||!im) return;
-  g.style.display  = which==='grid'   ? '' : 'none';
-  im.style.display = which==='import' ? '' : 'none';
+  const panels = { match:'notePanelMatch', grid:'notePanelGrid', import:'notePanelImport', map:'notePanelMap' };
+  Object.entries(panels).forEach(([k,id])=>{ const el=$(id); if(el) el.style.display = (k===which)?'':'none'; });
+  if(which==='map') loadClubMap();
+  if(which==='match') loadMatchSelector();
 }
+if($('noteTabMatch'))  $('noteTabMatch').onclick  = ()=> noteSwitch('match');
 if($('noteTabGrid'))   $('noteTabGrid').onclick   = ()=> noteSwitch('grid');
 if($('noteTabImport')) $('noteTabImport').onclick = ()=> noteSwitch('import');
+if($('noteTabMap'))    $('noteTabMap').onclick    = ()=> noteSwitch('map');
+
+// --- Saisie PAR MATCH ---
+async function loadMatchSelector(){
+  const sel = $('noteMatchSel'); if(!sel) return;
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  sel.innerHTML = '<option value="">— Choisir un match —</option>';
+  if(!mdId){ $('noteMatchGrid').innerHTML = '<p class="hint" style="padding:12px">Choisis d\'abord une journée.</p>'; return; }
+  try {
+    const ms = await api.adminMatchdayMatches(mdId);
+    if(!ms.length){ $('noteMatchGrid').innerHTML = '<p class="hint" style="padding:12px">Aucun match importé pour cette journée.</p>'; return; }
+    ms.forEach(m=>{ const o=document.createElement('option'); o.value=m.prono_id; o.textContent = `${m.home_team} – ${m.away_team}`; sel.appendChild(o); });
+  } catch(e){ $('noteMatchGrid').innerHTML = '<p class="hint" style="padding:12px">Passe le script 229 (saisie par match) pour activer cette vue.</p>'; }
+}
+let _matchGridData = [];
+async function renderMatchNoteGrid(){
+  const grid = $('noteMatchGrid'); if(!grid) return;
+  const pid = $('noteMatchSel').value;
+  if(!pid){ grid.innerHTML = '<p class="hint" style="padding:12px">Choisis un match.</p>'; return; }
+  let rows;
+  try { rows = await api.adminMatchNotesGrid(pid); }
+  catch(e){ grid.innerHTML = '<p class="hint" style="padding:12px">Erreur de chargement.</p>'; return; }
+  _matchGridData = rows;
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  if(!rows.length){ grid.innerHTML = '<p class="hint" style="padding:12px">Aucun joueur relié à ces deux clubs. Vérifie l\'onglet « Clubs ↔ équipes ».</p>'; return; }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
+  let lastTeam = '';
+  rows.forEach(r=>{
+    if(r.team!==lastTeam){ html += `<tr><td colspan="2" style="padding:6px 10px;background:var(--pitch);font-weight:700;font-size:.78rem">${esc(r.team)}</td></tr>`; lastTeam=r.team; }
+    const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||''));
+    const val = r.note!=null ? r.note : '';
+    html += `<tr style="border-top:1px solid var(--line)">
+      <td style="padding:6px 10px">${nameDisp}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap">
+        <input type="number" min="0" max="10" step="0.1" inputmode="decimal" data-mnote="${r.player_id}" value="${val}" style="width:64px;padding:5px;text-align:center" placeholder="—">
+      </td></tr>`;
+  });
+  html += '</table>';
+  grid.innerHTML = html;
+}
+(function bindMatchGrid(){
+  const grid = $('noteMatchGrid'); if(!grid) return;
+  const save = (inp)=> saveNote(inp.getAttribute('data-mnote'), inp.value, true);
+  grid.addEventListener('keydown', (e)=>{
+    if(e.target.matches('input[data-mnote]') && e.key==='Enter'){
+      e.preventDefault();
+      const inputs=[...grid.querySelectorAll('input[data-mnote]')]; const i=inputs.indexOf(e.target);
+      save(e.target); if(i>=0&&i<inputs.length-1) inputs[i+1].focus();
+    }
+  });
+  grid.addEventListener('blur', (e)=>{ if(e.target.matches('input[data-mnote]')) save(e.target); }, true);
+})();
+if($('noteMatchSel')) $('noteMatchSel').onchange = renderMatchNoteGrid;
+
+// --- Mapping club ↔ équipe ---
+let _teamOptions = [];
+async function loadClubMap(){
+  const box = $('noteMapList'); if(!box) return;
+  // options d'équipes = équipes distinctes des matchs importés
+  if(!_teamOptions.length){
+    try {
+      const mds = await api.listMatchdays();
+      const seen = new Set();
+      for(const md of mds){ (await api.adminMatchdayMatches(md.id)).forEach(m=>{ seen.add(m.home_team); seen.add(m.away_team); }); }
+      _teamOptions = [...seen].filter(Boolean).sort();
+    } catch(e){ _teamOptions = []; }
+  }
+  let rows;
+  try { rows = await api.adminClubMap(); }
+  catch(e){ box.innerHTML = '<p class="hint" style="padding:12px">Passe le script 229 pour activer cette vue.</p>'; return; }
+  const onlyUnset = $('mapOnlyUnset') && $('mapOnlyUnset').checked;
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const list = onlyUnset ? rows.filter(r=>!r.team) : rows;
+  const nbUnset = rows.filter(r=>!r.team).length;
+  if($('noteMapMsg')) $('noteMapMsg').textContent = `${rows.length} clubs · ${nbUnset} non relié(s)`;
+  if(!list.length){ box.innerHTML = '<p class="hint" style="padding:12px">Tous les clubs sont reliés 🎉</p>'; return; }
+  const opts = (sel)=> '<option value="">— aucun —</option>' + _teamOptions.map(t=>`<option value="${esc(t)}" ${t===sel?'selected':''}>${esc(t)}</option>`).join('');
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
+  list.forEach(r=>{
+    const tag = r.team ? (r.auto ? '<span style="color:#f0b429;font-size:.7rem">auto</span>' : '<span style="color:#4ade80;font-size:.7rem">✓</span>') : '<span style="color:var(--live);font-size:.7rem">?</span>';
+    html += `<tr style="border-top:1px solid var(--line)">
+      <td style="padding:6px 10px">${esc(r.club)} <span class="hint" style="font-size:.7rem">(${r.nb_joueurs})</span></td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap">${tag}
+        <select data-mapclub="${esc(r.club)}" style="margin-left:6px;min-width:150px">${opts(r.team)}</select>
+      </td></tr>`;
+  });
+  html += '</table>';
+  box.innerHTML = html;
+}
+(function bindClubMap(){
+  const box = $('noteMapList'); if(!box) return;
+  box.addEventListener('change', async (e)=>{
+    if(e.target.matches('select[data-mapclub]')){
+      const club = e.target.getAttribute('data-mapclub');
+      try { await api.adminSetClubMap(club, e.target.value || ''); loadClubMap(); }
+      catch(err){ if($('noteMapMsg')) $('noteMapMsg').textContent = 'Erreur : '+(err.message||''); }
+    }
+  });
+})();
+if($('mapOnlyUnset')) $('mapOnlyUnset').onchange = loadClubMap;
+if($('btnReautomap')) $('btnReautomap').onclick = async ()=>{
+  if($('noteMapMsg')) $('noteMapMsg').textContent = 'Rapprochement…';
+  try { const r = await api.adminAutomapClubs(); const d=r[0]||{}; if($('noteMapMsg')) $('noteMapMsg').textContent = `${d.mapped??0} relié(s) · ${d.unmapped??0} restant(s)`; }
+  catch(e){ if($('noteMapMsg')) $('noteMapMsg').textContent = 'Erreur : '+(e.message||''); }
+  loadClubMap();
+};
 
 // Import en masse (option B)
 function parseNoteBlock(text, club){
