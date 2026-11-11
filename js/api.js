@@ -995,6 +995,22 @@ export async function adminCloseProno(id) {
 export async function adminResolveProno(id, winnerIdx) {
   return sb.rpc('qm_admin_resolve_prono', { p_prono_id: id, p_winner_idx: winnerIdx });
 }
+// ----- Pronostics sur les matchs de championnat -----
+export async function adminCreateMatchProno({ home, away, championship = null, kickoff, matchdayId = null }) {
+  return sb.rpc('qm_admin_create_match_prono', {
+    p_home: home, p_away: away, p_championship: championship,
+    p_kickoff: kickoff, p_matchday: matchdayId,
+  });
+}
+export async function adminMatchPronos() {
+  const { data } = await sb.rpc('qm_admin_match_pronos');
+  return data ?? [];
+}
+// Côté joueur : matchs ouverts/récents avec mon pari.
+export async function matchPronos() {
+  const { data } = await sb.rpc('qm_match_pronos');
+  return data ?? [];
+}
 
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body) {

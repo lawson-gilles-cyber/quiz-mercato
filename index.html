@@ -1674,6 +1674,7 @@
         <div style="font-size:.9rem">Ton capital : <b id="pronosCapital" style="color:var(--transfer)">—</b> pts</div>
         <button id="pronosRankBtn" class="btn-ghost btn-sm" data-ic="trophy" style="font-size:.8rem;display:inline-flex;align-items:center;gap:5px">Classement pronostiqueurs</button>
       </div>
+      <div id="matchPronosSection" style="margin-bottom:22px"></div>
       <div id="pronosList"></div>
       <div id="pronosRank" style="display:none;margin-top:18px"></div>
     </div>
@@ -1922,6 +1923,7 @@
         <ul class="rule-ul">
           <li><b>Chat de ligue</b> : un salon commun en direct pour échanger et se chambrer. Reste fair-play — l'organisateur peut effacer un message ou réduire au silence.</li>
           <li><b>Pronostics</b> : parie des <b>points pronos</b> (capital de départ 100, sans lien avec le classement sportif) sur les questions ouvertes par l'organisateur. Bon pronostic = mise doublée. Un classement des pronostiqueurs récompense les plus malins.</li>
+          <li><b>Pronostics sur les matchs</b> : pendant les journées, pronostique le résultat des vrais matchs de championnat en <b>1 / N / 2</b> (victoire à domicile / match nul / victoire à l'extérieur). Les paris ferment au <b>coup d'envoi</b> ; après le match, un bon pronostic rapporte des points. Ces points alimentent le <b>classement pronostiqueurs</b> (distinct du classement sportif). Tu les trouves dans l'onglet « Pronostics », section « Matchs de championnat ».</li>
           <li><b>Conseil d'avant-match</b> : avant chaque journée (onglet <b>Compo</b>), mise des <b>jetons de flair</b> (capital de départ 100, distinct du budget et des points pronos) sur « quel manager fera le plus de points ? » ou « tel joueur dépassera telle note ? ». Bon prono = <b>2× la mise</b>, et un <b>classement flair</b> à part récompense les meilleurs pronostiqueurs. Un <b>prono masqué</b> 🤫 reste caché des autres jusqu'à la résolution. Réservé au Manager.</li>
           <li><b>Réactions & commentaires</b> : réagis aux transferts avec des stickers et commente les mouvements dans le fil d'actu.</li>
         </ul>
@@ -9355,6 +9357,7 @@ async function renderPronos(){
     api.pronosList().catch(()=>[]), api.myPronosPoints().catch(()=>0)
   ]);
   $('pronosCapital').textContent = capital;
+  await renderMatchPronos();   // section « Matchs de championnat » en tête
   const el = $('pronosList');
   if(!list.length){ el.innerHTML = '<div class="empty">Aucun pronostic ouvert pour le moment.</div>'; }
   else el.innerHTML = list.map(p=>{
@@ -9401,6 +9404,72 @@ async function renderPronos(){
     box.style.display='block';
   };
 }
+
+// ---------- Pronostics sur les matchs de championnat ----------
+async function renderMatchPronos(){
+  const box = $('matchPronosSection'); if(!box) return;
+  const I=(typeof ic==='function')?ic:(()=>'');
+  let matches = [];
+  try { matches = await api.matchPronos(); } catch(e){ box.innerHTML=''; return; }
+  if(!matches.length){ box.innerHTML=''; return; }
+  const esc = s => String(s||'').replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+  const RESL = ['1','N','2'];
+  const card = (m)=>{
+    const ko = m.kickoff_at ? new Date(m.kickoff_at) : null;
+    const koTxt = ko ? ko.toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    const isOpen = m.open;
+    const resolved = m.status==='resolved';
+    const btns = (m.options||[]).map((o,i)=>{
+      const mine = m.my_option===i;
+      const won = resolved && m.winner_idx===i;
+      const bg = won?'rgba(74,222,128,.2)':mine?'rgba(245,197,66,.16)':'var(--pitch)';
+      const bd = won?'#4ade80':mine?'var(--transfer)':'var(--line)';
+      return `<button ${isOpen?`data-mbet="${m.id}" data-opt="${i}"`:'disabled'}
+        style="flex:1;min-width:70px;background:${bg};border:1px solid ${bd};border-radius:8px;padding:9px 6px;color:var(--chalk);cursor:${isOpen?'pointer':'default'};font-size:.82rem;font-weight:700">
+        ${won?'✓ ':''}${RESL[i]}<br><span style="font-size:.66rem;color:var(--muted);font-weight:400">${esc(o.replace(/^[1N2] · /,''))}</span></button>`;
+    }).join('');
+    const statusTag = resolved
+      ? `<span style="color:#4ade80;font-size:.74rem;font-weight:700">Résultat : ${RESL[m.winner_idx]||'?'}</span>`
+      : isOpen
+        ? `<span class="mp-countdown" data-ko="${m.kickoff_at||''}" style="color:var(--transfer);font-size:.74rem">⏱ ${koTxt}</span>`
+        : `<span style="color:var(--muted);font-size:.74rem">Paris fermés</span>`;
+    const mineTag = (m.my_option!=null && !resolved) ? ` <span style="color:var(--transfer);font-size:.7rem">· ton prono : ${RESL[m.my_option]}</span>` : '';
+    return `<div style="border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:12px;background:var(--pitch-2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <b style="font-size:.95rem">${esc(m.home_team)} <span style="color:var(--muted)">vs</span> ${esc(m.away_team)}</b>
+        <span style="font-size:.72rem;color:var(--muted)">${m.championship?esc(m.championship)+' · ':''}${m.total_bets} prono${m.total_bets>1?'s':''}</span>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:6px">${btns}</div>
+      <div>${statusTag}${mineTag}</div>
+    </div>`;
+  };
+  // Groupage par journée.
+  const groups = {};
+  matches.forEach(m=>{
+    const k = m.matchday_id || '_none';
+    (groups[k] = groups[k] || { label: m.matchday_label || (m.matchday_number?('Journée '+m.matchday_number):'Autres matchs'), num: m.matchday_number??999, items:[] }).items.push(m);
+  });
+  const grouped = Object.values(groups).sort((a,b)=>a.num-b.num).map(g=>
+    `<div style="margin-bottom:14px"><div style="font-weight:800;font-size:.8rem;color:var(--transfer);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${esc(g.label)}</div>${g.items.map(card).join('')}</div>`
+  ).join('');
+  box.innerHTML = `<h3 style="font-family:'Archivo';font-weight:900;font-size:1.05rem;margin-bottom:10px;display:flex;align-items:center;gap:7px">${I('dice',17)||''} Matchs de championnat</h3>${grouped}`;
+  // Paris 1/N/2 (mise forfaitaire côté serveur).
+  box.querySelectorAll('[data-mbet]').forEach(b=>b.onclick=async()=>{
+    const stake = 10;  // forfait (Option A)
+    const { error } = await api.pronoBet(b.dataset.mbet, parseInt(b.dataset.opt,10), stake);
+    if(error) return toast(error.message,'err',4000);
+    toast('Pronostic enregistré !','ok');
+    renderMatchPronos();
+  });
+}
+// Compte à rebours jusqu'au coup d'envoi (passe « fermé » à l'échéance).
+setInterval(()=>{
+  const els = document.querySelectorAll('.mp-countdown[data-ko]');
+  if(!els.length) return;
+  let due=false;
+  els.forEach(el=>{ if(el.dataset.ko && new Date(el.dataset.ko) <= new Date()) due=true; });
+  if(due && CURRENT_VIEW==='pronos') renderMatchPronos();
+}, 30000);
 
 // ---------- Draft ----------
 let DRAFT_CHANNEL = null;

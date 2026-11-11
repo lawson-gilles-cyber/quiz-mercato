@@ -634,6 +634,23 @@
     <div id="pronoList" style="margin-top:16px"></div>
   </div>
 
+  <!-- Pronostics sur les matchs de championnat -->
+  <h2 data-ic="dice">Pronostics — matchs de championnat</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Crée un match réel : les managers pronostiquent <b>1 / N / 2</b> (domicile / nul / extérieur) et gagnent des points pronos s'ils voient juste. Les paris ferment au <b>coup d'envoi</b>. Résous après le match pour distribuer les points.</p>
+    <div class="row c3" style="margin-bottom:8px">
+      <div><label>Équipe à domicile</label><input id="mpHome" type="text" placeholder="OM"></div>
+      <div><label>Équipe à l'extérieur</label><input id="mpAway" type="text" placeholder="PSG"></div>
+      <div><label>Championnat</label><input id="mpChamp" type="text" placeholder="Ligue 1"></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-top:4px">
+      <div><label>Coup d'envoi</label><input id="mpKickoff" type="datetime-local"></div>
+      <div><label>Journée (optionnel)</label><select id="mpMatchday" style="min-width:160px"><option value="">— Aucune —</option></select></div>
+      <button class="btn-primary btn-sm" id="btnCreateMatchProno">Créer le match</button>
+    </div>
+    <div id="matchPronoList" style="margin-top:16px"></div>
+  </div>
+
   <!-- Draft -->
   <h2 data-ic="target">Draft de début de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1301,7 +1318,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1321,7 +1338,7 @@ const ADMIN_TABS = [
   { id:'managers', label:'👥 Managers', titles:[
       "Inviter des managers","Classement des managers","Contrôle des effectifs","Ligues & divisions","Modération du chat",
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison",
-      "Défis & objectifs","Pronostics","Draft","Journées & Compositions"] },
+      "Défis & objectifs","Pronostics","Pronostics — matchs","Draft","Journées & Compositions"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
   { id:'aide', label:'❓ Aide', titles:[
@@ -3114,6 +3131,68 @@ if($('btnCreateProno')) $('btnCreateProno').onclick = async ()=>{
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'),'Pronostic créé.',true);
   $('pronoQ').value=''; $('pronoOpts').value=''; loadPronos();
+};
+
+// ---------- Pronostics sur les matchs ----------
+async function loadMatchPronos(){
+  const el = $('matchPronoList'); if(!el) return;
+  // Remplit le sélecteur de journée (une fois).
+  const sel = $('mpMatchday');
+  if(sel && sel.options.length <= 1){
+    try {
+      const mds = await api.listMatchdays();
+      mds.forEach(md=>{ const o=document.createElement('option'); o.value=md.id; o.textContent = md.label || ('Journée '+md.number); sel.appendChild(o); });
+    } catch(e){}
+  }
+  let rows;
+  try { rows = await api.adminMatchPronos(); }
+  catch(e){ el.innerHTML = '<p class="hint">Passe les scripts 224 et 224b (pronos-matchs) pour activer cette section.</p>'; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const SL = {open:'🟢 Paris ouverts',closed:'🔒 Fermé',resolved:'✅ Résolu'};
+  const RES = ['1 · domicile','N · nul','2 · extérieur'];
+  const row = (p)=>{
+    const ko = p.kickoff_at ? new Date(p.kickoff_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+    const resolveBtns = (p.status!=='resolved')
+      ? `<span class="hint" style="font-size:.74rem;margin-right:4px">Résultat :</span>` + RES.map((r,i)=>`<button class="btn-ghost btn-sm" data-mresolve="${p.id}" data-widx="${i}" style="font-size:.72rem;margin:2px">${r}</button>`).join('')
+      : `<span style="color:#4ade80;font-size:.82rem">Résultat : <b>${RES[p.winner_idx]||'?'}</b></span>`;
+    return `<div style="padding:10px 0;border-top:1px solid var(--line)">
+      <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <b style="font-size:.9rem">${esc(p.home_team)} – ${esc(p.away_team)}</b>
+        <span style="font-size:.74rem;color:var(--muted)">${p.championship?esc(p.championship)+' · ':''}⏱ ${ko} · ${SL[p.status]||p.status} · ${p.bets} pari(s)</span>
+      </div>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${resolveBtns}</div>
+    </div>`;
+  };
+  if(!rows.length){ el.innerHTML = '<p class="hint">Aucun match pour le moment.</p>'; }
+  else {
+    // Groupage par journée.
+    const groups = {};
+    rows.forEach(p=>{ const k = p.matchday_id || '_none'; (groups[k]=groups[k]||{label:p.matchday_label||(p.matchday_number?('Journée '+p.matchday_number):'Hors journée'), num:p.matchday_number??999, items:[]}).items.push(p); });
+    el.innerHTML = Object.values(groups).sort((a,b)=>a.num-b.num).map(g=>
+      `<div style="margin-top:14px"><div style="font-weight:800;font-size:.82rem;color:var(--transfer);text-transform:uppercase;letter-spacing:.5px">${esc(g.label)}</div>${g.items.map(row).join('')}</div>`
+    ).join('');
+  }
+  el.querySelectorAll('[data-mresolve]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Valider ce résultat et distribuer les points pronos ?')) return;
+    const { data, error } = await api.adminResolveProno(b.dataset.mresolve, parseInt(b.dataset.widx,10));
+    if(error) return showMsg($('msg2'), error.message);
+    showMsg($('msg2'), `Match résolu : ${data} gagnant(s) récompensé(s).`, true);
+    loadMatchPronos();
+  });
+}
+if($('btnCreateMatchProno')) $('btnCreateMatchProno').onclick = async ()=>{
+  const home = $('mpHome').value.trim(), away = $('mpAway').value.trim();
+  const champ = $('mpChamp').value.trim() || null;
+  const koRaw = $('mpKickoff').value;
+  if(!home || !away) return showMsg($('msg2'),'Indique les deux équipes.');
+  if(!koRaw) return showMsg($('msg2'),'Indique le coup d\'envoi.');
+  const kickoff = new Date(koRaw).toISOString();
+  const matchdayId = ($('mpMatchday') && $('mpMatchday').value) || null;
+  const { error } = await api.adminCreateMatchProno({ home, away, championship:champ, kickoff, matchdayId });
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'),'Match créé — les paris sont ouverts.',true);
+  $('mpHome').value=''; $('mpAway').value=''; $('mpKickoff').value='';
+  loadMatchPronos();
 };
 
 // ---------- Draft (admin) ----------
