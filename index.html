@@ -6622,7 +6622,7 @@ async function openDM(otherId, otherName){
     const old = document.getElementById('dmMsgMenu'); if(old) old.remove();
     const menu = document.createElement('div');
     menu.id='dmMsgMenu';
-    menu.style.cssText='position:absolute;z-index:3000;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:4px;min-width:190px;box-shadow:0 8px 20px rgba(0,0,0,.45);font-size:.84rem';
+    menu.style.cssText='position:fixed;z-index:10050;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:4px;min-width:190px;box-shadow:0 8px 20px rgba(0,0,0,.45);font-size:.84rem';
     const item = (label, color)=>`<div class="dmmi" style="padding:8px 10px;border-radius:6px;cursor:pointer;color:${color||'var(--chalk)'}">${label}</div>`;
     menu.innerHTML =
       (ctx.editable ? `<div data-act="edit">${item('✎ Modifier')}</div>` : '')+
@@ -6631,7 +6631,7 @@ async function openDM(otherId, otherName){
     document.body.appendChild(menu);
     const r = anchor.getBoundingClientRect();
     menu.style.left = Math.max(8, Math.min(r.left-120, window.innerWidth-menu.offsetWidth-8))+'px';
-    menu.style.top = (r.bottom + 4 + window.scrollY)+'px';
+    menu.style.top = (r.bottom + 4)+'px';
     menu.querySelectorAll('.dmmi').forEach(el=>{ el.onmouseenter=()=>el.style.background='rgba(255,255,255,.06)'; el.onmouseleave=()=>el.style.background='none'; });
     menu.querySelector('[data-act="edit"]')?.addEventListener('click', ()=>{ menu.remove(); startEdit(m); });
     menu.querySelector('[data-act="delmine"]')?.addEventListener('click', async ()=>{
@@ -6655,12 +6655,12 @@ async function openDM(otherId, otherName){
     const existing = document.getElementById('dmEmojiPicker'); if(existing) existing.remove();
     const pick = document.createElement('div');
     pick.id='dmEmojiPicker';
-    pick.style.cssText='position:absolute;z-index:3000;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:5px 7px;display:flex;gap:4px;box-shadow:0 8px 20px rgba(0,0,0,.4)';
+    pick.style.cssText='position:fixed;z-index:10050;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:5px 7px;display:flex;gap:4px;box-shadow:0 8px 20px rgba(0,0,0,.4)';
     pick.innerHTML = EMO.map(e=>`<span data-e="${e}" style="cursor:pointer;font-size:1.15rem;padding:1px 3px">${e}</span>`).join('');
     document.body.appendChild(pick);
     const r = anchor.getBoundingClientRect();
     pick.style.left = Math.max(8, Math.min(r.left-20, window.innerWidth-pick.offsetWidth-8))+'px';
-    pick.style.top = (r.top - pick.offsetHeight - 6 + window.scrollY)+'px';
+    pick.style.top = Math.max(8, r.top - pick.offsetHeight - 6)+'px';
     pick.querySelectorAll('[data-e]').forEach(s=>s.onclick=async()=>{
       await api.dmReact(msgId, s.dataset.e);
       pick.remove(); refresh(true);
@@ -6677,7 +6677,13 @@ async function openDM(otherId, otherName){
       const id = DM_EDIT_ID;
       input.value=''; clearEdit();
       const { error } = await api.dmEdit(id, body);
-      if(error){ toast(error.message,'err',4500); return; }
+      if(error){
+        const msg = /function .*does not exist|could not find/i.test(error.message||'')
+          ? "La modification des messages n'est pas encore activée côté serveur."
+          : error.message;
+        toast(msg,'err',4800);
+        return;
+      }
       refresh(true);
       return;
     }
