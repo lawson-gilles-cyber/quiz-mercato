@@ -678,6 +678,43 @@
     <div id="matchPronoList" style="margin-top:16px"></div>
   </div>
 
+  <!-- Notes des joueurs par journée (Sofascore) -->
+  <h2 data-ic="star">Notes des joueurs — par journée</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Reporte les notes Sofascore de chaque joueur pour une journée. Deux méthodes : <b>saisie rapide</b> au clavier, ou <b>import</b> en collant un bloc de notes.</p>
+
+    <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px">
+      <div><label>Journée</label><select id="noteMatchday" style="min-width:170px"><option value="">— Choisir —</option></select></div>
+      <div style="flex:1;min-width:180px"><label>Filtrer (club ou joueur)</label><input id="noteFilter" type="text" class="us-search" placeholder="Rechercher…"></div>
+      <div id="noteProgress" class="hint" style="font-size:.8rem;white-space:nowrap"></div>
+    </div>
+
+    <!-- Onglets méthode -->
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button class="btn-ghost btn-sm" id="noteTabGrid">⌨️ Saisie rapide</button>
+      <button class="btn-ghost btn-sm" id="noteTabImport">📋 Import (coller)</button>
+    </div>
+
+    <!-- Méthode A : grille -->
+    <div id="notePanelGrid">
+      <div id="noteGrid" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
+      <p class="hint" style="font-size:.76rem;margin-top:6px">Astuce : tape la note et appuie sur <b>Entrée</b> ou <b>Tab</b> pour passer au joueur suivant. Enregistrement automatique. Laisse vide + coche « n'a pas joué » si le joueur n'a pas disputé la journée.</p>
+    </div>
+
+    <!-- Méthode B : import -->
+    <div id="notePanelImport" style="display:none">
+      <p class="hint" style="font-size:.8rem;margin-bottom:8px">Colle une ligne par joueur au format <code>Nom  note</code> (séparés par tabulation, espaces ou point-virgule). Exemple :<br><code>Mbappé 8.3</code> &nbsp; <code>Dembélé;7.1</code> &nbsp; <code>Vitinha 7</code></p>
+      <div style="margin-bottom:8px"><label style="font-size:.8rem">Club de ce bloc <span class="hint" style="font-weight:400">(optionnel, mais recommandé — lève les homonymes)</span></label>
+        <input id="noteImportClub" type="text" class="us-search" placeholder="Ex. Real Madrid" style="max-width:260px"></div>
+      <textarea id="noteImportText" class="us-search" style="width:100%;min-height:150px;font-family:monospace;font-size:.85rem" placeholder="Mbappé	8.3&#10;Dembélé	7.1&#10;Vitinha	7.0"></textarea>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn-primary btn-sm" id="btnNoteImport">Analyser &amp; importer</button>
+        <span id="noteImportMsg" class="hint" style="font-size:.8rem;align-self:center"></span>
+      </div>
+      <div id="noteImportReport" style="margin-top:10px"></div>
+    </div>
+  </div>
+
   <!-- Draft -->
   <h2 data-ic="target">Draft de début de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1345,7 +1382,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1365,7 +1402,7 @@ const ADMIN_TABS = [
   { id:'managers', label:'👥 Managers', titles:[
       "Inviter des managers","Classement des managers","Contrôle des effectifs","Ligues & divisions","Modération du chat",
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison",
-      "Défis & objectifs","Pronostics","Pronostics — matchs","Draft","Journées & Compositions"] },
+      "Défis & objectifs","Pronostics","Pronostics — matchs","Notes des joueurs — par journée","Draft","Journées & Compositions"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
   { id:'aide', label:'❓ Aide', titles:[
@@ -3256,6 +3293,163 @@ async function runSync(action){
 }
 if($('btnSyncImport'))  $('btnSyncImport').onclick  = ()=> runSync('import');
 if($('btnSyncResolve')) $('btnSyncResolve').onclick = ()=> runSync('resolve');
+
+// ---------- Notes des joueurs par journée (Sofascore) ----------
+let _noteGridData = [];
+async function loadPlayerNotes(){
+  const grid = $('noteGrid'); if(!grid) return;
+  // Sélecteur de journée (une fois).
+  const sel = $('noteMatchday');
+  if(sel && sel.options.length <= 1){
+    try {
+      const mds = await api.listMatchdays();
+      mds.forEach(md=>{ const o=document.createElement('option'); o.value=md.id; o.textContent = md.label || ('Journée '+md.number); sel.appendChild(o); });
+    } catch(e){}
+  }
+  await renderNoteGrid();
+}
+async function renderNoteGrid(){
+  const grid = $('noteGrid'); if(!grid) return;
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  if(!mdId){ grid.innerHTML = '<p class="hint" style="padding:12px">Choisis une journée pour saisir les notes.</p>'; if($('noteProgress')) $('noteProgress').textContent=''; return; }
+  let rows;
+  try { rows = await api.adminNotesGrid(mdId); }
+  catch(e){ grid.innerHTML = '<p class="hint" style="padding:12px">Passe le script 228 (notes des joueurs) pour activer cette section.</p>'; return; }
+  _noteGridData = rows;
+  paintNoteGrid();
+}
+function paintNoteGrid(){
+  const grid = $('noteGrid'); if(!grid) return;
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const f = ($('noteFilter') && $('noteFilter').value || '').trim().toLowerCase();
+  const list = _noteGridData.filter(r=>{
+    if(!f) return true;
+    return (r.name||'').toLowerCase().includes(f) || (r.club||'').toLowerCase().includes(f) || (r.first_name||'').toLowerCase().includes(f);
+  });
+  const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
+  if($('noteProgress')) $('noteProgress').textContent = `${noted}/${_noteGridData.length} joueurs notés`;
+  if(!list.length){ grid.innerHTML = '<p class="hint" style="padding:12px">Aucun joueur.</p>'; return; }
+  let html = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
+  let lastGroup = '';
+  list.forEach((r)=>{
+    const grp = (r.championship||'—') + ' · ' + (r.club||'—');
+    if(grp!==lastGroup){ html += `<tr><td colspan="3" style="padding:6px 10px;background:var(--pitch);font-weight:700;font-size:.78rem;position:sticky;top:0">${esc(grp)}</td></tr>`; lastGroup = grp; }
+    const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||''));
+    const val = r.note!=null ? r.note : '';
+    const dnp = r.played===false;
+    html += `<tr style="border-top:1px solid var(--line)">
+      <td style="padding:6px 10px">${nameDisp}</td>
+      <td style="padding:6px 10px;text-align:right;white-space:nowrap">
+        <input type="number" min="0" max="10" step="0.1" inputmode="decimal"
+               data-note="${r.player_id}" value="${val}" ${dnp?'disabled':''}
+               style="width:64px;padding:5px;text-align:center" placeholder="—">
+      </td>
+      <td style="padding:6px 10px;text-align:center;white-space:nowrap">
+        <label style="font-size:.72rem;color:var(--muted);cursor:pointer"><input type="checkbox" data-dnp="${r.player_id}" ${dnp?'checked':''}> n'a pas joué</label>
+      </td>
+    </tr>`;
+  });
+  html += '</table>';
+  grid.innerHTML = html;
+}
+// Enregistrement d'une note (debounce léger via blur/enter).
+async function saveNote(playerId, noteVal, played){
+  const mdId = $('noteMatchday').value;
+  if(!mdId) return;
+  const note = (noteVal==='' || noteVal==null) ? null : parseFloat(String(noteVal).replace(',','.'));
+  if(played && (note==null || isNaN(note) || note<0 || note>10)) return; // rien à enregistrer
+  try {
+    await api.adminSetPlayerNote(playerId, mdId, played?note:0, played);
+    const rec = _noteGridData.find(r=>r.player_id===playerId);
+    if(rec){ rec.note = played?note:0; rec.played = played; }
+    const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
+    if($('noteProgress')) $('noteProgress').textContent = `${noted}/${_noteGridData.length} joueurs notés ✓`;
+  } catch(e){ /* silencieux : l'admin verra la note non enregistrée */ }
+}
+// Délégation d'événements sur la grille.
+(function bindNoteGrid(){
+  const grid = $('noteGrid'); if(!grid) return;
+  grid.addEventListener('keydown', (e)=>{
+    if(e.target.matches('input[data-note]') && (e.key==='Enter')){
+      e.preventDefault();
+      const inputs = [...grid.querySelectorAll('input[data-note]:not([disabled])')];
+      const i = inputs.indexOf(e.target);
+      saveNote(e.target.getAttribute('data-note'), e.target.value, true);
+      if(i>=0 && i<inputs.length-1) inputs[i+1].focus();
+    }
+  });
+  grid.addEventListener('blur', (e)=>{
+    if(e.target.matches('input[data-note]')) saveNote(e.target.getAttribute('data-note'), e.target.value, true);
+  }, true);
+  grid.addEventListener('change', (e)=>{
+    if(e.target.matches('input[data-dnp]')){
+      const pid = e.target.getAttribute('data-dnp');
+      const played = !e.target.checked;
+      const noteInput = grid.querySelector(`input[data-note="${pid}"]`);
+      if(noteInput){ noteInput.disabled = !played; if(!played) noteInput.value=''; }
+      saveNote(pid, played ? (noteInput?noteInput.value:'') : '', played);
+    }
+  });
+})();
+if($('noteMatchday')) $('noteMatchday').onchange = renderNoteGrid;
+if($('noteFilter'))   $('noteFilter').oninput   = paintNoteGrid;
+
+// Onglets méthode
+function noteSwitch(which){
+  const g = $('notePanelGrid'), im = $('notePanelImport');
+  if(!g||!im) return;
+  g.style.display  = which==='grid'   ? '' : 'none';
+  im.style.display = which==='import' ? '' : 'none';
+}
+if($('noteTabGrid'))   $('noteTabGrid').onclick   = ()=> noteSwitch('grid');
+if($('noteTabImport')) $('noteTabImport').onclick = ()=> noteSwitch('import');
+
+// Import en masse (option B)
+function parseNoteBlock(text, club){
+  const rows = [];
+  (text||'').split(/\r?\n/).forEach(line=>{
+    const t = line.trim(); if(!t) return;
+    // sépare sur tab / point-virgule / dernière suite d'espaces avant un nombre
+    let m = t.match(/^(.*?)[\t;]+\s*([\d.,]+)\s*$/) || t.match(/^(.*?)\s+([\d.,]+)\s*$/);
+    if(m){
+      const q = m[1].trim();
+      const note = parseFloat(m[2].replace(',','.'));
+      if(q && !isNaN(note)){
+        const row = { q, note, played: true };
+        if(club) row.club = club;
+        rows.push(row);
+      }
+    }
+  });
+  return rows;
+}
+if($('btnNoteImport')) $('btnNoteImport').onclick = async ()=>{
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  const msg = $('noteImportMsg'); const rep = $('noteImportReport');
+  if(!mdId){ if(msg) msg.innerHTML = '<span style="color:var(--live)">Choisis d\'abord une journée.</span>'; return; }
+  const club = ($('noteImportClub') && $('noteImportClub').value || '').trim();
+  const rows = parseNoteBlock($('noteImportText').value, club);
+  if(!rows.length){ if(msg) msg.innerHTML = '<span style="color:var(--live)">Aucune ligne reconnue. Format attendu : « Nom  note ».</span>'; return; }
+  if(msg) msg.textContent = `Analyse de ${rows.length} ligne(s)…`;
+  let report;
+  try { report = await api.adminImportNotes(mdId, rows); }
+  catch(e){ if(msg) msg.innerHTML = `<span style="color:var(--live)">Échec : ${e.message||'script 228 non passé ?'}</span>`; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const ok = report.filter(r=>r.status==='applied');
+  const nf = report.filter(r=>r.status==='not_found');
+  const amb = report.filter(r=>r.status==='ambiguous');
+  if(msg) msg.innerHTML = `<span style="color:#4ade80">${ok.length} appliquée(s)</span> · ${nf.length} introuvable(s) · ${amb.length} ambiguë(s)`;
+  let h = '';
+  if(nf.length||amb.length){
+    h += '<div style="margin-top:8px;padding:8px 10px;background:rgba(224,87,74,.08);border-radius:8px;font-size:.8rem">';
+    if(nf.length)  h += '<div><b>Introuvables</b> (à saisir à la main dans la grille) : '+nf.map(r=>esc(r.query)).join(', ')+'</div>';
+    if(amb.length) h += '<div style="margin-top:4px"><b>Ambigus</b> (plusieurs joueurs du même nom) : '+amb.map(r=>esc(r.query)).join(', ')+'</div>';
+    h += '</div>';
+  }
+  if(rep) rep.innerHTML = h;
+  // Rafraîchir la grille pour voir les notes importées.
+  await renderNoteGrid();
+};
 
 // ---------- Draft (admin) ----------
 async function loadDraftAdmin(){

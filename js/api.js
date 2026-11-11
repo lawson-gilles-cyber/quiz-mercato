@@ -1028,6 +1028,30 @@ export async function adminSyncMatches({ action, competition, matchdayId = null,
   });
 }
 
+// ---------- NOTES DES JOUEURS PAR JOURNÉE (Sofascore) ---------------
+// Grille admin : tous les joueurs actifs + note déjà saisie pour la journée.
+export async function adminNotesGrid(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_notes_grid', { p_matchday_id: matchdayId || null });
+  return data ?? [];
+}
+// Saisie/MAJ d'une note (option A). played=false => n'a pas joué.
+export async function adminSetPlayerNote(playerId, matchdayId, note, played = true) {
+  return sb.rpc('qm_admin_set_player_note', {
+    p_player_id: playerId, p_matchday_id: matchdayId || null, p_note: note, p_played: played,
+  });
+}
+export async function adminDeletePlayerNote(playerId, matchdayId) {
+  return sb.rpc('qm_admin_delete_player_note', { p_player_id: playerId, p_matchday_id: matchdayId || null });
+}
+// Import en masse (option B) : rows = [{q, note, played}]. Renvoie le compte-rendu.
+export async function adminImportNotes(matchdayId, rows) {
+  const { data, error } = await sb.rpc('qm_admin_import_notes', {
+    p_matchday_id: matchdayId || null, p_rows: rows,
+  });
+  if (error) throw error;
+  return data ?? [];
+}
+
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body) {
   return sb.rpc('qm_chat_send', { p_body: body });
