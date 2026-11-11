@@ -643,7 +643,20 @@
     <div style="background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:14px">
       <div style="font-weight:700;font-size:.85rem;margin-bottom:8px">⚡ Import automatique <span class="hint" style="font-weight:400;font-size:.76rem">(football-data.org — nécessite l'Edge Function déployée)</span></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
-        <div><label>Championnat</label><select id="syncComp"><option value="FL1">Ligue 1</option><option value="PL">Premier League</option><option value="PD">Liga</option><option value="SA">Serie A</option><option value="BL1">Bundesliga</option></select></div>
+        <div><label>Championnat</label><select id="syncComp">
+          <option value="FL1">Ligue 1</option>
+          <option value="PL">Premier League</option>
+          <option value="PD">Liga</option>
+          <option value="SA">Serie A</option>
+          <option value="BL1">Bundesliga</option>
+          <option value="DED">Eredivisie</option>
+          <option value="PPL">Primeira Liga</option>
+          <option value="ELC">Championship (D2 ang.)</option>
+          <option value="BSA">Brasileirão Série A</option>
+          <option value="CL">Ligue des Champions</option>
+          <option value="WC">Coupe du Monde</option>
+          <option value="EC">Euro</option>
+        </select></div>
         <div><label>Du</label><input id="syncFrom" type="date"></div>
         <div><label>Au</label><input id="syncTo" type="date"></div>
         <div><label>Journée (optionnel)</label><select id="syncMatchday" style="min-width:150px"><option value="">— Aucune —</option></select></div>
