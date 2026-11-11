@@ -264,6 +264,10 @@
   .ticker:hover .ticker-track{animation-play-state:paused}
   .ticker-item{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;font-size:.86rem;color:var(--chalk)}
   .ticker-item + .ticker-item{border-left:1px solid var(--line)}
+  .ticker-item.tk-alert b{color:#ff8a7d}
+  .ticker-item.tk-alert .ticker-ic{color:var(--live)}
+  .ticker-item.tk-mine b{color:#4ade80}
+  .ticker-item.tk-mine .ticker-ic{color:#4ade80}
   .ticker-item b{color:#fff}
   .ticker-ic{font-size:.95rem}
   @keyframes ticker-scroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -7671,7 +7675,9 @@ async function renderHome(){
           <span style="display:inline-flex;color:${c}">${(typeof ic==='function'?ic(icn,16):'')}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
       }).join('')
     : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
-  renderTicker(moves, auctions, managers);
+  let records = [];
+  try { records = await api.seasonRecords(); } catch(e){ records = []; }
+  renderTicker(moves, auctions, managers, records);
   renderChallenges();
   renderDailyChecklist(auctions);
   renderMarketTrends(auctions);
@@ -7936,16 +7942,37 @@ async function renderDailyChecklist(auctions){
 // Combine les enchères en cours (🔥) et les derniers mouvements (recrutements,
 // libérations, échanges) en une bande qui défile en boucle. Mise à jour par
 // renderHome et par le temps réel.
-function renderTicker(moves, auctions, managers){
+function renderTicker(moves, auctions, managers, records){
   const bar = $('mercatoTicker'), track = $('tickerTrack');
   if(!bar || !track) return;
   const items = [];
+  const perso = [];   // alertes du manager connecté (mises tout en tête)
   const I = (n)=> (typeof ic==='function'?ic(n,13):'');
-  const it = (icn, html)=> `<span class="ticker-item"><span class="ticker-ic">${I(icn)}</span><span>${html}</span></span>`;
+  const it = (icn, html, cls='')=> `<span class="ticker-item ${cls}"><span class="ticker-ic">${I(icn)}</span><span>${html}</span></span>`;
   const now = Date.now();
   const fmtLeft = (ms)=>{ const m=Math.max(0,Math.round(ms/60000)); if(m<60) return m+' min'; const h=Math.floor(m/60); return h<24?(h+' h'):(Math.floor(h/24)+' j'); };
 
   const aucs = (auctions||[]).slice();
+
+  // 0) ALERTES PERSONNELLES (manager connecté) — priorité absolue.
+  if(ME){
+    const watch = AUC_WATCH || new Set();
+    const mine = aucs.filter(a=>{ const tb=a.top_bidder_id||a.top_bidder?.id; return watch.has(a.id) || (tb && tb===ME.id); });
+    const outbid = mine.filter(a=>{ const tb=a.top_bidder_id||a.top_bidder?.id; return tb && tb!==ME.id; });
+    const leading = mine.filter(a=>{ const tb=a.top_bidder_id||a.top_bidder?.id; return tb===ME.id; });
+    outbid.slice(0,3).forEach(a=>{
+      const left = a.ends_at ? new Date(a.ends_at)-now : null;
+      perso.push(it('warning', `⚠️ Tu es <b>dépassé</b> sur <b>${a.player?.name||'une enchère'}</b>${left&&left>0?` — fin dans ${fmtLeft(left)}`:''}`, 'tk-alert'));
+    });
+    if(leading.length){
+      perso.push(it('check', `✅ Tu mènes sur <b>${leading.length}</b> enchère${leading.length>1?'s':''}`, 'tk-mine'));
+    }
+    // Budget dormant : incitation discrète.
+    const avail = Number(ME.budget||0) - Number(ME.budget_locked||0);
+    if(avail > 100e6 && aucs.length){
+      perso.push(it('coins', `💤 Tu as <b>${fmtMoney(avail)}</b> non engagés — fais-les travailler`, 'tk-mine'));
+    }
+  }
 
   // 1) Enchères qui FINISSENT BIENTÔT (urgence — en priorité).
   aucs.filter(a=>a.ends_at)
@@ -8003,16 +8030,33 @@ function renderTicker(moves, auctions, managers){
     items.push(it('zap', `Marché en direct : <b>${aucs.length}</b> enchère${aucs.length>1?'s':''} ouverte${aucs.length>1?'s':''} · ${fmtMoney(totalPot)} en jeu`));
   }
 
-  if(!items.length){
+  // 7) Records de la saison (les plus spectaculaires).
+  try {
+    const REC = {}; (records||[]).forEach(r=>{ REC[r.rec_key]=r; });
+    const recLine = (key, icn, label, money)=>{
+      const r = REC[key];
+      if(!r || !r.holder || !(Number(r.value)>0)) return;
+      const val = money ? fmtMoney(Number(r.value)) : String(r.value);
+      items.push(it(icn, `Record — ${label} : <b>${r.holder}</b> (${val})`));
+    };
+    recLine('biggest_buy', 'banknote', 'plus grosse enchère', true);
+    recLine('richest_squad', 'sparkles', 'effectif le plus cher', true);
+    recLine('most_trades', 'repeat', 'roi des échanges', false);
+    recLine('top_bonus', 'gift', 'roi des bonus', true);
+  } catch(e){}
+
+  // Les alertes perso passent EN TÊTE de la bande.
+  const all = perso.concat(items);
+  if(!all.length){
     bar.style.display = 'none';
     track.innerHTML = '';
     return;
   }
   // On duplique la séquence pour une boucle sans couture (translateX -50%).
-  const seq = items.join('');
+  const seq = all.join('');
   track.innerHTML = seq + seq;
   // Vitesse proportionnelle au nombre d'items (bande plus longue = plus lente).
-  const dur = Math.max(24, Math.min(80, items.length * 6));
+  const dur = Math.max(24, Math.min(90, all.length * 6));
   track.style.animationDuration = dur + 's';
   bar.style.display = 'flex';
 }
