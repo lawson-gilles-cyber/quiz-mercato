@@ -47,6 +47,30 @@
   .ov-banner--ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.4);color:var(--ok)}
   .ov-banner--warn{background:rgba(245,197,66,.08);border:1px solid var(--transfer);color:var(--transfer);font-weight:500}
   @media(max-width:560px){ .ov-row{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px} .ov-val{font-size:1.6rem} }
+  /* Santé du mercato : cartes d'alerte groupées */
+  .hc-list{display:grid;gap:8px}
+  .hc-alert{display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border-radius:var(--r);
+    border:1px solid var(--line);border-left:3px solid var(--ac);
+    background:linear-gradient(180deg, color-mix(in srgb, var(--ac) 7%, var(--pitch-2)), var(--pitch-2));
+    transition:transform .12s ease}
+  .hc-alert:hover{transform:translateX(2px)}
+  .hc-ico{font-size:1.15rem;line-height:1.3}
+  .hc-title{font-weight:700;font-size:.9rem;color:var(--ac)}
+  .hc-detail{margin-top:2px;font-size:.82rem}
+  /* Classement : podium top 3 */
+  .rk-podium{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:end}
+  .rk-step{background:linear-gradient(180deg, color-mix(in srgb, var(--ac) 12%, var(--pitch-2)), var(--pitch-2));
+    border:1px solid var(--line);border-top:3px solid var(--ac);border-radius:var(--r);
+    padding:14px 12px;text-align:center}
+  .rk-step--1{padding-top:20px;padding-bottom:20px;box-shadow:var(--shadow-1)}
+  .rk-medal{font-size:1.7rem;line-height:1}
+  .rk-step--1 .rk-medal{font-size:2.1rem}
+  .rk-name{font-weight:800;margin-top:6px;color:var(--chalk);font-size:.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rk-team{color:var(--muted);font-size:.76rem;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rk-pts{font-size:1.5rem;font-weight:800;color:var(--ac);margin-top:8px;line-height:1}
+  .rk-pts span{font-size:.7rem;font-weight:600;color:var(--muted);margin-left:3px}
+  .rk-sub{font-size:.72rem;color:var(--muted);margin-top:4px}
+  @media(max-width:520px){ .rk-podium{grid-template-columns:1fr;gap:8px} .rk-step{text-align:left;display:flex;align-items:center;gap:10px} .rk-step>*{margin-top:0!important} .rk-pts{margin-left:auto} }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:linear-gradient(180deg,#0a1428,#0c1730 50%,#081020);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
     min-height:100vh;line-height:1.45;background-attachment:fixed}
@@ -396,8 +420,8 @@
 
   <!-- Tableau de bord financier -->
   <h2 data-ic="cash">Tableau de bord financier</h2>
-  <div id="financeGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:14px">
-    <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
+  <div id="financeGrid" style="display:flex;flex-direction:column;gap:18px;margin-bottom:14px">
+    <div class="hint" style="text-align:center;padding:16px">Chargement…</div>
   </div>
   <div class="card" style="margin-bottom:14px">
     <h3 style="margin:0 0 10px">Par manager</h3>
@@ -502,6 +526,7 @@
   <h2>Classement des managers</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Classement général, trié par points de saison. Les comptes admin et coach n'y figurent pas.</p>
+    <div id="rankPodium" style="margin-bottom:16px"></div>
     <table>
       <thead><tr><th>#</th><th>Manager</th><th>Équipe</th><th>Points</th><th>Effectif</th><th>Budget dispo</th></tr></thead>
       <tbody id="rankAdminBody"><tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Chargement…</td></tr></tbody>
@@ -2859,16 +2884,35 @@ async function loadHealth(){
   }
 
   if(!alerts.length){
-    box.innerHTML = '<div style="padding:12px;text-align:center;color:var(--muted)">✅ Rien à signaler — le mercato tourne bien.</div>';
+    box.innerHTML = '<div class="ov-banner ov-banner--ok" style="justify-content:center">✅ Rien à signaler — le mercato tourne bien.</div>';
     return;
   }
-  const col = { warn:'var(--danger,#e0574a)', act:'var(--transfer,#e0a106)', info:'var(--muted)' };
-  box.innerHTML = alerts.map(a=>`
-    <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-left:3px solid ${col[a.sev]};background:var(--card2,#101d38);border-radius:8px;margin-bottom:8px">
-      <span style="font-size:1.1rem">${a.icon}</span>
-      <div><div style="font-weight:700;font-size:.9rem;color:${col[a.sev]}">${a.title}</div>
-        <div class="hint" style="margin-top:2px">${a.detail}</div></div>
-    </div>`).join('');
+  const col = { warn:'var(--live)', act:'var(--transfer)', info:'var(--muted)' };
+  // Regroupe par sévérité, dans l'ordre d'urgence.
+  const groups = [
+    { sev:'act',  label:'Actions requises',  items: alerts.filter(a=>a.sev==='act') },
+    { sev:'warn', label:'Avertissements',    items: alerts.filter(a=>a.sev==='warn') },
+    { sev:'info', label:'Pour information',  items: alerts.filter(a=>a.sev==='info') },
+  ].filter(g=>g.items.length);
+
+  const nAct = alerts.filter(a=>a.sev==='act').length;
+  const nWarn = alerts.filter(a=>a.sev==='warn').length;
+  // Bandeau de synthèse coloré selon la pire sévérité présente.
+  let banner;
+  if(nAct) banner = `<div class="ov-banner ov-banner--act">⚡ <b>${nAct}</b> action(s) requise(s)${nWarn?` · ${nWarn} avertissement(s)`:''}.</div>`;
+  else if(nWarn) banner = `<div class="ov-banner ov-banner--warn">⚠️ ${nWarn} point(s) à surveiller.</div>`;
+  else banner = `<div class="ov-banner" style="background:rgba(128,149,181,.1);border:1px solid var(--line);color:var(--muted)">ℹ️ Quelques informations ci-dessous.</div>`;
+
+  const card = a => `
+    <div class="hc-alert" style="--ac:${col[a.sev]}">
+      <span class="hc-ico">${a.icon}</span>
+      <div><div class="hc-title">${a.title}</div><div class="hint hc-detail">${a.detail}</div></div>
+    </div>`;
+  const section = g => `
+    <div class="ov-sec"><div class="ov-sec-h">${g.label} · ${g.items.length}</div>
+      <div class="hc-list">${g.items.map(card).join('')}</div></div>`;
+
+  box.innerHTML = banner + groups.map(section).join('');
 }
 
 async function loadOverview(){
@@ -3768,22 +3812,36 @@ async function loadFinance(){
   const grid = $('financeGrid'); if(!grid) return;
   const f = await api.adminFinance();
   if(!f){ grid.innerHTML = '<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Indisponible.</div>'; return; }
-  const tile = (val, label, accent) => `
-    <div style="background:var(--card2,#101d38);border-radius:12px;padding:14px;border-left:3px solid ${accent||'var(--line)'}">
-      <div style="font-size:1.5rem;font-weight:800;line-height:1.1;${accent?`color:${accent}`:''}">${val}</div>
-      <div class="hint" style="margin-top:4px">${label}</div>
+  const kpi = (val, label, opt={}) => {
+    const { accent, note } = opt;
+    return `<div class="ov-kpi${accent?' ov-kpi--act':''}" ${accent?`style="--ac:${accent}"`:''}>
+      <div class="ov-val" style="font-size:1.55rem">${val}</div>
+      <div class="ov-lab">${label}</div>
+      ${note?`<div class="ov-note">${note}</div>`:''}
     </div>`;
-  const act = 'var(--transfer)';
-  grid.innerHTML = [
-    tile(fmtM(f.budget_available), 'Budget disponible (total)', act),
-    tile(fmtM(f.budget_locked), 'Fonds engagés (enchères)'),
-    tile(fmtM(f.salary_total), 'Masse salariale cumulée'),
-    tile(fmtM(f.market_spend_total), 'Dépensé au marché'),
-    tile(f.owned_players, 'Joueurs détenus'),
-    tile(fmtM(f.avg_squad_value), 'Valeur moyenne / effectif'),
-    tile(f.transfers_count, 'Mouvements (total)'),
-    tile(f.managers_count, 'Managers'),
-  ].join('');
+  };
+  const section = (title, tiles) =>
+    `<div class="ov-sec"><div class="ov-sec-h">${title}</div><div class="ov-row">${tiles.join('')}</div></div>`;
+  const ACT = 'var(--transfer)', OK = 'var(--ok)';
+
+  // Bandeau : trésorerie nette (dispo + engagé) en un coup d'œil
+  const banner = `<div class="ov-banner ov-banner--act" style="border-color:rgba(245,197,66,.4)">💰 Trésorerie du jeu : <b style="margin-left:4px">${fmtM((f.budget_available||0)+(f.budget_locked||0))}</b> au total · ${fmtM(f.budget_available)} disponible, ${fmtM(f.budget_locked)} engagé.</div>`;
+
+  grid.innerHTML = banner
+    + section('Trésorerie', [
+        kpi(fmtM(f.budget_available), 'Budget disponible', { accent: ACT }),
+        kpi(fmtM(f.budget_locked), 'Fonds engagés (enchères)'),
+        kpi(fmtM(f.market_spend_total), 'Dépensé au marché'),
+      ])
+    + section('Patrimoine des effectifs', [
+        kpi(fmtM(f.salary_total), 'Masse salariale cumulée'),
+        kpi(f.owned_players, 'Joueurs détenus'),
+        kpi(fmtM(f.avg_squad_value), 'Valeur moyenne / effectif'),
+      ])
+    + section('Activité', [
+        kpi(f.transfers_count, 'Mouvements (total)'),
+        kpi(f.managers_count, 'Managers'),
+      ]);
 
   // Détail par manager
   const mgrs = await api.adminManagerFinance();
@@ -3957,9 +4015,30 @@ async function loadRanking(){
     try { const team = await api.myTeam(m.id); count = team.length; } catch(e){}
     return {...m, count};
   }));
+  // --- Podium top 3 ---
+  const pod = $('rankPodium');
+  if(pod){
+    const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+    const medals = ['🥇','🥈','🥉'];
+    const accents = ['var(--transfer)','#c9d2e3','#cd8b4e'];
+    // ordre d'affichage : 2e · 1er · 3e (le 1er au centre, surélevé)
+    const order = [1,0,2];
+    pod.innerHTML = `<div class="rk-podium">` + order.map(idx=>{
+      const m = rows[idx]; if(!m) return '';
+      const top = idx===0;
+      return `<div class="rk-step${top?' rk-step--1':''}" style="--ac:${accents[idx]}">
+        <div class="rk-medal">${medals[idx]}</div>
+        <div class="rk-name">${esc(m.display_name)}</div>
+        <div class="rk-team">${esc(m.team_name||'—')}</div>
+        <div class="rk-pts">${m.season_points}<span>pts</span></div>
+        <div class="rk-sub">${m.count}/21 · ${fmtM(Number(m.budget)-Number(m.budget_locked))}</div>
+      </div>`;
+    }).join('') + `</div>`;
+  }
+
   $('rankAdminBody').innerHTML = rows.map((m,i)=>`
     <tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
-      <td style="font-weight:700;${i===0?'color:var(--transfer)':''}">${i+1}</td>
+      <td style="font-weight:700;${i<3?`color:${['var(--transfer)','#c9d2e3','#cd8b4e'][i]}`:''}">${i<3?['🥇','🥈','🥉'][i]:(i+1)}</td>
       <td><b>${m.display_name}</b> <span style="color:var(--muted);font-size:.75rem">▸ effectif</span></td>
       <td style="color:var(--muted)">${m.team_name||'—'}</td>
       <td class="val">${m.season_points}</td>
@@ -4064,12 +4143,24 @@ function renderSquadControl(){
   const body = $('squadControlBody'); if(!body) return;
   let rows = SQUAD_CONTROL_CACHE || [];
   const onlyOver = $('scOnlyOver') && $('scOnlyOver').checked;
+  const total = rows.length;
   const overCount = rows.filter(r=>r.over_quota).length;
+  const noChampCount = rows.filter(r=>Number(r.no_champ)>0).length;
+  const conform = total - overCount;
   if($('scSummary')) $('scSummary').textContent =
-    `${rows.length} manager(s)` + (overCount?` · ${overCount} en dépassement` : ' · tous conformes');
+    `${total} manager(s)` + (overCount?` · ${overCount} en dépassement` : ' · tous conformes');
+
+  // Bandeau de conformité (synthèse visuelle)
+  let banner;
+  if(!total) banner = '';
+  else if(overCount>0)
+    banner = `<div class="ov-banner ov-banner--warn" style="color:var(--live);border-color:var(--live);background:rgba(255,90,77,.08)">⚠️ <b>${overCount}</b> manager(s) en dépassement de quota${noChampCount?` · ${noChampCount} avec des joueurs sans championnat`:''} — <b>${conform}</b> conforme(s).</div>`;
+  else
+    banner = `<div class="ov-banner ov-banner--ok">✅ Les ${total} managers respectent les quotas${noChampCount?` — mais ${noChampCount} ${noChampCount>1?'ont':'a'} des joueurs sans championnat à corriger`:''}.</div>`;
+
   if(onlyOver) rows = rows.filter(r=>r.over_quota);
   if(!rows.length){
-    body.innerHTML = `<p class="hint" style="text-align:center;padding:20px">${onlyOver?'Aucun manager en dépassement.':'Aucun manager.'}</p>`;
+    body.innerHTML = banner + `<p class="hint" style="text-align:center;padding:20px">${onlyOver?'Aucun manager en dépassement.':'Aucun manager.'}</p>`;
     return;
   }
   // Chips championnat / club : rouge si dépassement, sinon neutre
@@ -4083,7 +4174,7 @@ function renderSquadControl(){
 
   const warn = (val, max)=> val>max ? `style="color:var(--live);font-weight:800"` : '';
 
-  body.innerHTML = `<table style="width:100%">
+  body.innerHTML = banner + `<table style="width:100%">
     <thead><tr>
       <th>Manager</th><th>Effectif</th><th>GK</th><th>Masse sal.</th><th>Budget dispo</th>
       <th>Pts</th><th title="Plus gros club">Club max</th><th title="Plus gros championnat">Champ. max</th><th></th>
