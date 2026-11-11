@@ -1551,6 +1551,9 @@
     <!-- Marché des prédictions -->
     <div id="predBlock" style="margin-top:30px;display:none"></div>
 
+    <!-- Trophées de la semaine -->
+    <div id="weeklyTrophies" style="margin-top:30px;display:none"></div>
+
     <!-- Onze type de la journée -->
     <div id="towBlock" style="margin-top:30px;display:none"></div>
 
@@ -2440,8 +2443,32 @@ let PLAYERS = [];      // cache des joueurs
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
 const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares'];
 let CURRENT_VIEW = 'home';
+// --- Analytics : identifiant de session + traçage des vues ---
+let ANALYTICS_SESSION = null;
+function analyticsSessionId(){
+  if(ANALYTICS_SESSION) return ANALYTICS_SESSION;
+  try {
+    const KEY='us_analytics_sess';
+    // Une "session" = une visite ; on en ouvre une nouvelle après 30 min d'inactivité.
+    const now=Date.now();
+    let raw=null; try{ raw=JSON.parse(sessionStorage.getItem(KEY)||'null'); }catch(e){}
+    if(raw && raw.id && (now - (raw.t||0) < 30*60000)){ ANALYTICS_SESSION = raw.id; }
+    else { ANALYTICS_SESSION = (crypto.randomUUID ? crypto.randomUUID() : 'sess-'+now+'-'+Math.random().toString(36).slice(2)); if(typeof api!=='undefined' && api.track && ME) api.track('session_start', ANALYTICS_SESSION, null); }
+    try{ sessionStorage.setItem(KEY, JSON.stringify({id:ANALYTICS_SESSION,t:now})); }catch(e){}
+  } catch(e){ ANALYTICS_SESSION = 'sess-'+Date.now(); }
+  return ANALYTICS_SESSION;
+}
+let _lastTrackedView = null;
+function trackView(v){
+  if(!ME || typeof api==='undefined' || !api.track) return;
+  if(v===_lastTrackedView) return;           // évite les doublons sur re-render
+  _lastTrackedView = v;
+  try { api.track('page_view', analyticsSessionId(), v); } catch(e){}
+  try { const r=JSON.parse(sessionStorage.getItem('us_analytics_sess')||'null'); if(r){ r.t=Date.now(); sessionStorage.setItem('us_analytics_sess', JSON.stringify(r)); } } catch(e){}
+}
 function goView(v){
   CURRENT_VIEW = v;
+  trackView(v);
   // Onglets actifs partout (barre haute + barre basse)
   document.querySelectorAll('#nav button, #tabbar button').forEach(x=>x.classList.toggle('active', x.dataset.v===v));
   // Si on va sur un onglet secondaire, marquer "Plus" (barre du bas) comme actif
@@ -5907,6 +5934,32 @@ async function renderDuelAndTow(){
   const closed = (mds||[]).filter(m=>m.status==='closed').sort((a,b)=>b.number-a.number);
   const lastClosed = closed[0] || null;
 
+  // --- Trophées de la semaine (dernière journée clôturée) ---
+  const wtBox = $('weeklyTrophies');
+  if(wtBox && lastClosed){
+    let trophies = [];
+    try { trophies = await api.weeklyTrophies(lastClosed.id); } catch(e){}
+    if(trophies.length){
+      const meta = {
+        coach:   {emoji:'🏅', col:'var(--transfer)'},
+        dominant:{emoji:'⚡', col:'#4ade80'},
+        flop:    {emoji:'🧊', col:'#5fd0e0'}
+      };
+      wtBox.innerHTML = `<div class="eyebrow" style="margin-bottom:12px">${(typeof ic==='function'?ic('trophy',16):'')} Trophées de la journée ${lastClosed.number}</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px">${
+          trophies.map(t=>{ const m = meta[t.trophy]||{emoji:'🏆',col:'var(--chalk)'}; const mine = ME && t.manager_id===ME.id;
+            return `<div style="border:1px solid ${mine?m.col:'var(--line)'};border-radius:12px;padding:14px;background:${mine?'rgba(245,197,66,.06)':'var(--pitch-2)'};text-align:center">
+              <div style="font-size:1.6rem;line-height:1">${m.emoji}</div>
+              <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.5px;color:${m.col};font-weight:700;margin-top:4px">${t.label}</div>
+              <div style="font-weight:800;font-size:1.02rem;margin-top:4px;color:var(--chalk)">${String(t.display_name).replace(/[<>&]/g,'')}${mine?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</div>
+              <div class="hint" style="font-size:.74rem;margin-top:2px">${Number(t.points).toFixed(0)} pts · ${t.detail}</div>
+            </div>`;
+          }).join('')
+        }</div>`;
+      wtBox.style.display='block';
+    } else { wtBox.style.display='none'; }
+  }
+
   // --- Mon duel de la journée (sur la dernière journée clôturée) ---
   const dBox = $('duelBlock');
   if(dBox && lastClosed && ME){
@@ -8794,6 +8847,8 @@ function startHeartbeat(){
   beat();
   HEARTBEAT_TIMER = setInterval(beat, 60000);  // toutes les 60 s
   document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') beat(); });
+  // Analytics : ouvre la session et trace la vue courante au démarrage.
+  try { analyticsSessionId(); trackView(CURRENT_VIEW); } catch(e){}
 }
 
 async function renderChat(){

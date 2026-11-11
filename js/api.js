@@ -1131,6 +1131,12 @@ export async function adminClosePoll(pollId, closed = true) {
 export async function adminDeletePoll(pollId) {
   return sb.rpc('qm_admin_delete_poll', { p_id: pollId });
 }
+
+// ---------- Trophées hebdomadaires (proposition 6) ----------
+export async function weeklyTrophies(matchdayId) {
+  const { data } = await sb.rpc('qm_weekly_trophies', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
 export async function chatDelete(id) {
   return sb.rpc('qm_chat_delete', { p_id: id });
 }
@@ -1231,6 +1237,26 @@ export function subscribeDM(onChange) {
 // Battement de présence (« en ligne ») — à appeler périodiquement.
 export async function heartbeat() {
   try { await sb.rpc('qm_heartbeat'); } catch(e){}
+}
+// ---------- Analytics (collecte + lecture admin) ----------
+export async function track(kind, sessionId, page = null) {
+  try { await sb.rpc('qm_track', { p_kind: kind, p_session: sessionId, p_page: page }); } catch(e){}
+}
+export async function analyticsOverview() {
+  const { data } = await sb.rpc('qm_admin_analytics_overview');
+  return (data && data[0]) || null;
+}
+export async function analyticsDaily(days = 14) {
+  const { data } = await sb.rpc('qm_admin_analytics_daily', { p_days: days });
+  return data ?? [];
+}
+export async function analyticsPages(days = 7) {
+  const { data } = await sb.rpc('qm_admin_analytics_pages', { p_days: days });
+  return data ?? [];
+}
+export async function analyticsManagers(days = 30) {
+  const { data } = await sb.rpc('qm_admin_analytics_managers', { p_days: days });
+  return data ?? [];
 }
 // Mes amis (avec statut en ligne).
 export async function friendList() {

@@ -352,6 +352,21 @@
     </div>
   </div>
 
+  <!-- Analytics · connexions -->
+  <h2 data-ic="chart">Analytics · connexions</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Fréquentation de l'app : visiteurs, sessions et pages vues. Les données sont enregistrées dès que les joueurs se connectent (à partir du déploiement du suivi).</p>
+    <div id="anKpis" style="display:flex;flex-direction:column;gap:18px"><p class="hint">Chargement…</p></div>
+    <div style="margin-top:18px">
+      <div class="ov-sec-h">Fréquentation (14 derniers jours)</div>
+      <div id="anChart" style="margin-top:6px"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:18px">
+      <div><div class="ov-sec-h">Pages les plus vues (7 j)</div><div id="anPages" style="margin-top:6px"></div></div>
+      <div><div class="ov-sec-h">Par manager (30 j)</div><div id="anManagers" style="margin-top:6px;max-height:360px;overflow:auto"></div></div>
+    </div>
+  </div>
+
   <!-- Annonce aux joueurs -->
   <h2 data-ic="megaphone">Annonce aux joueurs</h2>
   <div class="card">
@@ -1484,7 +1499,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1495,7 +1510,7 @@ async function refreshGate(){
 // sections (voir le tri plus bas). Ordre demandé par Audrey (17/10).
 const ADMIN_TABS = [
   { id:'pilotage', label:'📊 Pilotage', titles:[
-      "Vue d'ensemble","Santé du mercato","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
+      "Vue d'ensemble","Santé du mercato","Analytics · connexions","Annonce aux joueurs","Phase du mercato","Fenêtres de mercato","Tableau de bord financier","Saisons & archives"] },
   { id:'marche', label:'🔁 Marché', titles:[
       "Validation du marché","Interventions manuelles","Trace des bonus",
       "Historique des transactions","Historique des échanges entre managers","Enchères clôturées","Acquisitions reportées","Libérations & pénalités","Historique des propositions"] },
@@ -3783,6 +3798,72 @@ if($('btnNoteImport')) $('btnNoteImport').onclick = async ()=>{
   // Rafraîchir la grille pour voir les notes importées.
   await renderNoteGrid();
 };
+
+// ---------- Analytics · connexions (admin) ----------
+async function loadAnalytics(){
+  const kp = $('anKpis'); if(!kp) return;
+  let ov=null, daily=[], pages=[], mgrs=[];
+  try {
+    [ov, daily, pages, mgrs] = await Promise.all([
+      api.analyticsOverview(), api.analyticsDaily(14), api.analyticsPages(7), api.analyticsManagers(30)
+    ]);
+  } catch(e){ kp.innerHTML = '<p class="hint">Passe le script 239 pour activer l\'analytics.</p>'; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const kpi = (val,label,accent) => `<div class="ov-kpi${accent?' ov-kpi--act':''}" ${accent?`style="--ac:${accent}"`:''}><div class="ov-val" style="font-size:1.7rem">${val}</div><div class="ov-lab">${label}</div></div>`;
+  if(ov){
+    kp.innerHTML = `<div class="ov-sec"><div class="ov-sec-h">Activité</div><div class="ov-row">
+      ${kpi(ov.active_24h ?? 0,'Actifs (24 h)','var(--ok)')}
+      ${kpi(ov.active_7d ?? 0,'Actifs (7 j)')}
+      ${kpi(ov.active_30d ?? 0,'Actifs (30 j)')}
+      ${kpi(`${ov.active_7d ?? 0} / ${ov.total_managers ?? 0}`,'Managers vus (7 j)')}
+    </div></div>
+    <div class="ov-sec"><div class="ov-sec-h">Aujourd'hui</div><div class="ov-row">
+      ${kpi(ov.sessions_today ?? 0,'Sessions',' var(--transfer)')}
+      ${kpi(ov.views_today ?? 0,'Pages vues')}
+      ${kpi(ov.sessions_7d ?? 0,'Sessions (7 j)')}
+    </div></div>`;
+  } else {
+    kp.innerHTML = '<p class="hint">Aucune donnée pour l\'instant — les connexions apparaîtront ici après le déploiement du suivi.</p>';
+  }
+  // Graphe barres (visiteurs/jour) en SVG inline
+  const chart = $('anChart');
+  if(chart){
+    if(!daily.length){ chart.innerHTML = '<p class="hint">Pas encore de données.</p>'; }
+    else {
+      const W=Math.max(320, daily.length*34), H=120, pad=18;
+      const max = Math.max(1, ...daily.map(d=>d.visitors||0));
+      const bw = (W-pad*2)/daily.length;
+      const bars = daily.map((d,i)=>{
+        const h = Math.round(((d.visitors||0)/max)*(H-pad*2));
+        const x = pad + i*bw, y = H-pad-h;
+        const dd = new Date(d.day); const lbl = dd.getDate()+'/'+(dd.getMonth()+1);
+        return `<rect x="${x+2}" y="${y}" width="${Math.max(4,bw-6)}" height="${h}" rx="3" fill="var(--transfer)" opacity="${i===daily.length-1?1:.65}"><title>${lbl} : ${d.visitors} visiteur(s), ${d.sessions} session(s)</title></rect>
+                ${bw>26?`<text x="${x+bw/2}" y="${H-5}" font-size="8" fill="#8095b5" text-anchor="middle">${lbl}</text>`:''}`;
+      }).join('');
+      chart.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" preserveAspectRatio="xMidYMid meet" style="max-width:100%;border:1px solid var(--line);border-radius:10px;background:var(--pitch-2)">${bars}</svg>
+        <div class="hint" style="font-size:.74rem;margin-top:4px">Barres = visiteurs uniques par jour. Survole une barre pour le détail.</div>`;
+    }
+  }
+  // Top pages
+  const pg = $('anPages');
+  if(pg){
+    pg.innerHTML = pages.length
+      ? `<table style="width:100%;font-size:.84rem"><thead><tr><th style="text-align:left">Page</th><th style="text-align:right">Vues</th><th style="text-align:right">Visit.</th></tr></thead><tbody>${
+          pages.map(p=>`<tr><td>${esc(p.page)}</td><td style="text-align:right">${p.views}</td><td style="text-align:right;color:var(--muted)">${p.visitors}</td></tr>`).join('')
+        }</tbody></table>`
+      : '<p class="hint">Aucune page vue sur la période.</p>';
+  }
+  // Par manager
+  const mg = $('anManagers');
+  if(mg){
+    mg.innerHTML = mgrs.length
+      ? `<table style="width:100%;font-size:.84rem"><thead><tr><th style="text-align:left">Manager</th><th style="text-align:right">Sess.</th><th style="text-align:right">Vues</th><th style="text-align:right">Dernière</th></tr></thead><tbody>${
+          mgrs.map(m=>{ const last = m.last_visit ? new Date(m.last_visit).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'}) : '—';
+            return `<tr><td>${esc(m.display_name)}</td><td style="text-align:right">${m.sessions}</td><td style="text-align:right">${m.views}</td><td style="text-align:right;color:var(--muted)">${last}</td></tr>`; }).join('')
+        }</tbody></table>`
+      : '<p class="hint">Aucun manager suivi sur la période.</p>';
+  }
+}
 
 // ---------- Sondages de ligue (admin) ----------
 if($('pollKind')) $('pollKind').onchange = ()=>{
