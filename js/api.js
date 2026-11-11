@@ -121,6 +121,14 @@ export async function adminFixAuctionPrice(auctionId, newPrice) {
 export async function adminSetPosition(playerId, position) {
   return sb.rpc('qm_admin_set_position', { p_player_id: playerId, p_position: position });
 }
+// Joueurs retirés (agents libres jamais réclamés) + réintroduction.
+export async function adminRetiredPlayers() {
+  const { data } = await sb.rpc('qm_admin_retired_players');
+  return data ?? [];
+}
+export async function adminReinstatePlayer(playerId, visibleHours = 24) {
+  return sb.rpc('qm_admin_reinstate_player', { p_player_id: playerId, p_visible_hours: visibleHours });
+}
 // Corriger le championnat d'un joueur (même détenu).
 export async function adminSetChampionship(playerId, championship) {
   return sb.rpc('qm_admin_set_championship', { p_player_id: playerId, p_championship: championship });

@@ -501,6 +501,17 @@
     <div id="squadControlBody"><p class="hint" style="text-align:center;padding:20px">Chargement…</p></div>
   </div>
 
+  <!-- Joueurs retirés (agents libres jamais réclamés) -->
+  <h2 data-ic="ban">Joueurs retirés</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Agents libres <b>jamais réclamés</b>, retirés automatiquement du jeu après le délai configuré (3 jours par défaut). Ils sont <b>conservés en base</b> : tu peux les <b>réintroduire</b> comme agents libres.</p>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px">
+      <button class="btn-ghost" id="retReload">Actualiser</button>
+      <span id="retSummary" class="hint" style="margin-left:auto"></span>
+    </div>
+    <div id="retiredBody"><p class="hint" style="text-align:center;padding:16px">Chargement…</p></div>
+  </div>
+
   <!-- Ligues / divisions -->
   <h2 data-ic="trophy">Ligues & divisions</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1290,7 +1301,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1306,7 +1317,7 @@ const ADMIN_TABS = [
       "Validation du marché","Interventions manuelles","Trace des bonus",
       "Historique des transactions","Historique des échanges entre managers","Enchères clôturées","Acquisitions reportées","Libérations & pénalités","Historique des propositions"] },
   { id:'joueurs', label:'⚽ Joueurs', titles:[
-      "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider"] },
+      "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider","Joueurs retirés"] },
   { id:'managers', label:'👥 Managers', titles:[
       "Inviter des managers","Classement des managers","Contrôle des effectifs","Ligues & divisions","Modération du chat",
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison",
@@ -3434,6 +3445,42 @@ async function loadSquadControl(){
   try { rows = await api.adminSquadControl(); } catch(e){ rows = []; }
   SQUAD_CONTROL_CACHE = rows;
   renderSquadControl();
+}
+
+// --- Joueurs retirés : voir + réintroduire ---
+async function loadRetired(){
+  const body = $('retiredBody'); if(!body) return;
+  body.innerHTML = '<p class="hint" style="text-align:center;padding:16px">Chargement…</p>';
+  let rows = [];
+  try { rows = await api.adminRetiredPlayers(); } catch(e){ rows = []; }
+  const sum = $('retSummary'); if(sum) sum.textContent = rows.length ? `${rows.length} joueur${rows.length>1?'s':''} retiré${rows.length>1?'s':''}` : '';
+  if(!rows.length){ body.innerHTML = '<p class="hint" style="text-align:center;padding:16px">Aucun joueur retiré pour le moment.</p>'; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const POSL = {GK:'GAR',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
+  body.innerHTML = `<table style="width:100%"><thead><tr><th>Poste</th><th>Joueur</th><th>Club / Champ.</th><th>Valeur</th><th>Salaire</th><th></th></tr></thead><tbody>${
+    rows.map(p=>{
+      const full = ((p.first_name||'').trim()? p.first_name.trim()+' ':'') + (p.name||'');
+      const since = p.retired_since ? new Date(p.retired_since).toLocaleDateString('fr-FR') : '—';
+      return `<tr>
+        <td><span class="pos-tag">${POSL[p.pos]||p.pos}</span></td>
+        <td><b>${esc(full)}</b><br><span class="hint" style="font-size:.72rem">réclamable depuis ${since}</span></td>
+        <td style="color:var(--muted);font-size:.82rem">${esc(p.club||'—')}${p.championship?' · '+esc(p.championship):''}</td>
+        <td class="val">${fmtM(Number(p.current_value))}</td>
+        <td class="val">${fmtM(Number(p.salary))}</td>
+        <td><button class="bid-btn btn-sm" data-reinstate="${p.player_id}" data-name="${esc(full)}" style="width:auto;margin:0;padding:6px 12px;font-size:.78rem">Réintroduire</button></td>
+      </tr>`;
+    }).join('')
+  }</tbody></table>`;
+  body.querySelectorAll('[data-reinstate]').forEach(btn=>btn.onclick=async()=>{
+    const name = btn.dataset.name||'ce joueur';
+    if(!confirm(`Réintroduire ${name} comme agent libre ?\n\nIl sera réclamable dans 24h (le temps que les managers le repèrent).`)) return;
+    btn.disabled = true;
+    const { error } = await api.adminReinstatePlayer(btn.dataset.reinstate, 24);
+    if(error){ toast('Échec : '+error.message,'err',4500); btn.disabled=false; return; }
+    toast(`${name} réintroduit comme agent libre.`,'ok',3500);
+    loadRetired();
+  });
+  const rl = $('retReload'); if(rl) rl.onclick = loadRetired;
 }
 function renderSquadControl(){
   const I=(typeof ic==='function')?ic:(()=>'');
