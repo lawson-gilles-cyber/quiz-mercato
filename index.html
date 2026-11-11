@@ -8783,6 +8783,31 @@ function clearChatReply(){
   CHAT_REPLY_TO = null;
   const b = $('chatReplyBanner'); if(b) b.style.display = 'none';
 }
+// Sélecteur d'emoji pour réagir à un message du chat de ligue.
+function openChatReactionPicker(msgId, anchor, msgs){
+  const EMO = ['👍','❤️','😂','😮','🔥','👏'];
+  const existing = document.getElementById('chatEmojiPicker'); if(existing) existing.remove();
+  const pick = document.createElement('div');
+  pick.id = 'chatEmojiPicker';
+  pick.style.cssText = 'position:fixed;z-index:10050;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:5px 7px;display:flex;gap:4px;box-shadow:0 8px 20px rgba(0,0,0,.4)';
+  pick.innerHTML = EMO.map(e=>`<span data-e="${e}" style="cursor:pointer;font-size:1.15rem;padding:1px 3px">${e}</span>`).join('');
+  document.body.appendChild(pick);
+  const r = anchor.getBoundingClientRect();
+  pick.style.top = Math.max(8, r.top - 44) + 'px';
+  pick.style.left = Math.min(r.left, window.innerWidth - pick.offsetWidth - 8) + 'px';
+  const close = ()=>{ pick.remove(); document.removeEventListener('click', onDoc, true); };
+  const onDoc = (e)=>{ if(!pick.contains(e.target)) close(); };
+  setTimeout(()=>document.addEventListener('click', onDoc, true), 0);
+  pick.querySelectorAll('[data-e]').forEach(s=>s.onclick=async(e)=>{
+    e.stopPropagation();
+    const emoji = s.dataset.e;
+    const msg = (msgs||[]).find(x=>x.id===msgId);
+    const { error } = await api.chatReact(msgId, (msg && msg.my_reaction===emoji) ? null : emoji);
+    close();
+    if(error) return toast(error.message,'err');
+    loadChatMessages(true);
+  });
+}
 async function loadChatMessages(keepScroll){
   const I=(typeof ic==='function')?ic:(()=>'');
   const box = $('chatMessages'); if(!box) return;
@@ -8806,14 +8831,25 @@ async function loadChatMessages(keepScroll){
     const pin = isAdmin ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none;vertical-align:-.1em">${I('pin',13)}</a>` : '';
     // Répondre : disponible pour tous.
     const reply = ` <a href="#" data-chatreply="${m.id}" data-author="${String(m.author).replace(/"/g,'&quot;').replace(/<[^>]*>/g,'')}" data-body="${m.body.replace(/"/g,'&quot;').replace(/</g,'&lt;')}" title="Répondre" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">↩︎</a>`;
+    // Réagir : ouvre un sélecteur d'emoji.
+    const reactBtn = ` <a href="#" data-chatreact="${m.id}" title="Réagir" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">☺</a>`;
+    // Pastilles de réactions existantes (cliquables = toggle de la mienne).
+    const rx = (m.reactions && typeof m.reactions==='object') ? m.reactions : {};
+    const rxKeys = Object.keys(rx);
+    const reactPills = rxKeys.length
+      ? `<div style="margin-top:3px;display:flex;flex-wrap:wrap;gap:4px;${m.is_mine?'justify-content:flex-end':''}">`
+        + rxKeys.map(e=>`<span data-chatrx="${m.id}" data-emoji="${e}" title="Réagir" style="cursor:pointer;background:var(--pitch);border:1px solid ${m.my_reaction===e?'var(--transfer)':'var(--line)'};border-radius:10px;padding:0 6px;font-size:.78rem">${e} ${rx[e]}</span>`).join('')
+        + `</div>`
+      : '';
     // Citation (si ce message répond à un autre) — cliquable pour remonter.
     const quote = (m.reply_to && m.reply_body)
       ? `<div data-chatgoto="${m.reply_to}" title="Aller au message d'origine" style="cursor:pointer;border-left:3px solid var(--transfer);padding:2px 8px;margin-bottom:4px;background:rgba(255,255,255,.04);border-radius:4px;font-size:.76rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:var(--chalk)">${(m.reply_author||'—')}</b> : ${String(m.reply_body).replace(/</g,'&lt;').slice(0,90)}</div>`
       : '';
     return `<div data-chatmsg="${m.id}" style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'};scroll-margin-top:12px;border-radius:12px;transition:background .3s">
-      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${reply}${pin}${del}</div>
+      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${reply}${reactBtn}${pin}${del}</div>
       ${quote}
       <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
+      ${reactPills}
     </div>`;
   }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
   // Suppression
@@ -8845,6 +8881,19 @@ async function loadChatMessages(keepScroll){
     const prev = target.style.background;
     target.style.background = 'rgba(245,197,66,.18)';
     setTimeout(()=>{ target.style.background = prev||''; }, 1200);
+  });
+  // Bouton « réagir » → ouvre le sélecteur d'emoji
+  box.querySelectorAll('[data-chatreact]').forEach(a=>a.onclick=(ev)=>{
+    ev.preventDefault();
+    openChatReactionPicker(a.dataset.chatreact, ev.currentTarget, msgs);
+  });
+  // Cliquer une pastille existante = toggle de ma réaction
+  box.querySelectorAll('[data-chatrx]').forEach(s=>s.onclick=async()=>{
+    const mid = s.dataset.chatrx, emoji = s.dataset.emoji;
+    const msg = msgs.find(x=>x.id===mid);
+    const { error } = await api.chatReact(mid, (msg && msg.my_reaction===emoji) ? null : emoji);
+    if(error) return toast(error.message,'err');
+    loadChatMessages(true);
   });
   if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
 }

@@ -1082,6 +1082,9 @@ export async function adminPrevNotes(matchdayId) {
 export async function chatSend(body, replyTo = null) {
   return sb.rpc('qm_chat_send', { p_body: body, p_reply_to: replyTo });
 }
+export async function chatReact(messageId, emoji) {
+  return sb.rpc('qm_chat_react', { p_message: messageId, p_emoji: emoji || null });
+}
 export async function chatRecent(limit = 60) {
   const { data } = await sb.rpc('qm_chat_recent', { p_limit: limit });
   return (data ?? []).reverse();  // du plus ancien au plus récent pour l'affichage
