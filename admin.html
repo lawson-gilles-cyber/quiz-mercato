@@ -3152,15 +3152,19 @@ async function loadMatchPronos(){
   const RES = ['1 · domicile','N · nul','2 · extérieur'];
   const row = (p)=>{
     const ko = p.kickoff_at ? new Date(p.kickoff_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
-    const resolveBtns = (p.status!=='resolved')
-      ? `<span class="hint" style="font-size:.74rem;margin-right:4px">Résultat :</span>` + RES.map((r,i)=>`<button class="btn-ghost btn-sm" data-mresolve="${p.id}" data-widx="${i}" style="font-size:.72rem;margin:2px">${r}</button>`).join('')
-      : `<span style="color:#4ade80;font-size:.82rem">Résultat : <b>${RES[p.winner_idx]||'?'}</b></span>`;
+    const resolveBlock = (p.status!=='resolved')
+      ? `<span class="hint" style="font-size:.74rem;margin-right:4px">Score réel :</span>
+         <input type="number" min="0" max="99" data-rh="${p.id}" style="width:48px;padding:5px;text-align:center" placeholder="0">
+         <span>–</span>
+         <input type="number" min="0" max="99" data-ra="${p.id}" style="width:48px;padding:5px;text-align:center" placeholder="0">
+         <button class="btn-primary btn-sm" data-mresolve="${p.id}" style="font-size:.72rem;margin-left:6px">Valider le résultat</button>`
+      : `<span style="color:#4ade80;font-size:.82rem">Résultat : <b>${esc((p.home_team||''))} ${p.final_home??'?'}–${p.final_away??'?'} ${esc((p.away_team||''))}</b> (${RES[p.winner_idx]||'?'})</span>`;
     return `<div style="padding:10px 0;border-top:1px solid var(--line)">
       <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <b style="font-size:.9rem">${esc(p.home_team)} – ${esc(p.away_team)}</b>
         <span style="font-size:.74rem;color:var(--muted)">${p.championship?esc(p.championship)+' · ':''}⏱ ${ko} · ${SL[p.status]||p.status} · ${p.bets} pari(s)</span>
       </div>
-      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${resolveBtns}</div>
+      <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">${resolveBlock}</div>
     </div>`;
   };
   if(!rows.length){ el.innerHTML = '<p class="hint">Aucun match pour le moment.</p>'; }
@@ -3173,10 +3177,15 @@ async function loadMatchPronos(){
     ).join('');
   }
   el.querySelectorAll('[data-mresolve]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('Valider ce résultat et distribuer les points pronos ?')) return;
-    const { data, error } = await api.adminResolveProno(b.dataset.mresolve, parseInt(b.dataset.widx,10));
+    const id = b.dataset.mresolve;
+    const h = parseInt((el.querySelector(`[data-rh="${id}"]`)||{}).value,10);
+    const a = parseInt((el.querySelector(`[data-ra="${id}"]`)||{}).value,10);
+    if(isNaN(h)||isNaN(a)) return showMsg($('msg2'),'Saisis le score réel (ex. 2 – 1).');
+    if(!confirm(`Valider le résultat ${h}–${a} et distribuer les points (1/N/2 + bonus score exact) ?`)) return;
+    const { data, error } = await api.adminResolveMatch(id, h, a);
     if(error) return showMsg($('msg2'), error.message);
-    showMsg($('msg2'), `Match résolu : ${data} gagnant(s) récompensé(s).`, true);
+    const res = Array.isArray(data) ? data[0] : data;
+    showMsg($('msg2'), `Match résolu : ${res?.winners_1n2??0} bon(s) 1/N/2, ${res?.winners_exact??0} score(s) exact(s).`, true);
     loadMatchPronos();
   });
 }

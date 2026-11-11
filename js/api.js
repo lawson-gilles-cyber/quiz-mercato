@@ -1011,6 +1011,14 @@ export async function matchPronos() {
   const { data } = await sb.rpc('qm_match_pronos');
   return data ?? [];
 }
+// Score exact (bonus) : s'ajoute au pari 1/N/2 déjà posé.
+export async function pronoBetScore(pronoId, home, away) {
+  return sb.rpc('qm_prono_bet_score', { p_prono_id: pronoId, p_home: home, p_away: away });
+}
+// Admin : régler un match avec le score réel (déduit 1/N/2 + crédite le bonus).
+export async function adminResolveMatch(pronoId, home, away) {
+  return sb.rpc('qm_admin_resolve_match', { p_prono_id: pronoId, p_home: home, p_away: away });
+}
 
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body) {
