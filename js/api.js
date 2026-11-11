@@ -1113,6 +1113,24 @@ export async function chatRecent(limit = 60) {
   const { data } = await sb.rpc('qm_chat_recent', { p_limit: limit });
   return (data ?? []).reverse();  // du plus ancien au plus récent pour l'affichage
 }
+
+// ---------- Sondages de ligue (proposition 5) ----------
+export async function pollsList(limit = 20) {
+  const { data } = await sb.rpc('qm_polls_list', { p_limit: limit });
+  return data ?? [];
+}
+export async function pollVote(pollId, optionId) {
+  return sb.rpc('qm_poll_vote', { p_poll: pollId, p_option: optionId });
+}
+export async function adminCreatePoll(question, kind, options = null) {
+  return sb.rpc('qm_admin_create_poll', { p_question: question, p_kind: kind, p_options: options });
+}
+export async function adminClosePoll(pollId, closed = true) {
+  return sb.rpc('qm_admin_close_poll', { p_id: pollId, p_closed: closed });
+}
+export async function adminDeletePoll(pollId) {
+  return sb.rpc('qm_admin_delete_poll', { p_id: pollId });
+}
 export async function chatDelete(id) {
   return sb.rpc('qm_chat_delete', { p_id: id });
 }

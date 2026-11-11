@@ -1081,6 +1081,7 @@
         <button data-v="scouts" data-ic="target">Dénicheurs</button>
         <button data-v="alerts" data-ic="bell">Mes alertes</button>
         <button data-v="gazette" data-ic="megaphone">Journal</button>
+        <button data-v="polls" data-ic="chart">Sondages</button>
         <button data-v="calendar" data-ic="calendar">Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" data-ic="target" style="display:none">Draft</button>
         <button data-v="rules" data-ic="scroll">Règlement</button>
@@ -1645,6 +1646,14 @@
       <div id="bilanCard" style="max-width:520px"></div>
       <button class="bid-btn" id="bilanShare" data-ic="share" style="max-width:520px;margin-top:12px;display:none;align-items:center;justify-content:center">Partager mon bilan</button>
     </div>
+  </section>
+
+  <!-- SONDAGES DE LIGUE -->
+  <section class="view" id="polls">
+    <div class="eyebrow">Sondages de ligue · la parole aux managers</div>
+    <h1>Les <em>sondages</em></h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:18px">Donne ton avis sur les sondages lancés par l'organisation. Un vote par sondage, modifiable tant qu'il est ouvert.</p>
+    <div id="pollsBody"><div class="empty">Chargement…</div></div>
   </section>
 
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
@@ -2429,7 +2438,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','calendar','draft','rules','faq','records','palmares'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares'];
 let CURRENT_VIEW = 'home';
 function goView(v){
   CURRENT_VIEW = v;
@@ -2447,7 +2456,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -9327,6 +9336,47 @@ async function shareBilan(b){
 // ---------- Journal du mercato (gazette hebdo) ----------
 // Compile l'actu des 7 derniers jours à partir des données publiques :
 // plus gros transferts, qui a le plus dépensé, pépite la plus disputée, podium.
+async function renderPolls(){
+  const box = $('pollsBody'); if(!box) return;
+  box.innerHTML = '<div class="empty">Chargement…</div>';
+  let polls = [];
+  try { polls = await api.pollsList(20); }
+  catch(e){ box.innerHTML = '<div class="empty">Sondages indisponibles (script 237 à passer).</div>'; return; }
+  if(!polls.length){ box.innerHTML = '<div class="empty">Aucun sondage pour l\'instant. L\'organisation en lancera bientôt !</div>'; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  box.innerHTML = polls.map(p=>{
+    const opts = Array.isArray(p.options) ? p.options : [];
+    const total = p.total_votes || 0;
+    const open = p.status==='open';
+    const voted = !!p.my_option;
+    const rows = opts.map(o=>{
+      const pct = total ? Math.round((o.votes/total)*100) : 0;
+      const mine = p.my_option===o.id;
+      return `<button data-pollvote="${p.id}" data-opt="${o.id}" ${open?'':'disabled'}
+          style="display:block;width:100%;text-align:left;position:relative;overflow:hidden;background:var(--pitch-2);border:1px solid ${mine?'var(--transfer)':'var(--line)'};border-radius:10px;padding:9px 12px;margin-bottom:7px;cursor:${open?'pointer':'default'}">
+        <div style="position:absolute;inset:0;width:${pct}%;background:${mine?'rgba(245,197,66,.20)':'rgba(255,255,255,.05)'};transition:width .3s"></div>
+        <div style="position:relative;display:flex;justify-content:space-between;gap:10px;font-size:.88rem">
+          <span style="color:var(--chalk);font-weight:${mine?'700':'500'}">${mine?'✓ ':''}${esc(o.label)}</span>
+          <span style="color:var(--muted);white-space:nowrap">${o.votes} · ${pct}%</span>
+        </div>
+      </button>`;
+    }).join('');
+    return `<div style="border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;background:var(--pitch)">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:12px">
+        <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.05rem;color:var(--chalk)">${esc(p.question)}</div>
+        <span style="flex:0 0 auto;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:12px;${open?'background:rgba(74,222,128,.12);color:#4ade80;border:1px solid #4ade80':'background:var(--pitch-2);color:var(--muted);border:1px solid var(--line)'}">${open?'Ouvert':'Clôturé'}</span>
+      </div>
+      ${rows}
+      <div class="hint" style="font-size:.76rem;margin-top:4px">${total} vote${total>1?'s':''}${open?(voted?' · tu peux changer ton vote':' · à toi de voter'):''}</div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-pollvote]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.pollVote(b.dataset.pollvote, b.dataset.opt);
+    if(error) return toast(error.message,'err',3500);
+    renderPolls();
+  });
+}
+
 async function renderGazette(){
   const I=(typeof ic==='function')?ic:(()=>'');
   const H=(n)=>`<span style="display:inline-flex;vertical-align:-.12em;margin-right:6px">${I(n,16)}</span>`;

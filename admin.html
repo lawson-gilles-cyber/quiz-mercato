@@ -798,6 +798,25 @@
     </div>
   </div>
 
+  <!-- Sondages de ligue -->
+  <h2 data-ic="chart">Sondages de ligue</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Lance un sondage pour les managers (il apparaît dans leur onglet « Sondages »). Format libre, ou options = les managers de la ligue.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">
+      <div style="flex:1;min-width:220px"><label>Question</label><input id="pollQ" type="text" class="us-search" placeholder="Ex. Meilleur recrutement du mercato ?"></div>
+      <div><label>Type</label><select id="pollKind"><option value="choice">Options libres</option><option value="managers">Les managers de la ligue</option></select></div>
+    </div>
+    <div id="pollOptsWrap" style="margin-bottom:10px">
+      <label>Options (une par ligne, 2 à 6)</label>
+      <textarea id="pollOpts" class="us-search" style="width:100%;min-height:90px" placeholder="PSG&#10;Real Madrid&#10;OM"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-primary btn-sm" id="btnCreatePoll">Créer le sondage</button>
+      <span id="pollMsg" class="hint" style="font-size:.82rem"></span>
+    </div>
+    <div id="pollAdminList" style="margin-top:16px"></div>
+  </div>
+
   <!-- Draft -->
   <h2 data-ic="target">Draft de début de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1465,7 +1484,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1485,7 +1504,7 @@ const ADMIN_TABS = [
   { id:'managers', label:'👥 Managers', titles:[
       "Inviter des managers","Classement des managers","Contrôle des effectifs","Ligues & divisions","Modération du chat",
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison",
-      "Défis & objectifs","Pronostics","Pronostics — matchs","Notes des joueurs — par journée","Draft","Journées & Compositions"] },
+      "Défis & objectifs","Pronostics","Pronostics — matchs","Notes des joueurs — par journée","Sondages de ligue","Draft","Journées & Compositions"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
   { id:'aide', label:'❓ Aide', titles:[
@@ -3764,6 +3783,65 @@ if($('btnNoteImport')) $('btnNoteImport').onclick = async ()=>{
   // Rafraîchir la grille pour voir les notes importées.
   await renderNoteGrid();
 };
+
+// ---------- Sondages de ligue (admin) ----------
+if($('pollKind')) $('pollKind').onchange = ()=>{
+  const wrap = $('pollOptsWrap');
+  if(wrap) wrap.style.display = $('pollKind').value==='managers' ? 'none' : 'block';
+};
+if($('btnCreatePoll')) $('btnCreatePoll').onclick = async ()=>{
+  const q = ($('pollQ').value||'').trim();
+  const kind = $('pollKind').value;
+  const msg = $('pollMsg');
+  if(!q){ if(msg) msg.innerHTML='<span style="color:var(--live)">Saisis une question.</span>'; return; }
+  let opts = null;
+  if(kind==='choice'){
+    opts = ($('pollOpts').value||'').split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+    if(opts.length<2){ if(msg) msg.innerHTML='<span style="color:var(--live)">Donne au moins 2 options.</span>'; return; }
+  }
+  if(msg) msg.textContent='Création…';
+  const { error } = await api.adminCreatePoll(q, kind, opts);
+  if(error){ if(msg) msg.innerHTML=`<span style="color:var(--live)">${error.message||'Échec (script 237 ?)'}</span>`; return; }
+  if(msg) msg.innerHTML='<span style="color:#4ade80">✓ Sondage créé</span>';
+  $('pollQ').value=''; $('pollOpts').value='';
+  loadPolls();
+};
+async function loadPolls(){
+  const box = $('pollAdminList'); if(!box) return;
+  let polls = [];
+  try { polls = await api.pollsList(30); }
+  catch(e){ box.innerHTML = '<p class="hint">Passe le script 237 pour activer les sondages.</p>'; return; }
+  if(!polls.length){ box.innerHTML = '<p class="hint">Aucun sondage pour l\'instant.</p>'; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  box.innerHTML = polls.map(p=>{
+    const opts = Array.isArray(p.options)?p.options:[];
+    const total = p.total_votes||0;
+    const open = p.status==='open';
+    const lines = opts.map(o=>`<div style="display:flex;justify-content:space-between;font-size:.82rem;padding:2px 0"><span>${esc(o.label)}</span><span style="color:var(--muted)">${o.votes} (${total?Math.round(o.votes/total*100):0}%)</span></div>`).join('');
+    return `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start;margin-bottom:6px">
+        <b style="font-size:.92rem">${esc(p.question)}</b>
+        <span style="flex:0 0 auto;font-size:.68rem;color:${open?'#4ade80':'var(--muted)'}">${open?'OUVERT':'CLÔTURÉ'} · ${total} vote(s)</span>
+      </div>
+      ${lines}
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn-ghost btn-sm" data-polltoggle="${p.id}" data-open="${open?1:0}">${open?'Clôturer':'Rouvrir'}</button>
+        <button class="btn-ghost btn-sm" data-polldel="${p.id}" style="color:var(--live)">Supprimer</button>
+      </div>
+    </div>`;
+  }).join('');
+  box.querySelectorAll('[data-polltoggle]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminClosePoll(b.dataset.polltoggle, b.dataset.open==='1');
+    if(error) return showMsg($('pollMsg'), error.message, false);
+    loadPolls();
+  });
+  box.querySelectorAll('[data-polldel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Supprimer ce sondage et tous ses votes ?')) return;
+    const { error } = await api.adminDeletePoll(b.dataset.polldel);
+    if(error) return showMsg($('pollMsg'), error.message, false);
+    loadPolls();
+  });
+}
 
 // ---------- Draft (admin) ----------
 async function loadDraftAdmin(){
