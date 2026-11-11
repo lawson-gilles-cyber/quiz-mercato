@@ -86,6 +86,8 @@ export async function listPlayers(filters = {}) {
     position: p.pos,
     owner: p.owner_name ? { display_name: p.owner_name } : null
   }));
+  // Les joueurs retirés du jeu ne sont jamais listés côté marché.
+  rows = rows.filter(p => p.status !== 'retired');
   if (filters.position) rows = rows.filter(p => p.position === filters.position);
   if (filters.status)   rows = rows.filter(p => p.status === filters.status);
   if (filters.search)   rows = rows.filter(p => p.name.toLowerCase().includes(filters.search.toLowerCase()));
@@ -192,6 +194,7 @@ export async function searchPlayersByName(q, limit = 8) {
   const { data } = await sb.from('qm_players')
     .select('id, name, first_name, club, position, current_value, base_value, salary_override, championship, owner_id')
     .ilike('name', `%${term}%`)
+    .neq('status', 'retired')   // les joueurs retirés sont sortis du jeu
     .order('current_value', { ascending: false })
     .limit(limit);
   return data ?? [];
