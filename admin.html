@@ -26,6 +26,27 @@
     --shadow-2:0 8px 24px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.20);
     --ring:0 0 0 3px rgba(245,197,66,.35);
   }
+
+  /* ===== Vue d'ensemble (Pilotage) ===== */
+  .ov-sec-h{font-size:.72rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin:0 0 8px 2px;display:flex;align-items:center;gap:8px}
+  .ov-sec-h::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+  .ov-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+  .ov-kpi{position:relative;background:var(--pitch-2);border:1px solid var(--line);
+    border-radius:var(--r);padding:14px 16px;transition:transform .12s ease, box-shadow .12s ease, border-color .12s}
+  .ov-kpi:hover{transform:translateY(-2px);box-shadow:var(--shadow-1);border-color:#28467a}
+  .ov-kpi--act{border-left:3px solid var(--ac);background:
+    linear-gradient(180deg, color-mix(in srgb, var(--ac) 10%, var(--pitch-2)), var(--pitch-2))}
+  .ov-val{font-size:1.9rem;font-weight:800;line-height:1;color:var(--chalk)}
+  .ov-kpi--act .ov-val{color:var(--ac)}
+  .ov-lab{font-size:.78rem;color:var(--muted);margin-top:5px;line-height:1.25}
+  .ov-note{font-size:.72rem;margin-top:4px;color:var(--ac,var(--muted));font-weight:600}
+  .ov-banner{border-radius:var(--r);padding:11px 14px;font-size:.86rem;font-weight:600;
+    display:flex;align-items:center;gap:8px}
+  .ov-banner--act{background:rgba(245,197,66,.10);border:1px solid rgba(245,197,66,.5);color:var(--transfer)}
+  .ov-banner--ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.4);color:var(--ok)}
+  .ov-banner--warn{background:rgba(245,197,66,.08);border:1px solid var(--transfer);color:var(--transfer);font-weight:500}
+  @media(max-width:560px){ .ov-row{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px} .ov-val{font-size:1.6rem} }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:linear-gradient(180deg,#0a1428,#0c1730 50%,#081020);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
     min-height:100vh;line-height:1.45;background-attachment:fixed}
@@ -292,8 +313,8 @@
 
   <!-- Vue d'ensemble -->
   <h2>Vue d'ensemble</h2>
-  <div id="overviewGrid" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:8px">
-    <div class="hint" style="grid-column:1/-1;text-align:center;padding:16px">Chargement…</div>
+  <div id="overviewGrid" style="display:flex;flex-direction:column;gap:18px;margin-bottom:8px">
+    <div class="hint" style="text-align:center;padding:16px">Chargement…</div>
   </div>
 
   <!-- Santé du mercato (alertes) -->
@@ -2862,45 +2883,70 @@ async function loadOverview(){
     grid.innerHTML = `<div class="hint" style="grid-column:1/-1;text-align:center;padding:16px;color:var(--danger,#e0574a)">Erreur : ${o.__error}<br><span style="color:var(--muted)">${hint}</span></div>`;
     return;
   }
-  // tile(valeur, libellé, couleur d'accent si actionnable, note optionnelle)
-  const tile = (val, label, accent, note) => `
-    <div style="background:var(--card2,#101d38);border-radius:12px;padding:14px;border-left:3px solid ${accent||'var(--line)'}">
-      <div style="font-size:1.8rem;font-weight:800;line-height:1;${accent?`color:${accent}`:''}">${val}</div>
-      <div class="hint" style="margin-top:4px">${label}</div>
-      ${note?`<div style="font-size:.72rem;color:${accent||'var(--muted)'};margin-top:2px">${note}</div>`:''}
-    </div>`;
-  const act = 'var(--transfer)', live = 'var(--live,#ef5350)';
-  grid.innerHTML = [
-    tile(o.open_auctions, 'Enchères en cours', null,
-         o.ending_soon>0 ? `⏳ ${o.ending_soon} en phase finale` : null),
-    tile(o.proposals_pending, 'Propositions à traiter', o.proposals_pending>0?act:null),
-    tile(o.proposals_approved, 'Approuvées à publier', o.proposals_approved>0?act:null),
-    tile(o.injuries_pending, 'Blessures à valider', o.injuries_pending>0?live:null),
-    tile(o.pending_trades, 'Échanges en attente', null),
-    tile(o.managers_count, 'Managers'),
-    tile(o.free_players + ' / ' + o.total_players, 'Joueurs libres / total'),
-    tile(o.transfers_today, 'Mouvements aujourd\'hui'),
-    tile(o.market_open ? '🟢 Ouvert' : '🔴 Fermé', 'Marché des transferts', o.market_open?null:live),
-  ].join('');
+  // Récupère les effectifs AVANT de peindre, pour tout rendre en UNE passe
+  // (évite les insertAdjacentHTML qui doublonnaient à chaque rechargement).
+  let sf = null;
+  try { sf = await api.adminSquadFill(); } catch(e){ /* non déployé : ignoré */ }
 
-  // Surveillance des effectifs complets (pré-J10)
-  try {
-    const sf = await api.adminSquadFill();
-    if(sf){
-      const warn = sf.full_squads > 0;  // dès qu'un effectif est complet, on alerte en orange
-      const extra = [
-        tile(`${sf.full_squads} / ${sf.managers_total}`, 'Effectifs complets (21/21)', warn?act:null),
-        tile(sf.near_full, 'Presque complets (18–20)'),
-        tile(sf.avg_squad, 'Taille moyenne d\'effectif'),
-        tile(sf.max_squad + ' / 21', 'Plus gros effectif'),
-      ].join('');
-      grid.insertAdjacentHTML('beforeend', extra);
-      if(sf.full_squads > 0){
-        grid.insertAdjacentHTML('beforeend',
-          `<div style="grid-column:1/-1;background:rgba(255,213,74,.1);border:1px solid var(--transfer);border-radius:10px;padding:10px 12px;font-size:.84rem;color:var(--transfer)">⚠️ ${sf.full_squads} effectif(s) déjà complet(s). Surveille avant le J10 : si trop d'équipes sont pleines tôt, ajuste les acquisitions/jour ou la disponibilité du marché.</div>`);
-      }
-    }
-  } catch(e){ /* fonction effectifs non déployée : on ignore */ }
+  // --- Petit vocabulaire de rendu ---
+  // kpi : tuile standard. hero : tuile mise en avant (chiffre d'alerte).
+  const kpi = (val, label, opt={}) => {
+    const { accent, note, big } = opt;
+    return `<div class="ov-kpi${accent?' ov-kpi--act':''}" ${accent?`style="--ac:${accent}"`:''}>
+      <div class="ov-val"${big?' style="font-size:2.1rem"':''}>${val}</div>
+      <div class="ov-lab">${label}</div>
+      ${note?`<div class="ov-note">${note}</div>`:''}
+    </div>`;
+  };
+  const section = (title, tiles) =>
+    `<div class="ov-sec"><div class="ov-sec-h">${title}</div><div class="ov-row">${tiles.join('')}</div></div>`;
+
+  const ACT = 'var(--transfer)', LIVE = 'var(--live)', OK = 'var(--ok)';
+
+  // Compte des items qui demandent une action (pour le bandeau de tête)
+  const todo = (o.proposals_pending||0) + (o.proposals_approved||0) + (o.injuries_pending||0) + (o.pending_trades||0);
+
+  // ---- SECTION 1 : À TRAITER ----
+  const sTodo = section('À traiter maintenant', [
+    kpi(o.proposals_pending, 'Propositions à traiter', { accent: o.proposals_pending>0?ACT:null }),
+    kpi(o.proposals_approved, 'Approuvées à publier',  { accent: o.proposals_approved>0?ACT:null }),
+    kpi(o.injuries_pending,  'Blessures à valider',    { accent: o.injuries_pending>0?LIVE:null }),
+    kpi(o.pending_trades,    'Échanges en attente',    { accent: o.pending_trades>0?ACT:null }),
+  ]);
+
+  // ---- SECTION 2 : MARCHÉ & ACTIVITÉ ----
+  const sMarket = section('Marché & activité', [
+    kpi(o.market_open ? 'Ouvert' : 'Fermé', 'Marché des transferts',
+        { accent: o.market_open?OK:LIVE, note: o.market_open?'🟢 en cours':'🔴 fermé' }),
+    kpi(o.open_auctions, 'Enchères en cours',
+        { accent: o.ending_soon>0?ACT:null, note: o.ending_soon>0?`⏳ ${o.ending_soon} en phase finale`:null }),
+    kpi(o.transfers_today, 'Mouvements aujourd\'hui'),
+    kpi(o.free_players + ' / ' + o.total_players, 'Joueurs libres / total'),
+    kpi(o.managers_count, 'Managers'),
+  ]);
+
+  // ---- SECTION 3 : EFFECTIFS ----
+  let sSquad = '';
+  if(sf){
+    const warn = sf.full_squads > 0;
+    sSquad = section('Effectifs', [
+      kpi(`${sf.full_squads} / ${sf.managers_total}`, 'Effectifs complets (21/21)', { accent: warn?ACT:null }),
+      kpi(sf.near_full, 'Presque complets (18–20)'),
+      kpi(sf.avg_squad, 'Taille moyenne'),
+      kpi(sf.max_squad + ' / 21', 'Plus gros effectif'),
+    ]);
+  }
+
+  // ---- Bandeau de tête : résumé « ce qui t'attend » ----
+  const banner = todo>0
+    ? `<div class="ov-banner ov-banner--act">⚡ <b>${todo}</b> élément(s) demandent ton attention — vois « À traiter maintenant » ci-dessous.</div>`
+    : `<div class="ov-banner ov-banner--ok">✅ Rien en attente — tout est à jour.</div>`;
+
+  const squadAlert = (sf && sf.full_squads>0)
+    ? `<div class="ov-banner ov-banner--warn">⚠️ ${sf.full_squads} effectif(s) déjà complet(s). Surveille avant le J10 : si trop d'équipes sont pleines tôt, ajuste les acquisitions/jour ou la disponibilité du marché.</div>`
+    : '';
+
+  grid.innerHTML = banner + sTodo + sMarket + sSquad + squadAlert;
 }
 
 // ---------- Défis & objectifs ----------
