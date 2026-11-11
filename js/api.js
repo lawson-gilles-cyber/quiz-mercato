@@ -1051,6 +1051,14 @@ export async function adminImportNotes(matchdayId, rows) {
   if (error) throw error;
   return data ?? [];
 }
+// Pont notes → scoring officiel (proposition 1).
+export async function adminNotesToScoresCount(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_notes_to_scores_count', { p_matchday_id: matchdayId || null });
+  return data ?? 0;
+}
+export async function adminNotesToScores(matchdayId) {
+  return sb.rpc('qm_admin_notes_to_scores', { p_matchday_id: matchdayId || null });
+}
 
 // ---- Saisie PAR MATCH + mapping club↔équipe (prop. 1) ----
 export async function adminMatchdayMatches(matchdayId) {

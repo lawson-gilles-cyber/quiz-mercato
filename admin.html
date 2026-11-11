@@ -735,6 +735,16 @@
       <div id="noteProgress" class="hint" style="font-size:.8rem;white-space:nowrap"></div>
     </div>
 
+    <!-- Report des notes vers le classement sportif -->
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 12px;background:rgba(74,222,128,.06);border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:8px">
+      <div style="flex:1;min-width:200px;font-size:.84rem">
+        <b>Reporter les notes dans le classement</b>
+        <div class="hint" style="font-size:.76rem;margin-top:2px">Les notes saisies deviennent les points des titulaires alignés. À faire après avoir saisi/importé les notes de la journée.</div>
+      </div>
+      <span id="noteScoreInfo" class="hint" style="font-size:.8rem;white-space:nowrap"></span>
+      <button class="btn-primary btn-sm" id="btnNotesToScores">⬇ Reporter dans le scoring</button>
+    </div>
+
     <!-- Onglets méthode -->
     <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
       <button class="btn-ghost btn-sm" id="noteTabMatch">⚽ Par match</button>
@@ -3425,6 +3435,7 @@ async function loadPlayerNotes(){
   }
   await renderNoteGrid();
   await loadMatchSelector();
+  refreshNoteScoreInfo();
 }
 async function renderNoteGrid(){
   const grid = $('noteGrid'); if(!grid) return;
@@ -3568,7 +3579,24 @@ if($('btnPrefillPrev')) $('btnPrefillPrev').onclick = async ()=>{
   const lbl = prev[0] && prev[0].prev_label ? prev[0].prev_label : 'J-1';
   if(cnt) cnt.innerHTML = `<span style="color:#f0b429">${filled} suggestion(s) depuis ${lbl}</span> — en jaune, non enregistrées. Appuie sur <b>Entrée</b> sur chacune pour valider (ou corrige).`;
 };
-if($('noteMatchday')) $('noteMatchday').onchange = ()=>{ renderNoteGrid(); loadMatchSelector(); };
+if($('noteMatchday')) $('noteMatchday').onchange = ()=>{ renderNoteGrid(); loadMatchSelector(); refreshNoteScoreInfo(); };
+async function refreshNoteScoreInfo(){
+  const el = $('noteScoreInfo'); if(!el) return;
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  if(!mdId){ el.textContent=''; return; }
+  try { const n = await api.adminNotesToScoresCount(mdId); el.textContent = `${n} note(s) prête(s)`; }
+  catch(e){ el.textContent=''; }
+}
+if($('btnNotesToScores')) $('btnNotesToScores').onclick = async ()=>{
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  const el = $('noteScoreInfo');
+  if(!mdId){ if(el) el.innerHTML='<span style="color:var(--live)">Choisis une journée.</span>'; return; }
+  if(!confirm('Reporter les notes de cette journée dans le classement sportif ?\n\nLes points des titulaires alignés seront (re)calculés à partir des notes saisies.')) return;
+  if(el) el.textContent = 'Report en cours…';
+  const { data, error } = await api.adminNotesToScores(mdId);
+  if(error){ if(el) el.innerHTML = `<span style="color:var(--live)">${error.message||'Échec (script 236 passé ?)'}</span>`; return; }
+  if(el) el.innerHTML = `<span style="color:#4ade80">✓ ${data} joueur(s) reportés</span>`;
+};
 if($('noteFilter'))      $('noteFilter').oninput        = paintNoteGrid;
 if($('noteOnlyMissing')) $('noteOnlyMissing').onchange  = paintNoteGrid;
 if($('noteOnlyNoMatch')) $('noteOnlyNoMatch').onchange  = paintNoteGrid;
