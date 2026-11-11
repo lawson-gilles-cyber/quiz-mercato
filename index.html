@@ -1592,6 +1592,10 @@
     <div id="chatUI" style="display:none">
       <div id="chatPinned" style="display:none;margin-bottom:12px"></div>
       <div id="chatMessages" style="height:min(55vh,460px);overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--pitch-2);margin-bottom:12px;display:flex;flex-direction:column;gap:8px"></div>
+      <div id="chatReplyBanner" style="display:none;align-items:center;gap:8px;background:rgba(245,197,66,.08);border:1px solid var(--line);border-left:3px solid var(--transfer);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:.78rem;color:var(--muted)">
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="chatReplyText"></span>
+        <a href="#" id="chatReplyCancel" style="color:var(--muted);text-decoration:none">✕</a>
+      </div>
       <div style="display:flex;gap:8px">
         <input id="chatInput" type="text" maxlength="500" placeholder="Ton message…" style="flex:1" autocomplete="off">
         <button id="chatSend" class="bid-btn" style="margin:0;width:auto;padding:10px 18px">Envoyer</button>
@@ -8755,13 +8759,29 @@ async function renderChat(){
       const inp = $('chatInput'); const body = (inp.value||'').trim();
       if(!body) return;
       inp.value='';
-      const { error } = await api.chatSend(body);
+      const replyTo = CHAT_REPLY_TO;   // citation éventuelle
+      const { error } = await api.chatSend(body, replyTo);
       if(error){ toast(error.message,'err',4000); inp.value=body; return; }
+      clearChatReply();
       loadChatMessages(true);
     };
     $('chatSend').onclick = send;
     $('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } });
+    const c = $('chatReplyCancel'); if(c) c.onclick = (e)=>{ e.preventDefault(); clearChatReply(); };
   }
+}
+// --- État « répondre à » du chat de ligue (façon WhatsApp) ---
+let CHAT_REPLY_TO = null;
+function setChatReply(id, author, body){
+  CHAT_REPLY_TO = id;
+  const b = $('chatReplyBanner'), t = $('chatReplyText');
+  if(t) t.innerHTML = `↩︎ Réponse à <b style="color:var(--chalk)">${author}</b> : <span style="opacity:.8">${String(body||'').slice(0,80)}</span>`;
+  if(b) b.style.display = 'flex';
+  const inp = $('chatInput'); if(inp) inp.focus();
+}
+function clearChatReply(){
+  CHAT_REPLY_TO = null;
+  const b = $('chatReplyBanner'); if(b) b.style.display = 'none';
 }
 async function loadChatMessages(keepScroll){
   const I=(typeof ic==='function')?ic:(()=>'');
@@ -8784,8 +8804,15 @@ async function loadChatMessages(keepScroll){
     const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
     // Épingler : réservé à l'admin.
     const pin = isAdmin ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none;vertical-align:-.1em">${I('pin',13)}</a>` : '';
-    return `<div style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'}">
-      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${pin}${del}</div>
+    // Répondre : disponible pour tous.
+    const reply = ` <a href="#" data-chatreply="${m.id}" data-author="${String(m.author).replace(/"/g,'&quot;').replace(/<[^>]*>/g,'')}" data-body="${m.body.replace(/"/g,'&quot;').replace(/</g,'&lt;')}" title="Répondre" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">↩︎</a>`;
+    // Citation (si ce message répond à un autre) — cliquable pour remonter.
+    const quote = (m.reply_to && m.reply_body)
+      ? `<div data-chatgoto="${m.reply_to}" title="Aller au message d'origine" style="cursor:pointer;border-left:3px solid var(--transfer);padding:2px 8px;margin-bottom:4px;background:rgba(255,255,255,.04);border-radius:4px;font-size:.76rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:var(--chalk)">${(m.reply_author||'—')}</b> : ${String(m.reply_body).replace(/</g,'&lt;').slice(0,90)}</div>`
+      : '';
+    return `<div data-chatmsg="${m.id}" style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'};scroll-margin-top:12px;border-radius:12px;transition:background .3s">
+      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${reply}${pin}${del}</div>
+      ${quote}
       <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
     </div>`;
   }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
@@ -8803,6 +8830,21 @@ async function loadChatMessages(keepScroll){
     if(error) return toast(error.message,'err');
     toast(a.dataset.on==='1'?'Message épinglé':'Message désépinglé','ok');
     loadChatPinned(); loadChatMessages(true);
+  });
+  // Répondre à un message
+  box.querySelectorAll('[data-chatreply]').forEach(a=>a.onclick=(ev)=>{
+    ev.preventDefault();
+    setChatReply(a.dataset.chatreply, a.dataset.author, a.dataset.body);
+  });
+  // Cliquer une citation → remonter au message d'origine (surligné brièvement)
+  box.querySelectorAll('[data-chatgoto]').forEach(a=>a.onclick=(ev)=>{
+    ev.preventDefault();
+    const target = box.querySelector(`[data-chatmsg="${a.dataset.chatgoto}"]`);
+    if(!target){ toast('Message trop ancien pour être affiché.','info',2500); return; }
+    target.scrollIntoView({behavior:'smooth', block:'center'});
+    const prev = target.style.background;
+    target.style.background = 'rgba(245,197,66,.18)';
+    setTimeout(()=>{ target.style.background = prev||''; }, 1200);
   });
   if(atBottom || !keepScroll) box.scrollTop = box.scrollHeight;
 }

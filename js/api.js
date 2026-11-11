@@ -1079,8 +1079,8 @@ export async function adminPrevNotes(matchdayId) {
 }
 
 // ---------- CHAT DE LIGUE -------------------------------------------
-export async function chatSend(body) {
-  return sb.rpc('qm_chat_send', { p_body: body });
+export async function chatSend(body, replyTo = null) {
+  return sb.rpc('qm_chat_send', { p_body: body, p_reply_to: replyTo });
 }
 export async function chatRecent(limit = 60) {
   const { data } = await sb.rpc('qm_chat_recent', { p_limit: limit });
