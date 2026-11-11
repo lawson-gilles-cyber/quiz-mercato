@@ -1926,7 +1926,7 @@
       <div class="rule-block">
         <h3 class="rule-h">22. Chat, pronostics & réactions</h3>
         <ul class="rule-ul">
-          <li><b>Chat de ligue</b> : un salon commun en direct pour échanger et se chambrer. Reste fair-play — l'organisateur peut effacer un message ou réduire au silence.</li>
+          <li><b>Chat de ligue</b> : un salon commun en direct pour échanger et se chambrer. Tu peux <b>répondre</b> à un message précis (↩︎, avec citation cliquable pour remonter la discussion), <b>réagir</b> par emoji (☺), <b>modifier</b> ton message dans les <b>15 minutes</b> (✎, marqué « modifié ») et le <b>supprimer</b> (il devient « 🚫 Message supprimé »). Un <b>indicateur de frappe</b> montre qui est en train d'écrire. Reste fair-play — l'organisateur peut effacer un message ou réduire au silence.</li>
           <li><b>Pronostics</b> : parie des <b>points pronos</b> (capital de départ 100, sans lien avec le classement sportif) sur les questions ouvertes par l'organisateur. Bon pronostic = mise doublée. Un classement des pronostiqueurs récompense les plus malins.</li>
           <li><b>Pronostics sur les matchs</b> : pendant les journées, pronostique le résultat des vrais matchs de championnat en <b>1 / N / 2</b> (victoire à domicile / match nul / victoire à l'extérieur). Les paris ferment au <b>coup d'envoi</b> ; après le match, un bon pronostic rapporte des points. Tu peux aussi, en bonus, pronostiquer le <b>score exact</b> : si tu tombes pile, tu gagnes des <b>points supplémentaires</b>. Ces points alimentent le <b>classement pronostiqueurs</b> (distinct du classement sportif). Tu les trouves dans l'onglet « Pronostics », section « Matchs de championnat ».</li>
           <li><b>Conseil d'avant-match</b> : avant chaque journée (onglet <b>Compo</b>), mise des <b>jetons de flair</b> (capital de départ 100, distinct du budget et des points pronos) sur « quel manager fera le plus de points ? » ou « tel joueur dépassera telle note ? ». Bon prono = <b>2× la mise</b>, et un <b>classement flair</b> à part récompense les meilleurs pronostiqueurs. Un <b>prono masqué</b> 🤫 reste caché des autres jusqu'à la résolution. Réservé au Manager.</li>
@@ -1935,7 +1935,18 @@
       </div>
 
       <div class="rule-block">
-        <h3 class="rule-h">23. Le draft (mode secondaire, optionnel)</h3>
+        <h3 class="rule-h">23. Messages privés & amis</h3>
+        <ul class="rule-ul">
+          <li><b>Messages privés (DM)</b> : écris en privé à un autre manager. Tu vois quand ton message est <b>envoyé, reçu et lu</b>, et quand l'autre est en train d'écrire. Comme dans le chat, tu peux <b>répondre</b> avec citation, <b>réagir</b>, <b>modifier</b> (15 min) et <b>supprimer</b> tes messages.</li>
+          <li><b>Offres dans les DM</b> : tu peux glisser une <b>offre d'échange</b> actionnable et partager la <b>fiche d'un joueur</b> directement dans la conversation ; l'autre accepte ou refuse sur place.</li>
+          <li><b>Amis & managers en ligne</b> : ajoute des managers en <b>amis</b> (demande puis acceptation) et vois qui est <b>en ligne</b>. Le listing propose des <b>suggestions</b> (amis communs, managers récemment actifs) et un accès rapide au profil et au DM.</li>
+          <li><b>Notifications</b> : un nouveau <b>message privé</b> et une <b>demande d'ami</b> sont rattachés à la <b>cloche</b>. Active les notifications du site pour les recevoir.</li>
+          <li>Les mêmes règles de fair-play s'appliquent en privé qu'en public.</li>
+        </ul>
+      </div>
+
+      <div class="rule-block">
+        <h3 class="rule-h">24. Le draft (mode secondaire, optionnel)</h3>
         <p class="rule-p">Par défaut, la saison s'ouvre <b>aux enchères</b> : ce sont elles qui départagent au mérite les coachs qui visent le même joueur. Le <b>draft</b> est un mode <b>alternatif</b> que l'organisateur peut lancer ponctuellement (saison détente, dépannage) : chacun pioche à son tour un joueur libre, attribué gratuitement, selon un ordre <b>serpent</b> (1→N puis N→1). Il n'est pas activé par défaut.</p>
       </div>
     </div>
@@ -4869,6 +4880,38 @@ const FAQ_DATA = [
      "Oui, fin janvier. Hors période de mercato ouverte, tu ne peux ni enchérir ni proposer de nouveau joueur. En revanche, le <b>marché entre managers reste ouvert toute la saison</b> : tu peux <b>échanger</b>, faire des <b>offres en vitrine</b> et <b>prêter</b> des joueurs quand tu veux."],
     ['Un joueur blessé, je fais quoi ?',
      "Tu le déclares blessé ; l’organisateur valide. Le <b>recrutement direct</b> (remplacement gratuit, sans enchère) est réservé au <b>mercato d’hiver</b> et respecte les règles d’effectif et de salaire."],
+  ]],
+  ['Pronostics & matchs', [
+    ['C’est quoi les pronostics sur les matchs ?',
+     "Pendant les journées de championnat, l’organisateur ouvre des <b>pronos sur de vrais matchs</b> (Ligue 1, Premier League, Liga, Serie A, Bundesliga…). Tu pronostiques le résultat en <b>1 / N / 2</b> (victoire domicile, nul, victoire extérieur) et tu peux tenter le <b>score exact</b> pour un bonus."],
+    ['Comment ça rapporte des points ?',
+     "Les pronos comptent dans un <b>classement pronostiqueurs distinct</b> (séparé du classement mercato). Un bon <b>1/N/2</b> te rapporte ta mise × 2 ; si en plus tu trouves le <b>score exact</b>, tu touches un <b>bonus</b> supplémentaire. Attention : si tu te trompes, ta <b>mise est perdue</b>."],
+    ['Jusqu’à quand puis-je parier sur un match ?',
+     "Les paris d’un match <b>ferment au coup d’envoi</b>. Pense à poser ton prono <b>avant</b> le début du match — après, c’est trop tard."],
+    ['Qui saisit les résultats ?',
+     "Les scores sont récupérés <b>automatiquement</b> après les matchs (et l’organisateur peut les saisir à la main si besoin). Dès qu’un match est réglé, les points des pronostiqueurs sont crédités automatiquement."],
+  ]],
+  ['Messagerie & chat', [
+    ['Comment répondre à un message précis ?',
+     "Dans le <b>chat de ligue</b> comme en <b>message privé</b>, chaque message a un bouton <b>↩︎</b> pour y répondre : ta réponse affiche une <b>citation</b> du message d’origine (comme sur WhatsApp). Clique la citation pour <b>remonter</b> directement au message cité."],
+    ['Puis-je réagir avec un emoji ?',
+     "Oui. Le bouton <b>☺</b> à côté d’un message ouvre un choix d’emojis (👍 ❤️ 😂 😮 🔥 👏). Une <b>seule réaction par personne et par message</b> : en choisir une autre remplace la précédente. Clique une pastille existante pour retirer la tienne."],
+    ['J’ai fait une faute, puis-je corriger un message envoyé ?',
+     "Oui, pendant <b>15 minutes</b> après l’envoi : le bouton <b>✎</b> sur ton message permet de le modifier. Il est alors marqué <b>« (modifié) »</b>. Passé ce délai, tu ne peux plus l’éditer."],
+    ['Puis-je supprimer un message ?',
+     "Oui, tes propres messages : la suppression le remplace par <b>« 🚫 Message supprimé »</b> pour tout le monde (le fil reste lisible). L’organisateur peut aussi supprimer un message pour la modération."],
+    ['C’est quoi le « untel écrit… » en bas du chat ?',
+     "Un <b>indicateur de frappe</b> : quand un autre manager est en train d’écrire dans le chat de ligue, son nom s’affiche en vert (« Audrey écrit… »). S’ils sont plusieurs, le chat l’indique."],
+  ]],
+  ['Entre managers (amis & DM)', [
+    ['Comment envoyer un message privé à un manager ?',
+     "Depuis le <b>listing des managers</b> ou le chat, ouvre un <b>message privé (DM)</b>. Tu vois quand ton message est <b>envoyé, reçu et lu</b> (accusés de lecture), et l’autre voit quand tu écris."],
+    ['À quoi servent les amis / le listing des managers ?',
+     "Tu peux <b>ajouter des managers en amis</b> (demande puis acceptation, comme sur un réseau social) et voir qui est <b>en ligne</b>. Le listing propose des <b>suggestions</b> (amis communs, managers récemment actifs) et un accès rapide au <b>profil</b> et au <b>DM</b>."],
+    ['Je reçois une notification quand on m’écrit ou m’ajoute ?',
+     "Oui : un <b>nouveau message privé</b> et une <b>demande d’ami</b> sont rattachés à la <b>cloche de notifications</b>. Active les notifications du site pour ne rien manquer."],
+    ['Puis-je proposer un échange directement dans un DM ?',
+     "Oui : en message privé tu peux glisser une <b>offre d’échange</b> (carte d’échange actionnable) et partager la <b>fiche d’un joueur</b>. L’autre manager accepte ou refuse depuis la conversation."],
   ]],
   ['Compte & technique', [
     ['L’appli ne se met pas à jour / affiche une vieille version ?',
