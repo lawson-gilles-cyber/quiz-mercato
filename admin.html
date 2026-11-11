@@ -710,6 +710,7 @@
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyMissing"> Seulement les manquants</label>
         <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyNoMatch"> Sans match cette semaine</label>
+        <button class="btn-ghost btn-sm" id="btnPrefillPrev" style="font-size:.74rem">⤵ Pré-remplir avec la J-1</button>
         <span id="noteGridCount" class="hint" style="font-size:.78rem;margin-left:auto"></span>
       </div>
       <div id="noteGrid" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
@@ -3400,6 +3401,9 @@ async function saveNote(playerId, noteVal, played){
     await api.adminSetPlayerNote(playerId, mdId, played?note:0, played);
     const rec = _noteGridData.find(r=>r.player_id===playerId);
     if(rec){ rec.note = played?note:0; rec.played = played; }
+    // une suggestion J-1 validée perd son surlignage jaune
+    const g = $('noteGrid'); const inp = g && g.querySelector(`input[data-note="${playerId}"]`);
+    if(inp && inp.dataset.suggested){ inp.style.background=''; delete inp.dataset.suggested; }
     const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
     if($('noteProgress')) $('noteProgress').textContent = `${noted}/${_noteGridData.length} joueurs notés ✓`;
   } catch(e){ /* silencieux : l'admin verra la note non enregistrée */ }
@@ -3407,13 +3411,32 @@ async function saveNote(playerId, noteVal, played){
 // Délégation d'événements sur la grille.
 (function bindNoteGrid(){
   const grid = $('noteGrid'); if(!grid) return;
+  const focusables = ()=> [...grid.querySelectorAll('input[data-note]:not([disabled])')];
   grid.addEventListener('keydown', (e)=>{
-    if(e.target.matches('input[data-note]') && (e.key==='Enter')){
+    if(!e.target.matches('input[data-note]')) return;
+    const inputs = focusables();
+    const i = inputs.indexOf(e.target);
+    // Entrée ou flèche bas → enregistrer + joueur suivant
+    if(e.key==='Enter' || e.key==='ArrowDown'){
       e.preventDefault();
-      const inputs = [...grid.querySelectorAll('input[data-note]:not([disabled])')];
-      const i = inputs.indexOf(e.target);
       saveNote(e.target.getAttribute('data-note'), e.target.value, true);
       if(i>=0 && i<inputs.length-1) inputs[i+1].focus();
+    }
+    // Flèche haut → enregistrer + joueur précédent
+    else if(e.key==='ArrowUp'){
+      e.preventDefault();
+      saveNote(e.target.getAttribute('data-note'), e.target.value, true);
+      if(i>0) inputs[i-1].focus();
+    }
+    // Touche "x" (ou "*") → marquer "n'a pas joué" sans lâcher le clavier
+    else if(e.key==='x' || e.key==='X' || e.key==='*'){
+      e.preventDefault();
+      const pid = e.target.getAttribute('data-note');
+      const dnp = grid.querySelector(`input[data-dnp="${pid}"]`);
+      if(dnp){ dnp.checked = true; }
+      e.target.value=''; e.target.disabled = true;
+      saveNote(pid, '', false);
+      if(i>=0 && i<inputs.length-1){ const nx=focusables(); if(nx[Math.min(i,nx.length-1)]) nx[Math.min(i,nx.length-1)].focus(); }
     }
   });
   grid.addEventListener('blur', (e)=>{
@@ -3429,6 +3452,32 @@ async function saveNote(playerId, noteVal, played){
     }
   });
 })();
+
+// Pré-remplir les champs VIDES avec les notes de la J-1 (suggestion, non enregistré).
+if($('btnPrefillPrev')) $('btnPrefillPrev').onclick = async ()=>{
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  const cnt = $('noteGridCount');
+  if(!mdId){ if(cnt) cnt.textContent = 'Choisis d\'abord une journée.'; return; }
+  let prev;
+  try { prev = await api.adminPrevNotes(mdId); }
+  catch(e){ if(cnt) cnt.textContent = 'Passe le script 231 pour activer le report J-1.'; return; }
+  if(!prev.length){ if(cnt) cnt.textContent = 'Aucune note sur la journée précédente.'; return; }
+  const map = {}; prev.forEach(p=>{ map[p.player_id] = p; });
+  const grid = $('noteGrid'); if(!grid) return;
+  let filled = 0;
+  grid.querySelectorAll('input[data-note]').forEach(inp=>{
+    const pid = inp.getAttribute('data-note');
+    // ne touche QUE les champs vides et actifs (ne réécrit pas une note saisie)
+    if(!inp.disabled && (inp.value===''||inp.value==null) && map[pid] && map[pid].prev_played && map[pid].prev_note!=null){
+      inp.value = map[pid].prev_note;
+      inp.style.background = 'rgba(240,180,41,.18)'; // jaune = suggestion non enregistrée
+      inp.dataset.suggested = '1';
+      filled++;
+    }
+  });
+  const lbl = prev[0] && prev[0].prev_label ? prev[0].prev_label : 'J-1';
+  if(cnt) cnt.innerHTML = `<span style="color:#f0b429">${filled} suggestion(s) depuis ${lbl}</span> — en jaune, non enregistrées. Appuie sur <b>Entrée</b> sur chacune pour valider (ou corrige).`;
+};
 if($('noteMatchday')) $('noteMatchday').onchange = ()=>{ renderNoteGrid(); loadMatchSelector(); };
 if($('noteFilter'))      $('noteFilter').oninput        = paintNoteGrid;
 if($('noteOnlyMissing')) $('noteOnlyMissing').onchange  = paintNoteGrid;

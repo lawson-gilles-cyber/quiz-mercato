@@ -1072,6 +1072,11 @@ export async function adminAutomapClubs() {
   const { data } = await sb.rpc('qm_admin_automap_clubs');
   return data ?? [];
 }
+// Notes de la journée précédente (pour pré-remplir — prop. 3).
+export async function adminPrevNotes(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_prev_notes', { p_matchday_id: matchdayId || null });
+  return data ?? [];
+}
 
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body) {
