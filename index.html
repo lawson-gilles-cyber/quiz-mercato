@@ -10212,6 +10212,22 @@ const NOTIF_ACTION_LABEL = {
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
 const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','friend','remind_lineup','remind_market_end']);
+// Catégorie de chaque type, pour les filtres du centre de notifications.
+const NOTIF_CAT = {
+  outbid:'marche', trade:'marche', winning:'marche', auction_won:'marche', bonus:'marche',
+  proposal_published:'marche', proposal_changes:'marche', proposal_rejected:'marche',
+  watch_ending:'marche', remind_idle_budget:'marche', remind_market_end:'marche',
+  chat:'social', dm:'social', friend:'social',
+  remind_lineup:'jeu'
+};
+function notifCat(n){ return NOTIF_CAT[n.kind] || 'jeu'; }
+// Filtre actif du panneau (tout | todo | marche | social | jeu).
+let NOTIF_FILTER = 'tout';
+function notifPassFilter(n, read){
+  if(NOTIF_FILTER==='tout') return true;
+  if(NOTIF_FILTER==='todo') return NOTIF_TODO.has(n.kind) && !read.has(notifKey(n));
+  return notifCat(n)===NOTIF_FILTER;
+}
 function notifTodoCount(){
   const read = notifReadSet();
   return NOTIFS.filter(n=> NOTIF_TODO.has(n.kind) && !read.has(notifKey(n))).length;
@@ -10283,8 +10299,10 @@ function renderNotifPanel(){
   const read = notifReadSet();
   const unread = NOTIFS.filter(n=> n.kind!=='winning' && !read.has(notifKey(n))).length;
   const todo = notifTodoCount();
-  const items = NOTIFS.length
-    ? NOTIFS.map((n,idx)=>{
+  // Liste filtrée (le centre de notifications permet de trier par catégorie).
+  const shown = NOTIFS.map((n,idx)=>({n,idx})).filter(x=>notifPassFilter(x.n, read));
+  const items = shown.length
+    ? shown.map(({n,idx})=>{
         const isRead = read.has(notifKey(n));
         const act = NOTIF_ACTION_LABEL[n.kind];
         const isTodo = NOTIF_TODO.has(n.kind) && !isRead;
@@ -10305,13 +10323,21 @@ function renderNotifPanel(){
             ${act && !tradeBtns?`<div style="font-size:.74rem;color:var(--transfer);margin-top:4px;font-weight:700">${act} ▸</div>`:''}
           </div>
         </div>`;}).join('')
-    : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">Aucune notification.</div>`;
+    : `<div style="padding:16px;text-align:center;color:var(--muted);font-size:.85rem">${NOTIFS.length?'Rien dans cette catégorie.':'Aucune notification.'}</div>`;
   const todoChip = todo>0 ? ` <span style="color:var(--live)">· ${todo} à traiter</span>` : '';
-  const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 10px;border-bottom:1px solid var(--line);margin-bottom:6px">
+  const header = `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:4px 6px 8px;border-bottom:1px solid var(--line);margin-bottom:6px">
       <span style="font-family:'Saira Condensed',sans-serif;text-transform:uppercase;letter-spacing:1px;font-weight:800;font-size:.9rem">Notifications${unread>0?` <span style="color:var(--muted)">(${unread})</span>`:''}${todoChip}</span>
       ${NOTIFS.some(n=>n.kind!=='winning') ? `<button id="notifReadAll" style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:3px 9px;cursor:pointer;font-size:.72rem">Tout marquer lu</button>` : ''}
     </div>`;
-  panel.innerHTML = header + `<div id="pushHeader" style="padding:0 0 10px"></div>` + items;
+  // Barre de filtres (centre de notifications)
+  const cats = [['tout','Tout'],['todo','À traiter'],['marche','Marché'],['social','Social'],['jeu','Jeu']];
+  const countFor = (c)=> NOTIFS.filter(n=> c==='tout' ? true : c==='todo' ? (NOTIF_TODO.has(n.kind)&&!read.has(notifKey(n))) : notifCat(n)===c).length;
+  const filterBar = `<div style="display:flex;gap:5px;flex-wrap:wrap;padding:0 2px 8px;border-bottom:1px solid var(--line);margin-bottom:6px">${
+    cats.map(([c,lbl])=>{ const n=countFor(c); const on=NOTIF_FILTER===c;
+      return `<button data-nfilter="${c}" style="background:${on?'var(--transfer)':'var(--pitch-2)'};color:${on?'#0a1428':'var(--muted)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:20px;padding:3px 10px;cursor:pointer;font-size:.72rem;font-weight:700">${lbl}${n?` ${n}`:''}</button>`;
+    }).join('')
+  }</div>`;
+  panel.innerHTML = header + filterBar + `<div id="pushHeader" style="padding:0 0 10px"></div>` + items;
   renderPushToggle();
   // Boutons Accepter / Refuser d'un échange (dans la cloche) — priment sur le
   // clic de navigation de la notif (stopPropagation).
@@ -10342,14 +10368,21 @@ function renderNotifPanel(){
     const r = notifReadSet(); r.add(notifKey(n)); notifReadSave(r); updateNotifBadge();
     notifAction(n);
   });
+  // Filtres par catégorie
+  panel.querySelectorAll('[data-nfilter]').forEach(b=>b.onclick=(ev)=>{
+    ev.stopPropagation();
+    NOTIF_FILTER = b.dataset.nfilter;
+    renderNotifPanel();
+  });
   // Tout marquer comme lu
   const allBtn = $('notifReadAll');
   if(allBtn) allBtn.onclick = (ev)=>{
     ev.stopPropagation();
     const r = notifReadSet();
-    NOTIFS.forEach(n=> r.add(notifKey(n)));
+    // Respecte le filtre actif : ne marque que les notifs visibles.
+    NOTIFS.filter(n=>notifPassFilter(n, r)).forEach(n=> r.add(notifKey(n)));
     notifReadSave(r); updateNotifBadge(); renderNotifPanel();
-    toast('Toutes les notifications sont marquées comme lues.','ok',2500);
+    toast(NOTIF_FILTER==='tout'?'Toutes les notifications sont marquées comme lues.':'Notifications de cette catégorie marquées comme lues.','ok',2500);
   };
 }
 if($('bellBtn')) $('bellBtn').onclick = ()=>{
