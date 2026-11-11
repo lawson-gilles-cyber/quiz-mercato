@@ -7671,7 +7671,7 @@ async function renderHome(){
           <span style="display:inline-flex;color:${c}">${(typeof ic==='function'?ic(icn,16):'')}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
       }).join('')
     : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
-  renderTicker(moves, auctions);
+  renderTicker(moves, auctions, managers);
   renderChallenges();
   renderDailyChecklist(auctions);
   renderMarketTrends(auctions);
@@ -7936,23 +7936,38 @@ async function renderDailyChecklist(auctions){
 // Combine les enchères en cours (🔥) et les derniers mouvements (recrutements,
 // libérations, échanges) en une bande qui défile en boucle. Mise à jour par
 // renderHome et par le temps réel.
-function renderTicker(moves, auctions){
+function renderTicker(moves, auctions, managers){
   const bar = $('mercatoTicker'), track = $('tickerTrack');
   if(!bar || !track) return;
   const items = [];
+  const I = (n)=> (typeof ic==='function'?ic(n,13):'');
+  const it = (icn, html)=> `<span class="ticker-item"><span class="ticker-ic">${I(icn)}</span><span>${html}</span></span>`;
+  const now = Date.now();
+  const fmtLeft = (ms)=>{ const m=Math.max(0,Math.round(ms/60000)); if(m<60) return m+' min'; const h=Math.floor(m/60); return h<24?(h+' h'):(Math.floor(h/24)+' j'); };
 
-  // Enchères en cours (les plus chaudes d'abord)
-  (auctions||[])
-    .slice()
-    .sort((a,b)=> (b.interest||0)-(a.interest||0) || Number(b.current_price)-Number(a.current_price))
-    .slice(0, 8)
+  const aucs = (auctions||[]).slice();
+
+  // 1) Enchères qui FINISSENT BIENTÔT (urgence — en priorité).
+  aucs.filter(a=>a.ends_at)
+    .sort((a,b)=> new Date(a.ends_at)-new Date(b.ends_at))
+    .slice(0,3)
+    .forEach(a=>{
+      const left = new Date(a.ends_at)-now;
+      if(left>0 && left < 6*3600*1000){
+        items.push(it('clock', `⏳ <b>${a.player?.name||'Joueur'}</b> — fin dans <b>${fmtLeft(left)}</b> à ${fmtMoney(a.current_price)}`));
+      }
+    });
+
+  // 2) Enchères les plus chaudes (intérêt / prix).
+  aucs.sort((a,b)=> (b.interest||0)-(a.interest||0) || Number(b.current_price)-Number(a.current_price))
+    .slice(0, 7)
     .forEach(a=>{
       const nm = a.player?.name || 'Joueur';
       const intr = a.interest||0;
-      items.push(`<span class="ticker-item"><span class="ticker-ic">${(typeof ic==='function'?ic('flame',13):'')}</span><span>Enchère : <b>${nm}</b> à <b>${fmtMoney(a.current_price)}</b>${intr>0?` · ${intr} intéressé${intr>1?'s':''}`:''}</span></span>`);
+      items.push(it('flame', `Enchère : <b>${nm}</b> à <b>${fmtMoney(a.current_price)}</b>${intr>0?` · ${intr} intéressé${intr>1?'s':''}`:''}`));
     });
 
-  // Derniers mouvements
+  // 3) Derniers mouvements (achats / ventes / échanges / libérations).
   (moves||[]).forEach(m=>{
     const pname = m.player?.name || 'Un joueur';
     let icn, txt;
@@ -7960,8 +7975,33 @@ function renderTicker(moves, auctions){
     else if(m.to){ icn='trendingUp'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
     else if(m.from){ icn='trendingDown'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
     else { icn='dot'; txt=pname; }
-    items.push(`<span class="ticker-item"><span class="ticker-ic">${(typeof ic==='function'?ic(icn,13):'')}</span><span>${txt}</span></span>`);
+    items.push(it(icn, txt));
   });
+
+  // 4) Classement : le leader + le podium. (leaderboard exclut déjà admins/coachs)
+  const ranked = [...(managers||[])].sort((a,b)=> Number(b.season_points||0)-Number(a.season_points||0));
+  if(ranked.length){
+    const L = ranked[0];
+    items.push(it('trophy', `Leader : <b>${L.display_name}</b>${L.season_points!=null?` · ${L.season_points} pts`:''}`));
+    if(ranked.length>=3){
+      items.push(it('medalRank', `Podium : <b>${ranked[0].display_name}</b>, ${ranked[1].display_name}, ${ranked[2].display_name}`));
+    }
+  }
+
+  // 5) Agents libres réclamables (gratuits, périssables).
+  try {
+    const claimable = (FREE_AGENTS||[]).filter(a=>a.claimable);
+    if(claimable.length){
+      const names = claimable.slice(0,3).map(a=>a.name).join(', ');
+      items.push(it('gift', `🆓 <b>${claimable.length}</b> agent${claimable.length>1?'s':''} libre${claimable.length>1?'s':''} à réclamer : ${names}`));
+    }
+  } catch(e){}
+
+  // 6) Pouls du marché : nombre d'enchères ouvertes + total engagé.
+  if(aucs.length){
+    const totalPot = aucs.reduce((s,a)=> s + Number(a.current_price||0), 0);
+    items.push(it('zap', `Marché en direct : <b>${aucs.length}</b> enchère${aucs.length>1?'s':''} ouverte${aucs.length>1?'s':''} · ${fmtMoney(totalPot)} en jeu`));
+  }
 
   if(!items.length){
     bar.style.display = 'none';
