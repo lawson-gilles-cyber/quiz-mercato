@@ -2058,15 +2058,20 @@ function coachBlocked(){
 // Remplace confirm() natif par une modale stylée (renvoie une Promise<boolean>).
 function uxConfirm(message, {title='Confirmer', okText='Confirmer', danger=false}={}){
   return new Promise(resolve=>{
-    const ov = document.getElementById('uxOverlay');
-    const md = document.getElementById('uxModal');
+    // Si un modal est déjà ouvert (DM…), on s'empile sur le 2e overlay pour ne
+    // pas écraser son contenu ni hériter de ses gestionnaires de clic.
+    const primary = document.getElementById('uxOverlay');
+    const primaryOpen = primary && (primary.classList.contains('show') || getComputedStyle(primary).display!=='none');
+    const ov = document.getElementById(primaryOpen ? 'uxOverlay2' : 'uxOverlay');
+    const md = document.getElementById(primaryOpen ? 'uxModal2' : 'uxModal');
     md.innerHTML = `<h3>${title}</h3><p>${message}</p>
       <div class="ux-actions">
         <button class="ux-cancel" data-no>Annuler</button>
         <button class="ux-ok ${danger?'danger':''}" data-yes>${okText}</button>
       </div>`;
     ov.classList.add('show');
-    const close = (val)=>{ ov.classList.remove('show'); resolve(val); };
+    if(ov.id==='uxOverlay2') ov.style.display='flex';
+    const close = (val)=>{ ov.classList.remove('show'); if(ov.id==='uxOverlay2') ov.style.display='none'; resolve(val); };
     md.querySelector('[data-no]').onclick = ()=>close(false);
     md.querySelector('[data-yes]').onclick = ()=>close(true);
     ov.onclick = (e)=>{ if(e.target===ov) close(false); };
