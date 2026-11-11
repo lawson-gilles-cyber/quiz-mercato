@@ -1019,6 +1019,14 @@ export async function pronoBetScore(pronoId, home, away) {
 export async function adminResolveMatch(pronoId, home, away) {
   return sb.rpc('qm_admin_resolve_match', { p_prono_id: pronoId, p_home: home, p_away: away });
 }
+// Admin : import / résolution automatique via l'Edge Function sync-matches.
+// action = 'import' | 'resolve' ; competition = 'FL1'|'PL'|'PD'|'SA'|'BL1'.
+// matchday = numéro de journée du championnat (ex. 13), ou dateFrom/dateTo.
+export async function adminSyncMatches({ action, competition, matchdayId = null, matchday = null, dateFrom = null, dateTo = null }) {
+  return sb.functions.invoke('sync-matches', {
+    body: { action, competition, matchdayId, matchday, dateFrom, dateTo },
+  });
+}
 
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body) {
