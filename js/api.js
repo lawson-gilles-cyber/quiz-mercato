@@ -1085,6 +1085,22 @@ export async function chatSend(body, replyTo = null) {
 export async function chatReact(messageId, emoji) {
   return sb.rpc('qm_chat_react', { p_message: messageId, p_emoji: emoji || null });
 }
+export async function chatEdit(messageId, body) {
+  return sb.rpc('qm_chat_edit', { p_id: messageId, p_body: body });
+}
+// Indicateur de frappe du chat de ligue (canal realtime partagé).
+export function chatTypingChannel(myId, myName, onTyping) {
+  const ch = sb.channel('chat-typing', { config: { broadcast: { self: false } } });
+  ch.on('broadcast', { event: 'typing' }, (payload) => {
+    try { onTyping(payload?.payload || {}); } catch (e) {}
+  }).subscribe();
+  return {
+    send(isTyping) {
+      try { ch.send({ type: 'broadcast', event: 'typing', payload: { from: myId, name: myName, typing: !!isTyping } }); } catch (e) {}
+    },
+    close() { try { sb.removeChannel(ch); } catch (e) {} }
+  };
+}
 export async function chatRecent(limit = 60) {
   const { data } = await sb.rpc('qm_chat_recent', { p_limit: limit });
   return (data ?? []).reverse();  // du plus ancien au plus récent pour l'affichage

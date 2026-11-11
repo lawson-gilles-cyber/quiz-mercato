@@ -1592,6 +1592,7 @@
     <div id="chatUI" style="display:none">
       <div id="chatPinned" style="display:none;margin-bottom:12px"></div>
       <div id="chatMessages" style="height:min(55vh,460px);overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--pitch-2);margin-bottom:12px;display:flex;flex-direction:column;gap:8px"></div>
+      <div id="chatTyping" style="height:16px;font-size:.74rem;color:#4ade80;margin-bottom:4px;transition:opacity .2s;opacity:0"></div>
       <div id="chatReplyBanner" style="display:none;align-items:center;gap:8px;background:rgba(245,197,66,.08);border:1px solid var(--line);border-left:3px solid var(--transfer);border-radius:8px;padding:6px 10px;margin-bottom:6px;font-size:.78rem;color:var(--muted)">
         <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="chatReplyText"></span>
         <a href="#" id="chatReplyCancel" style="color:var(--muted);text-decoration:none">✕</a>
@@ -8766,9 +8767,49 @@ async function renderChat(){
       loadChatMessages(true);
     };
     $('chatSend').onclick = send;
-    $('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); send(); } });
+    $('chatInput').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); try{ CHAT_TYPING && CHAT_TYPING.send(false); }catch(_){} send(); } });
     const c = $('chatReplyCancel'); if(c) c.onclick = (e)=>{ e.preventDefault(); clearChatReply(); };
+    setupChatTyping();
   }
+}
+// --- Indicateur de frappe du chat de ligue ---
+let CHAT_TYPING = null;
+const CHAT_TYPERS = new Map();   // id -> {name, until}
+let chatTypingHideTimer = null;
+function renderChatTypers(){
+  const el = document.getElementById('chatTyping'); if(!el) return;
+  const now = Date.now();
+  // purge les expirés
+  for(const [id,v] of CHAT_TYPERS){ if(v.until < now) CHAT_TYPERS.delete(id); }
+  const names = [...CHAT_TYPERS.values()].map(v=>v.name).filter(Boolean);
+  if(!names.length){ el.style.opacity='0'; el.textContent=''; return; }
+  let txt;
+  if(names.length===1) txt = `${names[0]} écrit…`;
+  else if(names.length===2) txt = `${names[0]} et ${names[1]} écrivent…`;
+  else txt = `${names.length} managers écrivent…`;
+  el.textContent = txt; el.style.opacity='1';
+}
+function setupChatTyping(){
+  if(CHAT_TYPING || typeof ME==='undefined' || !ME || !ME.id) return;
+  try {
+    CHAT_TYPING = api.chatTypingChannel(ME.id, ME.display_name || ME.team_name || 'Un manager', (p)=>{
+      if(!p || p.from===ME.id) return;
+      if(p.typing){ CHAT_TYPERS.set(p.from, { name:p.name||'Un manager', until: Date.now()+4000 }); }
+      else { CHAT_TYPERS.delete(p.from); }
+      renderChatTypers();
+      clearTimeout(chatTypingHideTimer);
+      chatTypingHideTimer = setTimeout(renderChatTypers, 4200);
+    });
+  } catch(e){ CHAT_TYPING = null; }
+  // Diffuse MA frappe (throttle), et signale l'arrêt après une pause.
+  let lastSent = 0, stopTimer = null;
+  const inp = $('chatInput');
+  if(inp) inp.addEventListener('input', ()=>{
+    const now = Date.now();
+    if(now - lastSent > 1500){ lastSent = now; try{ CHAT_TYPING && CHAT_TYPING.send(true); }catch(_){} }
+    clearTimeout(stopTimer);
+    stopTimer = setTimeout(()=>{ try{ CHAT_TYPING && CHAT_TYPING.send(false); }catch(_){} }, 2500);
+  });
 }
 // --- État « répondre à » du chat de ligue (façon WhatsApp) ---
 let CHAT_REPLY_TO = null;
@@ -8825,14 +8866,21 @@ async function loadChatMessages(keepScroll){
       ? ` <span style="color:var(--transfer);font-size:.68rem;display:inline-flex;align-items:center;gap:3px">${I('gear',11)} ADMIN</span>`
       : (m.is_coach ? ` <span title="Coach${m.coach_team?' de '+m.coach_team:''}" style="color:#5a96ff;font-size:.66rem;font-weight:700;display:inline-flex;align-items:center;gap:3px">${I('cap',11)} COACH${m.coach_team?' ('+String(m.coach_team).replace(/[<>]/g,'')+')':''}</span>` : '');
     const name = (m.is_admin ? m.author : authorClickable) + roleBadge;
-    const canDel = m.is_mine || isAdmin;
-    const del = canDel ? ` <a href="#" data-chatdel="${m.id}" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
-    // Épingler : réservé à l'admin.
-    const pin = isAdmin ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none;vertical-align:-.1em">${I('pin',13)}</a>` : '';
-    // Répondre : disponible pour tous.
-    const reply = ` <a href="#" data-chatreply="${m.id}" data-author="${String(m.author).replace(/"/g,'&quot;').replace(/<[^>]*>/g,'')}" data-body="${m.body.replace(/"/g,'&quot;').replace(/</g,'&lt;')}" title="Répondre" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">↩︎</a>`;
-    // Réagir : ouvre un sélecteur d'emoji.
-    const reactBtn = ` <a href="#" data-chatreact="${m.id}" title="Réagir" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">☺</a>`;
+    const isDeleted = !!m.deleted;
+    // Supprimer (pour tous) : mes messages, ou admin (modération). Pas sur un message déjà supprimé.
+    const canDel = (m.is_mine || isAdmin) && !isDeleted;
+    const del = canDel ? ` <a href="#" data-chatdel="${m.id}" title="Supprimer pour tous" style="color:var(--muted);font-size:.72rem;text-decoration:none">✕</a>` : '';
+    // Épingler : réservé à l'admin (pas sur un message supprimé).
+    const pin = (isAdmin && !isDeleted) ? ` <a href="#" data-chatpin="${m.id}" data-on="${m.pinned?0:1}" title="${m.pinned?'Désépingler':'Épingler ce message'}" style="color:${m.pinned?'var(--transfer)':'var(--muted)'};font-size:.72rem;text-decoration:none;vertical-align:-.1em">${I('pin',13)}</a>` : '';
+    // Répondre : disponible pour tous (pas sur un message supprimé).
+    const reply = isDeleted ? '' : ` <a href="#" data-chatreply="${m.id}" data-author="${String(m.author).replace(/"/g,'&quot;').replace(/<[^>]*>/g,'')}" data-body="${m.body.replace(/"/g,'&quot;').replace(/</g,'&lt;')}" title="Répondre" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">↩︎</a>`;
+    // Réagir : ouvre un sélecteur d'emoji (pas sur un message supprimé).
+    const reactBtn = isDeleted ? '' : ` <a href="#" data-chatreact="${m.id}" title="Réagir" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">☺</a>`;
+    // Éditer : mes messages, dans les 15 min (pas sur un message supprimé).
+    const editable = !isDeleted && m.is_mine && m.created_at && (Date.now() - new Date(m.created_at).getTime() < 15*60*1000);
+    const editBtn = editable ? ` <a href="#" data-chatedit="${m.id}" data-body="${m.body.replace(/"/g,'&quot;').replace(/</g,'&lt;')}" title="Modifier (15 min)" style="color:var(--muted);font-size:.72rem;text-decoration:none;vertical-align:-.1em">✎</a>` : '';
+    // Marqueur « modifié » (jamais sur un message supprimé).
+    const editedTag = (m.edited_at && !isDeleted) ? ` <span style="font-size:.66rem;color:var(--muted);font-style:italic">(modifié)</span>` : '';
     // Pastilles de réactions existantes (cliquables = toggle de la mienne).
     const rx = (m.reactions && typeof m.reactions==='object') ? m.reactions : {};
     const rxKeys = Object.keys(rx);
@@ -8846,10 +8894,10 @@ async function loadChatMessages(keepScroll){
       ? `<div data-chatgoto="${m.reply_to}" title="Aller au message d'origine" style="cursor:pointer;border-left:3px solid var(--transfer);padding:2px 8px;margin-bottom:4px;background:rgba(255,255,255,.04);border-radius:4px;font-size:.76rem;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><b style="color:var(--chalk)">${(m.reply_author||'—')}</b> : ${String(m.reply_body).replace(/</g,'&lt;').slice(0,90)}</div>`
       : '';
     return `<div data-chatmsg="${m.id}" style="${m.is_mine?'align-self:flex-end;text-align:right;max-width:85%':'max-width:85%'};scroll-margin-top:12px;border-radius:12px;transition:background .3s">
-      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${reply}${reactBtn}${pin}${del}</div>
+      <div style="font-size:.72rem;color:var(--muted)"><b style="color:${col}">${name}</b> · ${t}${editedTag}${reply}${reactBtn}${editBtn}${pin}${del}</div>
       ${quote}
-      <div style="display:inline-block;background:${m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)'};border:1px solid var(--line);border-radius:12px;padding:7px 11px;font-size:.9rem;color:var(--chalk);margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
-      ${reactPills}
+      <div data-chatbubble="${m.id}" style="display:inline-block;background:${isDeleted?'transparent':(m.is_mine?'rgba(245,197,66,.14)':'var(--pitch)')};border:1px solid ${isDeleted?'transparent':'var(--line)'};border-radius:12px;padding:7px 11px;font-size:.9rem;color:${isDeleted?'var(--muted)':'var(--chalk)'};${isDeleted?'font-style:italic;':''}margin-top:2px;word-break:break-word">${m.body.replace(/</g,'&lt;')}</div>
+      ${isDeleted?'':reactPills}
     </div>`;
   }).join('') : '<div class="hint" style="margin:auto;text-align:center">Aucun message. Lance la conversation !</div>';
   // Suppression
@@ -8886,6 +8934,29 @@ async function loadChatMessages(keepScroll){
   box.querySelectorAll('[data-chatreact]').forEach(a=>a.onclick=(ev)=>{
     ev.preventDefault();
     openChatReactionPicker(a.dataset.chatreact, ev.currentTarget, msgs);
+  });
+  // Éditer mon message (fenêtre 15 min) — édition inline dans la bulle
+  box.querySelectorAll('[data-chatedit]').forEach(a=>a.onclick=(ev)=>{
+    ev.preventDefault();
+    const id = a.dataset.chatedit;
+    const bubble = box.querySelector(`[data-chatbubble="${id}"]`);
+    if(!bubble) return;
+    const current = a.dataset.body.replace(/&lt;/g,'<').replace(/&quot;/g,'"');
+    if(bubble.querySelector('input')) return; // déjà en édition
+    bubble.innerHTML = `<input type="text" value="${current.replace(/"/g,'&quot;')}" maxlength="500" style="width:220px;max-width:60vw;padding:4px 6px;font-size:.88rem">
+      <a href="#" data-editok="${id}" style="margin-left:6px;color:var(--transfer);text-decoration:none;font-size:.8rem">✓</a>
+      <a href="#" data-editno style="margin-left:4px;color:var(--muted);text-decoration:none;font-size:.8rem">✕</a>`;
+    const inp = bubble.querySelector('input'); inp.focus(); inp.setSelectionRange(current.length,current.length);
+    const save = async ()=>{
+      const val = (inp.value||'').trim();
+      if(!val){ loadChatMessages(true); return; }
+      const { error } = await api.chatEdit(id, val);
+      if(error) toast(error.message,'err',4000);
+      loadChatMessages(true);
+    };
+    bubble.querySelector('[data-editok]').onclick = (e)=>{ e.preventDefault(); save(); };
+    bubble.querySelector('[data-editno]').onclick = (e)=>{ e.preventDefault(); loadChatMessages(true); };
+    inp.addEventListener('keydown', e=>{ if(e.key==='Enter'){e.preventDefault();save();} if(e.key==='Escape'){loadChatMessages(true);} });
   });
   // Cliquer une pastille existante = toggle de ma réaction
   box.querySelectorAll('[data-chatrx]').forEach(s=>s.onclick=async()=>{
