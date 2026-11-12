@@ -220,6 +220,23 @@
   .sec-res:hover,.sec-res[data-first]{background:rgba(245,197,66,.08)}
   .sec-res-tab{flex:0 0 auto;font-size:.72rem;color:var(--muted)}
   .sec-res-empty{padding:12px 14px;color:var(--muted);font-size:.85rem}
+  /* Accès rapides épinglés */
+  #secPins{padding:6px 0 2px}
+  .pin-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pin-label{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+  .pin-chip{background:var(--pitch-2,#101d38);border:1px solid var(--line);color:var(--chalk);
+    border-radius:20px;padding:5px 12px;font-size:.8rem;cursor:pointer;white-space:nowrap}
+  .pin-chip:hover{border-color:var(--transfer);color:var(--transfer)}
+  .pin-empty{font-size:.78rem;color:var(--muted)}
+  .pin-edit{margin-left:auto;background:none;border:1px solid var(--line);color:var(--muted);
+    border-radius:8px;width:30px;height:28px;cursor:pointer;font-size:.9rem;flex:0 0 auto}
+  .pin-edit:hover{color:var(--chalk);border-color:var(--transfer)}
+  #pinEditor{margin-top:8px;background:var(--pitch-2,#101d38);border:1px solid var(--line);border-radius:10px;padding:12px;max-height:340px;overflow:auto}
+  .pin-ed-head{font-size:.8rem;font-weight:700;color:var(--chalk);margin-bottom:8px}
+  .pin-ed-grp{margin-bottom:10px}
+  .pin-ed-grp-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
+  .pin-ed-item{display:block;font-size:.84rem;padding:3px 0;cursor:pointer;color:var(--chalk)}
+  .pin-ed-item input{margin-right:7px;vertical-align:-.05em}
 
   /* ---------- Sections repliables ---------- */
   details.sec{margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);overflow:hidden}
@@ -1674,6 +1691,59 @@ function makeSectionsCollapsible(){
   });
   // Ferme les résultats si on clique ailleurs.
   document.addEventListener('click', e=>{ if(!searchWrap.contains(e.target)){ sRes.style.display='none'; } });
+
+  // --- Accès rapides épinglés (au-dessus de la recherche) ---
+  // Set par défaut : les sections les plus utilisées au quotidien.
+  const PIN_DEFAULT = ['Validation du marché','Notes des joueurs — par journée','Journées & Compositions','Blessures à valider','Pronostics — matchs','Sondages de ligue'];
+  const PIN_KEY = 'us_admin_pins';
+  function loadPins(){
+    try { const v = JSON.parse(localStorage.getItem(PIN_KEY)||'null'); if(Array.isArray(v)) return v; } catch(e){}
+    return PIN_DEFAULT.slice();
+  }
+  function savePins(arr){ try { localStorage.setItem(PIN_KEY, JSON.stringify(arr)); } catch(e){} }
+  // Résout un titre épinglé vers son entrée d'index (match souple).
+  function pinEntry(title){
+    const n = norm(title);
+    return SEC_INDEX.find(s=>norm(s.title)===n) || SEC_INDEX.find(s=>norm(s.title).startsWith(n));
+  }
+  const pinWrap = document.createElement('div');
+  pinWrap.id = 'secPins';
+  pinWrap.innerHTML = `<div class="pin-row"><span class="pin-label">Accès rapides</span><span id="pinChips"></span><button class="pin-edit" id="pinEditBtn" title="Gérer les accès rapides">⚙︎</button></div><div id="pinEditor" style="display:none"></div>`;
+  main.insertBefore(pinWrap, searchWrap);
+  function renderPins(){
+    const pins = loadPins();
+    const chips = pins.map(title=>{
+      const e = pinEntry(title); if(!e) return '';
+      return `<button class="pin-chip" data-id="${e.id}" data-tab="${e.tab}" title="${e.title}">⭐ ${e.title}</button>`;
+    }).filter(Boolean).join('');
+    const box = pinWrap.querySelector('#pinChips');
+    box.innerHTML = chips || '<span class="pin-empty">Aucun raccourci — clique ⚙︎ pour en ajouter.</span>';
+    box.querySelectorAll('.pin-chip').forEach(b=>b.onclick=()=>gotoSection(b.dataset.id, b.dataset.tab));
+  }
+  pinWrap.querySelector('#pinEditBtn').onclick = togglePinEditor;
+  function togglePinEditor(){
+    const ed = pinWrap.querySelector('#pinEditor'); if(!ed) return;
+    if(ed.style.display!=='none'){ ed.style.display='none'; return; }
+    const pins = loadPins();
+    // Liste toutes les sections, groupées par onglet, avec case épinglé.
+    ed.innerHTML = `<div class="pin-ed-head">Choisis les sections à épingler</div>` +
+      ADMIN_TABS.map(t=>{
+        const secs = SEC_INDEX.filter(s=>s.tab===t.id);
+        if(!secs.length) return '';
+        return `<div class="pin-ed-grp"><div class="pin-ed-grp-h">${t.label}</div>${
+          secs.map(s=>`<label class="pin-ed-item"><input type="checkbox" data-pin="${s.title.replace(/"/g,'&quot;')}" ${pins.some(p=>norm(p)===norm(s.title))?'checked':''}> ${s.title}</label>`).join('')
+        }</div>`;
+      }).join('');
+    ed.style.display='block';
+    ed.querySelectorAll('input[data-pin]').forEach(cb=>cb.onchange=()=>{
+      let cur = loadPins();
+      const title = cb.getAttribute('data-pin');
+      if(cb.checked){ if(!cur.some(p=>norm(p)===norm(title))) cur.push(title); }
+      else { cur = cur.filter(p=>norm(p)!==norm(title)); }
+      savePins(cur); renderPins();   // met à jour les chips ; l'éditeur reste ouvert
+    });
+  }
+  renderPins();
 }
 if($('btnHealthcheck')) $('btnHealthcheck').onclick = ()=>loadHealthcheck();
 
