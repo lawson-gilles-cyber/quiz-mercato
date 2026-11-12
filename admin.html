@@ -4408,7 +4408,8 @@ async function loadRanking(){
   $('rankAdminBody').innerHTML = rows.map((m,i)=>`
     <tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
       <td style="font-weight:700;${i<3?`color:${['var(--transfer)','#c9d2e3','#cd8b4e'][i]}`:''}">${i<3?['🥇','🥈','🥉'][i]:(i+1)}</td>
-      <td><b>${m.display_name}</b> <span style="color:var(--muted);font-size:.75rem">▸ effectif</span></td>
+      <td><b>${m.display_name}</b> <span style="color:var(--muted);font-size:.75rem">▸ effectif</span>
+        <a href="#" data-exclude="${m.id}" title="Retirer du classement (compte de test)" style="margin-left:6px;color:var(--muted);font-size:.72rem;text-decoration:none">✕ exclure</a></td>
       <td style="color:var(--muted)">${m.team_name||'—'}</td>
       <td class="val">${m.season_points}</td>
       <td>${m.count} / 21</td>
@@ -4458,6 +4459,47 @@ async function loadRanking(){
       toast(`${pname} éjecté du jeu.`,'ok');
       loadRanking(); loadPlayers();
     });
+  });
+
+  // Bouton « exclure » par ligne (compte de test → retiré du classement)
+  $('rankAdminBody').querySelectorAll('[data-exclude]').forEach(a=>a.onclick=async(ev)=>{
+    ev.preventDefault(); ev.stopPropagation();
+    const id = a.dataset.exclude;
+    if(!confirm('Retirer ce manager du classement (compte de test) ?\n\nIl disparaîtra du classement côté joueurs et admin. Réversible.')) return;
+    const { error } = await api.adminSetExcluded(id, true);
+    if(error) return toast(error.message,'err',4000);
+    toast('Manager retiré du classement.','ok');
+    loadRanking();
+  });
+
+  // Encart des managers exclus (pour les réinclure)
+  await renderExcludedPanel();
+}
+
+async function renderExcludedPanel(){
+  let box = $('excludedPanel');
+  if(!box){
+    const anchor = $('rankAdminBody'); if(!anchor) return;
+    const tbl = anchor.closest('table');
+    box = document.createElement('div'); box.id='excludedPanel'; box.style.marginTop='14px';
+    if(tbl && tbl.parentNode) tbl.parentNode.appendChild(box); else return;
+  }
+  let list = [];
+  try { list = await api.adminExcludedList(); } catch(e){ box.innerHTML=''; return; }
+  if(!list.length){ box.innerHTML=''; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  box.innerHTML = `<div style="border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--pitch-2)">
+    <div style="font-size:.8rem;font-weight:700;margin-bottom:8px">Managers exclus du classement <span class="hint" style="font-weight:400">(comptes de test)</span></div>
+    ${list.map(m=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:.85rem;padding:4px 0">
+        <span>${esc(m.display_name)} <span class="hint">· ${esc(m.team_name||'—')}</span></span>
+        <button class="btn-ghost btn-sm" data-reinclude="${m.id}">Réinclure</button>
+      </div>`).join('')}
+  </div>`;
+  box.querySelectorAll('[data-reinclude]').forEach(b=>b.onclick=async()=>{
+    const { error } = await api.adminSetExcluded(b.dataset.reinclude, false);
+    if(error) return toast(error.message,'err',4000);
+    toast('Manager réintégré au classement.','ok');
+    loadRanking();
   });
 }
 

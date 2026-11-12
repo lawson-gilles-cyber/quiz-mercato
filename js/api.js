@@ -386,6 +386,14 @@ export async function rankingWithTrend() {
   const { data } = await sb.rpc('qm_ranking_with_trend');
   return data ?? [];
 }
+// Exclure / réinclure un manager du classement (comptes de test).
+export async function adminSetExcluded(managerId, excluded) {
+  return sb.rpc('qm_admin_set_excluded', { p_manager: managerId, p_excluded: excluded });
+}
+export async function adminExcludedList() {
+  const { data } = await sb.rpc('qm_admin_excluded_list');
+  return data ?? [];
+}
 // Classement complet en un seul appel (points, trend, dernière journée,
 // meilleure journée, régularité, valeur d'effectif, budget, division).
 export async function rankingFull() {
