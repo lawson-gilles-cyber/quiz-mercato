@@ -211,15 +211,15 @@ export async function searchPlayersByName(q, limit = 8) {
 export async function leaderboard() {
   // division_id peut ne pas encore exister (script 80 non passé) : on retente sans.
   let { data, error } = await sb.from('qm_managers')
-    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, coach_of, division_id')
+    .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, is_coach, coach_of, division_id')
     .order('season_points', { ascending: false });
   if (error) {
     ({ data } = await sb.from('qm_managers')
-      .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, coach_of')
+      .select('id, display_name, team_name, color_primary, color_secondary, season_points, budget, budget_locked, is_admin, is_coach, coach_of')
       .order('season_points', { ascending: false }));
   }
-  // Seuls les compétiteurs : on exclut les admins et les coachs (pas d'effectif propre).
-  return (data ?? []).filter(m => !m.is_admin && !m.coach_of);
+  // Seuls les compétiteurs : on exclut admins et coachs (liés OU marqués is_coach).
+  return (data ?? []).filter(m => !m.is_admin && !m.is_coach && !m.coach_of);
 }
 
 export async function transferHistory(playerId) {

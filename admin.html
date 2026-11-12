@@ -4364,17 +4364,26 @@ if($('btnPromoRelegate')) $('btnPromoRelegate').onclick = async ()=>{
 
 async function loadRanking(){
   if(!$('rankAdminBody')) return;
-  const managers = await api.leaderboard();  // déjà filtré (hors admin/coach)
-  if(!managers.length){
-    $('rankAdminBody').innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucun manager inscrit.</td></tr>';
+  // On s'appuie sur qm_ranking_full : même source que le classement joueur,
+  // filtré côté serveur (hors admin, coach, et comptes fantômes jamais activés).
+  let rows = [];
+  try {
+    const full = await api.rankingFull();
+    rows = (full||[]).map(m=>({
+      id: m.manager_id || m.id,
+      display_name: m.display_name,
+      team_name: m.team_name,
+      season_points: m.season_points,
+      count: m.team_count,
+      // qm_ranking_full fournit budget_available déjà net : on neutralise le calcul aval.
+      budget: m.budget_available, budget_locked: 0,
+    }));
+  } catch(e){ rows = []; }
+  if(!rows.length){
+    $('rankAdminBody').innerHTML = '<tr><td colspan="6" class="hint" style="text-align:center;padding:20px">Aucun manager classé.</td></tr>';
+    const pod = $('rankPodium'); if(pod) pod.innerHTML='';
     return;
   }
-  // Effectif de chaque manager (compte + valeur)
-  const rows = await Promise.all(managers.map(async m=>{
-    let count = 0;
-    try { const team = await api.myTeam(m.id); count = team.length; } catch(e){}
-    return {...m, count};
-  }));
   // --- Podium top 3 ---
   const pod = $('rankPodium');
   if(pod){
