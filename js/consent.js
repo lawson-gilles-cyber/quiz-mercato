@@ -77,8 +77,8 @@
     if (document.getElementById('us-consent-banner')) return;
     var bar = el('div', [
       'position:fixed', 'left:0', 'right:0', 'bottom:0', 'z-index:99999',
-      'background:#0f1d38', 'color:#eef3ea', 'border-top:1px solid #1c3358',
-      'box-shadow:0 -8px 24px rgba(0,0,0,.35)', 'padding:16px',
+      'background:#1b212c', 'color:#e8ecf2', 'border-top:1px solid rgba(255,255,255,.07)',
+      'box-shadow:0 -12px 34px rgba(0,0,0,.40)', 'padding:16px',
       'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif', 'font-size:14px'
     ].join(';'));
     bar.id = 'us-consent-banner';
@@ -92,9 +92,9 @@
     function mkBtn(label, primary) {
       return el('button', [
         'cursor:pointer', 'border-radius:8px', 'padding:9px 16px', 'font-weight:700', 'font-size:14px',
-        'border:1px solid ' + (primary ? '#f5c542' : '#1c3358'),
+        'border:1px solid ' + (primary ? '#f5c542' : 'rgba(255,255,255,.12)'),
         'background:' + (primary ? '#f5c542' : 'transparent'),
-        'color:' + (primary ? '#0a1428' : '#eef3ea')
+        'color:' + (primary ? '#141821' : '#e8ecf2')
       ].join(';'), label);
     }
     var bAll = mkBtn('Tout accepter', true);
@@ -120,7 +120,7 @@
       'font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif'
     ].join(';'));
     ov.id = 'us-consent-prefs';
-    var card = el('div', 'max-width:460px;width:100%;background:#0f1d38;border:1px solid #1c3358;border-radius:14px;padding:20px;color:#eef3ea');
+    var card = el('div', 'max-width:460px;width:100%;background:#1b212c;border:1px solid rgba(255,255,255,.07);border-radius:18px;padding:20px;color:#e8ecf2;box-shadow:0 12px 34px rgba(0,0,0,.40)');
     card.innerHTML =
       '<h3 style="margin:0 0 10px;font-size:1.1rem">Préférences de cookies</h3>' +
       '<div style="display:flex;gap:10px;align-items:flex-start;margin:14px 0;opacity:.8">' +
@@ -133,7 +133,7 @@
         'Cookies publicitaires pour financer le jeu et personnaliser les annonces.</span></div></div>' +
       '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px">' +
         '<button id="us-c-save" style="cursor:pointer;border-radius:8px;padding:9px 16px;font-weight:700;' +
-        'border:1px solid #f5c542;background:#f5c542;color:#0a1428">Enregistrer</button></div>';
+        'border:1px solid #f5c542;background:#f5c542;color:#141821">Enregistrer</button></div>';
     ov.appendChild(card);
     document.body.appendChild(ov);
     document.getElementById('us-c-save').onclick = function () {

@@ -8,7 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <!-- PWA : installation sur écran d'accueil Android / iPhone -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0a1428">
+<meta name="theme-color" content="#141821">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -16,14 +16,15 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;600;700;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600;700&family=Archivo:wght@400;600;700;900&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --pitch:#0a1428;--pitch-2:#0f1d38;--line:#1c3358;--chalk:#eef3ea;
-    --muted:#8095b5;--transfer:#f5c542;--gold-bright:#ffd76a;--live:#ff5a4d;--ok:#4ade80;--r:12px;
-    --r-lg:16px;
-    --shadow-1:0 1px 2px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.18);
-    --shadow-2:0 8px 24px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.20);
+    /* Direction « cartes flottantes » — alignée sur index.html (accent or conservé) */
+    --bg:#141821;--pitch:#1b212c;--pitch-2:#232a37;--card:#1b212c;--card2:#232a37;--line:rgba(255,255,255,.07);--chalk:#e8ecf2;
+    --muted:#7b879b;--transfer:#f5c542;--gold-bright:#ffd76a;--live:#ff5a4d;--ok:#4ade80;--r:18px;
+    --r-lg:22px;
+    --shadow-1:0 6px 20px rgba(0,0,0,.25);
+    --shadow-2:0 12px 34px rgba(0,0,0,.40);
     --ring:0 0 0 3px rgba(245,197,66,.35);
   }
 
@@ -72,8 +73,8 @@
   .rk-sub{font-size:.72rem;color:var(--muted);margin-top:4px}
   @media(max-width:520px){ .rk-podium{grid-template-columns:1fr;gap:8px} .rk-step{text-align:left;display:flex;align-items:center;gap:10px} .rk-step>*{margin-top:0!important} .rk-pts{margin-left:auto} }
   *{box-sizing:border-box;margin:0;padding:0}
-  body{background:linear-gradient(180deg,#0a1428,#0c1730 50%,#081020);color:var(--chalk);font-family:'Archivo',system-ui,sans-serif;
-    min-height:100vh;line-height:1.45;background-attachment:fixed}
+  body{background:var(--bg,#141821);color:var(--chalk);font-family:'Space Grotesk','Archivo',system-ui,sans-serif;
+    min-height:100vh;line-height:1.5;background-attachment:fixed}
   header{display:flex;align-items:center;gap:14px;padding:16px 22px;border-bottom:1px solid var(--line)}
   /* Barre de recherche unifiée (admin) */
   .us-search{width:100%;appearance:none;-webkit-appearance:none;background-color:var(--pitch);
@@ -109,7 +110,7 @@
   main{max-width:1100px;margin:0 auto;padding:28px 22px 80px}
   h2{font-family:'Archivo';font-weight:900;font-size:1.4rem;margin:28px 0 14px;letter-spacing:-.4px}
   h2:first-child{margin-top:0}
-  .card{background:linear-gradient(165deg,#122240,#0d1a33);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;margin-bottom:20px;box-shadow:var(--shadow-1)}
+  .card{background:var(--pitch);border:1px solid var(--line);border-radius:var(--r-lg);padding:20px;margin-bottom:20px;box-shadow:var(--shadow-1)}
   a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;box-shadow:var(--ring)}
 
   /* Formulaires */

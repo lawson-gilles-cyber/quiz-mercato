@@ -6,7 +6,7 @@
 <title>Ultimate Squad</title>
 <!-- PWA : installation sur écran d'accueil Android / iPhone -->
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0a1428">
+<meta name="theme-color" content="#141821">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,26 +14,32 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
-    --pitch:#0a1428;        /* bleu nuit stade profond */
-    --pitch-2:#0f1d38;
-    --line:#1c3358;         /* lignes bleutées */
-    --chalk:#eef3ea;        /* blanc craie */
-    --muted:#8095b5;
+    /* === Direction « cartes flottantes » ===========================
+       Fond sombre doux et UNI (plus de bleu-nuit saturé ni de dégradés),
+       surfaces de cartes légèrement plus claires qui « flottent » grâce à
+       des ombres portées douces, coins bien arrondis, filets presque
+       invisibles. L'OR reste l'accent (ADN de la marque). */
+    --bg:#141821;           /* fond global, uni */
+    --pitch:#1b212c;        /* surface de carte (ex-« stade ») */
+    --pitch-2:#232a37;      /* surface surélevée / active */
+    --line:rgba(255,255,255,.07);  /* filets très discrets */
+    --chalk:#e8ecf2;        /* texte principal */
+    --muted:#7b879b;        /* texte secondaire */
     --transfer:#f5c542;     /* or transfert (accent) */
     --transfer-deep:#d4a017;
     --gold-bright:#ffd76a;  /* or clair pour reflets */
     --live:#ff5a4d;         /* rouge "en direct" */
     /* rareté */
     --bronze:#b4763e; --silver:#c7cdd4; --gold:#e6b422; --plat:#5fd0e0; --legend:#c77dff;
-    --r:14px;
+    --r:18px;
     /* Rafraîchissement visuel : profondeur + états */
-    --r-lg:20px;
-    --shadow-1:0 1px 2px rgba(0,0,0,.25), 0 2px 8px rgba(0,0,0,.18);
-    --shadow-2:0 8px 24px rgba(0,0,0,.30), 0 2px 6px rgba(0,0,0,.20);
-    --shadow-gold:0 8px 28px rgba(245,197,66,.16);
+    --r-lg:22px;
+    --shadow-1:0 6px 20px rgba(0,0,0,.25);
+    --shadow-2:0 12px 34px rgba(0,0,0,.40);
+    --shadow-gold:0 10px 30px rgba(245,197,66,.14);
     --success:#4ade80; --warn:#fb923c;
     --ring:0 0 0 3px rgba(245,197,66,.35);
   }
@@ -44,15 +50,12 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{
-    background:
-      radial-gradient(ellipse at 50% -5%, rgba(245,197,66,.10), transparent 45%),
-      radial-gradient(circle at 85% 15%, rgba(120,160,220,.08), transparent 40%),
-      radial-gradient(circle at 10% 40%, rgba(120,160,220,.06), transparent 45%),
-      linear-gradient(180deg, #0a1428 0%, #0c1730 50%, #081020 100%);
+    /* Direction « cartes flottantes » : fond sombre doux et uni (zéro dégradé). */
+    background: var(--bg, #141821);
     background-attachment:fixed;
     color:var(--chalk);
-    font-family:'Archivo',system-ui,sans-serif;
-    min-height:100vh; line-height:1.45;
+    font-family:'Space Grotesk','Archivo',system-ui,sans-serif;
+    min-height:100vh; line-height:1.5;
   }
   /* ---------- Mode clair (surfaces claires, accents or/bleu conservés) ----- */
   html[data-theme="light"] body{
@@ -280,7 +283,7 @@
     display:flex;align-items:center;gap:18px;
     padding:14px 22px;border-bottom:1px solid var(--line);
     position:sticky;top:0;z-index:20;min-height:64px;box-sizing:border-box;
-    background:rgba(10,20,40,.92);backdrop-filter:blur(8px);
+    background:rgba(20,24,33,.88);backdrop-filter:blur(10px);
     flex-wrap:wrap;overflow:visible;  /* filet anti-chevauchement + logo jamais rogné */
   }
   .logo{flex:0 0 auto;align-self:center;
@@ -662,8 +665,8 @@
     position:relative;overflow:hidden;
     border:1px solid var(--line);border-radius:var(--r-lg);padding:28px;margin-bottom:26px;
     background:
-      radial-gradient(130% 100% at 0% 0%, rgba(245,197,66,.07), transparent 55%),
-      linear-gradient(120deg,#12213f,#0a1428);
+      radial-gradient(130% 100% at 0% 0%, rgba(245,197,66,.06), transparent 55%),
+      var(--pitch-2);
     box-shadow:var(--shadow-2);
     display:grid;grid-template-columns:1.4fr 1fr;gap:24px;
   }
@@ -692,15 +695,15 @@
 
   .newsgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
   .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0}
-  .pillar{background:linear-gradient(160deg,rgba(245,197,66,.06),rgba(15,29,56,.4));border:1px solid var(--line);border-radius:14px;padding:18px 16px;text-align:center;transition:.2s}
+  .pillar{background:var(--pitch);border:1px solid var(--line);border-radius:var(--r);padding:18px 16px;text-align:center;transition:.2s;box-shadow:var(--shadow-1)}
   .pillar:hover{border-color:var(--transfer-deep);transform:translateY(-2px)}
   .pillar-ic{width:46px;height:46px;margin:0 auto 10px}
   .pillar-ic svg{width:100%;height:100%}
   .pillar-t{font-family:'Anton','Saira Condensed';font-size:1.05rem;text-transform:uppercase;letter-spacing:.5px;color:var(--transfer);margin-bottom:4px}
   .pillar-d{font-size:.78rem;color:var(--muted);line-height:1.35}
   @media(max-width:640px){.pillars{grid-template-columns:1fr;gap:10px}.pillar{display:flex;align-items:center;gap:14px;text-align:left;padding:12px 16px}.pillar-ic{margin:0;width:38px;height:38px;flex-shrink:0}}
-  .news{border:1px solid var(--line);border-radius:16px;padding:17px;
-    background:linear-gradient(165deg,#122240,#0d1a33);box-shadow:var(--shadow-1);
+  .news{border:1px solid var(--line);border-radius:var(--r);padding:17px;
+    background:var(--pitch);box-shadow:var(--shadow-1);
     transition:transform .2s, box-shadow .2s, border-color .2s}
   .news:hover{transform:translateY(-3px);border-color:rgba(245,197,66,.4);box-shadow:var(--shadow-2)}
   html[data-theme="light"] .news{background:linear-gradient(165deg,#ffffff,#f1f5fb)}
@@ -721,7 +724,7 @@
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
   .card{
     position:relative;border:1px solid var(--line);border-radius:var(--r-lg);
-    background:linear-gradient(165deg,#122240,#0d1a33);overflow:hidden;box-shadow:var(--shadow-1);
+    background:var(--pitch);overflow:hidden;box-shadow:var(--shadow-1);
     transition:transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s, border-color .2s;
   }
   html[data-theme="light"] .card{background:linear-gradient(165deg,#ffffff,#f1f5fb)}
@@ -866,7 +869,7 @@
   .col.ended .col-head h3{color:var(--muted)}
   .col.transferred .col-head h3{color:var(--transfer)}
 
-  .acard{background:linear-gradient(180deg,var(--pitch-2,#101d38),var(--pitch));border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:12px;transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
+  .acard{background:var(--pitch);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;margin-bottom:12px;box-shadow:var(--shadow-1);transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease}
   .acard:hover{border-color:var(--transfer);transform:translateY(-2px);box-shadow:0 8px 22px rgba(0,0,0,.28)}
   /* Avec photo : grand visuel. Sans photo : bandeau compact (pas de grand vide). */
   .acard .photo{height:132px;background:radial-gradient(120% 100% at 50% 0%,#1a2f52,#0a1428);
