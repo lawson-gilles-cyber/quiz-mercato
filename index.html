@@ -7749,9 +7749,18 @@ setInterval(()=>{
 
 // ---------- Page d'accueil dynamique ----------
 async function renderHome(){
-  const [auctions, managers, moves] = await Promise.all([
-    api.listOpenAuctions(), api.leaderboard(), api.recentTransfers(5)
+  const [auctions, rankRows, moves] = await Promise.all([
+    api.listOpenAuctions(), api.rankingFull(), api.recentTransfers(5)
   ]);
+  // Classement du ticker + compteur « managers en lice » : on utilise
+  // rankingFull() (même source que la page Classement : coachs, comptes
+  // fantômes et comptes exclus déjà écartés), normalisé au format attendu.
+  const managers = (Array.isArray(rankRows) ? rankRows : []).map(m => ({
+    id: m.manager_id || m.id,
+    display_name: m.display_name,
+    team_name: m.team_name,
+    season_points: m.season_points,
+  }));
   // Statut marché
   let marketOpen = true;
   try { marketOpen = await api.marketIsOpen(); } catch(e){}
@@ -8088,7 +8097,27 @@ async function loadFootTicker(force){
   try {
     const bar = $('mercatoTicker');
     if(bar && bar.style.display !== 'none' && typeof HOME_CACHE === 'object' && HOME_CACHE){
-      renderTicker(HOME_CACHE.moves, HOME_CACHE.auctions, HOME_CACHE.managers, HOME_CACHE.records);
+      // Rafraîchit les données VOLATILES (classement + enchères) à chaque passage
+      // du ticker : sinon le snapshot du dernier renderHome reste figé et le
+      // classement affiché dans la barre devient périmé. On lit le classement via
+      // rankingFull() (même source que la page Classement : fantômes/coachs/exclus
+      // déjà filtrés), pas leaderboard(). Tolérant aux pannes → on garde le cache.
+      let managers = HOME_CACHE.managers, auctions = HOME_CACHE.auctions;
+      try {
+        const full = await api.rankingFull();
+        if(Array.isArray(full) && full.length){
+          managers = full.map(m => ({
+            id: m.manager_id || m.id,
+            display_name: m.display_name,
+            team_name: m.team_name,
+            season_points: m.season_points,
+          }));
+        }
+      } catch(e){}
+      try { const a = await api.listOpenAuctions(); if(Array.isArray(a)) auctions = a; } catch(e){}
+      // Met à jour le cache pour les prochains redessins.
+      HOME_CACHE.managers = managers; HOME_CACHE.auctions = auctions;
+      renderTicker(HOME_CACHE.moves, auctions, managers, HOME_CACHE.records);
     }
   } catch(e){}
 }
