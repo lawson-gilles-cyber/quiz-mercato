@@ -271,6 +271,13 @@
   .ticker-item.tk-alert .ticker-ic{color:var(--live)}
   .ticker-item.tk-mine b{color:#4ade80}
   .ticker-item.tk-mine .ticker-ic{color:#4ade80}
+  /* Actu foot réelle (européenne) intercalée dans le ruban */
+  .ticker-item.tk-foot b{color:#eef3ea}
+  .ticker-item.tk-foot .tk-comp{font-size:.66rem;text-transform:uppercase;letter-spacing:.5px;
+    color:var(--muted);border:1px solid var(--line);border-radius:20px;padding:1px 7px;margin-right:2px}
+  .ticker-item.tk-foot.tk-live .ticker-ic{color:var(--live)}
+  .ticker-item.tk-foot.tk-live b{color:#ffd76a}
+  .ticker-item.tk-foot.tk-soon .ticker-ic{color:var(--transfer)}
   .ticker-item.tk-link{cursor:pointer;transition:background .15s}
   .ticker-item.tk-link:hover{background:rgba(255,255,255,.05)}
   .ticker-item b{color:#fff}
@@ -2481,6 +2488,11 @@ function goView(v){
   // Le ticker n'apparaît que sur l'accueil (sinon on le masque).
   const tk = $('mercatoTicker');
   if(tk && v!=='home') tk.style.display='none';
+  // Actu foot temps réel : on rafraîchit sur l'accueil, on coupe ailleurs.
+  try {
+    if(v==='home'){ if(typeof startFootTicker==='function') startFootTicker(); }
+    else { if(typeof stopFootTicker==='function') stopFootTicker(); }
+  } catch(e){}
   // Ferme le menu "Plus" s'il est ouvert
   const more = $('moreMenu'); if(more) more.classList.remove('open');
   // Rendu de la vue
@@ -8055,6 +8067,54 @@ async function renderDailyChecklist(auctions){
   });
 }
 
+// ---------- Actu foot réelle (européenne) pour le bandeau ----------
+// Remplie par l'Edge Function live-ticker (matchs en direct, mi-temps, coups
+// d'envoi imminents, résultats). Intercalée dans renderTicker. Rafraîchie en
+// arrière-plan tant qu'on est sur l'accueil.
+let LIVE_FOOT = [];        // [{kind, comp, text, status, id}]
+let HOME_CACHE = null;     // dernières données passées à renderTicker (redessin léger)
+let _footTimer = null;     // interval de rafraîchissement
+let _footLastFetch = 0;
+
+async function loadFootTicker(force){
+  // Throttle : au plus une requête / 45 s côté client (la fonction cache déjà 60 s).
+  if(!force && Date.now() - _footLastFetch < 45000) return;
+  _footLastFetch = Date.now();
+  try {
+    const items = await api.liveFootTicker();
+    LIVE_FOOT = Array.isArray(items) ? items : [];
+  } catch(e){ /* silencieux : le bandeau fonctionne sans l'actu foot */ }
+  // Redessine le ruban si on est sur l'accueil et qu'il est visible.
+  try {
+    const bar = $('mercatoTicker');
+    if(bar && bar.style.display !== 'none' && typeof HOME_CACHE === 'object' && HOME_CACHE){
+      renderTicker(HOME_CACHE.moves, HOME_CACHE.auctions, HOME_CACHE.managers, HOME_CACHE.records);
+    }
+  } catch(e){}
+}
+
+// Démarre/arrête le rafraîchissement selon la vue affichée (appelé depuis goView).
+function startFootTicker(){
+  loadFootTicker(true);
+  if(_footTimer) return;
+  _footTimer = setInterval(()=>loadFootTicker(false), 60000);
+}
+function stopFootTicker(){
+  if(_footTimer){ clearInterval(_footTimer); _footTimer = null; }
+}
+
+// Fabrique les items "actu foot" à intercaler dans le ruban.
+function footTickerItems(it){
+  if(!LIVE_FOOT.length) return [];
+  const ICON = { live:'flame', ht:'clock', soon:'calendar', result:'check' };
+  const PFX  = { live:'🔴', ht:'⏸️', soon:'🗓️', result:'✅' };
+  return LIVE_FOOT.slice(0, 12).map(f=>{
+    const cls = 'tk-foot tk-' + (f.kind||'');
+    const html = `<span class="tk-comp">${f.comp||''}</span> ${PFX[f.kind]||'⚽'} <b>${f.text||''}</b>`;
+    return it(ICON[f.kind]||'flame', html, cls, '');
+  });
+}
+
 // ---------- Bandeau défilant : actu du mercato en direct ----------
 // Combine les enchères en cours (🔥) et les derniers mouvements (recrutements,
 // libérations, échanges) en une bande qui défile en boucle. Mise à jour par
@@ -8062,6 +8122,9 @@ async function renderDailyChecklist(auctions){
 function renderTicker(moves, auctions, managers, records){
   const bar = $('mercatoTicker'), track = $('tickerTrack');
   if(!bar || !track) return;
+  // Mémorise les données pour pouvoir redessiner le ruban quand l'actu foot
+  // arrive en arrière-plan (sans refaire les requêtes du mercato).
+  HOME_CACHE = { moves, auctions, managers, records };
   const items = [];
   const perso = [];   // alertes du manager connecté (mises tout en tête)
   const I = (n)=> (typeof ic==='function'?ic(n,13):'');
@@ -8163,8 +8226,26 @@ function renderTicker(moves, auctions, managers, records){
     recLine('top_bonus', 'gift', 'roi des bonus', true);
   } catch(e){}
 
+  // Actu foot réelle (européenne) : on l'INTERCALE avec le mercato interne
+  // pour un ruban unique qui alterne jeu + vrais matchs.
+  const foot = footTickerItems(it);
+  let body;
+  if(foot.length){
+    body = [];
+    const maxLen = Math.max(items.length, foot.length);
+    // Alternance ~2 items mercato pour 1 actu foot (le jeu reste prioritaire).
+    let fi = 0;
+    for(let i=0; i<items.length; i++){
+      body.push(items[i]);
+      if(i % 2 === 1 && fi < foot.length){ body.push(foot[fi++]); }
+    }
+    while(fi < foot.length){ body.push(foot[fi++]); } // reliquat foot en fin
+  } else {
+    body = items;
+  }
+
   // Les alertes perso passent EN TÊTE de la bande.
-  const all = perso.concat(items);
+  const all = perso.concat(body);
   if(!all.length){
     bar.style.display = 'none';
     track.innerHTML = '';

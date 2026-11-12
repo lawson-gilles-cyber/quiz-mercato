@@ -1036,6 +1036,20 @@ export async function adminSyncMatches({ action, competition, matchdayId = null,
   });
 }
 
+// ---------- ACTU FOOT EN DIRECT (bandeau défilant accueil) ----------
+// Lit l'Edge Function live-ticker : matchs européens en cours, mi-temps,
+// coups d'envoi imminents, résultats récents. Lecture seule, tolérante aux
+// pannes (renvoie [] en cas d'erreur pour ne jamais casser l'accueil).
+export async function liveFootTicker() {
+  try {
+    const { data, error } = await sb.functions.invoke('live-ticker', { body: {} });
+    if (error || !data || data.ok === false) return [];
+    return Array.isArray(data.items) ? data.items : [];
+  } catch (e) {
+    return [];
+  }
+}
+
 // ---------- NOTES DES JOUEURS PAR JOURNÉE (Sofascore) ---------------
 // Grille admin : tous les joueurs actifs + note déjà saisie pour la journée.
 export async function adminNotesGrid(matchdayId) {
