@@ -237,6 +237,23 @@
   .pin-ed-grp-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px}
   .pin-ed-item{display:block;font-size:.84rem;padding:3px 0;cursor:pointer;color:var(--chalk)}
   .pin-ed-item input{margin-right:7px;vertical-align:-.05em}
+  /* Sous-menu latéral par onglet */
+  .tab-panel{display:flex;gap:18px;align-items:flex-start}
+  .tab-side{flex:0 0 220px;position:sticky;top:60px;max-height:calc(100vh - 80px);overflow:auto;
+    background:var(--pitch-2,#101d38);border:1px solid var(--line);border-radius:12px;padding:8px}
+  .tab-side-h{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:6px 8px 8px}
+  .side-link{display:block;width:100%;text-align:left;background:none;border:none;color:var(--muted);
+    border-radius:8px;padding:7px 10px;font-size:.84rem;cursor:pointer;line-height:1.25}
+  .side-link:hover{background:rgba(255,255,255,.04);color:var(--chalk)}
+  .side-link.on{background:rgba(245,197,66,.12);color:var(--transfer);font-weight:600}
+  .tab-content{flex:1 1 auto;min-width:0}
+  @media(max-width:860px){
+    .tab-panel{flex-direction:column}
+    .tab-side{position:static;flex:1 1 auto;max-height:none;width:100%;
+      display:flex;flex-wrap:wrap;gap:4px}
+    .tab-side-h{width:100%}
+    .side-link{width:auto;border:1px solid var(--line);border-radius:16px;padding:5px 11px;font-size:.78rem}
+  }
 
   /* ---------- Sections repliables ---------- */
   details.sec{margin-bottom:18px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.015);overflow:hidden}
@@ -1594,13 +1611,18 @@ function makeSectionsCollapsible(){
     }
   });
 
-  // 2) Construit un conteneur par onglet
-  const panels = {};
+  // 2) Construit un conteneur par onglet, en 2 colonnes : menu latéral + contenu.
+  const panels = {};        // panneau racine de l'onglet
+  const contents = {};      // colonne de contenu (reçoit les <details>)
+  const sideMenus = {};     // colonne menu latéral
   ADMIN_TABS.forEach(t=>{
     const p = document.createElement('div');
     p.className = 'tab-panel'; p.dataset.tab = t.id; p.style.display='none';
+    const side = document.createElement('nav'); side.className='tab-side';
+    const content = document.createElement('div'); content.className='tab-content';
+    p.appendChild(side); p.appendChild(content);
     main.appendChild(p);
-    panels[t.id] = p;
+    panels[t.id] = p; contents[t.id] = content; sideMenus[t.id] = side;
   });
 
   // 3) Transforme chaque section en <details>, en respectant l'ORDRE voulu
@@ -1624,10 +1646,24 @@ function makeSectionsCollapsible(){
       sec.nodes.forEach(n=>body.appendChild(n));
       det.appendChild(body);
       const tab = tabForTitle(sec.title);
-      (panels[tab] || panels['pilotage']).appendChild(det);
+      (contents[tab] || contents['pilotage']).appendChild(det);
       SEC_INDEX.push({ title: sec.title.replace(/^[^0-9A-Za-zÀ-ÿ]+/, '').trim(), tab, id: det.id });
     });
   window.__ADMIN_SEC_INDEX = SEC_INDEX;
+
+  // 3b) Menu latéral par onglet : liste cliquable de ses sections.
+  ADMIN_TABS.forEach(t=>{
+    const secs = SEC_INDEX.filter(s=>s.tab===t.id);
+    const side = sideMenus[t.id]; if(!side) return;
+    if(!secs.length){ side.style.display='none'; return; }
+    side.innerHTML = `<div class="tab-side-h">${t.label}</div>` +
+      secs.map(s=>`<button class="side-link" data-id="${s.id}" data-tab="${s.tab}">${s.title}</button>`).join('');
+    side.querySelectorAll('.side-link').forEach(b=>b.onclick=()=>{
+      gotoSection(b.dataset.id, b.dataset.tab);
+      side.querySelectorAll('.side-link').forEach(x=>x.classList.remove('on'));
+      b.classList.add('on');
+    });
+  });
 
   // 4) Barre de recherche de sections (au-dessus des onglets)
   const searchWrap = document.createElement('div');
