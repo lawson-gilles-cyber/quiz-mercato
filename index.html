@@ -4003,6 +4003,7 @@ async function renderAutoBidBox(md, auc, minNext, cap){
       <button data-autocancel style="background:none;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:.76rem">Désactiver</button>
     </div>`;
     box.querySelector('[data-autocancel]').onclick = async ()=>{
+      if(!await uxConfirm(`Désactiver ton enchère automatique sur ce joueur ?<br><br>Le système ne surenchérira plus pour toi. Tu pourras la réactiver, mais cela comptera comme une nouvelle enchère automatique du jour.`, {title:'Désactiver l\'enchère automatique', okText:'Désactiver'})) return;
       const { error } = await api.cancelAutoBid(auc.id);
       if(error) return toast(error.message,'err');
       toast('Enchère automatique désactivée.','info');
@@ -5656,6 +5657,7 @@ async function renderTeam(){
     const pid = btn.dataset.trade, name = btn.dataset.name||'ce joueur';
     const isOn = btn.dataset.on==='1';
     if(isOn){
+      if(!await uxConfirm(`Retirer <b>${name}</b> de la vitrine ?<br><br>Les autres managers ne pourront plus te faire d'offre sur ce joueur.`, {title:'Retirer de la vitrine', okText:'Retirer'})) return;
       const { error } = await api.setForTrade(pid, false, null);
       if(error) return toast('Échec : '+error.message,'err');
       toast(`${name} retiré de la vitrine.`,'info'); renderTeam();
