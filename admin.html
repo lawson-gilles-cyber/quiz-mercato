@@ -602,6 +602,18 @@
     <div id="coachList"></div>
   </div>
 
+  <!-- Dépannage de composition : un Manager aligne le onze d'une AUTRE équipe -->
+  <div class="card" style="margin-bottom:14px;border:1px solid rgba(90,150,255,.4)">
+    <p class="hint" style="margin-bottom:12px"><b>🆘 Dépannage de composition.</b> Autorise temporairement un <b>Manager</b> à aligner le <b>onze d'une autre équipe</b> (coach absent, non associé, ou défaillant). Le dépanneur <b>garde sa propre équipe</b> et peut, en plus, composer l'équipe dépannée. Ce droit ne concerne <b>que l'alignement du onze</b> : il ne donne aucun accès au budget, aux enchères, au marché ni au classement de l'équipe dépannée. Le droit reste actif jusqu'à ce que tu le <b>retires</b> ci-dessous. Chaque composition déposée est tracée (on sait qui l'a posée).</p>
+    <div class="row c3" style="margin-bottom:12px">
+      <div><label>Manager dépanneur</label><select id="delegAccount"></select></div>
+      <div><label>Équipe à dépanner</label><select id="delegTeam"></select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn-primary btn-sm" id="btnAddDeleg" style="width:100%">Activer le dépannage</button></div>
+    </div>
+    <div id="delegList"></div>
+    <div id="msgDeleg" class="admin-msg" style="margin-top:8px"></div>
+  </div>
+
   <!-- Inviter des managers (lien de parrainage) -->
   <h2>Inviter des managers</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1576,7 +1588,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -5001,6 +5013,50 @@ $('btnAssignCoach').onclick = async ()=>{
   const r = await api.adminAssignCoach(coach, team);
   if(r.error) return showMsg($('msg2'),r.error.message);
   showMsg($('msg2'),'Coach associé.',true); loadCoaches();
+};
+
+// ---------- Dépannage de composition (délégations) ----------
+async function loadDelegates(){
+  if(!$('delegAccount')) return;
+  const managers = await api.listManagers();
+  const teamOf = id => { const t = managers.find(x=>x.id===id); return t ? (t.team_name||t.display_name) : '?'; };
+  const roleTag = m => m.is_admin ? ' — ⚙️ admin'
+    : (m.is_coach && m.coach_of) ? ` — 🧢 coach de ${teamOf(m.coach_of)}`
+    : ' — 👔 manager';
+  // Dépanneur : n'importe quel manager actif (hors admin).
+  $('delegAccount').innerHTML = managers.filter(m=>!m.is_admin)
+    .map(m=>`<option value="${m.id}">${m.display_name}${roleTag(m)}</option>`).join('');
+  // Équipe à dépanner : un Manager (pas un admin, pas un compte coach associé).
+  $('delegTeam').innerHTML = managers.filter(m=>!m.is_admin && !(m.is_coach && m.coach_of))
+    .map(m=>`<option value="${m.id}">${m.team_name||m.display_name}${roleTag(m)}</option>`).join('');
+
+  const rows = await api.adminLineupDelegates();
+  const table = rows.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>Dépanneur</th><th>Équipe dépannée</th><th>Depuis</th><th></th></tr></thead><tbody>${
+    rows.map(d=>{
+      const since = d.created_at ? new Date(d.created_at).toLocaleDateString('fr-FR') : '—';
+      const dn = (d.delegate_name||'').replace(/"/g,'&quot;');
+      const tn = (d.team_name||d.team_manager||'').replace(/"/g,'&quot;');
+      return `<tr><td>${d.delegate_name||'?'}</td><td>${d.team_name||d.team_manager||'?'}</td><td style="color:var(--muted)">${since}</td>
+        <td><button class="btn-danger btn-sm" data-undeleg="${d.id}" data-dn="${dn}" data-tn="${tn}">Retirer</button></td></tr>`;
+    }).join('')
+  }</tbody></table>` : `<p class="hint" style="margin-top:8px">Aucun dépannage actif.</p>`;
+  $('delegList').innerHTML = table;
+  $('delegList').querySelectorAll('[data-undeleg]').forEach(b=>b.onclick=async()=>{
+    const dn = b.dataset.dn || 'ce manager', tn = b.dataset.tn || 'cette équipe';
+    if(!confirm(`Retirer le dépannage ?\n\n« ${dn} » ne pourra plus composer le onze de « ${tn} ». La dernière composition déposée reste en place.`)) return;
+    const r = await api.adminRemoveLineupDelegate(b.dataset.undeleg);
+    if(r.error) return showMsg($('msgDeleg'), r.error.message);
+    showMsg($('msgDeleg'), `Dépannage retiré : « ${dn} » ne compose plus « ${tn} ».`, true);
+    loadDelegates();
+  });
+}
+$('btnAddDeleg').onclick = async ()=>{
+  const deleg = $('delegAccount').value, team = $('delegTeam').value;
+  if(deleg===team) return showMsg($('msgDeleg'),'Un manager est déjà seul maître de sa propre composition — choisis une autre équipe à dépanner.');
+  const r = await api.adminAddLineupDelegate(deleg, team);
+  if(r.error) return showMsg($('msgDeleg'), r.error.message);
+  showMsg($('msgDeleg'),'Dépannage activé — ce manager peut désormais composer cette équipe.',true);
+  loadDelegates();
 };
 
 // ---------- VAGUE 3 : Saisie des notes ----------

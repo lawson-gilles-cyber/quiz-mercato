@@ -1657,16 +1657,36 @@ export async function myTeamId() {
   const { data } = await sb.rpc('qm_my_team_id');
   return data ?? null;
 }
-export async function setLineup(matchdayId, playerIds, benchIds) {
-  return sb.rpc('qm_set_lineup', {
+export async function setLineup(matchdayId, playerIds, benchIds, teamId) {
+  const args = {
     p_matchday_id: matchdayId,
     p_player_ids: playerIds,
     p_bench_ids: benchIds || []
-  });
+  };
+  if (teamId) args.p_team = teamId;   // dépannage : composer une autre équipe
+  return sb.rpc('qm_set_lineup', args);
 }
-export async function myLineup(matchdayId) {
-  const { data } = await sb.rpc('qm_my_lineup', { p_matchday_id: matchdayId });
+export async function myLineup(matchdayId, teamId) {
+  const args = { p_matchday_id: matchdayId };
+  if (teamId) args.p_team = teamId;
+  const { data } = await sb.rpc('qm_my_lineup', args);
   return data ?? null;
+}
+// Les équipes que je peux composer : la mienne + mes dépannages (délégations).
+export async function teamsICanSet() {
+  const { data } = await sb.rpc('qm_teams_i_can_set');
+  return data ?? [];
+}
+// --- Dépannage de composition : administration des délégations (admin) ---
+export async function adminLineupDelegates() {
+  const { data } = await sb.rpc('qm_admin_lineup_delegates');
+  return data ?? [];
+}
+export async function adminAddLineupDelegate(delegateId, teamId) {
+  return sb.rpc('qm_admin_add_lineup_delegate', { p_delegate: delegateId, p_team: teamId });
+}
+export async function adminRemoveLineupDelegate(delegateId) {
+  return sb.rpc('qm_admin_remove_lineup_delegate', { p_id: delegateId });
 }
 // Joueurs de ma compo qui ne m'appartiennent plus (titulaires + réservistes).
 export async function lineupInvalidPlayers(matchdayId) {

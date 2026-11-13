@@ -1535,6 +1535,12 @@
     <div id="lineupRepair" class="lineup-repair" style="display:none"></div>
     <div id="lineupGate" class="empty">Connecte-toi pour aligner ton équipe.</div>
     <div id="lineupUI" style="display:none">
+      <!-- Sélecteur d'équipe : visible seulement en cas de dépannage (≥2 équipes) -->
+      <div id="lineupTeamBox" class="card" style="display:none;background:rgba(90,150,255,.08);border:1px solid rgba(90,150,255,.4);border-radius:12px;padding:16px;margin-bottom:16px">
+        <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:#9bbcff">🆘 Équipe à composer</label>
+        <select id="lineupTeam" style="width:100%;padding:9px;margin-top:6px"></select>
+        <div id="lineupTeamHint" style="margin-top:8px;font-size:.8rem;color:var(--muted)"></div>
+      </div>
       <div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:20px">
         <label style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1px;font-size:.72rem;color:var(--muted)">Journée</label>
         <select id="lineupMatchday" style="width:100%;padding:9px;margin-top:6px"></select>
@@ -7093,6 +7099,8 @@ async function renderMyActivity(){
 let LINEUP_SELECTED = new Set();
 let LINEUP_BENCH = [];   // réservistes ORDONNÉS (R1, R2, R3) — l'ordre = priorité
 let LINEUP_MDS = [];
+let LINEUP_TEAMS = [];   // équipes que je peux composer (la mienne + dépannages)
+let LINEUP_TEAM = null;  // équipe actuellement composée (id). null = la mienne
 // Garde-fou pré-clôture : alerte si la compo n'est pas complète pour une
 // journée ouverte. Urgence selon la proximité de la date limite.
 function renderLineupAlert(md, selectedCount, ownedCount){
@@ -7207,6 +7215,34 @@ async function renderLineup(){
   if(!ME){ $('lineupGate').style.display='block'; $('lineupUI').style.display='none'; return; }
   $('lineupGate').style.display='none'; $('lineupUI').style.display='block';
 
+  // Équipes que je peux composer : la mienne + d'éventuels dépannages.
+  // Le sélecteur n'apparaît que s'il y en a au moins deux.
+  try { LINEUP_TEAMS = await api.teamsICanSet(); } catch(e){ LINEUP_TEAMS = []; }
+  const teamBox = $('lineupTeamBox'), teamSel = $('lineupTeam');
+  if(LINEUP_TEAMS.length > 1 && teamBox && teamSel){
+    // Ma propre équipe d'abord, puis les dépannages.
+    LINEUP_TEAMS.sort((a,b)=> (b.is_own?1:0) - (a.is_own?1:0));
+    // Conserve la sélection courante si elle est encore valide, sinon la mienne.
+    const own = LINEUP_TEAMS.find(t=>t.is_own);
+    if(!LINEUP_TEAM || !LINEUP_TEAMS.some(t=>t.team_id===LINEUP_TEAM)){
+      LINEUP_TEAM = own ? own.team_id : LINEUP_TEAMS[0].team_id;
+    }
+    teamSel.innerHTML = LINEUP_TEAMS.map(t=>{
+      const label = t.is_own ? `Mon équipe — ${t.team_name||t.display_name}` : `🆘 Dépannage — ${t.team_name||t.display_name}`;
+      return `<option value="${t.team_id}"${t.team_id===LINEUP_TEAM?' selected':''}>${label}</option>`;
+    }).join('');
+    const cur = LINEUP_TEAMS.find(t=>t.team_id===LINEUP_TEAM);
+    $('lineupTeamHint').innerHTML = (cur && !cur.is_own)
+      ? `Tu composes le onze de <b>${cur.team_name||cur.display_name}</b> en tant que coach de dépannage. Cela n'affecte ni ton budget ni ton classement.`
+      : `Tu composes ta propre équipe.`;
+    teamSel.onchange = ()=>{ LINEUP_TEAM = teamSel.value; renderLineup(); };
+    teamBox.style.display = 'block';
+  } else {
+    // Une seule équipe : pas de sélecteur, on compose la sienne (p_team implicite).
+    LINEUP_TEAM = (LINEUP_TEAMS[0] && LINEUP_TEAMS[0].team_id) || null;
+    if(teamBox) teamBox.style.display = 'none';
+  }
+
   // Charger les journées ouvertes (alignement) + clôturées (voir résultat)
   LINEUP_MDS = await api.listMatchdays();
   const openMds = LINEUP_MDS.filter(m=>m.status==='open' || m.status==='closed');
@@ -7231,13 +7267,18 @@ async function loadLineupForMatchday(mdId){
     $('lineupInfo').innerHTML = `Date limite d'alignement : <b>${dl.toLocaleDateString('fr-FR')} ${dl.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</b>`;
   } else $('lineupInfo').innerHTML = '';
 
-  // Mon effectif
-  const teamId = await api.myTeamId();
-  const all = await api.listPlayers();
-  const mine = all.filter(p=>p.owner_id===teamId && p.status==='owned');
+  // Équipe composée : la mienne par défaut, ou une équipe dépannée.
+  const ownTeamId = await api.myTeamId();
+  const composing = LINEUP_TEAM || ownTeamId;        // id de l'équipe visée
+  const isDepannage = composing && composing !== ownTeamId;
+  const teamArg = isDepannage ? composing : undefined; // p_team seulement si dépannage
 
-  // Ma compo existante pour cette journée
-  const existing = await api.myLineup(mdId);
+  // L'effectif de l'équipe composée
+  const all = await api.listPlayers();
+  const mine = all.filter(p=>p.owner_id===composing && p.status==='owned');
+
+  // Compo existante de cette équipe pour cette journée
+  const existing = await api.myLineup(mdId, teamArg);
   LINEUP_SELECTED = new Set(existing?.player_ids || []);
   LINEUP_BENCH = Array.isArray(existing?.bench_ids) ? [...existing.bench_ids] : [];
 
@@ -7246,20 +7287,21 @@ async function loadLineupForMatchday(mdId){
   } else $('lineupResult').innerHTML = '';
 
   renderLineupPlayers(mine);
-  $('btnSaveLineup').onclick = ()=>saveLineup(mdId);
+  $('btnSaveLineup').onclick = ()=>saveLineup(mdId, teamArg);
 
   // Garde-fou : alerte si la compo n'est pas complète (11) sur une journée ouverte
   renderLineupAlert(md, LINEUP_SELECTED.size, mine.length);
-  // Garde-fou : joueurs de la compo qui ne sont plus dans l'effectif (+ bouton réparer)
-  renderLineupRepair(md);
+  // Garde-fou : joueurs de la compo qui ne sont plus dans l'effectif (+ bouton réparer).
+  // Réservé à MA propre équipe (la réparation s'applique à l'équipe du compte).
+  if(isDepannage){ const rb=$('lineupRepair'); if(rb){ rb.style.display='none'; rb.innerHTML=''; } }
+  else renderLineupRepair(md);
 
   // Journée clôturée : lecture seule (pas d'alignement possible)
   const isClosed = md && md.status==='closed';
   $('btnSaveLineup').style.display = isClosed ? 'none' : 'block';
   $('lineupCounter').style.display = isClosed ? 'none' : 'block';
   if(md && md.status==='closed'){
-    const teamId = await api.myTeamId();
-    const bd = await api.lineupBreakdown(teamId, mdId);
+    const bd = await api.lineupBreakdown(composing, mdId);
     if(bd.length){
       const total = bd.reduce((s,x)=>s+Number(x.contribution),0);
       const hasSub = bd.some(x=>x.is_sub);
@@ -7286,7 +7328,9 @@ async function loadLineupForMatchday(mdId){
   }
 
   // Conseil d'avant-match : pronostics de la journée (jetons de flair).
-  try { await renderConseil(mdId, md, mine); } catch(e){ const b=$('conseilBox'); if(b) b.style.display='none'; }
+  // Réservé à ma propre équipe (les pronos engagent MON capital de flair).
+  if(isDepannage){ const b=$('conseilBox'); if(b) b.style.display='none'; }
+  else { try { await renderConseil(mdId, md, mine); } catch(e){ const b=$('conseilBox'); if(b) b.style.display='none'; } }
 }
 
 // ---------- Conseil d'avant-match (pronostics / jetons de flair) ----------
@@ -7493,11 +7537,11 @@ function updateLineupCounter(){
   const b = $('benchCounter');
   if(b){ b.textContent = `${LINEUP_BENCH.length} / 3 réservistes`; }
 }
-async function saveLineup(mdId){
+async function saveLineup(mdId, teamArg){
   if(LINEUP_SELECTED.size!==11){ toast('Il faut exactement 11 titulaires.','err'); return; }
   // Sécurité : un réserviste ne doit pas être aussi titulaire.
   const bench = LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id));
-  const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED), bench);
+  const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED), bench, teamArg);
   if(error){ $('lineupResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
   const bTxt = bench.length ? ` (+ ${bench.length} réserviste${bench.length>1?'s':''})` : '';
   $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée${bTxt} !</span>`;
