@@ -3297,6 +3297,18 @@ async function renderLoans(){
       if(isNaN(days) || days<1 || days>60) return toast('Durée entre 1 et 60 jours.','err');
       const optM = parseFloat($('loanOption').value)||0;
       const firm = $('loanFirm').checked;
+      // Récap avant d'engager : joueur, destinataire, durée, indemnité, options.
+      const selText = (sel)=>{ const el=$(sel); return (el && el.selectedIndex>=0) ? el.options[el.selectedIndex].text : ''; };
+      const pName = selText('loanPlayer'), bName = selText('loanTarget');
+      const feeLine = feeM>0 ? `<br>Indemnité de prêt : <b>${fmtMoney(Math.round(feeM*1e6))}</b>` : '';
+      const optLine = optM>0 ? `<br>Option d'achat : <b>${fmtMoney(Math.round(optM*1e6))}</b>` : '';
+      const firmLine = firm ? `<br><b>Prêt ferme</b> : l'emprunteur ne pourra pas rendre le joueur avant l'échéance.` : '';
+      const ok = await uxConfirm(
+        `Prêter <b style="color:var(--transfer)">${pName||'ce joueur'}</b> à <b>${bName||'cette équipe'}</b> pour <b>${days} jour${days>1?'s':''}</b>.`+
+        feeLine + optLine + firmLine +
+        `<br><br>Pendant le prêt, l'emprunteur aligne le joueur et porte son salaire. Le retour est automatique à l'échéance.`,
+        {title:'Proposer ce prêt ?', okText:'Envoyer la proposition'});
+      if(!ok) return;
       await withLoading(ev.target, async ()=>{
         const { error } = await api.proposeLoan({
           player_id, borrower_id, days, fee: Math.round(feeM*1e6),
@@ -3327,7 +3339,7 @@ async function renderLoans(){
     const clausesHtml = clauses.length ? `<div style="font-size:.74rem;color:var(--transfer);margin-top:3px">${clauses.join(' · ')}</div>` : '';
     let actions = '';
     if(l.status==='pending' && l.role==='borrower'){
-      actions = `<button class="bid-btn" data-loan-accept="${l.id}" style="font-size:.74rem;padding:4px 10px">Accepter</button>
+      actions = `<button class="bid-btn" data-loan-accept="${l.id}" data-lp="${(l.player_name||'').replace(/"/g,'&quot;')}" data-lo="${(other||'').replace(/"/g,'&quot;')}" data-lfee="${l.fee||0}" data-ldue="${due}" data-lfirm="${l.firm?1:0}" style="font-size:.74rem;padding:4px 10px">Accepter</button>
                  <button class="bid-btn ghost" data-loan-refuse="${l.id}" style="font-size:.74rem;padding:4px 10px">Refuser</button>`;
     } else if(l.status==='pending' && l.role==='owner'){
       actions = `<span class="hint" style="font-size:.74rem">En attente de réponse</span>
@@ -3354,7 +3366,19 @@ async function renderLoans(){
   }).join('');
   // Câblage des actions
   const refresh = async (fn, id)=>{ const {error}=await fn(id); if(error){toast(error.message,'err');return;} renderMarket(); if(ME){ME=await api.currentManager(); if(ME)$('wallet').textContent=fmtMoney(Number(ME.budget)-Number(ME.budget_locked));} };
-  el.querySelectorAll('[data-loan-accept]').forEach(b=>b.onclick=()=>{ if(coachBlocked()) return; refresh(api.acceptLoan,b.dataset.loanAccept); });
+  el.querySelectorAll('[data-loan-accept]').forEach(b=>b.onclick=async()=>{
+    if(coachBlocked()) return;
+    const fee = Number(b.dataset.lfee||0);
+    const feeLine = fee>0 ? `<br>Indemnité à verser : <b>${fmtMoney(fee)}</b>` : '';
+    const firmLine = b.dataset.lfirm==='1' ? `<br><b>Prêt ferme</b> : tu ne pourras pas rendre le joueur avant l'échéance.` : '';
+    const ok = await uxConfirm(
+      `Emprunter <b style="color:var(--transfer)">${b.dataset.lp||'ce joueur'}</b> à <b>${b.dataset.lo||'ce manager'}</b> jusqu'au <b>${b.dataset.ldue||'?'}</b>.`+
+      feeLine + firmLine +
+      `<br><br>Pendant le prêt, c'est <b>toi</b> qui alignes le joueur et portes son salaire.`,
+      {title:'Accepter ce prêt ?', okText:'Oui, emprunter'});
+    if(!ok) return;
+    refresh(api.acceptLoan,b.dataset.loanAccept);
+  });
   el.querySelectorAll('[data-loan-refuse]').forEach(b=>b.onclick=()=>refresh(api.refuseLoan,b.dataset.loanRefuse));
   el.querySelectorAll('[data-loan-cancel]').forEach(b=>b.onclick=()=>refresh(api.cancelLoan,b.dataset.loanCancel));
   el.querySelectorAll('[data-loan-return]').forEach(b=>b.onclick=()=>refresh(api.returnLoan,b.dataset.loanReturn));
@@ -3668,7 +3692,7 @@ async function renderTradeList(){
     let actions='';
     if(t.status==='pending'){
       if(iSent) actions=`<button class="btn-refuse" data-cancel="${t.id}">Annuler</button>`;
-      else actions=`<button class="btn-accept" data-accept="${t.id}">Accepter</button>
+      else actions=`<button class="btn-accept" data-accept="${t.id}" data-tget="${offer.replace(/"/g,'&quot;')}" data-tgive="${ask.replace(/"/g,'&quot;')}" data-tcash="${cash}">Accepter</button>
                     <button class="btn-refuse" data-refuse="${t.id}">Refuser</button>`;
     }
     return `<div class="trade-item">
@@ -3698,8 +3722,26 @@ async function renderTradeList(){
 
   $('tradeList').querySelectorAll('[data-accept]').forEach(b=>b.onclick=async()=>{
     if(coachBlocked()) return;
+    // Récap AVANT de conclure : un échange est irréversible, le manager doit
+    // voir exactement ce qu'il reçoit, ce qu'il cède, le cash et la commission.
+    const get  = b.dataset.tget || '—';
+    const give = b.dataset.tgive || '—';
+    const cash = Number(b.dataset.tcash||0);
+    const cashLine = cash>0 ? `<br>Tu paies aussi <b>${fmtMoney(cash)}</b>.`
+                   : cash<0 ? `<br>Tu reçois aussi <b>${fmtMoney(-cash)}</b>.` : '';
+    // Commission déjà estimée et affichée dans la carte : on la reprend.
+    const commEl = document.querySelector(`.ti-comm[data-comm="${b.dataset.accept}"]`);
+    const commLine = (commEl && commEl.textContent.trim()) ? `<br><span style="color:var(--transfer)">${commEl.textContent.trim()}</span>` : '';
+    const ok = await uxConfirm(
+      `Tu reçois : <b style="color:#4ade80">${get}</b><br>`+
+      `Tu cèdes : <b style="color:var(--live)">${give}</b>`+
+      cashLine + commLine +
+      `<br><br>L'échange est <b>définitif</b> une fois accepté.`,
+      {title:'Accepter cet échange ?', okText:'Oui, échanger', danger:true});
+    if(!ok) return;
+    b.disabled = true;
     const { error } = await api.acceptTrade(b.dataset.accept);
-    if(error) return toast('Échec : '+error.message,'err');
+    if(error){ b.disabled = false; return toast('Échec : '+error.message,'err'); }
     toast('Échange conclu !','ok'); renderMarket();
   });
   $('tradeList').querySelectorAll('[data-refuse]').forEach(b=>b.onclick=async()=>{
@@ -6532,7 +6574,7 @@ async function hydrateTradeCards(threadBox, refresh){
     let actions='';
     if(t.status==='pending' && !iSent){
       actions = `<div style="display:flex;gap:6px;margin-top:8px">
-        <button class="bid-btn" data-trade-acc="${t.id}" style="margin:0;padding:6px 12px;font-size:.78rem;width:auto">Accepter</button>
+        <button class="bid-btn" data-trade-acc="${t.id}" data-tget="${offer.replace(/"/g,'&quot;')}" data-tgive="${ask.replace(/"/g,'&quot;')}" data-tcash="${cash}" style="margin:0;padding:6px 12px;font-size:.78rem;width:auto">Accepter</button>
         <button class="btn-ghost btn-sm" data-trade-ref="${t.id}" style="font-size:.78rem">Refuser</button></div>`;
     } else if(t.status==='pending' && iSent){
       actions = `<div style="margin-top:6px"><button class="btn-ghost btn-sm" data-trade-cancel="${t.id}" style="font-size:.76rem">Annuler l'offre</button></div>`;
@@ -6550,6 +6592,15 @@ async function hydrateTradeCards(threadBox, refresh){
   // Actions
   threadBox.querySelectorAll('[data-trade-acc]').forEach(b=>b.onclick=async()=>{
     if(typeof coachBlocked==='function' && coachBlocked()) return;
+    const get = b.dataset.tget||'—', give = b.dataset.tgive||'—', cash = Number(b.dataset.tcash||0);
+    const cashLine = cash>0 ? `<br>Tu paies aussi <b>${fmtMoney(cash)}</b>.`
+                   : cash<0 ? `<br>Tu reçois aussi <b>${fmtMoney(-cash)}</b>.` : '';
+    const ok = await uxConfirm(
+      `Tu reçois : <b style="color:#4ade80">${get}</b><br>`+
+      `Tu cèdes : <b style="color:var(--live)">${give}</b>`+ cashLine +
+      `<br><br>L'échange est <b>définitif</b> une fois accepté.`,
+      {title:'Accepter cet échange ?', okText:'Oui, échanger', danger:true});
+    if(!ok) return;
     b.disabled=true; const { error } = await api.acceptTrade(b.dataset.tradeAcc);
     if(error){ toast('Échec : '+error.message,'err',4500); b.disabled=false; return; }
     toast('Échange accepté !','ok'); if(typeof refresh==='function') refresh(true);
@@ -10573,7 +10624,7 @@ function renderNotifPanel(){
         // Échange reçu : boutons Accepter / Refuser directement dans la cloche.
         const tradeBtns = (n.kind==='trade' && n.ref && !isRead)
           ? `<div style="display:flex;gap:6px;margin-top:7px">
-               <button class="bid-btn" data-ntrade-ok="${n.ref}" style="width:auto;margin:0;padding:5px 12px;font-size:.74rem;display:inline-flex;align-items:center;gap:5px">${I('check',13)} Accepter</button>
+               <button class="bid-btn" data-ntrade-ok="${n.ref}" data-ttext="${((n.body||n.text||n.title||'')+'').replace(/"/g,'&quot;')}" style="width:auto;margin:0;padding:5px 12px;font-size:.74rem;display:inline-flex;align-items:center;gap:5px">${I('check',13)} Accepter</button>
                <button class="bid-btn" data-ntrade-ko="${n.ref}" style="width:auto;margin:0;padding:5px 12px;font-size:.74rem;background:#7a2e2e;display:inline-flex;align-items:center;gap:5px">${I('x',13)} Refuser</button>
              </div>`
           : '';
@@ -10608,6 +10659,12 @@ function renderNotifPanel(){
   panel.querySelectorAll('[data-ntrade-ok]').forEach(b=>b.onclick=async(ev)=>{
     ev.stopPropagation();
     if(coachBlocked()){ b.disabled=false; return; }
+    // Confirmation avant de conclure un échange irréversible (depuis la cloche).
+    const detail = b.dataset.ttext ? `<div style="color:var(--muted);font-size:.86rem;margin-bottom:10px">${b.dataset.ttext}</div>` : '';
+    const ok = await uxConfirm(
+      detail + `Cet échange est <b>définitif</b> une fois accepté.<br>Tu peux ouvrir la place de marché pour voir le détail avant de confirmer.`,
+      {title:'Accepter cet échange ?', okText:'Oui, échanger', danger:true});
+    if(!ok) return;
     b.disabled = true;
     const { error } = await api.acceptTrade(b.dataset.ntradeOk);
     if(error){ b.disabled=false; toast('Échec : '+error.message,'err',4000); return; }

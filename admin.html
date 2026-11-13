@@ -1361,10 +1361,10 @@
 
   <!-- Libérations / pénalités -->  <h2>Libérations & pénalités</h2>
   <div class="card">
-    <p class="hint" style="margin-bottom:14px">Toutes les libérations de joueurs, avec remboursement et pénalité perdue.</p>
+    <p class="hint" style="margin-bottom:14px">Toutes les libérations de joueurs, avec remboursement et pénalité perdue. En cas d'erreur (mauvais joueur libéré), le bouton <b>Annuler</b> rend le joueur à son manager et reprend le remboursement — possible tant que personne d'autre n'a repris le joueur.</p>
     <table>
-      <thead><tr><th>Date</th><th>Manager</th><th>Joueur</th><th>Détention</th><th>Prix achat</th><th>Remboursé</th><th>Pénalité</th></tr></thead>
-      <tbody id="relRows"><tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune libération.</td></tr></tbody>
+      <thead><tr><th>Date</th><th>Manager</th><th>Joueur</th><th>Détention</th><th>Prix achat</th><th>Remboursé</th><th>Pénalité</th><th>Action</th></tr></thead>
+      <tbody id="relRows"><tr><td colspan="8" class="hint" style="text-align:center;padding:20px">Aucune libération.</td></tr></tbody>
     </table>
   </div>
 
@@ -2476,15 +2476,20 @@ async function showAdminJournal(auctionId, playerName){
 
 // ---------- Libérations & pénalités ----------
 async function loadReleases(){
-  const rels = await api.adminReleases();
+  // Vue enrichie : donne release_id + can_undo + raison de blocage.
+  const rels = await api.adminReleasesFull();
   const tbody = $('relRows');
   if(!tbody) return;
   if(rels.length===0){
-    tbody.innerHTML = '<tr><td colspan="7" class="hint" style="text-align:center;padding:20px">Aucune libération.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="hint" style="text-align:center;padding:20px">Aucune libération.</td></tr>';
     return;
   }
   tbody.innerHTML = rels.map(r=>{
     const d = new Date(r.created_at).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+    // Bouton Annuler si la libération est encore réversible ; sinon la raison.
+    const action = r.can_undo
+      ? `<button class="btn-ghost btn-sm" data-undorel="${r.release_id}" data-rpname="${(r.player_name||'').replace(/"/g,'&quot;')}" data-rmname="${(r.manager_name||'').replace(/"/g,'&quot;')}" title="Rendre le joueur à son manager">↩️ Annuler</button>`
+      : `<span class="hint" style="font-size:.76rem">${r.undo_blocker||'—'}</span>`;
     return `<tr>
       <td class="hint">${d}</td>
       <td>${r.manager_name}</td>
@@ -2493,8 +2498,20 @@ async function loadReleases(){
       <td class="val">${fmtM(r.purchase_price)}</td>
       <td class="val" style="color:#4ade80">${fmtM(r.refund)}</td>
       <td class="val" style="color:#e0574a">−${fmtM(r.penalty)} (${r.penalty_pct}%)</td>
+      <td>${action}</td>
     </tr>`;
   }).join('');
+  // Handlers « Annuler la libération »
+  tbody.querySelectorAll('[data-undorel]').forEach(b=>b.onclick = async ()=>{
+    const pname = b.dataset.rpname || 'ce joueur';
+    const mname = b.dataset.rmname || 'son manager';
+    if(!confirm(`Annuler la libération de ${pname} ?\n\n${pname} sera rendu à ${mname} et le remboursement encaissé sera repris sur son budget. À ne faire que s'il s'agit d'une erreur.`)) return;
+    b.disabled = true;
+    const { data, error } = await api.adminUndoRelease(b.dataset.undorel);
+    if(error){ b.disabled = false; return showMsg($('msg2'), error.message); }
+    showMsg($('msg2'), data || 'Libération annulée.', true);
+    loadReleases();
+  });
 }
 
 // ---------- Apparence (thème) ----------

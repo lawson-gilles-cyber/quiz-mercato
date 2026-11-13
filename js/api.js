@@ -1812,6 +1812,14 @@ export async function adminActionsRecent(limit = 50) {
 export async function adminUndo(actionId) {
   return sb.rpc('qm_admin_undo', { p_action_id: actionId });
 }
+// Libérations récentes (enrichies : annulables ou non) + annulation d'une libération.
+export async function adminReleasesFull() {
+  const { data } = await sb.rpc('qm_admin_releases_full');
+  return data ?? [];
+}
+export async function adminUndoRelease(releaseId) {
+  return sb.rpc('qm_admin_undo_release', { p_release_id: releaseId });
+}
 export async function adminExemptEntryTax(auctionId, managerId) {
   return sb.rpc('qm_admin_exempt_entry_tax', { p_auction_id: auctionId, p_manager_id: managerId });
 }
