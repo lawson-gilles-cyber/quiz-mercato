@@ -2124,20 +2124,9 @@ async function loadTradesHistory(){
   }, 8, 'Aucun échange enregistré.');
 }
 
-// Applique la recherche + le filtre de statut, puis rend le tableau.
-function renderPlayerRows(){
-  const q = ($('playerSearch')?.value||'').trim().toLowerCase();
-  const st = $('playerStatusFilter')?.value || '';
-  let players = ADMIN_PLAYERS;
-  if(q)  players = players.filter(p=>((p.name||'')+' '+(p.club||'')).toLowerCase().includes(q));
-  if(st) players = players.filter(p=>p.status===st);
-
-  if($('playerFilterCount')){
-    $('playerFilterCount').textContent = (q||st)
-      ? `${players.length} / ${ADMIN_PLAYERS.length} affiché(s)` : '';
-  }
-
-  $('playerRows').innerHTML = players.map(p=>`
+// Rend le HTML d'UNE ligne de la base joueurs (utilisé par la pagination).
+function playerRowHtml(p){
+  return `
     <tr>
       <td>${p.nationality?p.nationality+' ':''}${p.name}</td>
       <td><span class="pos-tag">${POS[p.position]}</span></td>
@@ -2157,10 +2146,38 @@ function renderPlayerRows(){
              <button class="btn-danger" data-del="${p.id}">Suppr.</button>`
           : `<span class="hint">verrouillé</span>`}
       </div></td>
-    </tr>`).join('') || `<tr><td colspan="7" class="hint" style="text-align:center;padding:30px">${(q||st)?'Aucun joueur ne correspond à la recherche.':'Aucun joueur. Ajoute-en un ci-dessus.'}</td></tr>`;
+    </tr>`;
+}
 
+// Applique la recherche + le filtre de statut, puis rend le tableau PAGINÉ
+// (20 joueurs/page via paginate). Les handlers des boutons sont rebranchés
+// à chaque changement de page par bindPlayerRowHandlers (hook afterRender).
+function renderPlayerRows(){
+  const q = ($('playerSearch')?.value||'').trim().toLowerCase();
+  const st = $('playerStatusFilter')?.value || '';
+  let players = ADMIN_PLAYERS;
+  if(q)  players = players.filter(p=>((p.name||'')+' '+(p.club||'')).toLowerCase().includes(q));
+  if(st) players = players.filter(p=>p.status===st);
+
+  if($('playerFilterCount')){
+    $('playerFilterCount').textContent = (q||st)
+      ? `${players.length} / ${ADMIN_PLAYERS.length} affiché(s)` : '';
+  }
+
+  // Quand la recherche/filtre change (ou après une action qui recharge),
+  // on revient à la 1ʳᵉ page et on (re)branche le hook de rendu.
+  PAGER['playerRows'] = PAGER['playerRows'] || { page: 0 };
+  PAGER['playerRows'].page = 0;
+  PAGER['playerRows'].afterRender = bindPlayerRowHandlers;
+
+  paginate('playerRows', players, playerRowHtml, 7,
+    (q||st) ? 'Aucun joueur ne correspond à la recherche.' : 'Aucun joueur. Ajoute-en un ci-dessus.');
+}
+
+// (Re)branche les actions des boutons de la page courante de la base joueurs.
+function bindPlayerRowHandlers(tb){
   // Option A : saisie rapide de la valeur (validée à la sortie du champ)
-  $('playerRows').querySelectorAll('[data-val]').forEach(inp=>inp.onchange = async ()=>{
+  tb.querySelectorAll('[data-val]').forEach(inp=>inp.onchange = async ()=>{
     const v = parseInt(inp.value,10);
     if(isNaN(v) || v<0){ showMsg($('msg2'),'Valeur invalide.'); return; }
     const { error } = await api.adminSetValue(inp.dataset.val, v);
@@ -2168,7 +2185,7 @@ function renderPlayerRows(){
     showMsg($('msg2'),'Valeur mise à jour.',true); loadAdminActions();
   });
 
-  $('playerRows').querySelectorAll('[data-open]').forEach(b=>b.onclick = async ()=>{
+  tb.querySelectorAll('[data-open]').forEach(b=>b.onclick = async ()=>{
     // Dénicheur optionnel : on peut rattacher le manager qui a déniché le joueur,
     // pour que le bonus dénicheur et le retour au dénicheur fonctionnent.
     const scoutId = await pickScout(b.dataset.oname || 'ce joueur');
@@ -2179,7 +2196,7 @@ function renderPlayerRows(){
     loadPlayers(); loadAdminActions();
   });
   // Enchère éclair : on demande une durée courte (heures), puis on ouvre.
-  $('playerRows').querySelectorAll('[data-flash]').forEach(b=>b.onclick = async ()=>{
+  tb.querySelectorAll('[data-flash]').forEach(b=>b.onclick = async ()=>{
     const name = b.dataset.fname || 'ce joueur';
     const raw = prompt(`Enchère éclair de « ${name} ».\nDurée en heures (ex. 2, 6, 12) :`, '6');
     if(raw===null) return;
@@ -2190,7 +2207,7 @@ function renderPlayerRows(){
     showMsg($('msg2'), `Enchère éclair ouverte (${h} h).`, true); loadPlayers(); loadAdminActions();
   });
   // Programmer une enchère : on demande une date/heure future, puis on planifie.
-  $('playerRows').querySelectorAll('[data-sched]').forEach(b=>b.onclick = async ()=>{
+  tb.querySelectorAll('[data-sched]').forEach(b=>b.onclick = async ()=>{
     const name = b.dataset.sname || 'ce joueur';
     // Pré-remplit avec « demain à 18:00 » EN HEURE DE PARIS.
     const parisParts = new Intl.DateTimeFormat('fr-CA', { timeZone:'Europe/Paris', year:'numeric', month:'2-digit', day:'2-digit' })
@@ -2216,14 +2233,14 @@ function renderPlayerRows(){
     showMsg($('msg2'), `Enchère programmée pour le ${heureParis} (heure de Paris).`, true);
     loadPlayers(); if(typeof loadScheduled==='function') loadScheduled();
   });
-  $('playerRows').querySelectorAll('[data-del]').forEach(b=>b.onclick = async ()=>{
+  tb.querySelectorAll('[data-del]').forEach(b=>b.onclick = async ()=>{
     if(!confirm('Supprimer ce joueur ?')) return;
     const { error } = await api.adminDeletePlayer(b.dataset.del);
     if(error) return showMsg($('msg2'), error.message);
     showMsg($('msg2'), 'Joueur supprimé.', true); loadPlayers();
   });
   // Bouton photo : ouvre la modale
-  $('playerRows').querySelectorAll('[data-photo]').forEach(b=>b.onclick = ()=>{
+  tb.querySelectorAll('[data-photo]').forEach(b=>b.onclick = ()=>{
     PHOTO_PLAYER = b.dataset.photo;
     $('photoTitle').textContent = 'Photo — ' + (b.dataset.pname||'joueur');
     $('photoUrl').value = b.dataset.purl || '';
@@ -2233,7 +2250,7 @@ function renderPlayerRows(){
     $('photoModal').style.display = 'flex';
   });
 
-  $('playerRows').querySelectorAll('[data-attr]').forEach(b=>b.onclick = async ()=>{
+  tb.querySelectorAll('[data-attr]').forEach(b=>b.onclick = async ()=>{
     const p = ADMIN_PLAYERS.find(x=>x.id===b.dataset.attr);
     // Charge les critères actuels
     const cur = await api.adminCriteria(p.id);

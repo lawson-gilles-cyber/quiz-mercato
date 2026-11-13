@@ -8133,14 +8133,16 @@ function stopFootTicker(){
 }
 
 // Fabrique les items "actu foot" à intercaler dans le ruban.
+// kinds : 'soon' (coup d'envoi à venir), 'result' (match terminé),
+//         'live' (seulement si le plan football-data le permet).
 function footTickerItems(it){
   if(!LIVE_FOOT.length) return [];
-  const ICON = { live:'flame', ht:'clock', soon:'calendar', result:'check' };
-  const PFX  = { live:'🔴', ht:'⏸️', soon:'🗓️', result:'✅' };
+  const ICON = { live:'flame', soon:'calendar', result:'check' };
+  const PFX  = { live:'🔴', soon:'🗓️', result:'✅' };
   return LIVE_FOOT.slice(0, 12).map(f=>{
     const cls = 'tk-foot tk-' + (f.kind||'');
     const html = `<span class="tk-comp">${f.comp||''}</span> ${PFX[f.kind]||'⚽'} <b>${f.text||''}</b>`;
-    return it(ICON[f.kind]||'flame', html, cls, '');
+    return it(ICON[f.kind]||'calendar', html, cls, '');
   });
 }
 
