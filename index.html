@@ -1908,6 +1908,8 @@
       <div class="rule-block">
         <h3 class="rule-h">16. Enchère automatique (proxy)</h3>
         <p class="rule-p">Dans la fenêtre d'enchère, tu peux fixer un <b>montant maximum</b>. Le système surenchérit alors pour toi, par paliers, juste ce qu'il faut pour rester en tête — sans jamais dépasser ton max, le plafond du joueur (prix × 1,5) ni ton budget disponible. Deux enchères automatiques se répondent entre elles jusqu'à ce que l'une atteigne sa limite. <b>L'enchère automatique respecte aussi la limite de 3 PASS</b> : chaque offre qu'elle place compte comme une offre manuelle, et elle s'arrête quand tu as atteint 3 offres sur ce joueur. Tu peux la désactiver à tout moment.</p>
+        <p class="rule-p"><b>Mêmes règles de temps que les offres manuelles.</b> L'enchère automatique ne permet <b>aucun passe-droit</b> : tu ne peux pas l'utiliser pour entrer sur un joueur sur lequel tu n'as jamais misé dans les <b>dernières heures</b> (fenêtre « pas de première offre »), ni pendant la <b>phase finale</b> si tu n'étais pas déjà engagé. Pour poser un proxy tardif, il faut donc avoir déjà misé sur ce joueur avant la fenêtre.</p>
+        <p class="rule-p"><b>Limite : 10 enchères automatiques par jour.</b> Tu peux activer le proxy sur <b>10 enchères différentes maximum par jour</b>. Ajuster le montant max d'un proxy déjà posé ne compte pas dans cette limite — seule une activation sur une <b>nouvelle</b> enchère la consomme.</p>
       </div>
 
       <div class="rule-block">
@@ -4850,6 +4852,10 @@ const FAQ_DATA = [
      "Aucune <b>première offre</b> n’est permise dans les <b>6 dernières heures</b> d’une enchère. Et dans la <b>phase finale</b> (2 dernières heures), seuls les managers déjà engagés peuvent remettre une offre, une seule chacun."],
     ['Qu’est-ce que l’enchère automatique (proxy) ?',
      "Tu fixes un <b>montant maximum</b> et le système surenchérit pour toi, par paliers, juste ce qu’il faut pour rester en tête — sans dépasser ton max, le plafond du joueur ni ton budget. Elle <b>respecte la limite de 3 PASS</b> : chaque offre qu’elle place compte, et elle s’arrête quand tu as fait 3 offres sur ce joueur. Tu peux la désactiver quand tu veux."],
+    ['Puis-je utiliser l’enchère automatique pour entrer à la dernière minute ?',
+     "Non. L’enchère automatique suit <b>exactement les mêmes règles de temps</b> qu’une offre manuelle : pas de <b>première offre</b> dans les dernières heures (fenêtre « pas de première offre »), et pendant la <b>phase finale</b>, seuls les managers <b>déjà engagés</b> peuvent surenchérir. Si tu n’as jamais misé sur le joueur, activer un proxy tardif est refusé — c’est voulu, pour qu’il n’y ait aucun passe-droit."],
+    ['Combien d’enchères automatiques puis-je activer par jour ?',
+     "<b>10 par jour</b> au maximum, sur 10 enchères différentes. Modifier le montant max d’un proxy que tu as <b>déjà posé</b> ne compte pas : seule une activation sur une <b>nouvelle</b> enchère consomme ton quota du jour."],
     ['Je peux annuler une offre ?',
      "Non. Toute offre engage : si tu gagnes, tu paies. Ton budget est <b>bloqué</b> dès que tu mènes une enchère."],
     ['Combien d’enchères puis-je mener en même temps ?',

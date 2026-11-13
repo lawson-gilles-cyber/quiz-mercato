@@ -3332,6 +3332,7 @@ const BAREMES_GROUPS = [
     ['max_active_auctions','Enchères actives max (global)','int'],
     ['max_daily_purchases','Achats max / jour / manager','int'],
     ['max_leading_auctions','Enchères menées max / manager','int'],
+    ['max_daily_autobids','Enchères automatiques max / jour / manager','int'],
     ['daily_proposals_target','Objectif de propositions / jour','int'],
     ['bid_pass_limit','PASS (offres) max par joueur','int'],
     ['bid_cooldown_hours','Délai entre 2 offres (h)','hours'],
@@ -5481,6 +5482,8 @@ const ADMIN_FAQ = [
      "Onglet <b>Config → « Récap de journée »</b> : génère un résumé (mouvements, classement) à copier/partager, avec option image. Pratique pour animer le groupe WhatsApp."],
   ]],
   ['Barèmes & réglages', [
+    ['Comment limiter les enchères automatiques (proxy) par jour ?',
+     "Onglet <b>Barèmes & réglages → Limites du marché</b>, champ <b>« Enchères automatiques max / jour / manager »</b> (réglage <code>max_daily_autobids</code>, 10 par défaut). Un manager ne peut activer le proxy que sur ce nombre d'enchères différentes par jour ; ajuster le max d'un proxy déjà posé ne compte pas. Le proxy applique aussi les mêmes règles de temps que les offres manuelles : impossible d'entrer via une enchère automatique dans la fenêtre « pas de première offre » ou en phase finale si le manager n'a jamais misé sur le joueur."],
     ['Comment changer un montant de bonus ou une limite ?',
      "Onglet <b>Config → « Éditeur de barèmes »</b> : tous les réglages (bonus, taxes, salaires, limites du marché, calendrier, objectif de propositions…) sont modifiables ici. Modifie puis « Enregistrer les barèmes »."],
     ['L’objectif de propositions affiche un mauvais chiffre ?',
