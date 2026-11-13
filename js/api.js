@@ -1635,6 +1635,14 @@ export async function adminCreateMatchday(number, label, deadline) {
 export async function adminSetMatchdayStatus(matchdayId, status) {
   return sb.rpc('qm_admin_set_matchday_status', { p_matchday_id: matchdayId, p_status: status });
 }
+// Ajuste la deadline de dépôt du onze d'une journée (null = la retirer).
+export async function adminSetLineupDeadline(matchdayId, deadlineISO) {
+  return sb.rpc('qm_admin_set_lineup_deadline', { p_matchday_id: matchdayId, p_deadline: deadlineISO });
+}
+// Raccourci : fixe la deadline au prochain lundi 23h00 (Europe/Paris).
+export async function adminSetDeadlineNextMonday(matchdayId) {
+  return sb.rpc('qm_admin_set_deadline_next_monday', { p_matchday_id: matchdayId });
+}
 export async function listMatchdays() {
   const { data } = await sb.from('qm_matchdays').select('*').order('number', { ascending: true });
   return data ?? [];
@@ -1659,6 +1667,15 @@ export async function setLineup(matchdayId, playerIds, benchIds) {
 export async function myLineup(matchdayId) {
   const { data } = await sb.rpc('qm_my_lineup', { p_matchday_id: matchdayId });
   return data ?? null;
+}
+// Joueurs de ma compo qui ne m'appartiennent plus (titulaires + réservistes).
+export async function lineupInvalidPlayers(matchdayId) {
+  const { data } = await sb.rpc('qm_lineup_invalid_players', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
+// Réparer : retire les partis et recomplète les titulaires à 11.
+export async function lineupRepair(matchdayId) {
+  return sb.rpc('qm_lineup_repair', { p_matchday_id: matchdayId });
 }
 export async function adminCloseMatchday(matchdayId) {
   // La fonction SQL qm_admin_close_matchday sera créée à l'étape 4

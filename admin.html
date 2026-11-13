@@ -4882,15 +4882,37 @@ $('btnGrantAward').onclick = async ()=>{
 async function loadMatchdays(){
   const mds = await api.listMatchdays();
   if(!$('mdList')) return;
-  $('mdList').innerHTML = mds.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>#</th><th>Libellé</th><th>Statut</th><th>Actions</th></tr></thead><tbody>${
+  const fmtDl = iso => iso ? new Date(iso).toLocaleString('fr-FR',{weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+  $('mdList').innerHTML = mds.length ? `<table style="width:100%;margin-top:8px"><thead><tr><th>#</th><th>Libellé</th><th>Statut</th><th>Deadline compo</th><th>Actions</th></tr></thead><tbody>${
     mds.map(m=>`<tr><td>${m.number}</td><td>${m.label||''}</td><td><span class="status s-${m.status}">${MD_STATUS[m.status]||m.status}</span></td>
+      <td>${m.status==='closed'
+        ? `<span class="hint">${fmtDl(m.lineup_deadline)}</span>`
+        : `<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+             <input type="datetime-local" class="val-edit" data-dlinput="${m.id}" value="${toLocalInput(m.lineup_deadline)}" style="width:170px">
+             <button class="btn-ghost btn-sm" data-dlset="${m.id}" title="Enregistrer cette deadline">OK</button>
+             <button class="btn-ghost btn-sm" data-dlmonday="${m.id}" title="Fixer au prochain lundi 23h00">📅 Lun 23h</button>
+           </div>`}</td>
       <td><div class="actions">
         ${m.status==='upcoming'?`<button class="btn-primary btn-sm" data-mdopen="${m.id}">Ouvrir</button>`:''}
         ${m.status==='open'?`<button class="btn-ghost btn-sm" data-mdscore="${m.id}">Passer en notation</button>`:''}
         ${m.status==='scoring'?`<button class="btn-primary btn-sm" data-mdclose="${m.id}">Clôturer</button>`:''}
         ${m.status!=='closed'?`<button class="btn-ghost btn-sm" data-mdduel="${m.id}" title="Apparie les managers 2 à 2 pour le Duel de la journée (tirage équilibré). Les gagnants seront désignés à la clôture.">⚔️ Générer les duels</button>`:''}
       </div></td></tr>`).join('')
-  }</tbody></table>` : `<p class="hint">Aucune journée créée.</p>`;
+  }</tbody></table><p class="hint" style="margin-top:8px">À l'ouverture d'une journée, si aucune deadline n'est fixée, elle est mise automatiquement au <b>prochain lundi 23h00</b>. Tu peux l'ajuster ici à tout moment.</p>` : `<p class="hint">Aucune journée créée.</p>`;
+
+  // Ajustement de la deadline de compo
+  $('mdList').querySelectorAll('[data-dlset]').forEach(b=>b.onclick=async()=>{
+    const inp = $('mdList').querySelector(`[data-dlinput="${b.dataset.dlset}"]`);
+    const iso = inp && inp.value ? new Date(inp.value).toISOString() : null;
+    const r = await api.adminSetLineupDeadline(b.dataset.dlset, iso);
+    if(r.error) return showMsg($('msg2'), r.error.message);
+    showMsg($('msg2'), iso ? 'Deadline de compo enregistrée.' : 'Deadline retirée.', true); loadMatchdays();
+  });
+  $('mdList').querySelectorAll('[data-dlmonday]').forEach(b=>b.onclick=async()=>{
+    const r = await api.adminSetDeadlineNextMonday(b.dataset.dlmonday);
+    if(r.error) return showMsg($('msg2'), r.error.message);
+    showMsg($('msg2'), 'Deadline fixée au prochain lundi 23h00.', true); loadMatchdays();
+  });
 
   $('mdList').querySelectorAll('[data-mdopen]').forEach(b=>b.onclick=async()=>{
     const r = await api.adminSetMatchdayStatus(b.dataset.mdopen,'open');
