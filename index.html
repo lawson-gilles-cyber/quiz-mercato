@@ -2754,7 +2754,7 @@ function playerCard(p){
       ${(ME && p.owner_id===ME.id)
         ? `<div class="owner">Ton joueur${p.for_trade?' · <span style="color:var(--transfer);display:inline-flex;align-items:center;gap:4px">'+I('store',13)+' en vitrine</span>':''}</div>
            <button class="bid-btn trade-toggle${p.for_trade?' on':''}" data-trade="${p.id}" data-name="${(p.name||'').replace(/"/g,'&quot;')}" data-on="${p.for_trade?1:0}" data-ask="${p.asking_price||''}" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;justify-content:center">${I('store',15)} ${p.for_trade?'Retirer de la vitrine':'Proposer à l\'échange'}</button>
-           <button class="bid-btn release" data-release="${p.id}" style="background:#7a2e2e;margin-top:6px">Libérer</button>
+           <button class="bid-btn release" data-release="${p.id}" data-rname="${(p.name||'').replace(/"/g,'&quot;')}" data-rpos="${p.position||''}" data-rclub="${(p.club||'').replace(/"/g,'&quot;')}" style="background:#7a2e2e;margin-top:6px">Libérer</button>
            <button class="bid-btn" data-injury="${p.id}" data-iname="${(p.name||'').replace(/"/g,'&quot;')}" style="background:transparent;border:1px solid var(--line);color:var(--muted);margin-top:6px">Déclarer blessé</button>`
         : owned
           ? `<div class="owner">${ownerName?'Recruté par <b>'+ownerName+'</b>':'Indisponible'}</div>
@@ -5632,19 +5632,28 @@ async function renderTeam(){
   // Boutons "Libérer" (liste ET terrain, via délégation sur data-release)
   document.querySelectorAll('#team [data-release]').forEach(btn => btn.onclick = async () => {
     const pid = btn.dataset.release;
+    // Identité du joueur (depuis les attributs du bouton) : le manager DOIT
+    // voir CLAIREMENT qui il libère, pour éviter de libérer le mauvais joueur
+    // (clic manqué sur la croix du terrain notamment).
+    const rname = btn.dataset.rname || 'ce joueur';
+    const rpos  = btn.dataset.rpos ? (POS[btn.dataset.rpos]||btn.dataset.rpos) : '';
+    const rclub = btn.dataset.rclub || '';
+    const ident = [rpos, rclub].filter(Boolean).join(' · ');
     const prev = await api.releasePreview(pid);
     if(!prev || !prev.can_release){
       return toast(prev ? prev.reason : "Libération impossible pour le moment.",'err');
     }
     const ok = await uxConfirm(
+      `<div style="font-size:1.15rem;font-weight:800;color:var(--live);margin-bottom:2px">${rname}</div>`+
+      (ident ? `<div style="color:var(--muted);font-size:.82rem;margin-bottom:12px">${ident}</div>` : '<div style="margin-bottom:12px"></div>')+
       `Détenu depuis ${prev.held_hours}h → pénalité de <b>${prev.penalty_pct}%</b>.<br>`+
       `Tu récupères <b>${fmtMoney(prev.refund)}</b> (pénalité perdue : ${fmtMoney(prev.penalty)}).<br><br>`+
-      `Le joueur retournera sur le marché. Action définitive.`,
-      {title:'Libérer ce joueur ?', okText:'Libérer', danger:true});
+      `<b>${rname}</b> retournera sur le marché. Action <b>définitive</b> — vérifie bien que c'est le bon joueur.`,
+      {title:`Libérer ${rname} ?`, okText:'Oui, libérer', danger:true});
     if(!ok) return;
     const { error } = await api.releasePlayer(pid);
     if(error) return toast('Échec : '+error.message,'err');
-    toast('Joueur libéré. Budget crédité du remboursement.','ok');
+    toast(`${rname} libéré. Budget crédité du remboursement.`,'ok');
     renderTeam();
   });
 }
@@ -5729,7 +5738,7 @@ function kitSvg(club){
   return kitSvgColors(k.a, k.b);
 }
 function jerseyCard(p, readonly, colors){
-  const xBtn = readonly ? '' : `<button class="jersey-x" data-release="${p.id}" title="Libérer ce joueur">×</button>`;
+  const xBtn = readonly ? '' : `<button class="jersey-x" data-release="${p.id}" data-rname="${(p.name||'').replace(/"/g,'&quot;')}" data-rpos="${p.position||''}" data-rclub="${(p.club||'').replace(/"/g,'&quot;')}" title="Libérer ${(p.name||'ce joueur').replace(/"/g,'&quot;')}">×</button>`;
   // Couleurs explicites (équipe affichée) sinon logique par défaut de kitSvg
   const jersey = colors ? kitSvgColors(colors.primary, colors.secondary) : kitSvg(p.club);
   // Barre de note Mercato retirée (réservée à un éventuel tournoi interne)
