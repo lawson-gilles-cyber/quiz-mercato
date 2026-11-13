@@ -7168,28 +7168,32 @@ function setLineupPulse(on){
 // on alerte le coach et on lui propose de réparer (recompléter à 11).
 // Vérifié sur journée OUVERTE uniquement (sur une journée clôturée, plus rien
 // à réparer — le correctif 248 a déjà neutralisé les points).
-async function renderLineupRepair(md){
+async function renderLineupRepair(md, teamArg, isDepannage){
   const box = $('lineupRepair'); if(!box) return;
   const hide = ()=>{ box.style.display='none'; box.innerHTML=''; };
   if(!md || md.status!=='open'){ hide(); return; }
   let bad = [];
-  try { bad = await api.lineupInvalidPlayers(md.id); } catch(e){ hide(); return; }
+  try { bad = await api.lineupInvalidPlayers(md.id, teamArg); } catch(e){ hide(); return; }
   if(!bad || !bad.length){ hide(); return; }
 
   const I = (typeof ic==='function')?ic:(()=>'');
   const mdName = md.label || ('Journée '+md.number);
   const items = bad.map(p=>`<li><span class="lr-role">${p.role}</span> — <b>${p.name||'(joueur retiré)'}</b></li>`).join('');
   const n = bad.length;
+  // Formulation adaptée : ma compo vs la compo de l'équipe dépannée.
+  const possess = isDepannage ? 'Cette compo' : 'Ta compo';
+  const effectif = isDepannage ? "l'effectif de cette équipe" : 'ton effectif';
+  const btnLabel = isDepannage ? 'Réparer cette compo (recompléter à 11)' : 'Réparer ma compo (recompléter à 11)';
   box.innerHTML = `
     <div class="lr-head">
       <span class="lr-ic">${I('warning',16)}</span>
       <div class="lr-txt">
-        Ta compo pour <b>${mdName}</b> contient <b>${n} joueur${n>1?'s':''}</b> qui ${n>1?'ne font':'ne fait'} plus partie de ton effectif
+        ${possess} pour <b>${mdName}</b> contient <b>${n} joueur${n>1?'s':''}</b> qui ${n>1?'ne font':'ne fait'} plus partie de ${effectif}
         (vendu, échangé ou libéré depuis). ${n>1?'Ils ne compteront':'Il ne comptera'} pas de points.
         <ul class="lr-list">${items}</ul>
       </div>
     </div>
-    <button class="lr-btn" id="btnRepairLineup">Réparer ma compo (recompléter à 11)</button>`;
+    <button class="lr-btn" id="btnRepairLineup">${btnLabel}</button>`;
   box.style.display='block';
 
   const btn = $('btnRepairLineup');
@@ -7197,7 +7201,7 @@ async function renderLineupRepair(md){
     btn.disabled = true;
     const old = btn.textContent;
     btn.textContent = 'Réparation…';
-    const { error } = await api.lineupRepair(md.id);
+    const { error } = await api.lineupRepair(md.id, teamArg);
     if(error){
       btn.disabled = false; btn.textContent = old;
       const msg = (error.message||'').replace(/^.*?:\s*/,'') || 'Réparation impossible.';
@@ -7292,9 +7296,8 @@ async function loadLineupForMatchday(mdId){
   // Garde-fou : alerte si la compo n'est pas complète (11) sur une journée ouverte
   renderLineupAlert(md, LINEUP_SELECTED.size, mine.length);
   // Garde-fou : joueurs de la compo qui ne sont plus dans l'effectif (+ bouton réparer).
-  // Réservé à MA propre équipe (la réparation s'applique à l'équipe du compte).
-  if(isDepannage){ const rb=$('lineupRepair'); if(rb){ rb.style.display='none'; rb.innerHTML=''; } }
-  else renderLineupRepair(md);
+  // Fonctionne aussi pour une équipe dépannée (teamArg transmis).
+  renderLineupRepair(md, teamArg, isDepannage);
 
   // Journée clôturée : lecture seule (pas d'alignement possible)
   const isClosed = md && md.status==='closed';

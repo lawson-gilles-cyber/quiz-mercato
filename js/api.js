@@ -1689,13 +1689,18 @@ export async function adminRemoveLineupDelegate(delegateId) {
   return sb.rpc('qm_admin_remove_lineup_delegate', { p_id: delegateId });
 }
 // Joueurs de ma compo qui ne m'appartiennent plus (titulaires + réservistes).
-export async function lineupInvalidPlayers(matchdayId) {
-  const { data } = await sb.rpc('qm_lineup_invalid_players', { p_matchday_id: matchdayId });
+// teamId optionnel : pour une équipe dépannée (sinon la mienne).
+export async function lineupInvalidPlayers(matchdayId, teamId) {
+  const args = { p_matchday_id: matchdayId };
+  if (teamId) args.p_team = teamId;
+  const { data } = await sb.rpc('qm_lineup_invalid_players', args);
   return data ?? [];
 }
 // Réparer : retire les partis et recomplète les titulaires à 11.
-export async function lineupRepair(matchdayId) {
-  return sb.rpc('qm_lineup_repair', { p_matchday_id: matchdayId });
+export async function lineupRepair(matchdayId, teamId) {
+  const args = { p_matchday_id: matchdayId };
+  if (teamId) args.p_team = teamId;
+  return sb.rpc('qm_lineup_repair', args);
 }
 export async function adminCloseMatchday(matchdayId) {
   // La fonction SQL qm_admin_close_matchday sera créée à l'étape 4
