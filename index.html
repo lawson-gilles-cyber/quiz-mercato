@@ -2619,7 +2619,17 @@ $('authBtn').onclick = ()=>{
 // bascule le formulaire en mode inscription et on affiche qui invite. Aucune
 // donnée serveur n'est ajoutée : c'est un raccourci d'accueil, honnête et sans
 // promesse de récompense automatique.
-function setSignupMode(on){
+async function setSignupMode(on){
+  // Si on passe en inscription, on vérifie d'abord que les inscriptions
+  // sont ouvertes — sinon on prévient et on reste en mode connexion.
+  if(on){
+    let open = true;
+    try { open = await api.registrationsOpen(); } catch(e){}
+    if(!open){
+      authMsg('Les inscriptions sont fermées pour cette saison.');
+      return;
+    }
+  }
   signupMode = on;
   $('authName').style.display = on?'block':'none';
   $('authTeam').style.display = on?'block':'none';

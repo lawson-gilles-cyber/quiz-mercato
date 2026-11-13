@@ -47,15 +47,40 @@ export async function signIn(email, password) {
   return sb.auth.signInWithPassword({ email, password });
 }
 export async function signUp(email, password, displayName, teamName) {
+  // Verrou d'inscription : on vérifie AVANT de créer le compte Auth, pour
+  // ne pas laisser un compte orphelin si les inscriptions sont fermées.
+  try {
+    const { data: open } = await sb.rpc('qm_registrations_open');
+    if (open === false) {
+      return { error: { message: 'Les inscriptions sont fermées pour cette saison.' } };
+    }
+  } catch (e) { /* si la fonction n'existe pas encore, on laisse passer */ }
+
   const { data, error } = await sb.auth.signUp({ email, password });
   if (error) return { error };
-  // Crée la fiche manager (autorisé par la policy "create own manager")
-  const { error: mErr } = await sb.from('qm_managers').insert({
-    auth_user_id: data.user.id,
-    display_name: displayName,
-    team_name: teamName || null
+  // Création de la fiche manager via la fonction serveur contrôlée
+  // (vérifie le verrou côté serveur, incontournable). Repli sur l'insert
+  // direct si la fonction n'est pas encore déployée.
+  const { error: mErr } = await sb.rpc('qm_register_manager', {
+    p_display_name: displayName, p_team_name: teamName || null
   });
+  if (mErr && /function .*qm_register_manager/i.test(mErr.message || '')) {
+    const { error: insErr } = await sb.from('qm_managers').insert({
+      auth_user_id: data.user.id, display_name: displayName, team_name: teamName || null
+    });
+    return { data, error: insErr };
+  }
   return { data, error: mErr };
+}
+
+// État d'ouverture des inscriptions (lecture publique, avant connexion).
+export async function registrationsOpen() {
+  try { const { data } = await sb.rpc('qm_registrations_open'); return data !== false; }
+  catch (e) { return true; }
+}
+// Admin : ouvrir / fermer les inscriptions.
+export async function adminSetRegistrations(open) {
+  return sb.rpc('qm_admin_set_registrations', { p_open: !!open });
 }
 // Envoie l'e-mail de réinitialisation de mot de passe (self-service).
 // Le lien ramène sur le site avec un jeton de récupération ; le front

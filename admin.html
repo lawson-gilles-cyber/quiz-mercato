@@ -512,6 +512,18 @@
       </div>
       <p class="hint" id="marketNow">—</p>
     </div>
+
+    <!-- Verrou d'inscription -->
+    <div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div>
+          <label style="margin:0" data-ic="users">Inscriptions de nouveaux managers</label>
+          <p class="hint" id="regStatus" style="margin:4px 0 0">—</p>
+        </div>
+        <button class="btn-ghost" id="btnToggleReg" style="white-space:nowrap">—</button>
+      </div>
+      <p class="hint" style="margin-top:8px">Le catalogue (248 joueurs) ne remplit que ~11-12 effectifs complets. Ferme les inscriptions quand la partie est pleine pour éviter que de nouveaux arrivants tombent sur un marché vide (les ligues indépendantes arrivent la saison prochaine).</p>
+    </div>
   </div>
 
   <!-- Fenêtres de mercato (été/hiver) -->
@@ -1862,6 +1874,34 @@ $('btnSetMarket').onclick = async () => {
   showMsg($('msg2'), 'Date d\'ouverture du marché enregistrée.', true);
   loadPhase();
 };
+
+// ---------- Verrou d'inscription ----------
+async function loadRegLock(){
+  const st = $('regStatus'), btn = $('btnToggleReg');
+  if(!st || !btn) return;
+  let open = true;
+  try { open = await api.registrationsOpen(); } catch(e){}
+  if(open){
+    st.innerHTML = '<b style="color:#4ade80">OUVERTES</b> — de nouveaux managers peuvent s\'inscrire.';
+    btn.textContent = '🔒 Fermer les inscriptions';
+    btn.className = 'btn-danger';
+  } else {
+    st.innerHTML = '<b style="color:var(--live,#e0574a)">FERMÉES</b> — plus aucune nouvelle inscription.';
+    btn.textContent = '🔓 Rouvrir les inscriptions';
+    btn.className = 'btn-primary';
+  }
+  btn.dataset.open = open ? '1' : '0';
+}
+if($('btnToggleReg')) $('btnToggleReg').onclick = async ()=>{
+  const willOpen = $('btnToggleReg').dataset.open !== '1'; // on inverse l'état courant
+  if(!willOpen && !confirm('Fermer les inscriptions ?\n\nPlus aucun nouveau manager ne pourra rejoindre la partie jusqu\'à réouverture.')) return;
+  const { error } = await api.adminSetRegistrations(willOpen);
+  if(error) return showMsg($('msg2'), error.message);
+  showMsg($('msg2'), willOpen ? 'Inscriptions rouvertes.' : 'Inscriptions fermées.', true);
+  loadRegLock();
+};
+// Charge l'état du verrou au démarrage (en même temps que la phase).
+try { loadRegLock(); } catch(e){}
 document.querySelectorAll('[data-phase]').forEach(b=>{
   b.onclick = async () => {
     const { error } = await api.adminSetPhase(b.dataset.phase);
