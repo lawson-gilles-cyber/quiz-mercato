@@ -1900,11 +1900,12 @@
           <li>Le <b>Manager</b> engage l'équipe sur <b>tout le marché</b> : enchères, recrutement direct, <b>échanges, offres en vitrine, prêts</b> et libérations. Il est le seul à pouvoir <b>proposer ET accepter</b> ces mouvements.</li>
           <li>Le <b>Coach</b> aligne les <b>11 titulaires</b> chaque journée, avant la date limite (onglet Compo). Il peut <b>consulter</b> le marché et les mouvements, mais ne dépense ni n'engage jamais l'effectif.</li>
           <li>Si le Coach n'aligne pas à temps, la <b>composition de la journée précédente est reconduite</b> automatiquement.</li>
+          <li>En cas de besoin (coach absent ou indisponible), l'organisateur peut désigner un <b>Manager comme dépanneur</b> d'une autre équipe (voir §30).</li>
         </ul>
       </div>
       <div class="rule-block">
         <h3 class="rule-h">12. Points & performances</h3>
-        <p class="rule-p">Tes points de classement viennent <b>uniquement des performances réelles</b> de tes 11 titulaires. La note de chaque titulaire (source Sofascore) est pondérée par son temps de jeu : <b>0-19 min → 0 %, 20-39 min → 50 %, 40-59 min → 75 %, 60 min et + → 100 %</b>. La somme des 11 notes pondérées = tes points de la journée. Le classement évolue à chaque journée clôturée.</p>
+        <p class="rule-p">Tes points de classement viennent <b>uniquement des performances réelles</b> de tes 11 titulaires. La note de chaque titulaire (source Sofascore) est pondérée par son temps de jeu : <b>0-19 min → 0 %, 20-39 min → 50 %, 40-59 min → 75 %, 60 min et + → 100 %</b>. La somme des 11 notes pondérées = tes points de la journée. Tu peux en plus désigner un <b>leader</b> qui ajoute un bonus (voir §29). Le classement évolue à chaque journée clôturée.</p>
       </div>
       <div class="rule-block">
         <h3 class="rule-h">13. Les deux mercatos</h3>
@@ -2059,6 +2060,17 @@
           <li>Si le joueur désigné leader <b>quitte ton effectif</b> (vendu, échangé, libéré) avant la clôture, il ne rapporte ni points ni bonus.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px"><b>Pourquoi cette règle ?</b> Elle récompense ta capacité à <b>anticiper</b> qui va performer, ajoute une vraie décision stratégique à la composition, et s'appuie entièrement sur les notes Sofascore — sans dénaturer le système de notation ni copier les mécaniques des autres jeux de fantasy.</p>
+
+        <h3 class="rule-h">30. Dépannage de composition (coach de secours)</h3>
+        <p class="rule-p">Il peut arriver qu'un <b>Coach soit absent ou indisponible</b> au moment d'aligner le onze. Pour éviter qu'une équipe joue à découvert, l'organisateur peut désigner temporairement un <b>Manager comme « dépanneur »</b> d'une autre équipe.</p>
+        <ol class="rule-ol">
+          <li>Le dépannage est décidé et activé <b>par l'organisateur uniquement</b>. Un manager ne peut pas se l'attribuer lui-même.</li>
+          <li>Le dépanneur <b>garde sa propre équipe</b> et peut, en plus, composer le onze de l'équipe dépannée (un sélecteur d'équipe apparaît alors dans l'onglet Compo).</li>
+          <li>Ce droit ne concerne <b>que l'alignement du onze</b> : il ne donne <b>aucun accès</b> au budget, aux enchères, au marché ni au classement de l'équipe dépannée.</li>
+          <li>Chaque composition déposée est <b>tracée</b> : on sait qui l'a posée.</li>
+          <li>Le dépannage reste actif <b>jusqu'à ce que l'organisateur le retire</b> (par exemple au retour du coach titulaire).</li>
+        </ol>
+        <p class="rule-p" style="margin-top:10px">C'est un <b>filet de secours</b> au service du fair-play : il évite qu'une équipe soit pénalisée par l'indisponibilité ponctuelle de son coach, sans jamais toucher à l'intégrité du mercato.</p>
       </div>
     </div>
   </section>
@@ -3025,12 +3037,21 @@ let _chkWired = false;
 function setupPlayerCheck(){
   const inp = $('chkSearch'), out = $('chkResult');
   if(!inp || !out) return;
-  const render = ()=>{
-    const q = (inp.value||'').trim().toLowerCase();
+  // Normalise pour une recherche insensible aux accents et à la casse
+  // (« Mbappe » trouve « Mbappé », « haaland » trouve « HAALAND »).
+  const norm = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const render = async ()=>{
+    const q = norm((inp.value||'').trim());
     if(q.length < 2){ out.innerHTML = '<div class="hint" style="font-size:.82rem;color:var(--muted)">Tape au moins 2 lettres…</div>'; return; }
+    // Le cache peut être vide (onglet ouvert avant chargement) ou périmé après
+    // une acquisition récente : on s'assure d'une liste COMPLÈTE avant de conclure.
+    if(!PLAYERS || !PLAYERS.length){
+      out.innerHTML = '<div class="hint" style="font-size:.82rem;color:var(--muted)">Recherche…</div>';
+      try { await loadPlayers(); } catch(e){ /* on tentera avec ce qu'on a */ }
+    }
     const hits = (PLAYERS||[]).filter(p=>{
-      const full = ((p.first_name||'')+' '+(p.name||'')).toLowerCase();
-      return full.includes(q) || (p.name||'').toLowerCase().includes(q);
+      const full = norm((p.first_name||'')+' '+(p.name||''));
+      return full.includes(q) || norm(p.name).includes(q) || norm(p.first_name).includes(q);
     }).slice(0, 12);
     if(!hits.length){
       out.innerHTML = `<div style="padding:10px 12px;border-radius:8px;background:rgba(79,161,255,.1);border:1px solid #1d3a6b;font-size:.86rem">✅ Aucun joueur de ce nom dans le jeu — tu peux le <b>dénicher</b>.</div>`;
@@ -3058,6 +3079,9 @@ function setupPlayerCheck(){
   render();
 }
 async function renderMarket(){
+  // S'assure que le cache des joueurs est chargé AVANT la recherche « déjà pris ? »
+  // (sinon un onglet ouvert tôt peut afficher « aucun joueur » à tort).
+  if(!PLAYERS || !PLAYERS.length){ try { await loadPlayers(); } catch(e){} }
   setupPlayerCheck();            // « ce joueur est-il déjà pris ? » (tous)
   renderMarketplace();           // place de marché (vitrine des échanges)
   renderFreeAgents();            // agents libres (joueurs libérés)
@@ -4951,6 +4975,8 @@ const FAQ_DATA = [
      "Non : le duo partage <b>un seul budget de 800 M€</b>, pas un chacun. C’est le <b>Manager</b> qui détient l’argent et qui enchérit ; le <b>Coach</b> ne fait qu’aligner la composition (titulaires et réservistes) et ne peut pas dépenser. Attention : tant que le compte Coach n’est pas <b>relié à son équipe par l’organisateur</b>, il est traité comme une équipe séparée avec son propre budget — d’où l’importance de l’association."],
     ['Le coach doit-il créer son propre compte ?',
      "Oui. Le coach crée d’abord son propre compte comme tout le monde, puis l’organisateur le <b>relie</b> à l’équipe qu’il coache. À partir de là, il accède à la composition de cette équipe et partage le budget du Manager (il ne dépense pas lui-même)."],
+    ['Mon coach est absent : quelqu’un peut-il composer à sa place ? 🆘',
+     "Oui. L’organisateur peut désigner temporairement un <b>autre Manager comme « dépanneur »</b> de ton équipe : il pourra aligner ton onze sans toucher à ton budget, tes enchères ni ton classement. Le dépanneur garde sa propre équipe ; un sélecteur d’équipe apparaît dans son onglet Compo. Ce droit s’active et se retire uniquement par l’organisateur, et chaque compo déposée est tracée. (Voir §30 du règlement.)"],
     ['Il y a un guide pour débuter ?',
      "Oui : le <b>Guide de démarrage</b> (depuis l’accueil) t’explique en quelques étapes illustrées comment faire ta première enchère, suivre le classement et composer ton équipe."],
   ]],
