@@ -1117,6 +1117,7 @@
         <button data-v="records" data-ic="trophy">Records</button>
         <button data-v="palmares" data-ic="medal">Palmarès</button>
         <button data-v="faq" data-ic="help">FAQ</button>
+        <button id="dykMenuBtn" data-ic="help">💡 Le saviez-vous&nbsp;?</button>
       </div>
     </div>
   </nav>
@@ -2611,6 +2612,11 @@ function goView(v){
 $('nav').addEventListener('click', e=>{
   const b=e.target.closest('button'); if(!b || !b.dataset.v) return;
   goView(b.dataset.v);
+});
+// Bouton « 💡 Le saviez-vous ? » du menu Plus : ouvre le pop-up (pas une vue).
+if($('dykMenuBtn')) $('dykMenuBtn').addEventListener('click', ()=>{
+  const more = $('moreMenu'); if(more) more.classList.remove('open');  // ferme le menu Plus
+  if(typeof showDidYouKnow==='function') showDidYouKnow();
 });
 // Le menu "Plus" est enfant du <nav> (dans le header), qui le coince (overflow,
 // contexte d'empilement). On le déplace à la racine du <body> une bonne fois,
@@ -7360,11 +7366,21 @@ async function loadLineupForMatchday(mdId){
   if(md && md.status==='closed'){
     const bd = await api.lineupBreakdown(composing, mdId);
     if(bd.length){
-      const total = bd.reduce((s,x)=>s+Number(x.contribution),0);
+      // Bonus du leader (une seule ligne peut le porter).
+      const leaderRow = bd.find(x=> x.is_leader);
+      const leaderBonus = bd.reduce((s,x)=>s+Number(x.leader_bonus||0),0);
+      // Total = somme des contributions + bonus leader (cohérent avec le serveur).
+      const total = bd.reduce((s,x)=>s+Number(x.contribution),0) + leaderBonus;
       const hasSub = bd.some(x=>x.is_sub);
       const hasPending = bd.some(x=>x.is_pending) || md.provisional;
       const provBadge = hasPending
         ? `<div style="display:inline-block;background:rgba(245,197,66,.14);border:1px solid var(--transfer);color:var(--transfer);border-radius:8px;padding:4px 10px;font-size:.76rem;font-weight:700;margin-bottom:10px">⏳ Points provisoires — certains matchs ne sont pas encore joués ou renseignés</div>`
+        : '';
+      // Ligne « Bonus leader » ajoutée sous les joueurs, pour que le détail
+      // somme exactement au total affiché.
+      const leaderName = leaderRow ? leaderRow.name : '';
+      const bonusRow = (leaderRow)
+        ? `<tr style="border-top:1px solid var(--line)"><td><span style="color:#ff9a8f;font-weight:700">🅒 Bonus leader</span>${leaderBonus>0?` <span style="color:var(--muted);font-size:.72rem">(${leaderName})</span>`:` <span style="color:var(--muted);font-size:.72rem">(${leaderName} — aucun bonus${(leaderRow.minutes!=null&&leaderRow.minutes<=0)?' : 0 min':(leaderRow.rating!=null&&Number(leaderRow.rating)<6?' : note < 6':'')})</span>`}</td><td>—</td><td>—</td><td>—</td><td style="font-family:'Saira';font-weight:700;color:${leaderBonus>0?'#ff9a8f':'var(--muted)'}">${leaderBonus>0?('+'+leaderBonus.toFixed(0)):'0'}</td></tr>`
         : '';
       $('lineupBreakdown').innerHTML = `<div class="eyebrow" style="margin-bottom:12px">Résultat de la journée</div>
         ${provBadge}
@@ -7373,12 +7389,13 @@ async function loadLineupForMatchday(mdId){
           bd.map(x=>{
             const subTag = x.is_sub ? ` <span style="color:#5fd0e0;font-size:.68rem;white-space:nowrap;display:inline-flex;align-items:center;gap:3px">${(typeof ic==='function'?ic('chair',11):'')} entré pour ${x.replaces_name||'—'}</span>` : '';
             const pendTag = x.is_pending ? ` <span style="color:var(--transfer);font-size:.68rem;white-space:nowrap">⏳ en attente (match reporté / non renseigné)</span>` : '';
-            return `<tr><td><b>${x.name}</b>${subTag}${pendTag}</td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
+            const leadTag = x.is_leader ? ` <span title="Leader de la journée" style="background:var(--live,#e0574a);color:#fff;font-size:.58rem;font-weight:800;border-radius:4px;padding:0 4px;vertical-align:middle">🅒</span>` : '';
+            return `<tr><td><b>${x.name}</b>${leadTag}${subTag}${pendTag}</td><td>${x.rating!=null?Number(x.rating).toFixed(2):'—'}</td>
             <td style="color:var(--muted)">${x.minutes!=null?x.minutes+"'":(x.is_pending?'⏳':'—')}</td>
             <td style="font-size:.8rem;color:var(--muted)">${x.weight_pct!=null?x.weight_pct+'%':'—'}</td>
             <td style="font-family:'Saira';font-weight:700">${Number(x.contribution).toFixed(2)}</td></tr>`;
           }).join('')
-        }</tbody></table>${hasSub?`<p class="hint" style="font-size:.76rem;margin-top:8px"><span style="display:inline-flex;vertical-align:-.1em;margin-right:4px">${I2('chair',12)}</span>Un réserviste est entré automatiquement à la place d'un titulaire qui n'a pas joué.</p>`:''}${hasPending?`<p class="hint" style="font-size:.76rem;margin-top:4px"><span style="display:inline-flex;vertical-align:-.1em;margin-right:4px">${I2('hourglass',12)}</span>Les points seront recalculés automatiquement dès que les minutes manquantes seront renseignées.</p>`:''}`;
+        }${bonusRow}</tbody></table>${hasSub?`<p class="hint" style="font-size:.76rem;margin-top:8px"><span style="display:inline-flex;vertical-align:-.1em;margin-right:4px">${I2('chair',12)}</span>Un réserviste est entré automatiquement à la place d'un titulaire qui n'a pas joué.</p>`:''}${hasPending?`<p class="hint" style="font-size:.76rem;margin-top:4px"><span style="display:inline-flex;vertical-align:-.1em;margin-right:4px">${I2('hourglass',12)}</span>Les points seront recalculés automatiquement dès que les minutes manquantes seront renseignées.</p>`:''}`;
     }
   } else {
     $('lineupBreakdown').innerHTML = '';
@@ -8153,6 +8170,99 @@ async function renderHome(){
   renderDailyChecklist(auctions);
   renderMarketTrends(auctions);
   renderBourseMovers();
+
+  // « Le saviez-vous ? » : une fois par jour, à l'ouverture (si connecté).
+  if(ME) maybeShowDidYouKnow({ managers, moves, auctions });
+}
+
+// ======================================================================
+// « LE SAVIEZ-VOUS ? » — pop-up quotidien (astuces + chiffres vivants)
+// ======================================================================
+let _dykData = null;   // dernières données home (managers, moves, auctions)
+
+// Astuces de règles / fonctionnalités (texte figé). Chacune : {t: titre, h: html}.
+const DYK_TIPS = [
+  {t:'🅒 Le leader de la journée', h:"Désigne un titulaire comme <b>leader</b> dans l'onglet Compo : s'il brille, il rapporte un bonus (<b>+1/+2/+3</b> selon sa note). Aucun bonus s'il ne joue pas. Changeable chaque journée."},
+  {t:'⏱️ Deadline du lundi 23h', h:"Ta compo doit être déposée avant <b>lundi 23h00</b>. Après, ta dernière compo est <b>reconduite automatiquement</b> — pense à la mettre à jour pour éviter d'aligner des blessés ou des remplaçants."},
+  {t:'🔍 Vérifie avant de dénicher', h:"Avant de proposer un joueur, tape son nom dans <b>« Ce joueur est-il déjà pris ? »</b> (onglet Mercato) : tu sauras s'il est libre, en enchère, ou déjà dans une équipe."},
+  {t:'⭐ Tes priorités d\'enchères', h:"Quand tu mènes plus de 3 enchères, désigne jusqu'à <b>3 priorités</b> : elles seront validées en premier si tu les gagnes. Sinon, priorité à tes joueurs dénichés puis aux clôtures proches."},
+  {t:'💶 Dénicheur = prime', h:"Si un <b>autre</b> manager remporte un joueur que tu as déniché, tu touches <b>10 % du prix final</b> (max 20 M€). Déniche des pépites même si tu ne comptes pas les garder !"},
+  {t:'🤖 Enchère automatique', h:"Pose un <b>proxy</b> : le jeu enchérit pour toi jusqu'à ton plafond. Limite de <b>10 activations par jour</b> ; ajuster un proxy déjà posé ne compte pas dans la limite."},
+  {t:'🔄 Le marché ne ferme jamais vraiment', h:"Hors période de mercato, tu ne peux plus enchérir — mais <b>échanges, offres en vitrine et prêts</b> entre managers restent possibles toute la saison."},
+  {t:'🤝 Défie un rival', h:"Dans le Classement, lance un <b>défi tête-à-tête</b> pour la journée : celui qui marque le plus gagne un point d'honneur. Pur prestige, zéro budget en jeu."},
+  {t:'🔮 Marché des prédictions', h:"Prédis quel manager marquera le plus à la prochaine journée : vois juste et gagne du <b>flair</b> et un petit bonus de budget. Observe la forme des autres !"},
+  {t:'📏 Les quotas d\'effectif', h:"21 joueurs, <b>max 3 par club</b> et <b>6 par championnat</b>, 2 gardiens minimum. Le comparateur t'aide à jauger note, valeur et salaire avant d'enchérir."},
+];
+
+// Construit les faits « vivants » à partir des données home déjà chargées.
+async function dykLiveFacts(data){
+  const facts = [];
+  const { managers, moves, auctions } = data || {};
+  // Nombre de managers en lice
+  if(Array.isArray(managers) && managers.length){
+    facts.push({t:'👥 La ligue en chiffres', h:`<b>${managers.length}</b> managers sont actuellement en lice cette saison. Au sommet du classement : <b>${(managers[0]&&(managers[0].team_name||managers[0].display_name))||'—'}</b>.`});
+  }
+  // Enchères ouvertes
+  if(Array.isArray(auctions) && auctions.length){
+    facts.push({t:'🔨 Ça enchérit !', h:`<b>${auctions.length}</b> enchère${auctions.length>1?'s sont':' est'} en cours en ce moment. Un coup d'œil à l'onglet Enchères pourrait te réserver une bonne affaire.`});
+  }
+  // Transferts récents
+  if(Array.isArray(moves) && moves.length){
+    const m = moves[0];
+    const who = (m.player && m.player.name) || m.player_name || m.name || 'un joueur';
+    facts.push({t:'💸 Dernier mouvement', h:`Le marché bouge : <b>${who}</b> vient de changer de mains. ${moves.length>1?`Et ${moves.length-1} autre${moves.length-1>1?'s mouvements récents':' mouvement récent'} à découvrir dans l'Actu.`:''}`});
+  }
+  // Prochaine deadline de compo
+  try {
+    const mds = await api.listMatchdays();
+    const nextOpen = (mds||[]).find(md=> md.status==='open' && md.lineup_deadline);
+    if(nextOpen){
+      const dl = new Date(nextOpen.lineup_deadline);
+      const now = new Date();
+      if(dl > now){
+        const h = Math.max(1, Math.round((dl-now)/3600000));
+        facts.push({t:'⏳ Prochaine deadline', h:`Il te reste environ <b>${h}h</b> pour déposer ta compo (${nextOpen.label||('journée '+nextOpen.number)}). Pense à ton <b>leader</b> !`});
+      }
+    }
+  } catch(e){ /* source optionnelle */ }
+  return facts;
+}
+
+// Affiche le pop-up (manuel ou auto). Retourne une promesse résolue à la fermeture.
+async function showDidYouKnow(){
+  const live = await dykLiveFacts(_dykData || {});
+  // Pool = astuces + faits vivants ; on tire un élément au hasard.
+  const pool = DYK_TIPS.concat(live);
+  const pick = pool[Math.floor(Math.random()*pool.length)] || DYK_TIPS[0];
+  const ov = document.getElementById('uxOverlay');
+  const md = document.getElementById('uxModal');
+  md.innerHTML = `
+    <div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--transfer);font-weight:800;margin-bottom:6px">💡 Le saviez-vous ?</div>
+    <h3 style="margin-top:0">${pick.t}</h3>
+    <p style="color:var(--chalk)">${pick.h}</p>
+    <div class="ux-actions" style="margin-top:4px">
+      <button class="ux-cancel" data-another>Un autre</button>
+      <button class="ux-ok" data-close>J'ai compris</button>
+    </div>`;
+  ov.classList.add('show');
+  return new Promise(resolve=>{
+    const close = ()=>{ ov.classList.remove('show'); resolve(); };
+    md.querySelector('[data-close]').onclick = close;
+    md.querySelector('[data-another]').onclick = ()=>{ showDidYouKnow(); };  // re-tire
+    ov.onclick = (e)=>{ if(e.target===ov) close(); };
+  });
+}
+
+// Affichage auto : au plus une fois par jour (mémorisé en localStorage).
+function maybeShowDidYouKnow(data){
+  _dykData = data || _dykData;
+  try {
+    const today = new Date().toISOString().slice(0,10);
+    if(localStorage.getItem('dyk_last') === today) return;  // déjà vu aujourd'hui
+    localStorage.setItem('dyk_last', today);
+  } catch(e){ /* localStorage indispo : on affiche quand même une fois */ }
+  // Petit délai pour laisser l'accueil se peindre d'abord.
+  setTimeout(()=>{ showDidYouKnow(); }, 900);
 }
 
 // ---------- Bourse : top mouvements de cote (dernière journée) ----------
