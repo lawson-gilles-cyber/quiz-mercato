@@ -544,6 +544,21 @@
     <button class="btn-danger btn-sm" id="btnEndMarketNow" style="margin-top:10px">⛔ Fermer le mercato maintenant</button>
   </div>
 
+  <!-- Quiz de fin de mercato -->
+  <div class="card" style="margin-bottom:14px;border:1px solid rgba(245,197,66,.4)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:1.1rem">🏁</span>
+      <h3 style="margin:0;font-size:1.05rem">Quiz de fin de mercato</h3>
+    </div>
+    <p class="hint" style="margin:0 0 10px">Génère un <b>quiz de 20 questions</b> sur le mercato écoulé (questions bâties depuis les vraies données + règles du jeu). À la <b>fermeture du mercato</b>, il s'affiche en pop-up aux managers, jouable <b>une seule fois</b> : <b>+1 flair</b> par bonne réponse et un <b>bonus de budget</b> par palier (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Les bonnes réponses ne sont jamais envoyées au navigateur (anti-triche).</p>
+    <div id="quizAdminStatus" style="margin-bottom:10px"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary btn-sm" id="btnGenQuiz">Générer / régénérer le quiz</button>
+      <button class="btn-ghost btn-sm" id="btnCloseQuiz">Clôturer le quiz courant</button>
+    </div>
+    <div id="msgQuiz" class="admin-msg" style="margin-top:8px"></div>
+  </div>
+
   <div class="card" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card2,#101d38);border-radius:10px;padding:12px 14px;margin-bottom:14px">
       <div>
@@ -1588,7 +1603,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -3089,6 +3104,35 @@ if($('btnCloseMarketNow')) $('btnCloseMarketNow').onclick = async ()=>{
   if(error) return showMsg($('msg2'), error.message);
   showMsg($('msg2'),'Mercato fermé. Les nouvelles enchères sont bloquées.',true);
   loadMarketDates(); loadWindows();
+};
+
+// ---------- Quiz de fin de mercato ----------
+async function loadQuizAdmin(){
+  const box = $('quizAdminStatus'); if(!box) return;
+  let d = null;
+  try { d = await api.mercatoQuizGet(); } catch(e){}
+  if(!d || !d.exists){
+    box.innerHTML = `<span class="hint">Aucun quiz généré pour l'instant.</span>`;
+    if($('btnCloseQuiz')) $('btnCloseQuiz').style.display='none';
+    return;
+  }
+  if($('btnCloseQuiz')) $('btnCloseQuiz').style.display='';
+  box.innerHTML = `<div style="padding:8px 10px;border-radius:8px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.4);font-size:.88rem">
+    ✅ Quiz courant actif : <b>${d.label||'Quiz de fin de mercato'}</b> — <b>${d.count}</b> questions. Il s'affiche aux managers dès le mercato fermé.</div>`;
+}
+if($('btnGenQuiz')) $('btnGenQuiz').onclick = async ()=>{
+  if(!confirm('Générer (ou régénérer) le quiz de fin de mercato ?\n\nLes questions sont construites à partir des données ACTUELLES du mercato. Régénérer n\'est possible que si personne n\'a encore joué.')) return;
+  const { error } = await api.adminGenerateMercatoQuiz(null);
+  if(error) return showMsg($('msgQuiz'), error.message);
+  showMsg($('msgQuiz'),'Quiz généré — 20 questions prêtes.',true);
+  loadQuizAdmin();
+};
+if($('btnCloseQuiz')) $('btnCloseQuiz').onclick = async ()=>{
+  if(!confirm('Clôturer le quiz courant ?\n\nIl ne s\'affichera plus aux managers. Les parties déjà jouées et leurs récompenses sont conservées.')) return;
+  const { error } = await api.adminCloseMercatoQuiz();
+  if(error) return showMsg($('msgQuiz'), error.message);
+  showMsg($('msgQuiz'),'Quiz clôturé.',true);
+  loadQuizAdmin();
 };
 
 // ---------- Encart « Fin du mercato » (accès direct, en haut de section) ----------
@@ -5725,6 +5769,10 @@ const ADMIN_FAQ = [
      "Onglet <b>Pilotage → « Fenêtres de mercato »</b> : crée les fenêtres d'été et d'hiver avec leurs dates d'ouverture et de fermeture. Le mercato d'été dure 14 jours (enchères 48h puis 24h en J13-J14). Pour juste changer la fin, utilise l'encart <b>📅 Fin du mercato</b> en haut (voir question précédente)."],
     ['Comment afficher le compte à rebours du prochain mercato ?',
      "Crée la fenêtre voulue avec une <b>date d'ouverture dans le futur</b>, puis <b>active-la</b> (bouton d'activation dans « Fenêtres de mercato »). Tant que la date d'ouverture n'est pas atteinte, le mercato <b>reste fermé</b> (aucune enchère possible), mais la page d'accueil affiche un <b>compte à rebours « … ouvre dans … »</b> vers cette date. À l'heure dite, le mercato s'ouvre tout seul."],
+    ['Comment préparer le quiz de fin de mercato ? 🏁',
+     "Onglet <b>Pilotage → encart « 🏁 Quiz de fin de mercato »</b> : clique <b>« Générer le quiz »</b>. Il construit <b>20 questions</b> à partir des données actuelles du mercato (transfert le plus cher, joueur le plus convoité, club/championnat le plus représenté…) complétées par des questions de règles. Dès que le <b>mercato est fermé</b>, le quiz s'affiche en pop-up aux managers, jouable <b>une seule fois</b> : +1 flair par bonne réponse et un bonus de budget par palier (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Génère-le de préférence <b>juste avant la fermeture</b>, quand le mercato reflète la saison complète."],
+    ['Je ne peux pas régénérer le quiz, pourquoi ?',
+     "La régénération est <b>bloquée dès qu'un manager a joué</b> le quiz courant — sinon on changerait les questions (et les réponses) sous les pieds de ceux qui ont déjà répondu. Si tu dois repartir de zéro, <b>clôture</b> le quiz courant (les parties jouées et leurs récompenses sont conservées) puis génères-en un nouveau. Les bonnes réponses ne transitent jamais par le navigateur : impossible de tricher côté joueur."],
     ['Comment valider le remplacement d’un joueur blessé ?',
      "Onglet <b>Joueurs → « Blessures à valider »</b> : en validant, tu autorises le remplacement gratuit (sans enchère) pendant le mercato d'hiver. Tu peux aussi rejeter la déclaration."],
     ['Comment générer un récap de journée ?',

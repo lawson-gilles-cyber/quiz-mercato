@@ -1673,6 +1673,35 @@ export async function myLineup(matchdayId, teamId) {
   const { data } = await sb.rpc('qm_my_lineup', args);
   return data ?? null;
 }
+// --- Quiz de fin de mercato ---
+export async function mercatoQuizGet() {
+  const { data } = await sb.rpc('qm_mercato_quiz_get');
+  return data ?? { exists: false };
+}
+export async function mercatoQuizStart() {
+  const { data, error } = await sb.rpc('qm_mercato_quiz_start');
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function mercatoQuizSubmit(quizId, answers) {
+  return sb.rpc('qm_mercato_quiz_submit', { p_quiz_id: quizId, p_answers: answers });
+}
+export async function adminGenerateMercatoQuiz(label) {
+  return sb.rpc('qm_admin_generate_mercato_quiz', { p_label: label || null });
+}
+export async function adminCloseMercatoQuiz() {
+  return sb.rpc('qm_admin_close_mercato_quiz');
+}
+export async function mercatoQuizLeaderboard(quizId) {
+  const { data } = await sb.rpc('qm_mercato_quiz_leaderboard', { p_quiz_id: quizId || null });
+  return data ?? [];
+}
+export async function mercatoQuizReview(quizId, managerId) {
+  const { data, error } = await sb.rpc('qm_mercato_quiz_review', { p_quiz_id: quizId, p_manager: managerId || null });
+  if (error) return { __error: error.message };
+  return data;
+}
+
 // Les équipes que je peux composer : la mienne + mes dépannages (délégations).
 export async function teamsICanSet() {
   const { data } = await sb.rpc('qm_teams_i_can_set');

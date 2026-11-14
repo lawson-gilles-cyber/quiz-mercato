@@ -1063,6 +1063,9 @@
 <!-- Overlay secondaire : fiche joueur empilée au-dessus d'un DM ouvert -->
 <div id="uxOverlay2" class="ux-ov" style="z-index:10002"><div class="ux-modal" id="uxModal2"></div></div>
 
+<!-- Quiz de fin de mercato (overlay dédié) -->
+<div id="quizOverlay" class="ux-ov" style="z-index:10003"><div class="ux-modal" id="quizModal" style="width:min(94vw,460px);max-height:88vh;overflow:auto"></div></div>
+
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
   <div class="wm-box">
@@ -1118,6 +1121,7 @@
         <button data-v="palmares" data-ic="medal">Palmarès</button>
         <button data-v="faq" data-ic="help">FAQ</button>
         <button id="dykMenuBtn" data-ic="help">💡 Le saviez-vous&nbsp;?</button>
+        <button id="quizMenuBtn" data-ic="trophy">🏁 Quiz mercato</button>
       </div>
     </div>
   </nav>
@@ -2072,6 +2076,17 @@
           <li>Le dépannage reste actif <b>jusqu'à ce que l'organisateur le retire</b> (par exemple au retour du coach titulaire).</li>
         </ol>
         <p class="rule-p" style="margin-top:10px">C'est un <b>filet de secours</b> au service du fair-play : il évite qu'une équipe soit pénalisée par l'indisponibilité ponctuelle de son coach, sans jamais toucher à l'intégrité du mercato.</p>
+
+        <h3 class="rule-h">31. Le quiz de fin de mercato</h3>
+        <p class="rule-p">À la <b>fermeture du mercato</b>, un <b>quiz de 20 questions</b> s'affiche en pop-up. Il porte sur les <b>activités du mercato écoulé</b> (le transfert le plus cher, le joueur le plus convoité, le club le plus représenté…) et sur les <b>règles du jeu</b>.</p>
+        <ol class="rule-ol">
+          <li>Le quiz se joue <b>une seule fois</b> par manager — réponds avec soin, il n'y a pas de deuxième chance.</li>
+          <li>Chaque <b>bonne réponse</b> rapporte <b>+1 flair</b> (prestige).</li>
+          <li>Un <b>bonus de budget</b> s'ajoute selon ton score : <b>≥ 10 bonnes → +5 M€</b>, <b>≥ 15 → +15 M€</b>, <b>20/20 → +30 M€</b>.</li>
+          <li>Tu peux naviguer entre les questions et changer tes réponses <b>tant que tu n'as pas validé</b>.</li>
+          <li>Tu peux aussi relancer le quiz à tout moment depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b> (tant qu'il est ouvert et que tu ne l'as pas déjà joué).</li>
+        </ol>
+        <p class="rule-p" style="margin-top:10px">Un petit jeu de fin de phase pour <b>revivre le mercato</b> et gagner un coup de pouce pour la suite — les bonnes réponses sont vérifiées côté serveur, pas de triche possible.</p>
       </div>
     </div>
   </section>
@@ -2617,6 +2632,11 @@ $('nav').addEventListener('click', e=>{
 if($('dykMenuBtn')) $('dykMenuBtn').addEventListener('click', ()=>{
   const more = $('moreMenu'); if(more) more.classList.remove('open');  // ferme le menu Plus
   if(typeof showDidYouKnow==='function') showDidYouKnow();
+});
+// Bouton « 🏁 Quiz mercato » : ouvre le quiz de fin de mercato (s'il existe).
+if($('quizMenuBtn')) $('quizMenuBtn').addEventListener('click', ()=>{
+  const more = $('moreMenu'); if(more) more.classList.remove('open');
+  if(typeof openMercatoQuiz==='function') openMercatoQuiz();
 });
 // Le menu "Plus" est enfant du <nav> (dans le header), qui le coince (overflow,
 // contexte d'empilement). On le déplace à la racine du <body> une bonne fois,
@@ -5105,6 +5125,10 @@ const FAQ_DATA = [
      "L’organisateur peut lancer des <b>sondages</b> pour animer la ligue : une question à <b>choix multiples</b>, ou un vote <b>pour un manager</b> (meilleur recruteur, plus beau coup de poker…). Tu votes en un clic et tu vois les <b>résultats en direct</b> (voix et pourcentages). Un sondage reste ouvert jusqu’à ce que l’organisateur le clôture. C’est purement ludique, sans effet sur ton budget ni ton classement."],
     ['C’est quoi le bandeau qui défile en haut de l’accueil ?',
      "C’est ton <b>fil d’actu</b> : il mélange l’<b>actu de ton mercato</b> (enchères en cours, derniers transferts, leader du classement) et l’<b>actualité du football européen</b> — coups d’envoi à venir et résultats récents des grands championnats (Ligue 1, Premier League, Liga, Serie A, Bundesliga, Ligue des Champions…). C’est de l’information en lecture seule, pour suivre le jeu et le vrai foot d’un même coup d’œil."],
+    ['C’est quoi le « Quiz de fin de mercato » ? 🏁',
+     "À la <b>fermeture du mercato</b>, un quiz de <b>20 questions</b> s’affiche : des questions sur le mercato qui vient de s’écouler (transfert le plus cher, joueur le plus convoité, club le plus représenté…) et sur les règles du jeu. Tu le joues <b>une seule fois</b>. Chaque bonne réponse vaut <b>+1 flair</b>, et un <b>bonus de budget</b> s’ajoute selon ton score (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Tu peux aussi le lancer depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>."],
+    ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
+     "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
   ]],
   ['Bonus', [
     ['Les bonus donnent des points ?',
@@ -8171,8 +8195,19 @@ async function renderHome(){
   renderMarketTrends(auctions);
   renderBourseMovers();
 
-  // « Le saviez-vous ? » : une fois par jour, à l'ouverture (si connecté).
-  if(ME) maybeShowDidYouKnow({ managers, moves, auctions });
+  // À l'ouverture (si connecté) : le quiz de fin de mercato a priorité (ponctuel,
+  // avec enjeu) ; sinon le « Le saviez-vous ? » quotidien.
+  if(ME){
+    let quizShown = false;
+    try { quizShown = await (async()=>{
+      // marketIsOpen déjà appelé plus haut (marketOpen) : on réutilise.
+      if(marketOpen) return false;
+      const d = await api.mercatoQuizGet();
+      return !!(d && d.exists && !d.already_played);
+    })(); } catch(e){ quizShown = false; }
+    if(quizShown) maybeShowMercatoQuiz();
+    else maybeShowDidYouKnow({ managers, moves, auctions });
+  }
 }
 
 // ======================================================================
@@ -8228,12 +8263,39 @@ async function dykLiveFacts(data){
   return facts;
 }
 
-// Affiche le pop-up (manuel ou auto). Retourne une promesse résolue à la fermeture.
-async function showDidYouKnow(){
+let _dykLastIdx = -1;   // index du dernier fait affiché (évite les répétitions immédiates)
+
+// Numéro du jour (depuis l'époque), pour une rotation déterministe par jour.
+function dykDayNumber(){
+  return Math.floor(Date.now() / 86400000);
+}
+
+// Affiche le pop-up. opts.auto = true → sélection DÉTERMINISTE par jour (le
+// contenu change d'un jour à l'autre) ; sinon tirage aléatoire (bouton « Un
+// autre » / accès manuel), en évitant de répéter le fait déjà à l'écran.
+async function showDidYouKnow(opts){
+  const auto = !!(opts && opts.auto);
   const live = await dykLiveFacts(_dykData || {});
-  // Pool = astuces + faits vivants ; on tire un élément au hasard.
   const pool = DYK_TIPS.concat(live);
-  const pick = pool[Math.floor(Math.random()*pool.length)] || DYK_TIPS[0];
+  if(!pool.length) return;
+
+  let idx;
+  if(auto){
+    // Rotation par jour : fait n° (jour % taille). Si ça retombe sur le même
+    // qu'hier (taille du pool variable selon les faits vivants), on décale de 1.
+    idx = dykDayNumber() % pool.length;
+    let prevDayIdx = -1;
+    try { prevDayIdx = parseInt(localStorage.getItem('dyk_idx'), 10); } catch(e){}
+    if(idx === prevDayIdx) idx = (idx + 1) % pool.length;
+    try { localStorage.setItem('dyk_idx', String(idx)); } catch(e){}
+  } else {
+    // Aléatoire, mais différent du fait actuellement affiché.
+    if(pool.length === 1){ idx = 0; }
+    else { do { idx = Math.floor(Math.random()*pool.length); } while(idx === _dykLastIdx); }
+  }
+  _dykLastIdx = idx;
+  const pick = pool[idx] || DYK_TIPS[0];
+
   const ov = document.getElementById('uxOverlay');
   const md = document.getElementById('uxModal');
   md.innerHTML = `
@@ -8248,12 +8310,309 @@ async function showDidYouKnow(){
   return new Promise(resolve=>{
     const close = ()=>{ ov.classList.remove('show'); resolve(); };
     md.querySelector('[data-close]').onclick = close;
-    md.querySelector('[data-another]').onclick = ()=>{ showDidYouKnow(); };  // re-tire
+    md.querySelector('[data-another]').onclick = ()=>{ showDidYouKnow(); };  // re-tire (aléatoire)
     ov.onclick = (e)=>{ if(e.target===ov) close(); };
   });
 }
 
-// Affichage auto : au plus une fois par jour (mémorisé en localStorage).
+// ======================================================================
+// QUIZ DE FIN DE MERCATO — pop-up, 20 questions, récompense flair + budget
+// ======================================================================
+let QUIZ = null;        // { id, label, questions:[{q,choices}], count }
+let QUIZ_ANSWERS = [];  // réponses choisies (index par question)
+let QUIZ_STEP = 0;      // question courante
+let QUIZ_DEADLINE = 0;  // timestamp (ms) de fin du chrono
+let QUIZ_LIMIT = 300;   // durée totale (s)
+let QUIZ_TIMER = null;  // handle setInterval
+let QUIZ_SUBMITTING = false;
+
+async function openMercatoQuiz(){
+  let data;
+  try { data = await api.mercatoQuizGet(); } catch(e){ return; }
+  if(!data || !data.exists){ toast('Aucun quiz de fin de mercato en cours.','info',3000); return; }
+  const ov = $('quizOverlay'), md = $('quizModal');
+  if(data.already_played){
+    // Déjà joué : on montre son score et sa récompense.
+    QUIZ = { id: data.id };  // nécessaire pour classement/récap
+    QUIZ_LAST_RESULT = { score:data.score, total:data.count, flair:data.flair_awarded, budget:data.budget_awarded, replay:true };
+    md.innerHTML = quizResultHtml(data.score, data.count, data.flair_awarded, data.budget_awarded, true);
+    ov.classList.add('show');
+    md.querySelector('[data-quizclose]').onclick = ()=>ov.classList.remove('show');
+    wireQuizResultButtons();
+    return;
+  }
+  // Démarre (ou reprend) le chrono côté serveur : source de vérité du temps.
+  let start = null;
+  try { start = await api.mercatoQuizStart(); } catch(e){ start = null; }
+  if(start && start.__error){ toast(start.__error,'err',4000); return; }
+  QUIZ = data;
+  QUIZ_ANSWERS = new Array(data.count).fill(-1);
+  QUIZ_STEP = 0;
+  QUIZ_SUBMITTING = false;
+  QUIZ_LIMIT = (start && start.time_limit) || data.time_limit || 300;
+  const remaining = (start && typeof start.remaining==='number') ? start.remaining
+                   : (typeof data.remaining==='number' ? data.remaining : QUIZ_LIMIT);
+  QUIZ_DEADLINE = Date.now() + Math.max(0, remaining)*1000;
+  startQuizTimer();
+  renderQuizStep();
+  ov.classList.add('show');
+}
+
+function quizRemainingSec(){ return Math.max(0, Math.round((QUIZ_DEADLINE - Date.now())/1000)); }
+
+function startQuizTimer(){
+  if(QUIZ_TIMER) clearInterval(QUIZ_TIMER);
+  QUIZ_TIMER = setInterval(()=>{
+    const r = quizRemainingSec();
+    updateQuizTimerUI(r);
+    if(r <= 0){
+      clearInterval(QUIZ_TIMER); QUIZ_TIMER = null;
+      // Temps écoulé : on soumet automatiquement ce qui est répondu.
+      if(!QUIZ_SUBMITTING){ toast('⏱️ Temps écoulé — envoi de tes réponses.','info',3500); submitMercatoQuiz(true); }
+    }
+  }, 1000);
+}
+function stopQuizTimer(){ if(QUIZ_TIMER){ clearInterval(QUIZ_TIMER); QUIZ_TIMER = null; } }
+
+// Met à jour le voyant (barre + mm:ss + couleur) sans re-render toute la question.
+function updateQuizTimerUI(r){
+  const bar = document.getElementById('quizTimerBar');
+  const lbl = document.getElementById('quizTimerLabel');
+  if(!bar || !lbl) return;
+  const pct = QUIZ_LIMIT>0 ? Math.max(0, Math.min(100, r/QUIZ_LIMIT*100)) : 0;
+  const col = r<=30 ? 'var(--live,#e0574a)' : (r<=60 ? '#fb923c' : '#4ade80');
+  bar.style.width = pct+'%';
+  bar.style.background = col;
+  const m = Math.floor(r/60), s = r%60;
+  lbl.textContent = m+':'+String(s).padStart(2,'0');
+  lbl.style.color = col;
+}
+
+function renderQuizStep(){
+  const md = $('quizModal');
+  const n = QUIZ.count;
+  const q = QUIZ.questions[QUIZ_STEP];
+  const chosen = QUIZ_ANSWERS[QUIZ_STEP];
+  const pct = Math.round((QUIZ_STEP)/n*100);
+  const choices = (q.choices||[]).map((c,i)=>`
+    <button class="quiz-choice" data-choice="${i}" style="display:block;width:100%;text-align:left;margin:6px 0;padding:11px 13px;border-radius:10px;cursor:pointer;
+      border:1px solid ${chosen===i?'var(--transfer)':'var(--line)'};
+      background:${chosen===i?'rgba(245,197,66,.14)':'var(--pitch)'};
+      color:var(--chalk);font-size:.92rem;font-weight:${chosen===i?'700':'400'}">${c}</button>`).join('');
+  const isLast = QUIZ_STEP === n-1;
+  const r0 = quizRemainingSec();
+  const col0 = r0<=30 ? 'var(--live,#e0574a)' : (r0<=60 ? '#fb923c' : '#4ade80');
+  const pct0 = QUIZ_LIMIT>0 ? Math.max(0, Math.min(100, r0/QUIZ_LIMIT*100)) : 0;
+  md.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800">🏁 Quiz de fin de mercato</div>
+      <button data-quizx style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer;line-height:1">×</button>
+    </div>
+    <!-- Voyant du chrono (5 min au total) -->
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+      <span style="font-size:.9rem">⏱️</span>
+      <div style="flex:1;height:8px;background:var(--pitch);border-radius:5px;overflow:hidden">
+        <div id="quizTimerBar" style="height:100%;width:${pct0}%;background:${col0};transition:width 1s linear"></div>
+      </div>
+      <span id="quizTimerLabel" style="font-family:'Saira Condensed','Saira',monospace;font-weight:800;font-size:1rem;min-width:42px;text-align:right;color:${col0}">${Math.floor(r0/60)}:${String(r0%60).padStart(2,'0')}</span>
+    </div>
+    <!-- Progression des questions -->
+    <div style="height:4px;background:var(--pitch);border-radius:4px;overflow:hidden;margin:0 0 12px"><div style="height:100%;width:${pct}%;background:var(--transfer);transition:width .2s"></div></div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:4px">Question ${QUIZ_STEP+1} / ${n}</div>
+    <h3 style="margin:0 0 12px;font-size:1.05rem;line-height:1.35">${q.q}</h3>
+    ${choices}
+    <div class="ux-actions" style="margin-top:14px;justify-content:space-between">
+      <button class="ux-cancel" data-prev ${QUIZ_STEP===0?'disabled style="opacity:.4"':''}>← Précédent</button>
+      <button class="ux-ok" data-next ${chosen<0?'disabled style="opacity:.5"':''}>${isLast?'Valider mes réponses':'Suivant →'}</button>
+    </div>`;
+  md.querySelectorAll('[data-choice]').forEach(b=>b.onclick=()=>{
+    QUIZ_ANSWERS[QUIZ_STEP] = parseInt(b.dataset.choice,10);
+    renderQuizStep();
+  });
+  md.querySelector('[data-prev]').onclick = ()=>{ if(QUIZ_STEP>0){ QUIZ_STEP--; renderQuizStep(); } };
+  md.querySelector('[data-next]').onclick = ()=>{
+    if(QUIZ_ANSWERS[QUIZ_STEP]<0) return;
+    if(QUIZ_STEP < n-1){ QUIZ_STEP++; renderQuizStep(); }
+    else submitMercatoQuiz();
+  };
+  md.querySelector('[data-quizx]').onclick = ()=>{
+    if(confirm('Quitter le quiz ? Attention : le chronomètre continue de tourner côté serveur (5 min au total). Rouvre-le vite pour reprendre là où tu en étais.')){
+      stopQuizTimer();   // on arrête l'affichage local ; le serveur garde le vrai temps
+      $('quizOverlay').classList.remove('show');
+    }
+  };
+}
+
+async function submitMercatoQuiz(auto){
+  if(QUIZ_SUBMITTING) return;
+  // En soumission manuelle : exige toutes les réponses. En auto (temps écoulé),
+  // on envoie tel quel (les non-répondues comptent comme fausses).
+  if(!auto && QUIZ_ANSWERS.some(a=>a<0)){
+    const miss = QUIZ_ANSWERS.findIndex(a=>a<0);
+    QUIZ_STEP = miss; renderQuizStep();
+    toast('Réponds à toutes les questions avant de valider.','err',3500);
+    return;
+  }
+  QUIZ_SUBMITTING = true;
+  stopQuizTimer();
+  // Les réponses non choisies (-1) sont envoyées comme -1 (aucune bonne réponse n'a cet index).
+  const answers = QUIZ_ANSWERS.map(a=> a<0 ? -1 : a);
+  const md = $('quizModal');
+  md.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">Calcul de ton score…</div>`;
+  const { data, error } = await api.mercatoQuizSubmit(QUIZ.id, answers);
+  if(error){
+    md.innerHTML = `<p style="color:var(--live)">${error.message}</p><div class="ux-actions"><button class="ux-ok" data-quizclose>Fermer</button></div>`;
+    md.querySelector('[data-quizclose]').onclick = ()=>$('quizOverlay').classList.remove('show');
+    return;
+  }
+  // Mémorise localement qu'on a joué (évite de re-pop le quiz).
+  try { localStorage.setItem('mercato_quiz_played_'+QUIZ.id, '1'); } catch(e){}
+  QUIZ_LAST_RESULT = { score:data.score, total:data.total, flair:data.flair_awarded, budget:data.budget_awarded, replay:false };
+  md.innerHTML = quizResultHtml(data.score, data.total, data.flair_awarded, data.budget_awarded, false);
+  md.querySelector('[data-quizclose]').onclick = ()=>$('quizOverlay').classList.remove('show');
+  wireQuizResultButtons();
+  // Rafraîchit le portefeuille (budget crédité).
+  try { ME = await api.currentManager(); if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked)); } catch(e){}
+}
+
+function quizResultHtml(score, total, flair, budget, replay){
+  const pct = total? Math.round(score/total*100):0;
+  const tier = score>=20 ? '🏆 Sans-faute !' : score>=15 ? '🥇 Excellent' : score>=10 ? '👍 Bien joué' : '🎯 Rejoue l\'an prochain';
+  const budgetTxt = budget>0 ? `<div class="ux-row"><span class="l">Bonus de budget</span><span style="color:var(--transfer);font-weight:700">+${(budget/1000000).toFixed(0)} M€</span></div>` : '';
+  return `
+    <div style="text-align:center">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800;margin-bottom:8px">🏁 Quiz de fin de mercato</div>
+      <div style="font-family:'Saira';font-size:2.4rem;font-weight:900;color:var(--chalk);line-height:1">${score}<span style="font-size:1.2rem;color:var(--muted)">/${total}</span></div>
+      <div style="color:var(--transfer);font-weight:700;margin:4px 0 14px">${tier}${replay?' · (déjà joué)':''}</div>
+    </div>
+    <div style="background:var(--pitch);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div class="ux-row"><span class="l">Bonnes réponses</span><span>${score} / ${total} (${pct}%)</span></div>
+      <div class="ux-row"><span class="l">Flair gagné</span><span style="color:#c6a0ff;font-weight:700">+${flair}</span></div>
+      ${budgetTxt||'<div class="ux-row"><span class="l">Bonus de budget</span><span style="color:var(--muted)">— (atteins 10 bonnes réponses)</span></div>'}
+    </div>
+    <div class="ux-actions" style="flex-wrap:wrap;gap:8px">
+      <button class="ux-cancel" data-quizboard>🏆 Classement</button>
+      <button class="ux-cancel" data-quizreview>📋 Mon récap</button>
+      <button class="ux-ok" data-quizclose>Terminer</button>
+    </div>`;
+}
+
+// Branche les boutons classement / récap sur un écran de résultat affiché.
+function wireQuizResultButtons(){
+  const md = $('quizModal');
+  const b1 = md.querySelector('[data-quizboard]');
+  const b2 = md.querySelector('[data-quizreview]');
+  if(b1) b1.onclick = ()=>showQuizLeaderboard();
+  if(b2) b2.onclick = ()=>showQuizReview(null);  // null = mon propre récap
+}
+
+// --- Classement final du quiz ---
+async function showQuizLeaderboard(){
+  const md = $('quizModal');
+  md.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">Chargement du classement…</div>`;
+  $('quizOverlay').classList.add('show');
+  const qid = (QUIZ && QUIZ.id) || null;
+  let rows = [];
+  try { rows = await api.mercatoQuizLeaderboard(qid); } catch(e){ rows = []; }
+  const body = rows.length ? rows.map(r=>{
+    const medal = r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':`<span style="color:var(--muted)">${r.rank}</span>`;
+    const dur = (r.duration_sec!=null) ? `${Math.floor(r.duration_sec/60)}:${String(r.duration_sec%60).padStart(2,'0')}` : '—';
+    const me = r.is_me ? 'background:rgba(245,197,66,.1);border-radius:8px' : '';
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;${me}">
+      <div style="width:28px;text-align:center;font-weight:800">${medal}</div>
+      <div style="flex:1;min-width:0"><div style="font-weight:700;color:var(--chalk);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.team_name||r.display_name}${r.is_me?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</div></div>
+      <div style="text-align:right"><div style="font-family:'Saira';font-weight:800;color:var(--transfer)">${r.score}<span style="color:var(--muted);font-size:.75rem">/${r.total}</span></div>
+        <div style="font-size:.68rem;color:var(--muted)">⏱️ ${dur}</div></div>
+    </div>`;
+  }).join('') : `<div class="empty" style="padding:16px">Personne n'a encore joué.</div>`;
+  md.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800">🏆 Classement du quiz</div>
+      <button data-quizx style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">×</button>
+    </div>
+    <div style="max-height:52vh;overflow:auto">${body}</div>
+    <p class="hint" style="font-size:.74rem;margin-top:8px">À égalité de points, le plus rapide est classé devant.</p>
+    <div class="ux-actions"><button class="ux-ok" data-quizback>← Retour</button></div>`;
+  md.querySelector('[data-quizx]').onclick = ()=>$('quizOverlay').classList.remove('show');
+  md.querySelector('[data-quizback]').onclick = ()=>reopenQuizResult();
+}
+
+// --- Récap des réponses (le mien, ou celui d'un autre si quiz clôturé) ---
+async function showQuizReview(managerId){
+  const md = $('quizModal');
+  md.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">Chargement du récap…</div>`;
+  $('quizOverlay').classList.add('show');
+  const qid = (QUIZ && QUIZ.id) || null;
+  if(!qid){ md.innerHTML = `<p style="color:var(--muted)">Aucun quiz à afficher.</p><div class="ux-actions"><button class="ux-ok" data-quizback>← Retour</button></div>`; md.querySelector('[data-quizback]').onclick=()=>reopenQuizResult(); return; }
+  const res = await api.mercatoQuizReview(qid, managerId);
+  if(res && res.__error){
+    md.innerHTML = `<p style="color:var(--muted);padding:8px 0">${res.__error}</p><div class="ux-actions"><button class="ux-ok" data-quizback>← Retour</button></div>`;
+    md.querySelector('[data-quizback]').onclick=()=>reopenQuizResult(); return;
+  }
+  if(!res || !res.played){
+    md.innerHTML = `<p style="color:var(--muted)">Ce joueur n'a pas encore joué.</p><div class="ux-actions"><button class="ux-ok" data-quizback>← Retour</button></div>`;
+    md.querySelector('[data-quizback]').onclick=()=>reopenQuizResult(); return;
+  }
+  const items = (res.items||[]).map((it,qi)=>{
+    const choices = (it.choices||[]).map((c,ci)=>{
+      const isCorrect = ci===it.correct;
+      const isGiven = ci===it.given;
+      let style = 'padding:6px 9px;border-radius:7px;margin:3px 0;font-size:.84rem;border:1px solid var(--line);color:var(--muted)';
+      let tag = '';
+      if(isCorrect){ style='padding:6px 9px;border-radius:7px;margin:3px 0;font-size:.84rem;border:1px solid #4ade80;background:rgba(74,222,128,.1);color:var(--chalk);font-weight:700'; tag=' <span style="color:#4ade80">✓ bonne réponse</span>'; }
+      if(isGiven && !isCorrect){ style='padding:6px 9px;border-radius:7px;margin:3px 0;font-size:.84rem;border:1px solid var(--live);background:rgba(224,87,74,.1);color:var(--chalk)'; tag=' <span style="color:#ff9a8f">✗ ton choix</span>'; }
+      return `<div style="${style}">${c}${tag}</div>`;
+    }).join('');
+    return `<div style="padding:10px 0;border-top:1px solid var(--line)">
+      <div style="font-size:.76rem;color:var(--muted)">Question ${qi+1} ${it.ok?'<span style="color:#4ade80">· juste</span>':'<span style="color:var(--live)">· faux</span>'}</div>
+      <div style="font-weight:700;color:var(--chalk);margin:2px 0 6px">${it.q}</div>
+      ${choices}
+    </div>`;
+  }).join('');
+  md.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800">📋 Récap des réponses</div>
+      <button data-quizx style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">×</button>
+    </div>
+    <div style="font-family:'Saira';font-weight:800;color:var(--chalk);margin-bottom:6px">Score : ${res.score}/${res.total}</div>
+    <div style="max-height:56vh;overflow:auto">${items}</div>
+    <div class="ux-actions"><button class="ux-ok" data-quizback>← Retour</button></div>`;
+  md.querySelector('[data-quizx]').onclick = ()=>$('quizOverlay').classList.remove('show');
+  md.querySelector('[data-quizback]').onclick = ()=>reopenQuizResult();
+}
+
+// Ré-affiche l'écran de résultat (après un détour classement/récap).
+let QUIZ_LAST_RESULT = null;
+function reopenQuizResult(){
+  const md = $('quizModal');
+  if(QUIZ_LAST_RESULT){
+    md.innerHTML = quizResultHtml(QUIZ_LAST_RESULT.score, QUIZ_LAST_RESULT.total, QUIZ_LAST_RESULT.flair, QUIZ_LAST_RESULT.budget, QUIZ_LAST_RESULT.replay);
+    md.querySelector('[data-quizclose]').onclick = ()=>$('quizOverlay').classList.remove('show');
+    wireQuizResultButtons();
+  } else {
+    $('quizOverlay').classList.remove('show');
+  }
+}
+
+// Déclenchement auto à la fermeture du mercato : une fois par quiz (le serveur
+// garantit aussi 1 seule participation). On vérifie à l'accueil.
+async function maybeShowMercatoQuiz(){
+  if(!ME) return;
+  let marketOpen = true;
+  try { marketOpen = await api.marketIsOpen(); } catch(e){ return; }
+  if(marketOpen) return;   // le quiz n'apparaît qu'une fois le mercato fermé
+  let data;
+  try { data = await api.mercatoQuizGet(); } catch(e){ return; }
+  if(!data || !data.exists || data.already_played) return;
+  // Déjà proposé et fermé sans jouer ? On ne re-pop pas automatiquement
+  // (accessible via le menu Plus). Une seule auto-ouverture par quiz.
+  try { if(localStorage.getItem('mercato_quiz_seen_'+data.id)) return;
+        localStorage.setItem('mercato_quiz_seen_'+data.id,'1'); } catch(e){}
+  setTimeout(()=>{ openMercatoQuiz(); }, 1200);
+}
+
+// Affichage auto : au plus une fois par jour, avec un contenu qui DIFFÈRE
+// d'un jour à l'autre (mémorisé en localStorage).
 function maybeShowDidYouKnow(data){
   _dykData = data || _dykData;
   try {
@@ -8262,7 +8621,7 @@ function maybeShowDidYouKnow(data){
     localStorage.setItem('dyk_last', today);
   } catch(e){ /* localStorage indispo : on affiche quand même une fois */ }
   // Petit délai pour laisser l'accueil se peindre d'abord.
-  setTimeout(()=>{ showDidYouKnow(); }, 900);
+  setTimeout(()=>{ showDidYouKnow({ auto:true }); }, 900);
 }
 
 // ---------- Bourse : top mouvements de cote (dernière journée) ----------
