@@ -592,7 +592,7 @@
     <button class="btn-primary btn-sm" id="btnCreateMatchday">Créer la journée</button>
     <div id="mdList" style="margin-top:16px"></div>
   </div>
-  <div class="card" style="margin-bottom:14px">
+  <div class="card" style="margin-bottom:14px" id="coachAssignCard">
     <p class="hint" style="margin-bottom:12px"><b>Associer un Coach à une équipe.</b> Le Coach est un compte séparé qui alignera les 11 titulaires de l'équipe choisie. <b>Important :</b> tant qu'un coach n'est pas associé ici, il compte comme un manager à part entière — avec son <b>propre budget de 800 M€</b> et sa ligne au classement. Une fois associé, le duo ne partage qu'<b>un seul budget</b> (celui du Manager) : le coach ne peut plus <b>enchérir, recruter, échanger, faire d'offre ni prêter</b> (ni proposer, ni accepter) — il ne fait qu'<b>aligner la compo</b>. Pour <b>dissocier</b> un coach de son équipe, utilise le bouton <b>« Dissocier »</b> en face de son nom dans la liste ci-dessous : il redeviendra un manager indépendant.</p>
     <div class="row c3" style="margin-bottom:12px">
       <div><label>Compte Coach</label><select id="coachAccount"></select></div>
@@ -4700,6 +4700,24 @@ function renderSquadControl(){
   const overCount = rows.filter(r=>r.over_quota).length;
   const noChampCount = rows.filter(r=>Number(r.no_champ)>0).length;
   const conform = total - overCount;
+
+  // --- Détection « coach probablement pas encore associé » ---
+  // Deux signaux (les lignes NE SONT PAS masquées — on les marque) :
+  //  a) compte VIDE : 0 joueur, budget intact (≥ 800 M€) et rien de bloqué ;
+  //  b) DOUBLON d'équipe : même nom d'équipe qu'un autre compte de la liste.
+  // Le signalement est fort quand les DEUX coïncident (0 joueur + équipe en double).
+  const INIT_BUDGET = 800 * M;
+  const normTeam = s => (s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+  const teamCount = {};
+  rows.forEach(r=>{ const k = normTeam(r.team_name||r.display_name); if(k) teamCount[k] = (teamCount[k]||0)+1; });
+  const coachInfo = (r)=>{
+    const empty = Number(r.squad_count)===0
+      && Number(r.budget_locked||0)===0
+      && Number(r.budget||0) >= INIT_BUDGET;
+    const dup = (teamCount[normTeam(r.team_name||r.display_name)]||0) > 1;
+    return { empty, dup, probable: empty || dup, strong: empty && dup };
+  };
+  const suspects = rows.map(r=>({ r, ci: coachInfo(r) })).filter(x=>x.ci.probable);
   if($('scSummary')) $('scSummary').textContent =
     `${total} manager(s)` + (overCount?` · ${overCount} en dépassement` : ' · tous conformes');
 
@@ -4710,6 +4728,20 @@ function renderSquadControl(){
     banner = `<div class="ov-banner ov-banner--warn" style="color:var(--live);border-color:var(--live);background:rgba(255,90,77,.08)">⚠️ <b>${overCount}</b> manager(s) en dépassement de quota${noChampCount?` · ${noChampCount} avec des joueurs sans championnat`:''} — <b>${conform}</b> conforme(s).</div>`;
   else
     banner = `<div class="ov-banner ov-banner--ok">✅ Les ${total} managers respectent les quotas${noChampCount?` — mais ${noChampCount} ${noChampCount>1?'ont':'a'} des joueurs sans championnat à corriger`:''}.</div>`;
+
+  // Bandeau « coachs probables à associer » (n'empêche rien, informe seulement).
+  if(suspects.length){
+    const n = suspects.length;
+    const names = suspects.map(x=>{
+      const t = x.r.team_name ? ` (${x.r.team_name})` : '';
+      return `<b>${x.r.display_name}</b>${t}${x.ci.strong?' ⚠️':''}`;
+    }).join(' · ');
+    banner += `<div class="ov-banner" style="color:#9bbcff;border:1px solid rgba(90,150,255,.45);background:rgba(90,150,255,.08);margin-top:8px">
+      🧢 <b>${n} compte${n>1?'s':''}</b> ressemble${n>1?'nt':''} à un <b>coach pas encore associé</b> (0 joueur avec budget intact, ou nom d'équipe en double). ${n>1?'Ils gonflent':'Il gonfle'} le total et compte${n>1?'nt':''} ${n>1?'chacun':''} un budget de 800 M€ séparé.
+      <div style="margin-top:6px;font-size:.82rem;color:var(--chalk)">${names}</div>
+      <div style="margin-top:6px"><button class="btn-ghost btn-sm" id="scGotoCoach" style="font-size:.78rem">Aller à l'association des coachs ▸</button></div>
+    </div>`;
+  }
 
   if(onlyOver) rows = rows.filter(r=>r.over_quota);
   if(!rows.length){
@@ -4740,8 +4772,19 @@ function renderSquadControl(){
         : '<span style="font-size:.7rem;color:var(--ok)">✓ Conforme</span>';
       const dataWarn = noChamp>0
         ? `<div style="font-size:.68rem;color:var(--warn,#fb923c);margin-top:3px">⚠ ${noChamp} joueur${noChamp>1?'s':''} sans championnat</div>` : '';
+      // Pastille « coach probable à associer » (forte si les 2 critères).
+      const ci = coachInfo(r);
+      const coachPill = ci.probable ? (()=>{
+        const reason = ci.strong ? 'Compte vide (0 joueur, budget intact) ET nom d\'équipe en double'
+          : ci.empty ? 'Compte vide : 0 joueur, budget de 800 M€ intact'
+          : 'Nom d\'équipe en double avec un autre compte';
+        const col = ci.strong ? 'var(--live)' : '#9bbcff';
+        const bg  = ci.strong ? 'rgba(255,90,77,.12)' : 'rgba(90,150,255,.12)';
+        const bd  = ci.strong ? 'var(--live)' : 'rgba(90,150,255,.5)';
+        return ` <span title="${reason} — à associer dans « Associer un Coach »" style="display:inline-flex;align-items:center;gap:3px;font-size:.66rem;font-weight:800;color:${col};background:${bg};border:1px solid ${bd};border-radius:6px;padding:1px 6px;white-space:nowrap">🧢 coach probable</span>`;
+      })() : '';
       return `<tr class="sc-row" data-sc="${r.manager_id}" style="cursor:pointer">
-        <td><b>${r.display_name}</b>${r.team_name?` <span style="color:var(--muted);font-size:.75rem">· ${r.team_name}</span>`:''} <span style="color:var(--muted);font-size:.72rem">▸ détail</span>${dataWarn}</td>
+        <td><b>${r.display_name}</b>${r.team_name?` <span style="color:var(--muted);font-size:.75rem">· ${r.team_name}</span>`:''}${coachPill} <span style="color:var(--muted);font-size:.72rem">▸ détail</span>${dataWarn}</td>
         <td ${warn(r.squad_count,24)}>${r.squad_count} / 24</td>
         <td ${warn(r.gk_count,3)}>${r.gk_count} / 3</td>
         <td class="val">${fmtM(Number(r.salary_total))}</td>
@@ -4789,6 +4832,17 @@ function renderSquadControl(){
     const d = body.querySelector(`[data-scd="${row.dataset.sc}"]`);
     if(d) d.style.display = (d.style.display==='none') ? '' : 'none';
   });
+  // Raccourci vers l'association des coachs (depuis le bandeau de signalement).
+  const gotoCoach = $('scGotoCoach');
+  if(gotoCoach) gotoCoach.onclick = ()=>{
+    const card = $('coachAssignCard');
+    if(card && card.scrollIntoView){
+      // Si la section est repliable, on la déplie avant de scroller.
+      const sec = card.closest('section, details');
+      if(sec && sec.tagName==='DETAILS') sec.open = true;
+      card.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+  };
   // Correction directe : cliquer un joueur incomplet pré-remplit l'outil de
   // correction d'identité/championnat et y amène Audrey.
   body.querySelectorAll('[data-fixid]').forEach(btn=>btn.onclick=(e)=>{

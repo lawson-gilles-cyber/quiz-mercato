@@ -1657,13 +1657,14 @@ export async function myTeamId() {
   const { data } = await sb.rpc('qm_my_team_id');
   return data ?? null;
 }
-export async function setLineup(matchdayId, playerIds, benchIds, teamId) {
+export async function setLineup(matchdayId, playerIds, benchIds, teamId, leaderId) {
   const args = {
     p_matchday_id: matchdayId,
     p_player_ids: playerIds,
     p_bench_ids: benchIds || []
   };
-  if (teamId) args.p_team = teamId;   // dépannage : composer une autre équipe
+  if (teamId) args.p_team = teamId;      // dépannage : composer une autre équipe
+  if (leaderId) args.p_leader = leaderId; // leader de la journée (bonus progressif)
   return sb.rpc('qm_set_lineup', args);
 }
 export async function myLineup(matchdayId, teamId) {
