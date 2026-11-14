@@ -550,12 +550,16 @@
       <span style="font-size:1.1rem">🏁</span>
       <h3 style="margin:0;font-size:1.05rem">Quiz de fin de mercato</h3>
     </div>
-    <p class="hint" style="margin:0 0 10px">Génère un <b>quiz de 20 questions</b> sur le mercato écoulé (questions bâties depuis les vraies données + règles du jeu). À la <b>fermeture du mercato</b>, il s'affiche en pop-up aux managers, jouable <b>une seule fois</b> : <b>+1 flair</b> par bonne réponse et un <b>bonus de budget</b> par palier (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Les bonnes réponses ne sont jamais envoyées au navigateur (anti-triche).</p>
+    <p class="hint" style="margin:0 0 10px"><b>Entièrement automatique — rien à faire.</b> Dès la <b>fin du mercato</b>, un quiz de <b>20 questions</b> (données réelles du mercato + règles) est généré. Il <b>s'ouvre 1h après</b> la fermeture et <b>se ferme 10h plus tard</b>. Jouable <b>une seule fois</b> par manager : <b>+1 flair</b> par bonne réponse et un <b>bonus de budget</b> par palier (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Les bonnes réponses ne quittent jamais le serveur (anti-triche).</p>
     <div id="quizAdminStatus" style="margin-bottom:10px"></div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <button class="btn-primary btn-sm" id="btnGenQuiz">Générer / régénérer le quiz</button>
-      <button class="btn-ghost btn-sm" id="btnCloseQuiz">Clôturer le quiz courant</button>
-    </div>
+    <details style="margin-top:4px">
+      <summary style="cursor:pointer;color:var(--muted);font-size:.82rem">Outils de secours (optionnel)</summary>
+      <p class="hint" style="font-size:.78rem;margin:8px 0">Normalement inutile. À n'utiliser qu'en cas de besoin : forcer une (re)génération immédiate, ou clôturer le quiz avant la fin de sa fenêtre.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-ghost btn-sm" id="btnGenQuiz">Forcer la (re)génération</button>
+        <button class="btn-ghost btn-sm" id="btnCloseQuiz">Clôturer maintenant</button>
+      </div>
+    </details>
     <div id="msgQuiz" class="admin-msg" style="margin-top:8px"></div>
   </div>
 
@@ -3112,13 +3116,19 @@ async function loadQuizAdmin(){
   let d = null;
   try { d = await api.mercatoQuizGet(); } catch(e){}
   if(!d || !d.exists){
-    box.innerHTML = `<span class="hint">Aucun quiz généré pour l'instant.</span>`;
-    if($('btnCloseQuiz')) $('btnCloseQuiz').style.display='none';
+    box.innerHTML = `<span class="hint">Aucun quiz pour l'instant. Il sera <b>généré automatiquement</b> dès la fin du mercato (ouverture 1h après, fermeture 10h plus tard). Rien à faire.</span>`;
     return;
   }
-  if($('btnCloseQuiz')) $('btnCloseQuiz').style.display='';
-  box.innerHTML = `<div style="padding:8px 10px;border-radius:8px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.4);font-size:.88rem">
-    ✅ Quiz courant actif : <b>${d.label||'Quiz de fin de mercato'}</b> — <b>${d.count}</b> questions. Il s'affiche aux managers dès le mercato fermé.</div>`;
+  const fmtDt = v => v ? new Date(v).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}) : '—';
+  const phase = d.phase || 'open';
+  const badge = phase==='upcoming'
+    ? `<span style="color:#9bbcff">⏳ Ouvre bientôt</span>`
+    : phase==='open' ? `<span style="color:#4ade80">🟢 Ouvert (jouable)</span>`
+    : `<span style="color:var(--muted)">🏁 Clôturé</span>`;
+  box.innerHTML = `<div style="padding:8px 10px;border-radius:8px;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.4);font-size:.86rem">
+    ${badge} · <b>${d.count}</b> questions · <b>${d.label||'Quiz de fin de mercato'}</b>
+    <div style="color:var(--muted);font-size:.78rem;margin-top:4px">Ouverture : <b>${fmtDt(d.opens_at)}</b> · Fermeture : <b>${fmtDt(d.closes_at)}</b> — automatique, aucune action requise.</div>
+  </div>`;
 }
 if($('btnGenQuiz')) $('btnGenQuiz').onclick = async ()=>{
   if(!confirm('Générer (ou régénérer) le quiz de fin de mercato ?\n\nLes questions sont construites à partir des données ACTUELLES du mercato. Régénérer n\'est possible que si personne n\'a encore joué.')) return;

@@ -2078,13 +2078,16 @@
         <p class="rule-p" style="margin-top:10px">C'est un <b>filet de secours</b> au service du fair-play : il évite qu'une équipe soit pénalisée par l'indisponibilité ponctuelle de son coach, sans jamais toucher à l'intégrité du mercato.</p>
 
         <h3 class="rule-h">31. Le quiz de fin de mercato</h3>
-        <p class="rule-p">À la <b>fermeture du mercato</b>, un <b>quiz de 20 questions</b> s'affiche en pop-up. Il porte sur les <b>activités du mercato écoulé</b> (le transfert le plus cher, le joueur le plus convoité, le club le plus représenté…) et sur les <b>règles du jeu</b>.</p>
+        <p class="rule-p">À la fin de chaque mercato, un <b>quiz de 20 questions</b> est proposé. Il porte sur les <b>activités du mercato écoulé</b> (le transfert le plus cher, le joueur le plus convoité, le club le plus représenté…) et sur les <b>règles du jeu</b>.</p>
         <ol class="rule-ol">
+          <li>Le quiz <b>s'ouvre automatiquement 1 heure après la fin du mercato</b> et reste ouvert <b>10 heures</b>. Un pop-up te prévient dès qu'il est jouable.</li>
+          <li>Il est <b>chronométré : 5 minutes</b> au total pour répondre aux 20 questions. Un voyant affiche le temps restant ; passé le délai, tes réponses sont envoyées automatiquement.</li>
           <li>Le quiz se joue <b>une seule fois</b> par manager — réponds avec soin, il n'y a pas de deuxième chance.</li>
           <li>Chaque <b>bonne réponse</b> rapporte <b>+1 flair</b> (prestige).</li>
           <li>Un <b>bonus de budget</b> s'ajoute selon ton score : <b>≥ 10 bonnes → +5 M€</b>, <b>≥ 15 → +15 M€</b>, <b>20/20 → +30 M€</b>.</li>
           <li>Tu peux naviguer entre les questions et changer tes réponses <b>tant que tu n'as pas validé</b>.</li>
-          <li>Tu peux aussi relancer le quiz à tout moment depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b> (tant qu'il est ouvert et que tu ne l'as pas déjà joué).</li>
+          <li>Après avoir joué, tu vois ton <b>récap de réponses</b> et le <b>classement général</b> des joueurs (à égalité de points, le plus rapide devant). Les récaps des autres joueurs deviennent visibles <b>une fois le quiz terminé</b>.</li>
+          <li>Tu peux rouvrir le quiz à tout moment depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px">Un petit jeu de fin de phase pour <b>revivre le mercato</b> et gagner un coup de pouce pour la suite — les bonnes réponses sont vérifiées côté serveur, pas de triche possible.</p>
       </div>
@@ -5126,7 +5129,7 @@ const FAQ_DATA = [
     ['C’est quoi le bandeau qui défile en haut de l’accueil ?',
      "C’est ton <b>fil d’actu</b> : il mélange l’<b>actu de ton mercato</b> (enchères en cours, derniers transferts, leader du classement) et l’<b>actualité du football européen</b> — coups d’envoi à venir et résultats récents des grands championnats (Ligue 1, Premier League, Liga, Serie A, Bundesliga, Ligue des Champions…). C’est de l’information en lecture seule, pour suivre le jeu et le vrai foot d’un même coup d’œil."],
     ['C’est quoi le « Quiz de fin de mercato » ? 🏁',
-     "À la <b>fermeture du mercato</b>, un quiz de <b>20 questions</b> s’affiche : des questions sur le mercato qui vient de s’écouler (transfert le plus cher, joueur le plus convoité, club le plus représenté…) et sur les règles du jeu. Tu le joues <b>une seule fois</b>. Chaque bonne réponse vaut <b>+1 flair</b>, et un <b>bonus de budget</b> s’ajoute selon ton score (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Tu peux aussi le lancer depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>."],
+     "Un quiz de <b>20 questions</b> qui s’ouvre <b>automatiquement 1 heure après la fin du mercato</b> et reste jouable <b>10 heures</b> : des questions sur le mercato qui vient de s’écouler (transfert le plus cher, joueur le plus convoité, club le plus représenté…) et sur les règles du jeu. Il est <b>chronométré (5 minutes)</b> et se joue <b>une seule fois</b>. Chaque bonne réponse vaut <b>+1 flair</b>, et un <b>bonus de budget</b> s’ajoute selon ton score (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Après avoir joué, tu vois ton récap et le classement. Tu peux le rouvrir depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>."],
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
   ]],
@@ -8195,17 +8198,15 @@ async function renderHome(){
   renderMarketTrends(auctions);
   renderBourseMovers();
 
-  // À l'ouverture (si connecté) : le quiz de fin de mercato a priorité (ponctuel,
-  // avec enjeu) ; sinon le « Le saviez-vous ? » quotidien.
+  // À l'ouverture (si connecté) : le quiz de fin de mercato a priorité quand il
+  // est JOUABLE ; sinon le « Le saviez-vous ? » quotidien.
   if(ME){
-    let quizShown = false;
-    try { quizShown = await (async()=>{
-      // marketIsOpen déjà appelé plus haut (marketOpen) : on réutilise.
-      if(marketOpen) return false;
+    let quizOpen = false;
+    try {
       const d = await api.mercatoQuizGet();
-      return !!(d && d.exists && !d.already_played);
-    })(); } catch(e){ quizShown = false; }
-    if(quizShown) maybeShowMercatoQuiz();
+      quizOpen = !!(d && d.exists && d.phase === 'open' && !d.already_played);
+    } catch(e){ quizOpen = false; }
+    if(quizOpen) maybeShowMercatoQuiz();
     else maybeShowDidYouKnow({ managers, moves, auctions });
   }
 }
@@ -8331,9 +8332,12 @@ async function openMercatoQuiz(){
   try { data = await api.mercatoQuizGet(); } catch(e){ return; }
   if(!data || !data.exists){ toast('Aucun quiz de fin de mercato en cours.','info',3000); return; }
   const ov = $('quizOverlay'), md = $('quizModal');
+  QUIZ = { id: data.id };  // utile pour classement/récap dans tous les cas
+  const phase = data.phase || (data.already_played ? 'open' : 'open');
+
+  // Déjà joué (ou quiz clôturé) : on montre l'écran de résultat (ou l'invite
+  // à consulter classement/récap si clôturé sans avoir joué).
   if(data.already_played){
-    // Déjà joué : on montre son score et sa récompense.
-    QUIZ = { id: data.id };  // nécessaire pour classement/récap
     QUIZ_LAST_RESULT = { score:data.score, total:data.count, flair:data.flair_awarded, budget:data.budget_awarded, replay:true };
     md.innerHTML = quizResultHtml(data.score, data.count, data.flair_awarded, data.budget_awarded, true);
     ov.classList.add('show');
@@ -8341,7 +8345,33 @@ async function openMercatoQuiz(){
     wireQuizResultButtons();
     return;
   }
-  // Démarre (ou reprend) le chrono côté serveur : source de vérité du temps.
+
+  // Pas encore ouvert : écran « bientôt » + compte à rebours.
+  if(phase === 'upcoming'){
+    showQuizUpcoming(data);
+    return;
+  }
+
+  // Clôturé sans avoir joué : on ne peut plus jouer, mais on peut voir le
+  // classement et les récaps (désormais publics).
+  if(phase === 'closed'){
+    QUIZ_LAST_RESULT = null;
+    md.innerHTML = `
+      <div style="text-align:center">
+        <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800;margin-bottom:8px">🏁 Quiz de fin de mercato</div>
+        <p style="color:var(--muted)">Le quiz est terminé. Tu n'y as pas participé cette fois, mais tu peux consulter le classement et les réponses.</p>
+      </div>
+      <div class="ux-actions" style="flex-wrap:wrap;gap:8px">
+        <button class="ux-cancel" data-quizboard>🏆 Classement</button>
+        <button class="ux-ok" data-quizclose>Fermer</button>
+      </div>`;
+    ov.classList.add('show');
+    md.querySelector('[data-quizclose]').onclick = ()=>ov.classList.remove('show');
+    md.querySelector('[data-quizboard]').onclick = ()=>showQuizLeaderboard();
+    return;
+  }
+
+  // Phase 'open' : on joue. Démarre (ou reprend) le chrono côté serveur.
   let start = null;
   try { start = await api.mercatoQuizStart(); } catch(e){ start = null; }
   if(start && start.__error){ toast(start.__error,'err',4000); return; }
@@ -8356,6 +8386,39 @@ async function openMercatoQuiz(){
   startQuizTimer();
   renderQuizStep();
   ov.classList.add('show');
+}
+
+// Écran « le quiz ouvre bientôt » avec compte à rebours vers opens_at.
+let QUIZ_UPCOMING_TIMER = null;
+function showQuizUpcoming(data){
+  const ov = $('quizOverlay'), md = $('quizModal');
+  const opensAt = data.opens_at ? new Date(data.opens_at).getTime() : (Date.now() + (data.opens_in||0)*1000);
+  const paint = ()=>{
+    const left = Math.max(0, Math.round((opensAt - Date.now())/1000));
+    const h = Math.floor(left/3600), m = Math.floor(left%3600/60), s = left%60;
+    const txt = h>0 ? `${h}h ${String(m).padStart(2,'0')}m` : `${m}m ${String(s).padStart(2,'0')}s`;
+    const lbl = document.getElementById('quizUpcomingCd');
+    if(lbl) lbl.textContent = txt;
+    if(left<=0){
+      if(QUIZ_UPCOMING_TIMER){ clearInterval(QUIZ_UPCOMING_TIMER); QUIZ_UPCOMING_TIMER=null; }
+      openMercatoQuiz();  // c'est l'heure : on rouvre en phase 'open'
+    }
+  };
+  md.innerHTML = `
+    <div style="text-align:center">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800;margin-bottom:8px">🏁 Quiz de fin de mercato</div>
+      <div style="font-size:2.4rem;margin:4px 0">⏳</div>
+      <p style="color:var(--chalk);font-weight:700;margin:0 0 4px">Le quiz ouvre bientôt</p>
+      <p style="color:var(--muted);font-size:.9rem;margin:0 0 10px">Rendez-vous <b>1 heure après la fin du mercato</b> pour tester tes connaissances et gagner du flair et du budget.</p>
+      <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer)" id="quizUpcomingCd">—</div>
+      <div style="font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">avant l'ouverture</div>
+    </div>
+    <div class="ux-actions"><button class="ux-ok" data-quizclose>Compris</button></div>`;
+  ov.classList.add('show');
+  md.querySelector('[data-quizclose]').onclick = ()=>{ if(QUIZ_UPCOMING_TIMER){clearInterval(QUIZ_UPCOMING_TIMER);QUIZ_UPCOMING_TIMER=null;} ov.classList.remove('show'); };
+  paint();
+  if(QUIZ_UPCOMING_TIMER) clearInterval(QUIZ_UPCOMING_TIMER);
+  QUIZ_UPCOMING_TIMER = setInterval(paint, 1000);
 }
 
 function quizRemainingSec(){ return Math.max(0, Math.round((QUIZ_DEADLINE - Date.now())/1000)); }
@@ -8598,14 +8661,13 @@ function reopenQuizResult(){
 // garantit aussi 1 seule participation). On vérifie à l'accueil.
 async function maybeShowMercatoQuiz(){
   if(!ME) return;
-  let marketOpen = true;
-  try { marketOpen = await api.marketIsOpen(); } catch(e){ return; }
-  if(marketOpen) return;   // le quiz n'apparaît qu'une fois le mercato fermé
   let data;
   try { data = await api.mercatoQuizGet(); } catch(e){ return; }
   if(!data || !data.exists || data.already_played) return;
-  // Déjà proposé et fermé sans jouer ? On ne re-pop pas automatiquement
-  // (accessible via le menu Plus). Une seule auto-ouverture par quiz.
+  // On n'auto-ouvre QUE pendant la phase jouable ('open'). En 'upcoming' ou
+  // 'closed', pas de pop auto (le joueur peut ouvrir via le menu Plus).
+  if(data.phase !== 'open') return;
+  // Une seule auto-ouverture par quiz (ensuite accessible via le menu Plus).
   try { if(localStorage.getItem('mercato_quiz_seen_'+data.id)) return;
         localStorage.setItem('mercato_quiz_seen_'+data.id,'1'); } catch(e){}
   setTimeout(()=>{ openMercatoQuiz(); }, 1200);
