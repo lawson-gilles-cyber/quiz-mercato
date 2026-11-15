@@ -563,6 +563,22 @@
     <div id="msgQuiz" class="admin-msg" style="margin-top:8px"></div>
   </div>
 
+  <!-- Compte à rebours de reprise (intersaison) -->
+  <div class="card" style="margin-bottom:14px;border:1px solid rgba(74,222,128,.4)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:1.1rem">⚽</span><h3 style="margin:0;font-size:1.05rem">Reprise des championnats</h3>
+    </div>
+    <p class="hint" style="margin:0 0 10px">Fixe la <b>date et l'heure de reprise</b> : un <b>compte à rebours</b> s'affiche alors sur l'accueil des managers jusqu'à cette date. Laisse vide pour ne rien afficher.</p>
+    <div class="row c2" style="margin-bottom:10px">
+      <div><label>Date et heure de reprise</label><input id="resumeDate" type="datetime-local"></div>
+      <div style="display:flex;align-items:flex-end;gap:8px">
+        <button class="btn-primary btn-sm" id="btnSetResume">Enregistrer</button>
+        <button class="btn-ghost btn-sm" id="btnClearResume">Effacer</button>
+      </div>
+    </div>
+    <div id="msgResume" class="admin-msg"></div>
+  </div>
+
   <div class="card" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--card2,#101d38);border-radius:10px;padding:12px 14px;margin-bottom:14px">
       <div>
@@ -1628,7 +1644,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadResumeDate(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -3151,6 +3167,24 @@ async function loadQuizAdmin(){
     <div style="color:var(--muted);font-size:.78rem;margin-top:4px">Ouverture : <b>${fmtDt(d.opens_at)}</b> · Fermeture : <b>${fmtDt(d.closes_at)}</b> — automatique, aucune action requise.</div>
   </div>`;
 }
+// ---------- Reprise des championnats (compte à rebours) ----------
+async function loadResumeDate(){
+  if(!$('resumeDate')) return;
+  try { const w = await api.seasonResumeAt(); if(w) $('resumeDate').value = toLocalInput(w); } catch(e){}
+}
+if($('btnSetResume')) $('btnSetResume').onclick = async ()=>{
+  const iso = $('resumeDate').value ? new Date($('resumeDate').value).toISOString() : null;
+  if(!iso) return showMsg($('msgResume'),'Choisis une date.');
+  const r = await api.adminSetResumeDate(iso);
+  if(r.error) return showMsg($('msgResume'), r.error.message);
+  showMsg($('msgResume'),'Date de reprise enregistrée — le compte à rebours est actif.',true);
+};
+if($('btnClearResume')) $('btnClearResume').onclick = async ()=>{
+  const r = await api.adminSetResumeDate(null);
+  if(r.error) return showMsg($('msgResume'), r.error.message);
+  $('resumeDate').value=''; showMsg($('msgResume'),'Compte à rebours désactivé.',true);
+};
+
 if($('btnGenQuiz')) $('btnGenQuiz').onclick = async ()=>{
   if(!confirm('Générer (ou régénérer) le quiz de fin de mercato ?\n\nLes questions sont construites à partir des données ACTUELLES du mercato. Régénérer n\'est possible que si personne n\'a encore joué.')) return;
   const { error } = await api.adminGenerateMercatoQuiz(null);
@@ -5855,6 +5889,8 @@ const ADMIN_FAQ = [
      "Onglet <b>Pilotage → « Fenêtres de mercato »</b> : crée les fenêtres d'été et d'hiver avec leurs dates d'ouverture et de fermeture. Le mercato d'été dure 14 jours (enchères 48h puis 24h en J13-J14). Pour juste changer la fin, utilise l'encart <b>📅 Fin du mercato</b> en haut (voir question précédente)."],
     ['Comment afficher le compte à rebours du prochain mercato ?',
      "Crée la fenêtre voulue avec une <b>date d'ouverture dans le futur</b>, puis <b>active-la</b> (bouton d'activation dans « Fenêtres de mercato »). Tant que la date d'ouverture n'est pas atteinte, le mercato <b>reste fermé</b> (aucune enchère possible), mais la page d'accueil affiche un <b>compte à rebours « … ouvre dans … »</b> vers cette date. À l'heure dite, le mercato s'ouvre tout seul."],
+    ['Comment afficher le compte à rebours de reprise et le quiz du jour ? ⚽📅',
+     "Encart <b>« ⚽ Reprise des championnats »</b> : saisis la <b>date et l'heure de reprise</b> et enregistre — un compte à rebours apparaît sur l'accueil des managers jusque-là (bouton « Effacer » pour le retirer). Le <b>Quiz du jour</b>, lui, est <b>automatique</b> : un quiz de 5 questions (mix règles + données du mercato) est généré chaque jour, jouable une fois par manager, récompense +1 flair par bonne réponse et un petit bonus de budget pour un 5/5. Rien à faire côté admin."],
     ['Comment préparer le quiz de fin de mercato ? 🏁',
      "Onglet <b>Pilotage → encart « 🏁 Quiz de fin de mercato »</b> : clique <b>« Générer le quiz »</b>. Il construit <b>20 questions</b> à partir des données actuelles du mercato (transfert le plus cher, joueur le plus convoité, club/championnat le plus représenté…) complétées par des questions de règles. Dès que le <b>mercato est fermé</b>, le quiz s'affiche en pop-up aux managers, jouable <b>une seule fois</b> : +1 flair par bonne réponse et un bonus de budget par palier (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Génère-le de préférence <b>juste avant la fermeture</b>, quand le mercato reflète la saison complète."],
     ['Je ne peux pas régénérer le quiz, pourquoi ?',

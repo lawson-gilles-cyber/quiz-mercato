@@ -1673,6 +1673,22 @@ export async function myLineup(matchdayId, teamId) {
   const { data } = await sb.rpc('qm_my_lineup', args);
   return data ?? null;
 }
+// --- Intersaison : compte à rebours + quiz quotidien ---
+export async function seasonResumeAt() {
+  const { data } = await sb.rpc('qm_season_resume_at');
+  return data || null;
+}
+export async function adminSetResumeDate(iso) {
+  return sb.rpc('qm_admin_set_resume_date', { p_when: iso || null });
+}
+export async function dailyQuizGet() {
+  const { data } = await sb.rpc('qm_daily_quiz_get');
+  return data ?? { exists:false };
+}
+export async function dailyQuizSubmit(answers) {
+  return sb.rpc('qm_daily_quiz_submit', { p_answers: answers });
+}
+
 // --- Phase de test ---
 export async function adminTestState() {
   const { data } = await sb.rpc('qm_admin_test_state');

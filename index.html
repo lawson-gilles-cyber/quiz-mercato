@@ -1123,6 +1123,7 @@
         <button data-v="faq" data-ic="help">FAQ</button>
         <button id="dykMenuBtn" data-ic="help">💡 Le saviez-vous&nbsp;?</button>
         <button id="quizMenuBtn" data-ic="trophy">🏁 Quiz mercato</button>
+        <button id="dailyQuizMenuBtn" data-ic="calendar">📅 Quiz du jour</button>
       </div>
     </div>
   </nav>
@@ -1222,6 +1223,8 @@
 
   <!-- ACCUEIL -->
   <section class="view on" id="home">
+    <!-- Compte à rebours vers la reprise (intersaison) -->
+    <div id="resumeCountdown" style="display:none"></div>
     <div class="hero">
       <div>
         <div class="status"><span class="dot"></span>
@@ -2661,6 +2664,10 @@ if($('dykMenuBtn')) $('dykMenuBtn').addEventListener('click', ()=>{
 if($('quizMenuBtn')) $('quizMenuBtn').addEventListener('click', ()=>{
   const more = $('moreMenu'); if(more) more.classList.remove('open');
   if(typeof openMercatoQuiz==='function') openMercatoQuiz();
+});
+if($('dailyQuizMenuBtn')) $('dailyQuizMenuBtn').addEventListener('click', ()=>{
+  const more = $('moreMenu'); if(more) more.classList.remove('open');
+  if(typeof openDailyQuiz==='function') openDailyQuiz();
 });
 // Le menu "Plus" est enfant du <nav> (dans le header), qui le coince (overflow,
 // contexte d'empilement). On le déplace à la racine du <body> une bonne fois,
@@ -5149,6 +5156,10 @@ const FAQ_DATA = [
      "L’organisateur peut lancer des <b>sondages</b> pour animer la ligue : une question à <b>choix multiples</b>, ou un vote <b>pour un manager</b> (meilleur recruteur, plus beau coup de poker…). Tu votes en un clic et tu vois les <b>résultats en direct</b> (voix et pourcentages). Un sondage reste ouvert jusqu’à ce que l’organisateur le clôture. C’est purement ludique, sans effet sur ton budget ni ton classement."],
     ['C’est quoi le bandeau qui défile en haut de l’accueil ?',
      "C’est ton <b>fil d’actu</b> : il mélange l’<b>actu de ton mercato</b> (enchères en cours, derniers transferts, leader du classement) et l’<b>actualité du football européen</b> — coups d’envoi à venir et résultats récents des grands championnats (Ligue 1, Premier League, Liga, Serie A, Bundesliga, Ligue des Champions…). C’est de l’information en lecture seule, pour suivre le jeu et le vrai foot d’un même coup d’œil."],
+    ['C’est quoi le « Quiz du jour » ? 📅',
+     "Pendant l’intersaison, un petit quiz de <b>5 questions</b> t’attend <b>chaque jour</b> (mix de questions sur le mercato écoulé et sur les règles du jeu). Tu le joues <b>une fois par jour</b> : chaque bonne réponse vaut <b>+1 flair</b>, et un <b>sans-faute (5/5)</b> te rapporte un petit <b>bonus de budget</b>. Il s’ouvre tout seul à ta première visite du jour, et tu peux le relancer depuis <b>Plus ⋮ → « 📅 Quiz du jour »</b>. Reviens demain pour un nouveau !"],
+    ['C’est quoi le compte à rebours sur l’accueil ? ⚽',
+     "Entre la fin du mercato et la reprise des championnats, un <b>compte à rebours</b> s’affiche en haut de l’accueil : il indique le temps restant (jours, heures, minutes) avant le coup d’envoi de la nouvelle phase. Un repère pour patienter — et pour ne pas rater la reprise !"],
     ['C’est quoi la « Galerie des compos » ? 🖼️',
      "Dans <b>Plus ⋮ → « 🖼️ Galerie »</b>, tu vois le <b>onze entrant de chaque équipe</b> pour une journée : formation, titulaires par poste, club et leader 🅒. Les compos des autres n’apparaissent qu’<b>après la date limite de dépôt</b> (lundi 23h) — avant, chacun garde son onze secret. C’est fait pour comparer les tactiques et animer les discussions."],
     ['C’est quoi le « Quiz de fin de mercato » ? 🏁',
@@ -8220,6 +8231,7 @@ async function renderHome(){
   renderDailyChecklist(auctions);
   renderMarketTrends(auctions);
   renderBourseMovers();
+  renderResumeCountdown();   // compte à rebours vers la reprise (intersaison)
 
   // À l'ouverture (si connecté) : le quiz de fin de mercato a priorité quand il
   // est JOUABLE ; sinon le « Le saviez-vous ? » quotidien.
@@ -8229,9 +8241,121 @@ async function renderHome(){
       const d = await api.mercatoQuizGet();
       quizOpen = !!(d && d.exists && d.phase === 'open' && !d.already_played);
     } catch(e){ quizOpen = false; }
-    if(quizOpen) maybeShowMercatoQuiz();
-    else maybeShowDidYouKnow({ managers, moves, auctions });
+    if(quizOpen){ maybeShowMercatoQuiz(); }
+    else {
+      // Sinon : le quiz quotidien a la priorité ; à défaut, « Le saviez-vous ? ».
+      const dailyShown = await maybeShowDailyQuiz();
+      if(!dailyShown) maybeShowDidYouKnow({ managers, moves, auctions });
+    }
   }
+}
+
+// ======================================================================
+// QUIZ QUOTIDIEN — 5 questions/jour, flair + bonus 5/5
+// ======================================================================
+let DQ = null, DQ_ANSWERS = [], DQ_STEP = 0, DQ_LAST = null;
+async function openDailyQuiz(){
+  let data; try { data = await api.dailyQuizGet(); } catch(e){ return; }
+  if(!data || !data.exists){ toast('Pas de quiz quotidien pour le moment.','info',3000); return; }
+  const ov = $('quizOverlay'), md = $('quizModal');
+  if(data.already_played){
+    DQ_LAST = { score:data.score, total:data.count, flair:data.flair_awarded, budget:data.budget_awarded };
+    md.innerHTML = dailyResultHtml(data.score, data.count, data.flair_awarded, data.budget_awarded, true);
+    ov.classList.add('show'); md.querySelector('[data-dqclose]').onclick=()=>ov.classList.remove('show');
+    return;
+  }
+  DQ = data; DQ_ANSWERS = new Array(data.count).fill(-1); DQ_STEP = 0;
+  renderDailyStep(); ov.classList.add('show');
+}
+function renderDailyStep(){
+  const md = $('quizModal'), n = DQ.count, q = DQ.questions[DQ_STEP], chosen = DQ_ANSWERS[DQ_STEP];
+  const pct = Math.round(DQ_STEP/n*100);
+  const choices = (q.choices||[]).map((c,i)=>`<button data-dqc="${i}" style="display:block;width:100%;text-align:left;margin:6px 0;padding:11px 13px;border-radius:10px;cursor:pointer;border:1px solid ${chosen===i?'var(--transfer)':'var(--line)'};background:${chosen===i?'rgba(245,197,66,.14)':'var(--pitch)'};color:var(--chalk);font-size:.92rem;font-weight:${chosen===i?'700':'400'}">${c}</button>`).join('');
+  const isLast = DQ_STEP===n-1;
+  md.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800">📅 Quiz du jour</div>
+      <button data-dqx style="background:none;border:none;color:var(--muted);font-size:1.3rem;cursor:pointer">×</button>
+    </div>
+    <div style="height:4px;background:var(--pitch);border-radius:4px;overflow:hidden;margin:0 0 12px"><div style="height:100%;width:${pct}%;background:var(--transfer);transition:width .2s"></div></div>
+    <div style="font-size:.78rem;color:var(--muted);margin-bottom:4px">Question ${DQ_STEP+1} / ${n}</div>
+    <h3 style="margin:0 0 12px;font-size:1.05rem;line-height:1.35">${q.q}</h3>
+    ${choices}
+    <div class="ux-actions" style="margin-top:14px;justify-content:space-between">
+      <button class="ux-cancel" data-dqprev ${DQ_STEP===0?'disabled style="opacity:.4"':''}>← Précédent</button>
+      <button class="ux-ok" data-dqnext ${chosen<0?'disabled style="opacity:.5"':''}>${isLast?'Valider':'Suivant →'}</button>
+    </div>`;
+  md.querySelectorAll('[data-dqc]').forEach(b=>b.onclick=()=>{ DQ_ANSWERS[DQ_STEP]=parseInt(b.dataset.dqc,10); renderDailyStep(); });
+  md.querySelector('[data-dqprev]').onclick=()=>{ if(DQ_STEP>0){DQ_STEP--;renderDailyStep();} };
+  md.querySelector('[data-dqnext]').onclick=()=>{ if(DQ_ANSWERS[DQ_STEP]<0) return; if(DQ_STEP<n-1){DQ_STEP++;renderDailyStep();} else submitDaily(); };
+  md.querySelector('[data-dqx]').onclick=()=>$('quizOverlay').classList.remove('show');
+}
+async function submitDaily(){
+  if(DQ_ANSWERS.some(a=>a<0)){ const miss=DQ_ANSWERS.findIndex(a=>a<0); DQ_STEP=miss; renderDailyStep(); return; }
+  const md = $('quizModal');
+  md.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted)">Calcul…</div>`;
+  const { data, error } = await api.dailyQuizSubmit(DQ_ANSWERS);
+  if(error){ md.innerHTML=`<p style="color:var(--live)">${error.message}</p><div class="ux-actions"><button class="ux-ok" data-dqclose>Fermer</button></div>`; md.querySelector('[data-dqclose]').onclick=()=>$('quizOverlay').classList.remove('show'); return; }
+  try { localStorage.setItem('daily_quiz_played_'+data.total+'_'+new Date().toISOString().slice(0,10),'1'); } catch(e){}
+  md.innerHTML = dailyResultHtml(data.score, data.total, data.flair_awarded, data.budget_awarded, false);
+  md.querySelector('[data-dqclose]').onclick=()=>$('quizOverlay').classList.remove('show');
+  try { ME = await api.currentManager(); if(ME) $('wallet').textContent = fmtMoney(Number(ME.budget)-Number(ME.budget_locked)); } catch(e){}
+}
+function dailyResultHtml(score, total, flair, budget, replay){
+  const tier = score===total ? '🏆 Sans-faute !' : score>=Math.ceil(total*0.6) ? '👍 Bien joué' : '🎯 À retenter demain';
+  const bt = budget>0 ? `<div class="ux-row"><span class="l">Bonus budget (5/5)</span><span style="color:var(--transfer);font-weight:700">+${(budget/1000000).toFixed(0)} M€</span></div>` : '';
+  return `<div style="text-align:center">
+      <div style="font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;color:var(--transfer);font-weight:800;margin-bottom:8px">📅 Quiz du jour</div>
+      <div style="font-family:'Saira';font-size:2.4rem;font-weight:900;color:var(--chalk);line-height:1">${score}<span style="font-size:1.2rem;color:var(--muted)">/${total}</span></div>
+      <div style="color:var(--transfer);font-weight:700;margin:4px 0 14px">${tier}${replay?' · (déjà joué aujourd\'hui)':''}</div>
+    </div>
+    <div style="background:var(--pitch);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+      <div class="ux-row"><span class="l">Bonnes réponses</span><span>${score} / ${total}</span></div>
+      <div class="ux-row"><span class="l">Flair gagné</span><span style="color:#c6a0ff;font-weight:700">+${flair}</span></div>
+      ${bt||'<div class="ux-row"><span class="l">Bonus budget</span><span style="color:var(--muted)">— (réussis le 5/5)</span></div>'}
+    </div>
+    <div class="ux-actions"><button class="ux-ok" data-dqclose>${replay?'Fermer':'À demain !'}</button></div>`;
+}
+// Auto-pop une fois par jour (si pas encore joué et hors quiz de fin de mercato).
+async function maybeShowDailyQuiz(){
+  if(!ME) return false;
+  let d; try { d = await api.dailyQuizGet(); } catch(e){ return false; }
+  if(!d || !d.exists || d.already_played) return false;
+  const key = 'daily_quiz_seen_'+new Date().toISOString().slice(0,10);
+  try { if(localStorage.getItem(key)) return false; localStorage.setItem(key,'1'); } catch(e){}
+  setTimeout(()=>openDailyQuiz(), 1000);
+  return true;
+}
+
+// ======================================================================
+// COMPTE À REBOURS vers la reprise des championnats (intersaison)
+// ======================================================================
+let RESUME_TIMER = null;
+async function renderResumeCountdown(){
+  const box = $('resumeCountdown'); if(!box) return;
+  let when = null;
+  try { when = await api.seasonResumeAt(); } catch(e){}
+  if(RESUME_TIMER){ clearInterval(RESUME_TIMER); RESUME_TIMER = null; }
+  if(!when){ box.style.display='none'; box.innerHTML=''; return; }
+  const target = new Date(when).getTime();
+  const paint = ()=>{
+    const left = target - Date.now();
+    if(left <= 0){
+      box.innerHTML = `<div style="background:linear-gradient(135deg,rgba(74,222,128,.14),rgba(74,222,128,.05));border:1px solid rgba(74,222,128,.4);border-radius:14px;padding:14px 16px;margin-bottom:16px;text-align:center">
+        <div style="font-weight:800;color:#4ade80">⚽ C'est reparti ! La reprise est arrivée.</div></div>`;
+      if(RESUME_TIMER){ clearInterval(RESUME_TIMER); RESUME_TIMER=null; }
+      return;
+    }
+    const d = Math.floor(left/86400000), h = Math.floor(left%86400000/3600000), m = Math.floor(left%3600000/60000), s = Math.floor(left%60000/1000);
+    const cell = (v,l)=>`<div style="text-align:center"><div style="font-family:'Saira',monospace;font-weight:900;font-size:1.5rem;color:var(--transfer);line-height:1">${String(v).padStart(2,'0')}</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${l}</div></div>`;
+    box.innerHTML = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.03));border:1px solid rgba(245,197,66,.4);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--transfer);font-weight:800;margin-bottom:8px;text-align:center">⚽ Reprise des championnats dans</div>
+      <div style="display:flex;justify-content:center;gap:16px">${cell(d,'jours')}${cell(h,'h')}${cell(m,'min')}${cell(s,'sec')}</div>
+    </div>`;
+  };
+  box.style.display='block';
+  paint();
+  RESUME_TIMER = setInterval(paint, 1000);
 }
 
 // ======================================================================
