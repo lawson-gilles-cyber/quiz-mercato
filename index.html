@@ -11138,10 +11138,11 @@ function vmSheetHTML(r, A, B, lineups){
     <div style="border-left:2px solid var(--line);margin-left:6px;padding-left:12px">
       ${ev.map(e=>{
         const side = e.team==='A';
-        const col = e.type==='goal'?'var(--transfer)':(e.type==='red'?'var(--live,#e0574a)':'var(--muted)');
+        const ico = (e.type==='red' && e.second_yellow) ? '🟨🟥' : (icon[e.type]||'•');
+        const label = (e.type==='red' && e.second_yellow) ? ' <span style="font-size:.66rem">(2e j.)</span>' : (e.type==='red' ? ' <span style="font-size:.66rem">(exclu)</span>' : '');
         return `<div style="display:flex;${side?'':'flex-direction:row-reverse;text-align:right;'}justify-content:flex-start;gap:8px;margin:4px 0;font-size:.8rem">
           <span style="flex:0 0 34px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
-          <span style="flex:1;color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${icon[e.type]||'•'} ${vmEsc(e.name||'')}</span>
+          <span style="flex:1;color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico} ${vmEsc(e.name||'')}${label}</span>
         </div>`;
       }).join('')}
     </div></div>` : '';
