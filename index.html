@@ -2154,8 +2154,9 @@
         <p class="rule-p">Entre deux phases (par exemple pendant l'intersaison), tu peux <b>défier un autre manager</b> en match virtuel (menu Plus ⋮ → « ⚔️ Matchs virtuels »). Tu alignes ton onze, l'adversaire aligne le sien, et le match est <b>simulé automatiquement</b> à partir des caractéristiques de tes joueurs.</p>
         <ol class="rule-ol">
           <li>Tu composes un <b>onze valide</b> avec tes propres joueurs : 11 titulaires dont <b>exactement 1 gardien</b>.</li>
-          <li>Le défi est <b>asynchrone</b> : l'adversaire aligne son équipe quand il veut. Le match se joue dès que les deux onze sont posés.</li>
-          <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons et <b>homme du match</b>.</li>
+          <li>Le défi est <b>asynchrone</b> et <b>à l'aveugle</b> : chacun aligne son onze sans voir celui de l'autre. Le match se joue dès que les deux onze sont posés, et c'est seulement <b>à ce moment</b> que les deux compositions se dévoilent sur la feuille de match.</li>
+          <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons, <b>homme du match</b> et les <b>deux onze alignés</b>.</li>
+          <li>La force de chaque équipe vient des <b>caractéristiques de tes joueurs</b> (finition, défense, vitesse…), <b>ajustée par leur forme récente</b> (la moyenne de leurs dernières notes Sofascore). Un joueur en forme pèse un peu plus ; sans historique de notes, seuls les attributs comptent.</li>
           <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
           <li>C'est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de ton équipe), <b>sans aucun impact</b> sur le classement officiel, le budget ou les notes de journée.</li>
           <li>Tu peux lancer jusqu'à <b>3 défis par jour</b>. Un défi que tu <b>annules</b>, ou qu'un adversaire <b>refuse</b>, <b>ne consomme pas</b> ton quota — seuls les défis joués ou en attente de réponse comptent. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
@@ -5238,7 +5239,7 @@ const FAQ_DATA = [
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
     ['C’est quoi les « Matchs virtuels » ? ⚔️',
-     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b>, et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. Tu retrouves tous tes résultats dans l’historique."],
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b>, et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore). Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
     ['C’est quoi les « Tournois » ? 🏆',
      "Des <b>coupes à élimination directe</b> organisées par l’organisation (menu <b>Plus ⋮ → 🏆 Tournois</b>). À chaque tour tu alignes ton onze ; le match se joue dès que ton adversaire a posé le sien, et le vainqueur monte jusqu’à la finale. Tu suis le <b>bracket</b> complet avec tous les scores, et tu peux rouvrir chaque feuille de match. En cas d’égalité le match est départagé (xG, tirs cadrés, puis au sort). Le <b>vainqueur du tournoi</b> gagne un bonus de flair. Amical : aucun effet sur le classement officiel."],
     ['C’est quoi les « Fiches tactiques » ? 📋',
@@ -11062,12 +11063,22 @@ async function showMatchSheet(matchId){
   if(g&&g.__error){ modal.innerHTML=`<div class="empty" style="padding:20px">${g.__error}</div>`; return; }
   const r = g.result;
   if(!r){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
-  modal.innerHTML = vmSheetHTML(r, g.team_a, g.team_b);
+  let lu = null; try { lu = await api.vmatchLineups(matchId); } catch(e){}
+  modal.innerHTML = vmSheetHTML(r, g.team_a, g.team_b, lu);
   $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; renderVmatch(); };
 }
 
 // Construit le HTML d'une feuille de match (partagé défis + tournoi).
-function vmSheetHTML(r, A, B){
+function vmLineupsHTML(lu, A, B){
+  if(!lu || lu.__error || (!Array.isArray(lu.a) && !Array.isArray(lu.b))) return '';
+  const col = (arr)=> (Array.isArray(arr)?arr:[]).map(p=>`<div style="font-size:.78rem;padding:1px 0"><span style="color:var(--muted);font-size:.64rem;text-transform:uppercase;display:inline-block;width:30px">${POS[p.position]||p.position}</span> ${vmEsc(p.name)}</div>`).join('');
+  return `<div style="margin-top:14px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px">Compositions</div>
+    <div style="display:flex;gap:12px">
+      <div style="flex:1"><div style="font-weight:800;font-size:.84rem;margin-bottom:3px">${vmEsc(A)}</div>${col(lu.a)}</div>
+      <div style="flex:1"><div style="font-weight:800;font-size:.84rem;margin-bottom:3px">${vmEsc(B)}</div>${col(lu.b)}</div>
+    </div></div>`;
+}
+function vmSheetHTML(r, A, B, lineups){
   const sc = r.score;
   const minds = r.minds || {};
   const mindTag = (m)=> m ? `<span style="font-size:.64rem;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:1px 6px;margin-top:3px;display:inline-block">${VM_MIND_LABEL[m]||m}</span>` : '';
@@ -11118,7 +11129,8 @@ function vmSheetHTML(r, A, B){
     ${statRow('Corners', r.corners.a, r.corners.b)}
     ${statRow('Fautes', r.fouls.a, r.fouls.b)}
     ${statRow('Hors-jeu', r.offsides.a, r.offsides.b)}
-    <div style="display:flex;justify-content:space-between;font-size:.82rem;margin:9px 0"><span>${cards(r.yellow.a,r.red.a)}</span><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">Cartons</span><span>${cards(r.yellow.b,r.red.b)}</span></div>`;
+    <div style="display:flex;justify-content:space-between;font-size:.82rem;margin:9px 0"><span>${cards(r.yellow.a,r.red.a)}</span><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">Cartons</span><span>${cards(r.yellow.b,r.red.b)}</span></div>
+    ${vmLineupsHTML(lineups, A, B)}`;
 }
 
 // =====================================================================
@@ -11214,7 +11226,8 @@ async function showTournamentSheet(matchId, onClose){
   const g = await api.vtournamentMatchSheet(matchId);
   if(g&&g.__error){ modal.innerHTML=`<div class="empty" style="padding:20px">${g.__error}</div>`; return; }
   if(!g.result){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
-  modal.innerHTML = vmSheetHTML(g.result, g.team_a, g.team_b);
+  let lu = null; try { lu = await api.vtournamentMatchLineups(matchId); } catch(e){}
+  modal.innerHTML = vmSheetHTML(g.result, g.team_a, g.team_b, lu);
   $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; if(onClose) onClose(); };
 }
 

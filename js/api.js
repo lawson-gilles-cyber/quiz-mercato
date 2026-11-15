@@ -2187,3 +2187,15 @@ export async function adminVtournamentCancel(id) {
   if (error) return { __error: error.message };
   return { ok: true };
 }
+
+// Compos révélées après le match (273)
+export async function vmatchLineups(matchId) {
+  const { data, error } = await sb.rpc('qm_vmatch_lineups', { p_id: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function vtournamentMatchLineups(matchId) {
+  const { data, error } = await sb.rpc('qm_vtournament_match_lineups', { p_match: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}
