@@ -2106,3 +2106,27 @@ export async function vmatchGet(matchId) {
   if (error) return { __error: error.message };
   return data;
 }
+
+// =====================================================================
+// Fiches tactiques (267) — modèles de onze réutilisables.
+// =====================================================================
+export async function tacticList() {
+  const { data } = await sb.rpc('qm_tactic_list');
+  return data ?? [];
+}
+export async function tacticGet(id) {
+  const { data, error } = await sb.rpc('qm_tactic_get', { p_id: id });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function tacticSave(name, formation, slots, id = null) {
+  const { data, error } = await sb.rpc('qm_tactic_save', {
+    p_name: name, p_formation: formation, p_slots: slots, p_id: id });
+  if (error) return { __error: error.message };
+  return { id: data };
+}
+export async function tacticDelete(id) {
+  const { error } = await sb.rpc('qm_tactic_delete', { p_id: id });
+  if (error) return { __error: error.message };
+  return { ok: true };
+}

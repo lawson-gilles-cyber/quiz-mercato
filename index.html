@@ -1067,6 +1067,8 @@
 <div id="quizOverlay" class="ux-ov" style="z-index:10003"><div class="ux-modal" id="quizModal" style="width:min(94vw,460px);max-height:88vh;overflow:auto"></div></div>
 <div id="vmPickerOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmPickerModal" style="width:min(94vw,460px);max-height:90vh;overflow:auto"></div></div>
 <div id="vmSheetOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmSheetModal" style="width:min(94vw,440px);max-height:90vh;overflow:auto"></div></div>
+<div id="tacticEditOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="tacticEditModal" style="width:min(94vw,480px);max-height:92vh;overflow:auto"></div></div>
+<div id="tacticChooseOverlay" class="ux-ov" style="z-index:10005"><div class="ux-modal" id="tacticChooseModal" style="width:min(94vw,440px);max-height:88vh;overflow:auto"></div></div>
 
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
@@ -1127,6 +1129,7 @@
         <button id="quizMenuBtn" data-ic="trophy">🏁 Quiz mercato</button>
         <button id="dailyQuizMenuBtn" data-ic="calendar">📅 Quiz du jour</button>
         <button data-v="vmatch" data-ic="target">⚔️ Matchs virtuels</button>
+        <button data-v="tactics" data-ic="clipboard">📋 Fiches tactiques</button>
       </div>
     </div>
   </nav>
@@ -1564,7 +1567,10 @@
         <div><div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 titulaires</div>
           <div id="benchCounter" style="font-size:.8rem;color:var(--muted)">0 / 3 réservistes</div>
           <div id="leaderCounter" style="font-size:.78rem;color:var(--muted);margin-top:3px">🅒 Aucun leader désigné <span style="color:var(--muted)">(optionnel — bonus +1/+2/+3)</span></div></div>
-        <button id="btnSuggestLineup" class="bid-btn" data-ic="puzzle" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem;display:inline-flex;align-items:center;justify-content:center">Suggérer mon 11</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="btnLoadTactic" class="bid-btn" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem;display:none;align-items:center;justify-content:center;background:var(--pitch);border:1px solid var(--line)">📋 Charger une fiche</button>
+          <button id="btnSuggestLineup" class="bid-btn" data-ic="puzzle" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem;display:inline-flex;align-items:center;justify-content:center">Suggérer mon 11</button>
+        </div>
       </div>
       <div id="lineupPlayers" class="grid"></div>
       <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
@@ -1724,6 +1730,14 @@
     <h1>Matchs <em>virtuels</em></h1>
     <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Aligne ton onze et défie un autre manager. Le match se joue dès que l'adversaire a posé son équipe — feuille de match complète (score, possession, tirs, xG, homme du match…). <b>Amical</b> : rapporte du flair, sans impact sur le classement officiel.</p>
     <div id="vmatchBody"><div class="empty">Chargement…</div></div>
+  </section>
+
+  <!-- FICHES TACTIQUES (modèles de onze réutilisables) -->
+  <section class="view" id="tactics">
+    <div class="eyebrow">Fiches tactiques · tes schémas de jeu</div>
+    <h1>Mes fiches <em>tactiques</em></h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Enregistre tes schémas favoris (4-4-2, 3-4-3…) avec un joueur par poste, puis charge-les en un clic dans ta <b>compo officielle</b> ou pour un <b>match virtuel</b>. Si un joueur est vendu plus tard, la fiche le signale — tu complètes le trou.</p>
+    <div id="tacticsBody"><div class="empty">Chargement…</div></div>
   </section>
 
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
@@ -2134,9 +2148,19 @@
           <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons et <b>homme du match</b>.</li>
           <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
           <li>C'est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de ton équipe), <b>sans aucun impact</b> sur le classement officiel, le budget ou les notes de journée.</li>
-          <li>Tu peux lancer jusqu'à <b>3 défis par jour</b>. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
+          <li>Tu peux lancer jusqu'à <b>3 défis par jour</b>. Un défi que tu <b>annules</b>, ou qu'un adversaire <b>refuse</b>, <b>ne consomme pas</b> ton quota — seuls les défis joués ou en attente de réponse comptent. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px">Une façon de <b>garder la ligue vivante</b> entre les journées officielles et de tester tes choix tactiques sans enjeu.</p>
+
+        <h3 class="rule-h">34. Les fiches tactiques</h3>
+        <p class="rule-p">Dans <b>Plus ⋮ → « 📋 Fiches tactiques »</b>, tu peux enregistrer tes <b>schémas de jeu favoris</b> (4-4-2, 3-4-3, 4-3-3…) avec un joueur à chaque poste, puis les recharger en un clic.</p>
+        <ol class="rule-ol">
+          <li>Une fiche = une <b>formation</b> (le gardien est toujours là, plus les joueurs de champ selon le schéma) et <b>un joueur par poste</b> choisi dans ton effectif.</li>
+          <li>Tu peux en créer <b>autant que tu veux</b>, les éditer et les supprimer.</li>
+          <li>Tu charges une fiche depuis l'écran <b>Compo</b> (bouton « 📋 Charger une fiche ») pour poser ton onze de la journée, ou dans un <b>match virtuel</b> au moment de composer.</li>
+          <li>Si un joueur de la fiche est <b>vendu ou échangé</b> plus tard, la fiche le <b>signale</b> (« à compléter ») : au chargement, seuls les joueurs encore dans ton effectif sont pré-sélectionnés, à toi de compléter les trous.</li>
+        </ol>
+        <p class="rule-p" style="margin-top:10px">Un gain de temps pour aligner rapidement tes dispositifs habituels, sans tout re-cliquer à chaque journée.</p>
       </div>
     </div>
   </section>
@@ -2618,7 +2642,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie','vmatch'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie','vmatch','tactics'];
 let CURRENT_VIEW = 'home';
 // --- Analytics : identifiant de session + traçage des vues ---
 let ANALYTICS_SESSION = null;
@@ -2665,7 +2689,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch, tactics:renderTactics};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -5190,7 +5214,9 @@ const FAQ_DATA = [
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
     ['C’est quoi les « Matchs virtuels » ? ⚔️',
-     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> et retrouver tous tes résultats dans l’historique."],
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Tu retrouves tous tes résultats dans l’historique."],
+    ['C’est quoi les « Fiches tactiques » ? 📋',
+     "Dans <b>Plus ⋮ → « 📋 Fiches tactiques »</b>, tu enregistres tes <b>schémas favoris</b> (4-4-2, 3-4-3…) avec un joueur par poste. Ensuite, tu les <b>recharges en un clic</b> : dans l’écran <b>Compo</b> pour poser ton onze de la journée, ou dans un <b>match virtuel</b>. Si un joueur de la fiche est vendu entre-temps, la fiche le signale et tu complètes simplement les postes manquants. Pratique pour aligner vite tes dispositifs habituels."],
     ['Le match virtuel compte-t-il pour mon classement ou mon budget ?',
      "Non, aucun effet. Les matchs virtuels sont <b>purement ludiques</b> : ils ne touchent ni au classement officiel, ni à ton budget, ni aux notes de journée. Seule récompense : du <b>flair</b> (prestige). Une équipe mieux notée part favorite, mais le résultat garde une part d’aléa — l’exploit est toujours possible."],
   ]],
@@ -7439,6 +7465,28 @@ async function loadLineupForMatchday(mdId){
 
   renderLineupPlayers(mine);
   $('btnSaveLineup').onclick = ()=>saveLineup(mdId, teamArg);
+
+  // Bouton « Charger une fiche » : visible seulement pour ma propre équipe
+  // (les fiches tactiques sont composées de MES joueurs). On ne l'affiche pas
+  // en dépannage ni sur une journée clôturée.
+  {
+    const lt = $('btnLoadTactic');
+    if(lt){
+      const canLoad = !isDepannage && !(md && md.status==='closed');
+      lt.style.display = canLoad ? 'inline-flex' : 'none';
+      if(canLoad){
+        lt.onclick = ()=>openTacticChooser((ids, tactic)=>{
+          const avail = new Set(mine.map(p=>p.id));
+          const kept = ids.filter(id=>avail.has(id)).slice(0,11);
+          LINEUP_SELECTED = new Set(kept);
+          if(LINEUP_LEADER && !LINEUP_SELECTED.has(LINEUP_LEADER)) LINEUP_LEADER = null;
+          renderLineupPlayers(mine);
+          renderLineupAlert(md, LINEUP_SELECTED.size, mine.length);
+          if(kept.length<11) setTimeout(()=>alert(`Fiche « ${tactic.name} » chargée : ${kept.length}/11 titulaires encore dans ton effectif. Complète les postes manquants avant de valider.`),50);
+        });
+      }
+    }
+  }
 
   // Garde-fou : alerte si la compo n'est pas complète (11) sur une journée ouverte
   renderLineupAlert(md, LINEUP_SELECTED.size, mine.length);
@@ -10558,6 +10606,181 @@ let VM_SQUAD = [];          // mon effectif [{id,name,pos,club}]
 let VM_PICK = new Set();    // ids sélectionnés pour le onze en cours
 let VM_PICK_MODE = null;    // {kind:'create',opponentId} | {kind:'accept',matchId}
 
+// Charge (une fois) mon effectif jouable, partagé par les matchs virtuels et
+// les fiches tactiques. force=true pour rafraîchir après un transfert.
+async function vmLoadSquad(force){
+  if(VM_SQUAD.length && !force) return VM_SQUAD;
+  try { VM_SQUAD = await api.vmatchMySquad(); } catch(e){ VM_SQUAD = []; }
+  return VM_SQUAD;
+}
+
+// =====================================================================
+// FICHES TACTIQUES (267) — modèles de onze réutilisables.
+//   Formation "D-M-F" (gardien implicite). Un joueur par poste.
+// =====================================================================
+const TACTIC_FORMATIONS = ['4-4-2','4-3-3','3-5-2','3-4-3','5-3-2','4-5-1','5-4-1','4-2-4'];
+function tacticParse(f){ const p=(f||'').split('-').map(n=>parseInt(n,10)); return {DEF:p[0]||0, MID:p[1]||0, FWD:p[2]||0, GK:1}; }
+let TACTIC_EDIT = null;   // {id?, name, formation, pick:Set, quota:{GK,DEF,MID,FWD}}
+
+async function renderTactics(){
+  const body = $('tacticsBody'); if(!body) return;
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  let list = [];
+  try { list = await api.tacticList(); }
+  catch(e){ body.innerHTML = '<div class="empty">Fiches tactiques indisponibles (script 267 à passer).</div>'; return; }
+
+  let html = `<button id="tacticNewBtn" class="bid-btn" style="width:100%;margin-bottom:16px">+ Nouvelle fiche tactique</button>`;
+  if(!list.length){
+    html += `<div class="empty">Aucune fiche pour l'instant. Crée ton premier schéma&nbsp;!</div>`;
+  } else {
+    html += list.map(t=>{
+      const complete = t.valid_count===11;
+      const badge = complete
+        ? `<span style="font-size:.68rem;color:#4ade80;border:1px solid #4ade80;border-radius:10px;padding:2px 8px">complète</span>`
+        : `<span style="font-size:.68rem;color:var(--live,#e0574a);border:1px solid var(--live,#e0574a);border-radius:10px;padding:2px 8px">${t.valid_count}/11 · à compléter</span>`;
+      return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.05rem">${vmEsc(t.name)}</div>
+            <div style="font-size:.8rem;color:var(--muted)">Formation <b style="color:var(--transfer)">${vmEsc(t.formation)}</b> · ${badge}</div>
+          </div>
+          <div style="display:flex;gap:7px">
+            <button data-tedit="${t.id}" style="background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:.82rem">Éditer</button>
+            <button data-tdel="${t.id}" style="background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:.82rem">🗑</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  body.innerHTML = html;
+  $('tacticNewBtn').onclick = ()=>openTacticEditor(null);
+  body.querySelectorAll('[data-tedit]').forEach(b=>b.onclick=()=>openTacticEditor(b.dataset.tedit));
+  body.querySelectorAll('[data-tdel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Supprimer cette fiche ?')) return;
+    const r = await api.tacticDelete(b.dataset.tdel);
+    if(r&&r.__error){ alert(r.__error); return; } renderTactics();
+  });
+}
+
+async function openTacticEditor(id){
+  await vmLoadSquad();
+  if(id){
+    const t = await api.tacticGet(id);
+    if(t&&t.__error){ alert(t.__error); return; }
+    const slots = Array.isArray(t.slots)?t.slots:[];
+    const pick = new Set(slots.filter(s=>s.owned).map(s=>s.player_id));
+    TACTIC_EDIT = {id:t.id, name:t.name, formation:t.formation, pick, quota:tacticParse(t.formation)};
+  } else {
+    TACTIC_EDIT = {id:null, name:'', formation:'4-4-2', pick:new Set(), quota:tacticParse('4-4-2')};
+  }
+  renderTacticEditor();
+  $('tacticEditOverlay').style.display='flex';
+}
+function tacticCountBy(){
+  const c={GK:0,DEF:0,MID:0,FWD:0};
+  VM_SQUAD.forEach(p=>{ if(TACTIC_EDIT.pick.has(p.id)) c[p.pos]++; });
+  return c;
+}
+function renderTacticEditor(){
+  const modal=$('tacticEditModal'); if(!modal) return;
+  const q=TACTIC_EDIT.quota, c=tacticCountBy();
+  const total=TACTIC_EDIT.pick.size;
+  const okPos = c.GK===q.GK && c.DEF===q.DEF && c.MID===q.MID && c.FWD===q.FWD;
+  const okName = TACTIC_EDIT.name.trim().length>0;
+  const canSave = okPos && okName && total===11;
+  const fopts = TACTIC_FORMATIONS.map(f=>`<option value="${f}"${f===TACTIC_EDIT.formation?' selected':''}>${f}</option>`).join('');
+  const groups = VM_POS_ORDER.map(pos=>{
+    const list=VM_SQUAD.filter(p=>p.pos===pos);
+    const need=q[pos], have=c[pos];
+    const hdrCol = have===need ? '#4ade80' : (have>need?'var(--live,#e0574a)':'var(--muted)');
+    const chips = list.length ? list.map(p=>{
+      const on=TACTIC_EDIT.pick.has(p.id);
+      return `<button data-ttoggle="${p.id}" style="display:inline-block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span></button>`;
+    }).join('') : `<span style="color:var(--muted);font-size:.8rem">aucun ${VM_POS_LABEL[pos].toLowerCase()} dans ton effectif</span>`;
+    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px;color:${hdrCol}">${VM_POS_LABEL[pos]} · ${have}/${need}</div>${chips}</div>`;
+  }).join('');
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.15rem">${TACTIC_EDIT.id?'Éditer la fiche':'Nouvelle fiche'}</div>
+      <button id="tacticEditClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    </div>
+    <input id="tacticName" placeholder="Nom de la fiche (ex. Mon 4-4-2 offensif)" value="${vmEsc(TACTIC_EDIT.name)}" style="width:100%;padding:9px;margin-bottom:8px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:9px;margin-bottom:10px">
+      <label style="font-size:.8rem;color:var(--muted)">Formation</label>
+      <select id="tacticFormation" style="flex:1;padding:8px">${fopts}</select>
+    </div>
+    <div style="font-size:.84rem;color:${total===11&&okPos?'#4ade80':'var(--muted)'};margin-bottom:6px">Sélection&nbsp;: <b>${total}/11</b>${okPos?'':' · respecte la répartition de la formation'}</div>
+    <div style="max-height:44vh;overflow-y:auto;margin:6px 0;padding-right:4px">${groups}</div>
+    <button id="tacticSaveBtn" ${canSave?'':'disabled'} class="bid-btn" style="width:100%;${canSave?'':'opacity:.5;cursor:default'}">${TACTIC_EDIT.id?'Enregistrer':'Créer la fiche'}</button>`;
+  // bindings
+  $('tacticEditClose').onclick=()=>{ $('tacticEditOverlay').style.display='none'; };
+  $('tacticName').oninput=(e)=>{ TACTIC_EDIT.name=e.target.value; const b=$('tacticSaveBtn'); const can=(e.target.value.trim().length>0)&&TACTIC_EDIT.pick.size===11&&okPos; if(b){b.disabled=!can;b.style.opacity=can?'1':'.5';b.style.cursor=can?'pointer':'default';} };
+  $('tacticFormation').onchange=(e)=>{ TACTIC_EDIT.formation=e.target.value; TACTIC_EDIT.quota=tacticParse(e.target.value); renderTacticEditor(); };
+  modal.querySelectorAll('[data-ttoggle]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.ttoggle, p=VM_SQUAD.find(x=>x.id===id);
+    if(TACTIC_EDIT.pick.has(id)){ TACTIC_EDIT.pick.delete(id); }
+    else {
+      if(TACTIC_EDIT.pick.size>=11) return;
+      // bloque si le quota du poste est déjà atteint
+      if(tacticCountBy()[p.pos] >= TACTIC_EDIT.quota[p.pos]) { alert(`Tu as déjà ${TACTIC_EDIT.quota[p.pos]} ${VM_POS_LABEL[p.pos].toLowerCase()} pour un ${TACTIC_EDIT.formation}.`); return; }
+      TACTIC_EDIT.pick.add(id);
+    }
+    renderTacticEditor();
+  });
+  const sv=$('tacticSaveBtn'); if(sv&&canSave) sv.onclick=saveTactic;
+}
+async function saveTactic(){
+  const sv=$('tacticSaveBtn'); if(sv){sv.disabled=true;sv.textContent='…';}
+  // construit les slots dans l'ordre GK,DEF,MID,FWD
+  const slots=[];
+  VM_POS_ORDER.forEach(pos=>{
+    VM_SQUAD.filter(p=>p.pos===pos && TACTIC_EDIT.pick.has(p.id)).forEach(p=>{
+      slots.push({player_id:p.id, position:pos});
+    });
+  });
+  const r = await api.tacticSave(TACTIC_EDIT.name.trim(), TACTIC_EDIT.formation, slots, TACTIC_EDIT.id);
+  if(r&&r.__error){ alert(r.__error); renderTacticEditor(); return; }
+  $('tacticEditOverlay').style.display='none';
+  renderTactics();
+}
+
+// Sélecteur de fiche réutilisable : appelle onPick(playerIds[], tactic) avec les
+// joueurs encore possédés de la fiche choisie. Utilisé par la compo et les matchs virtuels.
+async function openTacticChooser(onPick){
+  const modal=$('tacticChooseModal'); if(!modal) return;
+  modal.innerHTML='<div class="empty" style="padding:24px">Chargement…</div>';
+  $('tacticChooseOverlay').style.display='flex';
+  let list=[];
+  try { list=await api.tacticList(); } catch(e){ list=[]; }
+  let html=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.12rem">Charger une fiche</div>
+      <button id="tChooseClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    </div>`;
+  if(!list.length){
+    html += `<div class="empty">Aucune fiche enregistrée. Crée-en une dans <b>Plus ⋮ → 📋 Fiches tactiques</b>.</div>`;
+  } else {
+    html += list.map(t=>{
+      const complete=t.valid_count===11;
+      return `<button data-tpick="${t.id}" style="display:block;width:100%;text-align:left;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:11px 14px;margin-bottom:8px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div><b>${vmEsc(t.name)}</b> <span style="color:var(--muted);font-size:.82rem">· ${vmEsc(t.formation)}</span></div>
+          <span style="font-size:.72rem;color:${complete?'#4ade80':'var(--live,#e0574a)'}">${complete?'complète':t.valid_count+'/11'}</span>
+        </div>
+      </button>`;
+    }).join('');
+  }
+  modal.innerHTML=html;
+  $('tChooseClose').onclick=()=>{ $('tacticChooseOverlay').style.display='none'; };
+  modal.querySelectorAll('[data-tpick]').forEach(b=>b.onclick=async()=>{
+    const t=await api.tacticGet(b.dataset.tpick);
+    if(t&&t.__error){ alert(t.__error); return; }
+    const slots=Array.isArray(t.slots)?t.slots:[];
+    const ids=slots.filter(s=>s.owned).map(s=>s.player_id);
+    $('tacticChooseOverlay').style.display='none';
+    onPick(ids, t);
+  });
+}
+
 async function renderVmatch(){
   const body = $('vmatchBody'); if(!body) return;
   body.innerHTML = '<div class="empty">Chargement…</div>';
@@ -10698,7 +10921,10 @@ function renderElevenPicker(){
       <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.15rem">${title}</div>
       <button id="vmPickClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
     </div>
-    <div style="font-size:.84rem;color:${totalOk?'#4ade80':'var(--muted)'};margin-bottom:4px">Sélection&nbsp;: <b>${total}/11</b> ${gkOk?'':'· <span style="color:var(--live,#e0574a)">il faut exactement 1 gardien</span>'}</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
+      <div style="font-size:.84rem;color:${totalOk?'#4ade80':'var(--muted)'}">Sélection&nbsp;: <b>${total}/11</b> ${gkOk?'':'· <span style="color:var(--live,#e0574a)">il faut exactement 1 gardien</span>'}</div>
+      <button id="vmLoadTactic" style="background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:.78rem;cursor:pointer;white-space:nowrap">📋 Charger une fiche</button>
+    </div>
     <div style="max-height:46vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
     <button id="vmPickGo" ${canGo?'':'disabled'} class="btn" style="width:100%;background:${canGo?'var(--transfer)':'var(--pitch)'};color:${canGo?'#1a1a1a':'var(--muted)'};border:1px solid ${canGo?'var(--transfer)':'var(--line)'};border-radius:9px;padding:11px;font-weight:800;cursor:${canGo?'pointer':'default'}">${VM_PICK_MODE.kind==='create'?'Envoyer le défi':'Jouer le match'}</button>`;
   modal.querySelectorAll('[data-vmtoggle]').forEach(b=>b.onclick=()=>{
@@ -10708,6 +10934,14 @@ function renderElevenPicker(){
     renderElevenPicker();
   });
   $('vmPickClose').onclick = ()=>{ $('vmPickerOverlay').style.display='none'; };
+  const lt = $('vmLoadTactic');
+  if(lt) lt.onclick = ()=>openTacticChooser((ids, tactic)=>{
+    const squadIds = new Set(VM_SQUAD.map(p=>p.id));
+    const kept = ids.filter(id=>squadIds.has(id)).slice(0,11);
+    VM_PICK = new Set(kept);
+    renderElevenPicker();
+    if(kept.length<11) setTimeout(()=>alert(`Fiche « ${tactic.name} » chargée : ${kept.length}/11 joueurs encore dans ton effectif. Complète les postes manquants.`),50);
+  });
   const go = $('vmPickGo');
   if(go && canGo) go.onclick = submitEleven;
 }
