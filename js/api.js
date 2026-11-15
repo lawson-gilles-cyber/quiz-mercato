@@ -2130,3 +2130,60 @@ export async function tacticDelete(id) {
   if (error) return { __error: error.message };
   return { ok: true };
 }
+
+// =====================================================================
+// Matchs virtuels — améliorations (268/269/270/271)
+// =====================================================================
+// Mentalité : vmatchCreate/Accept acceptent un 3e param 'off'|'bal'|'def'.
+export async function vmatchCreateMind(opponentId, eleven, mind = 'bal') {
+  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven, p_mind: mind });
+  if (error) return { __error: error.message };
+  return { id: data };
+}
+export async function vmatchAcceptMind(matchId, eleven, mind = 'bal') {
+  const { data, error } = await sb.rpc('qm_vmatch_accept', { p_id: matchId, p_eleven: eleven, p_mind: mind });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function vmatchHeadToHead(otherId) {
+  const { data } = await sb.rpc('qm_vmatch_head_to_head', { p_other: otherId });
+  return data ?? { wins:0, draws:0, losses:0, gf:0, ga:0, played:0 };
+}
+export async function vmatchLeaderboard() {
+  const { data } = await sb.rpc('qm_vmatch_leaderboard');
+  return data ?? [];
+}
+export async function vmatchBadges() {
+  const { data } = await sb.rpc('qm_vmatch_badges');
+  return data ?? [];
+}
+// Tournois
+export async function vtournamentList() {
+  const { data } = await sb.rpc('qm_vtournament_list');
+  return data ?? [];
+}
+export async function vtournamentBracket(id) {
+  const { data, error } = await sb.rpc('qm_vtournament_bracket', { p_id: id });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function vtournamentSetEleven(matchId, eleven, mind = 'bal') {
+  const { data, error } = await sb.rpc('qm_vtournament_set_eleven', { p_match: matchId, p_eleven: eleven, p_mind: mind });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function vtournamentMatchSheet(matchId) {
+  const { data, error } = await sb.rpc('qm_vtournament_match_sheet', { p_match: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function adminVtournamentCreate(name, managerIds) {
+  const { data, error } = await sb.rpc('qm_admin_vtournament_create', { p_name: name, p_managers: managerIds });
+  if (error) return { __error: error.message };
+  return { id: data };
+}
+export async function adminVtournamentCancel(id) {
+  const { error } = await sb.rpc('qm_admin_vtournament_cancel', { p_id: id });
+  if (error) return { __error: error.message };
+  return { ok: true };
+}

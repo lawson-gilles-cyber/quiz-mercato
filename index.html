@@ -1069,6 +1069,7 @@
 <div id="vmSheetOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmSheetModal" style="width:min(94vw,440px);max-height:90vh;overflow:auto"></div></div>
 <div id="tacticEditOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="tacticEditModal" style="width:min(94vw,480px);max-height:92vh;overflow:auto"></div></div>
 <div id="tacticChooseOverlay" class="ux-ov" style="z-index:10005"><div class="ux-modal" id="tacticChooseModal" style="width:min(94vw,440px);max-height:88vh;overflow:auto"></div></div>
+<div id="vtSheetOverlay" class="ux-ov" style="z-index:10006"><div class="ux-modal" id="vtSheetModal" style="width:min(94vw,440px);max-height:90vh;overflow:auto"></div></div>
 
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
@@ -1130,6 +1131,7 @@
         <button id="dailyQuizMenuBtn" data-ic="calendar">📅 Quiz du jour</button>
         <button data-v="vmatch" data-ic="target">⚔️ Matchs virtuels</button>
         <button data-v="tactics" data-ic="clipboard">📋 Fiches tactiques</button>
+        <button data-v="vtournament" data-ic="trophy">🏆 Tournois</button>
       </div>
     </div>
   </nav>
@@ -1740,6 +1742,14 @@
     <div id="tacticsBody"><div class="empty">Chargement…</div></div>
   </section>
 
+  <!-- TOURNOIS (coupe éclair entre managers) -->
+  <section class="view" id="vtournament">
+    <div class="eyebrow">Tournois · la coupe de la ligue</div>
+    <h1>Les <em>tournois</em></h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Des coupes à élimination directe organisées par l'organisation. Aligne ton onze à chaque tour&nbsp;: le match se joue dès que ton adversaire a posé le sien, et le vainqueur monte d'un cran jusqu'à la finale.</p>
+    <div id="vtournamentBody"><div class="empty">Chargement…</div></div>
+  </section>
+
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
   <section class="view" id="gazette">
     <div class="eyebrow">La gazette de la semaine</div>
@@ -2149,6 +2159,10 @@
           <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
           <li>C'est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de ton équipe), <b>sans aucun impact</b> sur le classement officiel, le budget ou les notes de journée.</li>
           <li>Tu peux lancer jusqu'à <b>3 défis par jour</b>. Un défi que tu <b>annules</b>, ou qu'un adversaire <b>refuse</b>, <b>ne consomme pas</b> ton quota — seuls les défis joués ou en attente de réponse comptent. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
+          <li>Avant chaque match tu choisis une <b>mentalité</b> : <b>offensif</b> (tu crées plus d'occasions mais tu t'exposes), <b>équilibré</b> ou <b>défensif</b> (tu te refermes). Ça influe sur le déroulé — à toi de t'adapter à l'adversaire.</li>
+          <li>La feuille de match affiche les <b>temps forts minute par minute</b> (buts ⚽, grosses occasions, cartons 🟨🟥), l'homme du match et toutes les statistiques.</li>
+          <li>Depuis l'historique, le bouton <b>🔄 Revanche</b> relance un défi vers le même adversaire, et tu vois ton <b>bilan tête-à-tête</b> (V-N-D) quand tu choisis un adversaire.</li>
+          <li>Un <b>classement de la ligue amicale</b> (points 3/1/0) et des <b>badges</b> (séries de victoires, « giant killer », clean sheet…) récompensent les plus actifs — toujours sans effet sur le classement officiel.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px">Une façon de <b>garder la ligue vivante</b> entre les journées officielles et de tester tes choix tactiques sans enjeu.</p>
 
@@ -2161,6 +2175,16 @@
           <li>Si un joueur de la fiche est <b>vendu ou échangé</b> plus tard, la fiche le <b>signale</b> (« à compléter ») : au chargement, seuls les joueurs encore dans ton effectif sont pré-sélectionnés, à toi de compléter les trous.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px">Un gain de temps pour aligner rapidement tes dispositifs habituels, sans tout re-cliquer à chaque journée.</p>
+
+        <h3 class="rule-h">35. Les tournois (coupe éclair)</h3>
+        <p class="rule-p">L'organisation peut lancer des <b>coupes à élimination directe</b> entre managers (menu Plus ⋮ → « 🏆 Tournois »), par exemple pour animer l'intersaison.</p>
+        <ol class="rule-ol">
+          <li>À chaque tour, tu <b>alignes ton onze</b> (et ta mentalité) dans ton match. Le match se joue <b>dès que ton adversaire a posé le sien</b> — c'est asynchrone, comme les défis.</li>
+          <li>Le <b>vainqueur monte d'un tour</b>, jusqu'à la finale. En cas d'égalité, le match est départagé (xG, puis tirs cadrés, puis au sort).</li>
+          <li>Si le nombre de participants n'est pas une puissance de 2, certains sont <b>exemptés</b> au premier tour (qualifiés d'office).</li>
+          <li>Tu suis le <b>bracket complet</b> (tous les tours, tous les scores) et tu peux rouvrir chaque <b>feuille de match</b>. Le <b>vainqueur du tournoi</b> gagne un bonus de flair.</li>
+        </ol>
+        <p class="rule-p" style="margin-top:10px">Amical là aussi : aucun effet sur le classement officiel, les budgets ou les notes.</p>
       </div>
     </div>
   </section>
@@ -2642,7 +2666,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie','vmatch','tactics'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie','vmatch','tactics','vtournament'];
 let CURRENT_VIEW = 'home';
 // --- Analytics : identifiant de session + traçage des vues ---
 let ANALYTICS_SESSION = null;
@@ -2689,7 +2713,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch, tactics:renderTactics};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch, tactics:renderTactics, vtournament:renderVtournament};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -5214,7 +5238,9 @@ const FAQ_DATA = [
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
     ['C’est quoi les « Matchs virtuels » ? ⚔️',
-     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Tu retrouves tous tes résultats dans l’historique."],
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b>, et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. Tu retrouves tous tes résultats dans l’historique."],
+    ['C’est quoi les « Tournois » ? 🏆',
+     "Des <b>coupes à élimination directe</b> organisées par l’organisation (menu <b>Plus ⋮ → 🏆 Tournois</b>). À chaque tour tu alignes ton onze ; le match se joue dès que ton adversaire a posé le sien, et le vainqueur monte jusqu’à la finale. Tu suis le <b>bracket</b> complet avec tous les scores, et tu peux rouvrir chaque feuille de match. En cas d’égalité le match est départagé (xG, tirs cadrés, puis au sort). Le <b>vainqueur du tournoi</b> gagne un bonus de flair. Amical : aucun effet sur le classement officiel."],
     ['C’est quoi les « Fiches tactiques » ? 📋',
      "Dans <b>Plus ⋮ → « 📋 Fiches tactiques »</b>, tu enregistres tes <b>schémas favoris</b> (4-4-2, 3-4-3…) avec un joueur par poste. Ensuite, tu les <b>recharges en un clic</b> : dans l’écran <b>Compo</b> pour poser ton onze de la journée, ou dans un <b>match virtuel</b>. Si un joueur de la fiche est vendu entre-temps, la fiche le signale et tu complètes simplement les postes manquants. Pratique pour aligner vite tes dispositifs habituels."],
     ['Le match virtuel compte-t-il pour mon classement ou mon budget ?',
@@ -10784,10 +10810,11 @@ async function openTacticChooser(onPick){
 async function renderVmatch(){
   const body = $('vmatchBody'); if(!body) return;
   body.innerHTML = '<div class="empty">Chargement…</div>';
-  let pending=[], history=[], opponents=[], today=0;
+  let pending=[], history=[], opponents=[], today=0, leaderboard=[], badges=[];
   try {
-    [pending, history, opponents, today] = await Promise.all([
-      api.vmatchPending(), api.vmatchHistory(), api.vmatchOpponents(), api.vmatchCreatedToday()
+    [pending, history, opponents, today, leaderboard, badges] = await Promise.all([
+      api.vmatchPending(), api.vmatchHistory(), api.vmatchOpponents(), api.vmatchCreatedToday(),
+      api.vmatchLeaderboard(), api.vmatchBadges()
     ]);
   } catch(e){
     body.innerHTML = '<div class="empty">Matchs virtuels indisponibles (scripts 264 + 265 à passer).</div>';
@@ -10833,7 +10860,8 @@ async function renderVmatch(){
         <select id="vmOpponent" style="flex:1;min-width:160px;padding:9px">${opponents.map(o=>`<option value="${o.id}">${vmEsc(o.team_name)}</option>`).join('')}</select>
         <button class="btn" id="vmNewBtn" style="background:var(--transfer);color:#1a1a1a;border:none;border-radius:8px;padding:9px 15px;font-weight:700;cursor:pointer">Composer mon onze →</button>
       </div>
-      <div class="hint" style="font-size:.76rem;margin-top:7px">Défis restants aujourd'hui&nbsp;: <b>${remaining}/${limit}</b></div>
+      <div id="vmH2H" class="hint" style="font-size:.76rem;margin-top:7px;min-height:1.1em"></div>
+      <div class="hint" style="font-size:.76rem;margin-top:3px">Défis restants aujourd'hui&nbsp;: <b>${remaining}/${limit}</b></div>
     </div>`;
   }
 
@@ -10855,13 +10883,43 @@ async function renderVmatch(){
     html += history.map(h=>{
       const col = h.outcome==='win'?'#4ade80':(h.outcome==='loss'?'var(--live,#e0574a)':'var(--muted)');
       const tag = h.outcome==='win'?'V':(h.outcome==='loss'?'D':'N');
-      return `<button data-vmview="${h.id}" style="display:block;width:100%;text-align:left;background:var(--pitch-2);border:1px solid var(--line);border-left:3px solid ${col};border-radius:10px;padding:10px 14px;margin-bottom:7px;cursor:pointer">
-        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-          <div style="font-size:.9rem"><b>${vmEsc(h.me_name)}</b> <span style="font-family:'Saira',monospace;font-weight:800;color:${col};margin:0 6px">${h.my_goals}–${h.other_goals}</span> ${vmEsc(h.other_name)}</div>
-          <span style="flex:0 0 auto;font-weight:800;color:${col}">${tag}</span>
-        </div>
-      </button>`;
+      const canRematch = opponents.some(o=>o.id===h.other_id);
+      return `<div style="display:flex;align-items:stretch;gap:6px;margin-bottom:7px">
+        <button data-vmview="${h.id}" style="flex:1;text-align:left;background:var(--pitch-2);border:1px solid var(--line);border-left:3px solid ${col};border-radius:10px;padding:10px 14px;cursor:pointer">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+            <div style="font-size:.9rem"><b>${vmEsc(h.me_name)}</b> <span style="font-family:'Saira',monospace;font-weight:800;color:${col};margin:0 6px">${h.my_goals}–${h.other_goals}</span> ${vmEsc(h.other_name)}</div>
+            <span style="flex:0 0 auto;font-weight:800;color:${col}">${tag}</span>
+          </div>
+        </button>
+        ${canRematch ? `<button data-vmrematch="${h.other_id}" data-vmrematchname="${vmEsc(h.other_name)}" title="Revanche" style="flex:0 0 auto;background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:0 12px;cursor:pointer;font-size:1.1rem">🔄</button>` : ''}
+      </div>`;
     }).join('');
+  }
+
+  // --- Classement amical + badges ---
+  if(leaderboard.length){
+    html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:18px 0 8px">🏆 Classement de la ligue amicale</div>`;
+    html += `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:6px 8px;margin-bottom:12px;overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+        <thead><tr style="color:var(--muted);text-align:left"><th style="padding:4px 6px">#</th><th style="padding:4px 6px">Équipe</th><th style="padding:4px 6px;text-align:center">J</th><th style="padding:4px 6px;text-align:center">V-N-D</th><th style="padding:4px 6px;text-align:center">Diff</th><th style="padding:4px 6px;text-align:center">Pts</th><th style="padding:4px 6px;text-align:center" title="série de victoires en cours">🔥</th></tr></thead>
+        <tbody>${leaderboard.map((m,i)=>`<tr style="border-top:1px solid var(--line);${m.is_me?'background:rgba(245,197,66,.08)':''}">
+          <td style="padding:5px 6px;color:var(--muted)">${i+1}</td>
+          <td style="padding:5px 6px;font-weight:${m.is_me?'800':'600'}">${vmEsc(m.team_name)}${m.is_me?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</td>
+          <td style="padding:5px 6px;text-align:center">${m.played}</td>
+          <td style="padding:5px 6px;text-align:center;white-space:nowrap">${m.wins}-${m.draws}-${m.losses}</td>
+          <td style="padding:5px 6px;text-align:center">${m.diff>0?'+':''}${m.diff}</td>
+          <td style="padding:5px 6px;text-align:center;font-weight:800">${m.points}</td>
+          <td style="padding:5px 6px;text-align:center">${m.current_streak>=2?m.current_streak:'·'}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+  if(Array.isArray(badges) && badges.length){
+    html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:4px 0 8px">Mes badges</div>`;
+    html += `<div style="display:flex;flex-wrap:wrap;gap:7px;margin-bottom:10px">${badges.map(b=>{
+      const on = b.earned===true || b.earned==='true';
+      return `<span style="display:inline-flex;align-items:center;gap:5px;background:${on?'rgba(74,222,128,.10)':'var(--pitch)'};border:1px solid ${on?'#4ade80':'var(--line)'};color:${on?'#4ade80':'var(--muted)'};border-radius:20px;padding:5px 11px;font-size:.78rem;${on?'':'opacity:.55'}">${on?'🏅':'🔒'} ${vmEsc(b.label)}</span>`;
+    }).join('')}</div>`;
   }
 
   body.innerHTML = html;
@@ -10869,6 +10927,17 @@ async function renderVmatch(){
   // Bindings
   const nb = $('vmNewBtn');
   if(nb) nb.onclick = ()=>openElevenPicker({kind:'create', opponentId: $('vmOpponent').value, opponentName: $('vmOpponent').selectedOptions[0]?.textContent});
+  const osel = $('vmOpponent');
+  if(osel){
+    const showH2H = async ()=>{
+      const el = $('vmH2H'); if(!el) return;
+      const h = await api.vmatchHeadToHead(osel.value);
+      el.innerHTML = (h && h.played>0)
+        ? `Face à <b>${vmEsc(osel.selectedOptions[0]?.textContent||'')}</b> : <span style="color:#4ade80">${h.wins}V</span>-${h.draws}N-<span style="color:var(--live,#e0574a)">${h.losses}D</span> <span style="color:var(--muted)">(${h.gf}–${h.ga})</span>`
+        : `Aucun match encore joué contre cet adversaire.`;
+    };
+    osel.onchange = showH2H; showH2H();
+  }
   body.querySelectorAll('[data-vmaccept]').forEach(b=>b.onclick=()=>{
     const row = incoming.find(p=>p.id===b.dataset.vmaccept);
     openElevenPicker({kind:'accept', matchId:b.dataset.vmaccept, opponentName: row?row.other_name:''});
@@ -10884,14 +10953,20 @@ async function renderVmatch(){
     if(r&&r.__error){ alert(r.__error); return; } renderVmatch();
   });
   body.querySelectorAll('[data-vmview]').forEach(b=>b.onclick=()=>showMatchSheet(b.dataset.vmview));
+  body.querySelectorAll('[data-vmrematch]').forEach(b=>b.onclick=async()=>{
+    const todayN = await api.vmatchCreatedToday();
+    if(todayN>=3){ alert('Tu as atteint la limite de 3 défis pour aujourd\'hui.'); return; }
+    openElevenPicker({kind:'create', opponentId:b.dataset.vmrematch, opponentName:b.dataset.vmrematchname});
+  });
 }
 
 // ---- Sélecteur de onze (modale) ----
+const VM_MIND_LABEL = {off:'Offensif', bal:'Équilibré', def:'Défensif'};
+const VM_MIND_DESC = {off:'plus d\'occasions créées, mais tu t\'exposes', bal:'approche neutre', def:'tu te refermes, moins d\'occasions des deux côtés'};
 async function openElevenPicker(mode){
+  if(!mode.mind) mode.mind = 'bal';
   VM_PICK_MODE = mode; VM_PICK = new Set();
-  if(!VM_SQUAD.length){
-    try { VM_SQUAD = await api.vmatchMySquad(); } catch(e){ VM_SQUAD = []; }
-  }
+  await vmLoadSquad();
   renderElevenPicker();
   $('vmPickerOverlay').style.display = 'flex';
 }
@@ -10925,7 +11000,14 @@ function renderElevenPicker(){
       <div style="font-size:.84rem;color:${totalOk?'#4ade80':'var(--muted)'}">Sélection&nbsp;: <b>${total}/11</b> ${gkOk?'':'· <span style="color:var(--live,#e0574a)">il faut exactement 1 gardien</span>'}</div>
       <button id="vmLoadTactic" style="background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:.78rem;cursor:pointer;white-space:nowrap">📋 Charger une fiche</button>
     </div>
-    <div style="max-height:46vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
+    <div style="max-height:40vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
+    <div style="margin:10px 0 12px">
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:5px">Mentalité</div>
+      <div style="display:flex;gap:6px">
+        ${['off','bal','def'].map(md=>`<button data-vmmind="${md}" style="flex:1;background:${VM_PICK_MODE.mind===md?'var(--transfer)':'var(--pitch)'};color:${VM_PICK_MODE.mind===md?'#1a1a1a':'var(--chalk)'};border:1px solid ${VM_PICK_MODE.mind===md?'var(--transfer)':'var(--line)'};border-radius:8px;padding:7px 4px;font-size:.8rem;font-weight:${VM_PICK_MODE.mind===md?'800':'500'};cursor:pointer">${VM_MIND_LABEL[md]}</button>`).join('')}
+      </div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:4px">${VM_MIND_DESC[VM_PICK_MODE.mind]}</div>
+    </div>
     <button id="vmPickGo" ${canGo?'':'disabled'} class="btn" style="width:100%;background:${canGo?'var(--transfer)':'var(--pitch)'};color:${canGo?'#1a1a1a':'var(--muted)'};border:1px solid ${canGo?'var(--transfer)':'var(--line)'};border-radius:9px;padding:11px;font-weight:800;cursor:${canGo?'pointer':'default'}">${VM_PICK_MODE.kind==='create'?'Envoyer le défi':'Jouer le match'}</button>`;
   modal.querySelectorAll('[data-vmtoggle]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.vmtoggle;
@@ -10933,6 +11015,7 @@ function renderElevenPicker(){
     else { if(VM_PICK.size>=11){ return; } VM_PICK.add(id); }
     renderElevenPicker();
   });
+  modal.querySelectorAll('[data-vmmind]').forEach(b=>b.onclick=()=>{ VM_PICK_MODE.mind=b.dataset.vmmind; renderElevenPicker(); });
   $('vmPickClose').onclick = ()=>{ $('vmPickerOverlay').style.display='none'; };
   const lt = $('vmLoadTactic');
   if(lt) lt.onclick = ()=>openTacticChooser((ids, tactic)=>{
@@ -10948,17 +11031,24 @@ function renderElevenPicker(){
 async function submitEleven(){
   const go = $('vmPickGo'); if(go){ go.disabled=true; go.textContent='…'; }
   const eleven = Array.from(VM_PICK);
+  const mind = VM_PICK_MODE.mind || 'bal';
   if(VM_PICK_MODE.kind==='create'){
-    const r = await api.vmatchCreate(VM_PICK_MODE.opponentId, eleven);
+    const r = await api.vmatchCreateMind(VM_PICK_MODE.opponentId, eleven, mind);
     if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
     alert('Défi envoyé ! Le match se jouera dès que l\'adversaire aura aligné son onze.');
     renderVmatch();
-  } else {
-    const res = await api.vmatchAccept(VM_PICK_MODE.matchId, eleven);
+  } else if(VM_PICK_MODE.kind==='accept'){
+    const res = await api.vmatchAcceptMind(VM_PICK_MODE.matchId, eleven, mind);
     if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
     showMatchSheet(VM_PICK_MODE.matchId);
+  } else if(VM_PICK_MODE.kind==='tournament'){
+    const res = await api.vtournamentSetEleven(VM_PICK_MODE.matchId, eleven, mind);
+    if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
+    $('vmPickerOverlay').style.display='none';
+    if(res && res.status==='waiting'){ alert('Onze aligné ! Le match se jouera dès que ton adversaire aura posé le sien.'); if(VM_PICK_MODE.onDone) VM_PICK_MODE.onDone(); }
+    else { showTournamentSheet(VM_PICK_MODE.matchId, VM_PICK_MODE.onDone); }
   }
 }
 
@@ -10972,8 +11062,15 @@ async function showMatchSheet(matchId){
   if(g&&g.__error){ modal.innerHTML=`<div class="empty" style="padding:20px">${g.__error}</div>`; return; }
   const r = g.result;
   if(!r){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
-  const A=g.team_a, B=g.team_b;
+  modal.innerHTML = vmSheetHTML(r, g.team_a, g.team_b);
+  $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; renderVmatch(); };
+}
+
+// Construit le HTML d'une feuille de match (partagé défis + tournoi).
+function vmSheetHTML(r, A, B){
   const sc = r.score;
+  const minds = r.minds || {};
+  const mindTag = (m)=> m ? `<span style="font-size:.64rem;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:1px 6px;margin-top:3px;display:inline-block">${VM_MIND_LABEL[m]||m}</span>` : '';
   const statRow = (label,a,b,pct)=>{
     const av = pct?`${a}%`:a, bv = pct?`${b}%`:b;
     const tot = (a+b)||1, aw = pct?a:Math.round(a/tot*100), bw = pct?b:Math.round(b/tot*100);
@@ -10986,18 +11083,34 @@ async function showMatchSheet(matchId){
   const cards = (y,rd)=>`${y>0?('🟨'.repeat(y)):''}${rd>0?('🟥'.repeat(rd)):''}`||'—';
   const motm = r.motm||{};
   const motmTeam = motm.team==='A'?A:(motm.team==='B'?B:'');
-  modal.innerHTML = `
+  const shoot = r.shootout ? ` <span style="font-size:.62rem;color:var(--muted)">(départage)</span>` : '';
+  // Timeline des temps forts
+  const ev = Array.isArray(r.events) ? r.events : [];
+  const icon = {goal:'⚽', chance:'➰', yellow:'🟨', red:'🟥'};
+  const timeline = ev.length ? `<div style="margin:12px 0 4px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px">Temps forts</div>
+    <div style="border-left:2px solid var(--line);margin-left:6px;padding-left:12px">
+      ${ev.map(e=>{
+        const side = e.team==='A';
+        const col = e.type==='goal'?'var(--transfer)':(e.type==='red'?'var(--live,#e0574a)':'var(--muted)');
+        return `<div style="display:flex;${side?'':'flex-direction:row-reverse;text-align:right;'}justify-content:flex-start;gap:8px;margin:4px 0;font-size:.8rem">
+          <span style="flex:0 0 34px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
+          <span style="flex:1;color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${icon[e.type]||'•'} ${vmEsc(e.name||'')}</span>
+        </div>`;
+      }).join('')}
+    </div></div>` : '';
+  return `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
       <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800">Feuille de match</div>
       <button id="vmSheetClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0 4px">
-      <div style="flex:1;text-align:right;font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(A)}</div>
-      <div style="flex:0 0 auto;font-family:'Saira',monospace;font-weight:900;font-size:2rem;letter-spacing:1px">${sc.a}<span style="color:var(--muted);margin:0 6px">–</span>${sc.b}</div>
-      <div style="flex:1;text-align:left;font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(B)}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:10px 0 4px">
+      <div style="flex:1;text-align:right"><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(A)}</div>${mindTag(minds.a)}</div>
+      <div style="flex:0 0 auto;font-family:'Saira',monospace;font-weight:900;font-size:2rem;letter-spacing:1px">${sc.a}<span style="color:var(--muted);margin:0 6px">–</span>${sc.b}${shoot}</div>
+      <div style="flex:1;text-align:left"><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(B)}</div>${mindTag(minds.b)}</div>
     </div>
     <div style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:12px">⚽ ${scorers(r.scorers&&r.scorers.a)} &nbsp;·&nbsp; ${scorers(r.scorers&&r.scorers.b)}</div>
     <div style="background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:10px;padding:9px 12px;margin-bottom:12px;text-align:center;font-size:.85rem">⭐ Homme du match&nbsp;: <b>${vmEsc(motm.name||'—')}</b>${motmTeam?` <span style="color:var(--muted)">(${vmEsc(motmTeam)})</span>`:''}</div>
+    ${timeline}
     ${statRow('Possession', r.possession.a, r.possession.b, true)}
     ${statRow('Tirs', r.shots.a, r.shots.b)}
     ${statRow('Tirs cadrés', r.shots_on_target.a, r.shots_on_target.b)}
@@ -11006,7 +11119,103 @@ async function showMatchSheet(matchId){
     ${statRow('Fautes', r.fouls.a, r.fouls.b)}
     ${statRow('Hors-jeu', r.offsides.a, r.offsides.b)}
     <div style="display:flex;justify-content:space-between;font-size:.82rem;margin:9px 0"><span>${cards(r.yellow.a,r.red.a)}</span><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">Cartons</span><span>${cards(r.yellow.b,r.red.b)}</span></div>`;
-  $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; renderVmatch(); };
+}
+
+// =====================================================================
+// TOURNOIS (271) — coupe à élimination directe, côté joueur.
+// =====================================================================
+const VT_ROUND_NAME = (round, totalRounds)=>{
+  const fromEnd = totalRounds - round; // 0 = finale
+  if(fromEnd===0) return 'Finale';
+  if(fromEnd===1) return 'Demi-finales';
+  if(fromEnd===2) return 'Quarts de finale';
+  if(fromEnd===3) return '8es de finale';
+  return 'Tour '+round;
+};
+async function renderVtournament(){
+  const body = $('vtournamentBody'); if(!body) return;
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  let list=[];
+  try { list = await api.vtournamentList(); }
+  catch(e){ body.innerHTML = '<div class="empty">Tournois indisponibles (script 271 à passer).</div>'; return; }
+  const active = list.filter(t=>t.status==='running');
+  const done = list.filter(t=>t.status!=='running');
+  if(!list.length){ body.innerHTML = '<div class="empty">Aucun tournoi pour l\'instant. L\'organisation en lancera bientôt&nbsp;!</div>'; return; }
+
+  let html = '';
+  const card = (t, finished)=>`<button data-vtopen="${t.id}" style="display:block;width:100%;text-align:left;background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:13px 15px;margin-bottom:10px;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.05rem">${vmEsc(t.name)}</div>
+          <div style="font-size:.8rem;color:var(--muted)">${t.bracket_size} places${finished&&t.winner_name?` · 🏆 <b style="color:var(--transfer)">${vmEsc(t.winner_name)}</b>`:''}</div></div>
+        <span style="flex:0 0 auto;font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;padding:3px 9px;border-radius:12px;${finished?'background:var(--pitch);color:var(--muted);border:1px solid var(--line)':'background:rgba(74,222,128,.12);color:#4ade80;border:1px solid #4ade80'}">${finished?(t.status==='cancelled'?'Annulé':'Terminé'):'En cours'}</span>
+      </div>
+    </button>`;
+  if(active.length){ html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#4ade80;font-weight:800;margin:4px 0 8px">En cours</div>` + active.map(t=>card(t,false)).join(''); }
+  if(done.length){ html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:16px 0 8px">Terminés</div>` + done.map(t=>card(t,true)).join(''); }
+  body.innerHTML = html;
+  body.querySelectorAll('[data-vtopen]').forEach(b=>b.onclick=()=>openTournamentBracket(b.dataset.vtopen));
+}
+
+async function openTournamentBracket(tid){
+  const body = $('vtournamentBody');
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  const t = await api.vtournamentBracket(tid);
+  if(t&&t.__error){ body.innerHTML=`<div class="empty">${t.__error}</div>`; return; }
+  const matches = Array.isArray(t.matches)?t.matches:[];
+  const totalRounds = Math.round(Math.log2(t.bracket_size));
+  const rounds = {};
+  matches.forEach(m=>{ (rounds[m.round]=rounds[m.round]||[]).push(m); });
+
+  // nom du vainqueur (depuis le match où il figure)
+  let winnerName = '';
+  if(t.winner_id){
+    const mw = matches.find(m=>m.home_id===t.winner_id || m.away_id===t.winner_id);
+    if(mw) winnerName = (mw.home_id===t.winner_id) ? mw.home_name : mw.away_name;
+  }
+  let html = `<button id="vtBack" style="background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;color:var(--muted);margin-bottom:12px">← Tous les tournois</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.2rem">${vmEsc(t.name)}</div>
+      ${t.status==='finished'&&winnerName?`<span style="font-size:.8rem">🏆 <b style="color:var(--transfer)">${vmEsc(winnerName)}</b></span>`:''}
+    </div>`;
+
+  Object.keys(rounds).sort((a,b)=>a-b).forEach(rn=>{
+    html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:14px 0 7px">${VT_ROUND_NAME(+rn, totalRounds)}</div>`;
+    html += rounds[rn].sort((a,b)=>a.slot-b.slot).map(m=>{
+      const played = m.status==='played';
+      const bye = m.status==='bye';
+      const line = (name, goals, win)=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:2px 0">
+        <span style="font-weight:${win?'800':'500'};color:${win?'var(--chalk)':'var(--muted)'}">${name?vmEsc(name):'<span style=\"opacity:.5\">à venir</span>'}</span>
+        <span style="font-family:'Saira',monospace;font-weight:800;color:${win?'var(--transfer)':'var(--muted)'}">${goals==null?'':goals}</span></div>`;
+      const hw = played && m.winner_id===m.home_id, aw = played && m.winner_id===m.away_id;
+      let action = '';
+      if(m.my_turn){ action = `<button data-vtplay="${m.id}" style="width:100%;margin-top:8px;background:var(--transfer);color:#1a1a1a;border:none;border-radius:8px;padding:8px;font-weight:700;cursor:pointer">Aligner mon onze →</button>`; }
+      else if(played){ action = `<button data-vtsheet="${m.id}" style="width:100%;margin-top:8px;background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:8px;padding:7px;cursor:pointer;font-size:.82rem">Voir la feuille de match</button>`; }
+      else if(bye){ action = `<div style="margin-top:6px;font-size:.74rem;color:var(--muted)">Exempt — qualifié d'office</div>`; }
+      else {
+        const waitWho = [!m.home_ready&&m.home_name?m.home_name:null, !m.away_ready&&m.away_name?m.away_name:null].filter(Boolean);
+        action = `<div style="margin-top:6px;font-size:.74rem;color:var(--muted)">${waitWho.length?('En attente de '+waitWho.map(vmEsc).join(' et ')):'En attente des qualifiés'}</div>`;
+      }
+      return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:11px;padding:11px 14px;margin-bottom:9px">
+        ${line(m.home_name, m.home_goals, hw)}
+        ${line(m.away_name, m.away_goals, aw)}
+        ${action}
+      </div>`;
+    }).join('');
+  });
+  body.innerHTML = html;
+  $('vtBack').onclick = ()=>renderVtournament();
+  body.querySelectorAll('[data-vtplay]').forEach(b=>b.onclick=()=>openElevenPicker({kind:'tournament', matchId:b.dataset.vtplay, opponentName:'', onDone:()=>openTournamentBracket(tid)}));
+  body.querySelectorAll('[data-vtsheet]').forEach(b=>b.onclick=()=>showTournamentSheet(b.dataset.vtsheet, ()=>openTournamentBracket(tid)));
+}
+
+async function showTournamentSheet(matchId, onClose){
+  const ov=$('vtSheetOverlay'), modal=$('vtSheetModal'); if(!ov||!modal) return;
+  modal.innerHTML='<div class="empty" style="padding:30px">Chargement…</div>'; ov.style.display='flex';
+  const g = await api.vtournamentMatchSheet(matchId);
+  if(g&&g.__error){ modal.innerHTML=`<div class="empty" style="padding:20px">${g.__error}</div>`; return; }
+  if(!g.result){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
+  modal.innerHTML = vmSheetHTML(g.result, g.team_a, g.team_b);
+  $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; if(onClose) onClose(); };
 }
 
 async function renderGalerie(){

@@ -977,6 +977,20 @@
     <div id="pollAdminList" style="margin-top:16px"></div>
   </div>
 
+  <!-- Tournoi / coupe éclair -->
+  <h2 data-ic="trophy">🏆 Tournoi (coupe éclair)</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Lance une <b>coupe à élimination directe</b> entre managers (idéal pour animer l'intersaison). Choisis les participants : le bracket est complété automatiquement (byes si le nombre n'est pas une puissance de 2). Chaque manager aligne son onze à chaque tour depuis <b>Plus ⋮ → 🏆 Tournois</b> ; le match se joue dès que les deux onze sont posés. Purement amical (flair au vainqueur, aucun effet sur le classement).</p>
+    <div style="margin-bottom:10px"><label>Nom du tournoi</label><input id="vtName" type="text" class="us-search" placeholder="Ex. Coupe d'intersaison"></div>
+    <label>Participants (coche au moins 2 managers)</label>
+    <div id="vtManagers" style="max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:8px;margin:6px 0 10px"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-primary btn-sm" id="btnCreateVt">Créer le tournoi</button>
+      <span id="vtMsg" class="hint" style="font-size:.82rem"></span>
+    </div>
+    <div id="vtAdminList" style="margin-top:16px"></div>
+  </div>
+
   <!-- Draft -->
   <h2 data-ic="target">Draft de début de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1644,7 +1658,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadResumeDate(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadResumeDate(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadVtournament(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1666,7 +1680,7 @@ const ADMIN_TABS = [
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison"] },
   { id:'jeu', label:'🎮 Jeu & animations', titles:[
       "Journées & Compositions","Notes des joueurs — par journée","Pronostics — matchs","Pronostics",
-      "Défis & objectifs","Sondages de ligue","Draft"] },
+      "Défis & objectifs","Sondages de ligue","🏆 Tournoi (coupe éclair)","Draft"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
   { id:'aide', label:'❓ Aide', titles:[
@@ -4348,6 +4362,47 @@ async function loadPolls(){
   });
 }
 
+// ---------- Tournoi / coupe éclair (admin) ----------
+async function loadVtournament(){
+  const box = $('vtManagers'); const list = $('vtAdminList');
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  if(box){
+    let mgrs = [];
+    try { mgrs = (await api.listManagers()).filter(m=>!m.is_admin && !m.coach_of); } catch(e){}
+    box.innerHTML = mgrs.length
+      ? mgrs.map(m=>`<label style="display:flex;align-items:center;gap:8px;padding:4px 2px;font-size:.88rem;cursor:pointer"><input type="checkbox" class="vtm" value="${m.id}"> ${esc(m.team_name||m.display_name)}</label>`).join('')
+      : '<p class="hint">Aucun manager éligible.</p>';
+  }
+  if(list){
+    let ts = [];
+    try { ts = await api.vtournamentList(); } catch(e){ list.innerHTML = '<p class="hint">Passe le script 271 pour activer les tournois.</p>'; return; }
+    list.innerHTML = ts.length ? ts.map(t=>`
+      <div style="border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div><b>${esc(t.name)}</b> <span style="color:var(--muted);font-size:.8rem">· ${t.bracket_size} places · ${t.status==='running'?'en cours':(t.status==='cancelled'?'annulé':'terminé')}${t.winner_name?` · 🏆 ${esc(t.winner_name)}`:''}</span></div>
+        ${t.status==='running'?`<button class="btn-ghost btn-sm" data-vtcancel="${t.id}" style="color:var(--live)">Annuler</button>`:''}
+      </div>`).join('') : '<p class="hint">Aucun tournoi pour l\'instant.</p>';
+    list.querySelectorAll('[data-vtcancel]').forEach(b=>b.onclick=async()=>{
+      if(!confirm('Annuler ce tournoi ? Les matchs déjà joués restent, mais le tournoi est arrêté.')) return;
+      const r = await api.adminVtournamentCancel(b.dataset.vtcancel);
+      if(r&&r.__error) return showMsg($('vtMsg'), r.__error, false);
+      loadVtournament();
+    });
+  }
+}
+if($('btnCreateVt')) $('btnCreateVt').onclick = async ()=>{
+  const name = ($('vtName').value||'').trim();
+  const ids = Array.from(document.querySelectorAll('#vtManagers .vtm:checked')).map(c=>c.value);
+  const msg = $('vtMsg');
+  if(!name){ if(msg) msg.innerHTML='<span style="color:var(--live)">Donne un nom au tournoi.</span>'; return; }
+  if(ids.length<2){ if(msg) msg.innerHTML='<span style="color:var(--live)">Coche au moins 2 participants.</span>'; return; }
+  if(msg) msg.textContent='Création…';
+  const r = await api.adminVtournamentCreate(name, ids);
+  if(r&&r.__error){ if(msg) msg.innerHTML=`<span style="color:var(--live)">${r.__error}</span>`; return; }
+  if(msg) msg.innerHTML='<span style="color:#4ade80">✓ Tournoi créé — les managers peuvent aligner leur onze.</span>';
+  $('vtName').value='';
+  loadVtournament();
+};
+
 // ---------- Draft (admin) ----------
 async function loadDraftAdmin(){
   const el = $('draftAdminState'); if(!el) return;
@@ -5975,6 +6030,14 @@ const ADMIN_FAQ = [
      "L'onglet <b>Analytics</b> te donne une vue façon « Google Analytics » de l'activité : nombre de <b>sessions</b> et de <b>pages vues</b> (aujourd'hui, 7 jours, 30 jours), une courbe par jour, les <b>pages les plus consultées</b> et le <b>détail par manager</b> (qui se connecte, combien de fois). C'est de la mesure d'usage, en lecture seule — rien à configurer, les données se remplissent au fil des visites."],
     ['Comment marche le bandeau d’actu foot de l’accueil ?',
      "Le bandeau défilant des joueurs mélange l'actu du mercato et l'<b>actualité du football européen</b> (coups d'envoi à venir, résultats récents). Elle vient d'une fonction serveur <b>live-ticker</b> qui interroge football-data.org. ⚠️ En <b>plan gratuit</b>, les <b>scores en direct</b> (minute, score instantané) ne sont <b>pas</b> fournis : le bandeau montre les <b>matchs à venir et les résultats finaux</b>, pas le live minute par minute. Rien à gérer au quotidien — c'est automatique et mis en cache."],
+    ['Qu’est-ce que les « Matchs virtuels » et dois-je faire quelque chose ? ⚔️',
+     "C'est une <b>animation entre managers</b>, entièrement autonome : rien à configurer côté admin. Un manager défie un autre manager, chacun aligne son onze (11 joueurs à lui, dont 1 gardien), et le match est <b>simulé automatiquement</b> à partir des caractéristiques des joueurs — feuille complète (score, possession, tirs, tirs cadrés, xG, corners, fautes, hors-jeu, cartons, homme du match). Résultat <b>déterministe</b> (même graine → même score, rejouable) : l'équipe la mieux notée part favorite (~59 % de victoire sur un écart marqué) mais l'exploit reste possible. C'est <b>amical</b> : ça ne distribue que du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de l'équipe), <b>sans aucun effet</b> sur le classement officiel, les budgets ni les notes de journée. Chaque manager peut lancer <b>3 défis par jour</b> ; un défi annulé ou refusé ne consomme pas ce quota."],
+    ['Un manager se plaint d’un résultat de match virtuel « truqué » ou « aléatoire » ?',
+     "Le moteur n'est pas du pur hasard : il part des <b>attributs des joueurs</b> (forces d'attaque, milieu, défense par ligne) pour calculer possession, occasions, qualité de tir et buts, avec une part d'aléa à <b>graine fixe</b> dérivée du match (le même match rejoué donne exactement le même score). Sur un gros écart de niveau le favori gagne environ 6 fois sur 10 — comme au vrai foot, l'outsider peut créer la surprise. Il n'y a <b>pas de réglage</b> à ajuster ; c'est voulu. Rappelle au manager que c'est une animation sans enjeu (flair uniquement)."],
+    ['Qu’est-ce que les « Fiches tactiques » des managers ? 📋',
+     "Chaque manager peut enregistrer ses propres <b>schémas réutilisables</b> (4-4-2, 3-4-3…) avec un joueur par poste, puis les recharger en un clic dans sa <b>compo officielle</b> ou pour un <b>match virtuel</b>. C'est <b>privé à chaque manager</b> (personne d'autre ne voit ses fiches) et composé uniquement de <b>ses</b> joueurs. Si un joueur de la fiche est vendu, la fiche le signale et le manager complète le trou au chargement. Rien à faire côté admin : aucune incidence sur le marché, les budgets ou le classement."],
+    ['Comment lancer un tournoi (coupe éclair) ? 🏆',
+     "Onglet <b>« 🎮 Jeu & animations » → encart « 🏆 Tournoi (coupe éclair) »</b> : donne un nom, <b>coche au moins 2 participants</b>, puis « Créer le tournoi ». Le bracket à élimination directe est généré automatiquement (complété à la puissance de 2 avec des <b>byes</b> si besoin). Ensuite <b>tout est autonome</b> : chaque manager aligne son onze à chaque tour depuis <b>Plus ⋮ → 🏆 Tournois</b>, le match se joue dès que les deux onze sont posés, le vainqueur monte, et le tournoi se clôt tout seul avec un bonus de flair au gagnant. Tu peux <b>annuler</b> un tournoi en cours depuis la liste (les matchs déjà joués restent). Idéal pour animer l'intersaison — aucun effet sur le classement officiel."],
   ]],
   ['Fin de saison & dépannage', [
     ['J’ai fait une fausse manip : comment l’annuler ?',
