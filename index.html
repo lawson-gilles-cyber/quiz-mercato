@@ -10709,24 +10709,13 @@ function tacticCountBy(){
   VM_SQUAD.forEach(p=>{ if(TACTIC_EDIT.pick.has(p.id)) c[p.pos]++; });
   return c;
 }
+// L'éditeur est construit UNE fois (coquille statique : nom + formation +
+// zone dynamique). Seule la zone dynamique (#tacticDynamic) est redessinée
+// quand on coche un joueur ou change de formation — ainsi le champ « nom »
+// ne perd ni son focus ni son contenu pendant la saisie.
 function renderTacticEditor(){
   const modal=$('tacticEditModal'); if(!modal) return;
-  const q=TACTIC_EDIT.quota, c=tacticCountBy();
-  const total=TACTIC_EDIT.pick.size;
-  const okPos = c.GK===q.GK && c.DEF===q.DEF && c.MID===q.MID && c.FWD===q.FWD;
-  const okName = TACTIC_EDIT.name.trim().length>0;
-  const canSave = okPos && okName && total===11;
   const fopts = TACTIC_FORMATIONS.map(f=>`<option value="${f}"${f===TACTIC_EDIT.formation?' selected':''}>${f}</option>`).join('');
-  const groups = VM_POS_ORDER.map(pos=>{
-    const list=VM_SQUAD.filter(p=>p.pos===pos);
-    const need=q[pos], have=c[pos];
-    const hdrCol = have===need ? '#4ade80' : (have>need?'var(--live,#e0574a)':'var(--muted)');
-    const chips = list.length ? list.map(p=>{
-      const on=TACTIC_EDIT.pick.has(p.id);
-      return `<button data-ttoggle="${p.id}" style="display:inline-block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span></button>`;
-    }).join('') : `<span style="color:var(--muted);font-size:.8rem">aucun ${VM_POS_LABEL[pos].toLowerCase()} dans ton effectif</span>`;
-    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px;color:${hdrCol}">${VM_POS_LABEL[pos]} · ${have}/${need}</div>${chips}</div>`;
-  }).join('');
   modal.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.15rem">${TACTIC_EDIT.id?'Éditer la fiche':'Nouvelle fiche'}</div>
@@ -10737,27 +10726,59 @@ function renderTacticEditor(){
       <label style="font-size:.8rem;color:var(--muted)">Formation</label>
       <select id="tacticFormation" style="flex:1;padding:8px">${fopts}</select>
     </div>
+    <div id="tacticDynamic"></div>`;
+  $('tacticEditClose').onclick=()=>{ $('tacticEditOverlay').style.display='none'; };
+  // Le nom ne déclenche PAS de re-render : on lit sa valeur au save, on ne
+  // met à jour que l'état du bouton.
+  $('tacticName').oninput=(e)=>{ TACTIC_EDIT.name=e.target.value; refreshTacticSaveBtn(); };
+  $('tacticFormation').onchange=(e)=>{ TACTIC_EDIT.formation=e.target.value; TACTIC_EDIT.quota=tacticParse(e.target.value); renderTacticDynamic(); };
+  renderTacticDynamic();
+}
+function tacticEditorCanSave(){
+  const q=TACTIC_EDIT.quota, c=tacticCountBy();
+  const okPos = c.GK===q.GK && c.DEF===q.DEF && c.MID===q.MID && c.FWD===q.FWD;
+  return okPos && TACTIC_EDIT.name.trim().length>0 && TACTIC_EDIT.pick.size===11;
+}
+function refreshTacticSaveBtn(){
+  const b=$('tacticSaveBtn'); if(!b) return;
+  const can=tacticEditorCanSave();
+  b.disabled=!can; b.style.opacity=can?'1':'.5'; b.style.cursor=can?'pointer':'default';
+  b.onclick = can ? saveTactic : null;
+}
+function renderTacticDynamic(){
+  const dyn=$('tacticDynamic'); if(!dyn) return;
+  const q=TACTIC_EDIT.quota, c=tacticCountBy();
+  const total=TACTIC_EDIT.pick.size;
+  const okPos = c.GK===q.GK && c.DEF===q.DEF && c.MID===q.MID && c.FWD===q.FWD;
+  const groups = VM_POS_ORDER.map(pos=>{
+    const list=VM_SQUAD.filter(p=>p.pos===pos);
+    const need=q[pos], have=c[pos];
+    const hdrCol = have===need ? '#4ade80' : (have>need?'var(--live,#e0574a)':'var(--muted)');
+    const chips = list.length ? list.map(p=>{
+      const on=TACTIC_EDIT.pick.has(p.id);
+      return `<button data-ttoggle="${p.id}" style="display:inline-block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span></button>`;
+    }).join('') : `<span style="color:var(--muted);font-size:.8rem">aucun ${VM_POS_LABEL[pos].toLowerCase()} dans ton effectif</span>`;
+    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px;color:${hdrCol}">${VM_POS_LABEL[pos]} · ${have}/${need}</div>${chips}</div>`;
+  }).join('');
+  const canSave = tacticEditorCanSave();
+  dyn.innerHTML = `
     <div style="font-size:.84rem;color:${total===11&&okPos?'#4ade80':'var(--muted)'};margin-bottom:6px">Sélection&nbsp;: <b>${total}/11</b>${okPos?'':' · respecte la répartition de la formation'}</div>
     <div style="max-height:44vh;overflow-y:auto;margin:6px 0;padding-right:4px">${groups}</div>
     <button id="tacticSaveBtn" ${canSave?'':'disabled'} class="bid-btn" style="width:100%;${canSave?'':'opacity:.5;cursor:default'}">${TACTIC_EDIT.id?'Enregistrer':'Créer la fiche'}</button>`;
-  // bindings
-  $('tacticEditClose').onclick=()=>{ $('tacticEditOverlay').style.display='none'; };
-  $('tacticName').oninput=(e)=>{ TACTIC_EDIT.name=e.target.value; const b=$('tacticSaveBtn'); const can=(e.target.value.trim().length>0)&&TACTIC_EDIT.pick.size===11&&okPos; if(b){b.disabled=!can;b.style.opacity=can?'1':'.5';b.style.cursor=can?'pointer':'default';} };
-  $('tacticFormation').onchange=(e)=>{ TACTIC_EDIT.formation=e.target.value; TACTIC_EDIT.quota=tacticParse(e.target.value); renderTacticEditor(); };
-  modal.querySelectorAll('[data-ttoggle]').forEach(b=>b.onclick=()=>{
+  dyn.querySelectorAll('[data-ttoggle]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.ttoggle, p=VM_SQUAD.find(x=>x.id===id);
     if(TACTIC_EDIT.pick.has(id)){ TACTIC_EDIT.pick.delete(id); }
     else {
       if(TACTIC_EDIT.pick.size>=11) return;
-      // bloque si le quota du poste est déjà atteint
       if(tacticCountBy()[p.pos] >= TACTIC_EDIT.quota[p.pos]) { alert(`Tu as déjà ${TACTIC_EDIT.quota[p.pos]} ${VM_POS_LABEL[p.pos].toLowerCase()} pour un ${TACTIC_EDIT.formation}.`); return; }
       TACTIC_EDIT.pick.add(id);
     }
-    renderTacticEditor();
+    renderTacticDynamic();
   });
   const sv=$('tacticSaveBtn'); if(sv&&canSave) sv.onclick=saveTactic;
 }
 async function saveTactic(){
+  const nameEl=$('tacticName'); if(nameEl) TACTIC_EDIT.name = nameEl.value;  // lit la valeur live
   const sv=$('tacticSaveBtn'); if(sv){sv.disabled=true;sv.textContent='…';}
   // construit les slots dans l'ordre GK,DEF,MID,FWD
   const slots=[];
