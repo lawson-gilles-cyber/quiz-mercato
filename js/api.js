@@ -2057,3 +2057,52 @@ export async function adminTradesHistory(limit = 200) {
   const { data } = await sb.rpc('qm_admin_trades_history', { p_limit: limit });
   return data ?? [];
 }
+
+// =====================================================================
+// Matchs virtuels (265) — défis asynchrones + résolution.
+// =====================================================================
+export async function vmatchOpponents() {
+  const { data } = await sb.rpc('qm_vmatch_opponents');
+  return data ?? [];
+}
+export async function vmatchMySquad() {
+  const { data } = await sb.rpc('qm_vmatch_my_squad');
+  return data ?? [];
+}
+export async function vmatchCreatedToday() {
+  const { data } = await sb.rpc('qm_vmatch_created_today');
+  return data ?? 0;
+}
+export async function vmatchCreate(opponentId, eleven) {
+  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven });
+  if (error) return { __error: error.message };
+  return { id: data };
+}
+export async function vmatchAccept(matchId, eleven) {
+  const { data, error } = await sb.rpc('qm_vmatch_accept', { p_id: matchId, p_eleven: eleven });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function vmatchDecline(matchId) {
+  const { error } = await sb.rpc('qm_vmatch_decline', { p_id: matchId });
+  if (error) return { __error: error.message };
+  return { ok: true };
+}
+export async function vmatchCancel(matchId) {
+  const { error } = await sb.rpc('qm_vmatch_cancel', { p_id: matchId });
+  if (error) return { __error: error.message };
+  return { ok: true };
+}
+export async function vmatchPending() {
+  const { data } = await sb.rpc('qm_vmatch_pending');
+  return data ?? [];
+}
+export async function vmatchHistory() {
+  const { data } = await sb.rpc('qm_vmatch_history');
+  return data ?? [];
+}
+export async function vmatchGet(matchId) {
+  const { data, error } = await sb.rpc('qm_vmatch_get', { p_id: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}

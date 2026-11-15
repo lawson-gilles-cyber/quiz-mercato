@@ -1065,6 +1065,8 @@
 
 <!-- Quiz de fin de mercato (overlay dédié) -->
 <div id="quizOverlay" class="ux-ov" style="z-index:10003"><div class="ux-modal" id="quizModal" style="width:min(94vw,460px);max-height:88vh;overflow:auto"></div></div>
+<div id="vmPickerOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmPickerModal" style="width:min(94vw,460px);max-height:90vh;overflow:auto"></div></div>
+<div id="vmSheetOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmSheetModal" style="width:min(94vw,440px);max-height:90vh;overflow:auto"></div></div>
 
 <!-- Pop-up d'accueil (affiche) -->
 <div id="welcomeModal" class="wm-overlay" style="display:none">
@@ -1124,6 +1126,7 @@
         <button id="dykMenuBtn" data-ic="help">💡 Le saviez-vous&nbsp;?</button>
         <button id="quizMenuBtn" data-ic="trophy">🏁 Quiz mercato</button>
         <button id="dailyQuizMenuBtn" data-ic="calendar">📅 Quiz du jour</button>
+        <button data-v="vmatch" data-ic="target">⚔️ Matchs virtuels</button>
       </div>
     </div>
   </nav>
@@ -1715,6 +1718,14 @@
     <div id="galerieBody"><div class="empty">Chargement…</div></div>
   </section>
 
+  <!-- MATCHS VIRTUELS (défis asynchrones, intersaison) -->
+  <section class="view" id="vmatch">
+    <div class="eyebrow">Matchs virtuels · défie un manager</div>
+    <h1>Matchs <em>virtuels</em></h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Aligne ton onze et défie un autre manager. Le match se joue dès que l'adversaire a posé son équipe — feuille de match complète (score, possession, tirs, xG, homme du match…). <b>Amical</b> : rapporte du flair, sans impact sur le classement officiel.</p>
+    <div id="vmatchBody"><div class="empty">Chargement…</div></div>
+  </section>
+
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
   <section class="view" id="gazette">
     <div class="eyebrow">La gazette de la semaine</div>
@@ -2114,6 +2125,18 @@
           <li>Tu peux rouvrir le quiz à tout moment depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px">Un petit jeu de fin de phase pour <b>revivre le mercato</b> et gagner un coup de pouce pour la suite — les bonnes réponses sont vérifiées côté serveur, pas de triche possible.</p>
+
+        <h3 class="rule-h">33. Les matchs virtuels</h3>
+        <p class="rule-p">Entre deux phases (par exemple pendant l'intersaison), tu peux <b>défier un autre manager</b> en match virtuel (menu Plus ⋮ → « ⚔️ Matchs virtuels »). Tu alignes ton onze, l'adversaire aligne le sien, et le match est <b>simulé automatiquement</b> à partir des caractéristiques de tes joueurs.</p>
+        <ol class="rule-ol">
+          <li>Tu composes un <b>onze valide</b> avec tes propres joueurs : 11 titulaires dont <b>exactement 1 gardien</b>.</li>
+          <li>Le défi est <b>asynchrone</b> : l'adversaire aligne son équipe quand il veut. Le match se joue dès que les deux onze sont posés.</li>
+          <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons et <b>homme du match</b>.</li>
+          <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
+          <li>C'est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de ton équipe), <b>sans aucun impact</b> sur le classement officiel, le budget ou les notes de journée.</li>
+          <li>Tu peux lancer jusqu'à <b>3 défis par jour</b>. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
+        </ol>
+        <p class="rule-p" style="margin-top:10px">Une façon de <b>garder la ligue vivante</b> entre les journées officielles et de tester tes choix tactiques sans enjeu.</p>
       </div>
     </div>
   </section>
@@ -2595,7 +2618,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie','vmatch'];
 let CURRENT_VIEW = 'home';
 // --- Analytics : identifiant de session + traçage des vues ---
 let ANALYTICS_SESSION = null;
@@ -2642,7 +2665,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -5166,6 +5189,10 @@ const FAQ_DATA = [
      "Un quiz de <b>20 questions</b> qui s’ouvre <b>automatiquement 1 heure après la fin du mercato</b> et reste jouable <b>10 heures</b> : des questions sur le mercato qui vient de s’écouler (transfert le plus cher, joueur le plus convoité, club le plus représenté…) et sur les règles du jeu. Il est <b>chronométré (5 minutes)</b> et se joue <b>une seule fois</b>. Chaque bonne réponse vaut <b>+1 flair</b>, et un <b>bonus de budget</b> s’ajoute selon ton score (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Après avoir joué, tu vois ton récap et le classement. Tu peux le rouvrir depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>."],
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
+    ['C’est quoi les « Matchs virtuels » ? ⚔️',
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> et retrouver tous tes résultats dans l’historique."],
+    ['Le match virtuel compte-t-il pour mon classement ou mon budget ?',
+     "Non, aucun effet. Les matchs virtuels sont <b>purement ludiques</b> : ils ne touchent ni au classement officiel, ni à ton budget, ni aux notes de journée. Seule récompense : du <b>flair</b> (prestige). Une équipe mieux notée part favorite, mais le résultat garde une part d’aléa — l’exploit est toujours possible."],
   ]],
   ['Bonus', [
     ['Les bonus donnent des points ?',
@@ -10521,6 +10548,233 @@ async function shareBilan(b){
 // GALERIE DES COMPOSITIONS — le onze entrant de chaque équipe (post-deadline)
 // ======================================================================
 let GALERIE_MDS = [];
+// =====================================================================
+// MATCHS VIRTUELS (265) — défis asynchrones + feuille de match animée.
+// =====================================================================
+const VM_POS_LABEL = {GK:'Gardien', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants'};
+const VM_POS_ORDER = ['GK','DEF','MID','FWD'];
+const vmEsc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+let VM_SQUAD = [];          // mon effectif [{id,name,pos,club}]
+let VM_PICK = new Set();    // ids sélectionnés pour le onze en cours
+let VM_PICK_MODE = null;    // {kind:'create',opponentId} | {kind:'accept',matchId}
+
+async function renderVmatch(){
+  const body = $('vmatchBody'); if(!body) return;
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  let pending=[], history=[], opponents=[], today=0;
+  try {
+    [pending, history, opponents, today] = await Promise.all([
+      api.vmatchPending(), api.vmatchHistory(), api.vmatchOpponents(), api.vmatchCreatedToday()
+    ]);
+  } catch(e){
+    body.innerHTML = '<div class="empty">Matchs virtuels indisponibles (scripts 264 + 265 à passer).</div>';
+    return;
+  }
+  VM_PICK = new Set(); VM_PICK_MODE = null;
+
+  const incoming = pending.filter(p=>p.role==='incoming');
+  const outgoing = pending.filter(p=>p.role==='outgoing');
+  const limit = 3, remaining = Math.max(0, limit - (today||0));
+
+  // Bilan rapide
+  const w = history.filter(h=>h.outcome==='win').length;
+  const d = history.filter(h=>h.outcome==='draw').length;
+  const l = history.filter(h=>h.outcome==='loss').length;
+
+  let html = '';
+
+  // --- Défis reçus (à moi de jouer) ---
+  if(incoming.length){
+    html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--live,#e0574a);font-weight:800;margin:4px 0 8px">⚔️ Défis reçus · à toi de jouer</div>`;
+    html += incoming.map(p=>`
+      <div class="card" style="background:var(--pitch-2);border:1px solid var(--live,#e0574a);border-radius:12px;padding:13px 15px;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div><b>${vmEsc(p.other_name)}</b> te défie</div>
+          <div style="display:flex;gap:7px">
+            <button class="btn" data-vmaccept="${p.id}" style="background:var(--transfer);color:#1a1a1a;border:none;border-radius:8px;padding:7px 13px;font-weight:700;cursor:pointer">Relever le défi</button>
+            <button data-vmdecline="${p.id}" style="background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer">Refuser</button>
+          </div>
+        </div>
+      </div>`).join('');
+  }
+
+  // --- Nouveau défi ---
+  html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:16px 0 8px">Lancer un défi</div>`;
+  if(!opponents.length){
+    html += `<div class="empty">Aucun adversaire disponible pour l'instant.</div>`;
+  } else if(remaining<=0){
+    html += `<div class="empty">Tu as atteint la limite de ${limit} défis pour aujourd'hui. Reviens demain&nbsp;!</div>`;
+  } else {
+    html += `<div class="card" style="background:var(--pitch);border:1px solid var(--line);border-radius:12px;padding:14px 15px;margin-bottom:10px">
+      <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
+        <select id="vmOpponent" style="flex:1;min-width:160px;padding:9px">${opponents.map(o=>`<option value="${o.id}">${vmEsc(o.team_name)}</option>`).join('')}</select>
+        <button class="btn" id="vmNewBtn" style="background:var(--transfer);color:#1a1a1a;border:none;border-radius:8px;padding:9px 15px;font-weight:700;cursor:pointer">Composer mon onze →</button>
+      </div>
+      <div class="hint" style="font-size:.76rem;margin-top:7px">Défis restants aujourd'hui&nbsp;: <b>${remaining}/${limit}</b></div>
+    </div>`;
+  }
+
+  // --- Défis envoyés (en attente) ---
+  if(outgoing.length){
+    html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:16px 0 8px">Défis envoyés · en attente</div>`;
+    html += outgoing.map(p=>`
+      <div class="card" style="background:var(--pitch);border:1px solid var(--line);border-radius:12px;padding:11px 15px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <div style="color:var(--muted)">En attente de <b style="color:var(--chalk)">${vmEsc(p.other_name)}</b></div>
+        <button data-vmcancel="${p.id}" style="background:transparent;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:6px 11px;cursor:pointer;font-size:.82rem">Annuler</button>
+      </div>`).join('');
+  }
+
+  // --- Historique ---
+  html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:16px 0 8px">Historique ${history.length?`· <span style="color:#4ade80">${w}V</span> <span style="color:var(--muted)">${d}N</span> <span style="color:var(--live,#e0574a)">${l}D</span>`:''}</div>`;
+  if(!history.length){
+    html += `<div class="empty">Aucun match joué pour l'instant. Lance ton premier défi&nbsp;!</div>`;
+  } else {
+    html += history.map(h=>{
+      const col = h.outcome==='win'?'#4ade80':(h.outcome==='loss'?'var(--live,#e0574a)':'var(--muted)');
+      const tag = h.outcome==='win'?'V':(h.outcome==='loss'?'D':'N');
+      return `<button data-vmview="${h.id}" style="display:block;width:100%;text-align:left;background:var(--pitch-2);border:1px solid var(--line);border-left:3px solid ${col};border-radius:10px;padding:10px 14px;margin-bottom:7px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+          <div style="font-size:.9rem"><b>${vmEsc(h.me_name)}</b> <span style="font-family:'Saira',monospace;font-weight:800;color:${col};margin:0 6px">${h.my_goals}–${h.other_goals}</span> ${vmEsc(h.other_name)}</div>
+          <span style="flex:0 0 auto;font-weight:800;color:${col}">${tag}</span>
+        </div>
+      </button>`;
+    }).join('');
+  }
+
+  body.innerHTML = html;
+
+  // Bindings
+  const nb = $('vmNewBtn');
+  if(nb) nb.onclick = ()=>openElevenPicker({kind:'create', opponentId: $('vmOpponent').value, opponentName: $('vmOpponent').selectedOptions[0]?.textContent});
+  body.querySelectorAll('[data-vmaccept]').forEach(b=>b.onclick=()=>{
+    const row = incoming.find(p=>p.id===b.dataset.vmaccept);
+    openElevenPicker({kind:'accept', matchId:b.dataset.vmaccept, opponentName: row?row.other_name:''});
+  });
+  body.querySelectorAll('[data-vmdecline]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Refuser ce défi ?')) return;
+    const r = await api.vmatchDecline(b.dataset.vmdecline);
+    if(r&&r.__error){ alert(r.__error); return; } renderVmatch();
+  });
+  body.querySelectorAll('[data-vmcancel]').forEach(b=>b.onclick=async()=>{
+    if(!confirm('Annuler ce défi ?')) return;
+    const r = await api.vmatchCancel(b.dataset.vmcancel);
+    if(r&&r.__error){ alert(r.__error); return; } renderVmatch();
+  });
+  body.querySelectorAll('[data-vmview]').forEach(b=>b.onclick=()=>showMatchSheet(b.dataset.vmview));
+}
+
+// ---- Sélecteur de onze (modale) ----
+async function openElevenPicker(mode){
+  VM_PICK_MODE = mode; VM_PICK = new Set();
+  if(!VM_SQUAD.length){
+    try { VM_SQUAD = await api.vmatchMySquad(); } catch(e){ VM_SQUAD = []; }
+  }
+  renderElevenPicker();
+  $('vmPickerOverlay').style.display = 'flex';
+}
+function vmCountBy(){
+  const c = {GK:0,DEF:0,MID:0,FWD:0};
+  VM_SQUAD.forEach(p=>{ if(VM_PICK.has(p.id)) c[p.pos]++; });
+  return c;
+}
+function renderElevenPicker(){
+  const modal = $('vmPickerModal'); if(!modal) return;
+  const c = vmCountBy();
+  const total = VM_PICK.size;
+  const gkOk = c.GK===1, totalOk = total===11;
+  const canGo = gkOk && totalOk;
+  const title = VM_PICK_MODE.kind==='create' ? `Défier ${vmEsc(VM_PICK_MODE.opponentName||'')}` : `Relever le défi de ${vmEsc(VM_PICK_MODE.opponentName||'')}`;
+  const groups = VM_POS_ORDER.map(pos=>{
+    const list = VM_SQUAD.filter(p=>p.pos===pos);
+    if(!list.length) return '';
+    const chips = list.map(p=>{
+      const on = VM_PICK.has(p.id);
+      return `<button data-vmtoggle="${p.id}" style="display:inline-block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span></button>`;
+    }).join('');
+    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:3px">${VM_POS_LABEL[pos]} (${c[pos]})</div>${chips}</div>`;
+  }).join('');
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.15rem">${title}</div>
+      <button id="vmPickClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="font-size:.84rem;color:${totalOk?'#4ade80':'var(--muted)'};margin-bottom:4px">Sélection&nbsp;: <b>${total}/11</b> ${gkOk?'':'· <span style="color:var(--live,#e0574a)">il faut exactement 1 gardien</span>'}</div>
+    <div style="max-height:46vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
+    <button id="vmPickGo" ${canGo?'':'disabled'} class="btn" style="width:100%;background:${canGo?'var(--transfer)':'var(--pitch)'};color:${canGo?'#1a1a1a':'var(--muted)'};border:1px solid ${canGo?'var(--transfer)':'var(--line)'};border-radius:9px;padding:11px;font-weight:800;cursor:${canGo?'pointer':'default'}">${VM_PICK_MODE.kind==='create'?'Envoyer le défi':'Jouer le match'}</button>`;
+  modal.querySelectorAll('[data-vmtoggle]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.vmtoggle;
+    if(VM_PICK.has(id)) VM_PICK.delete(id);
+    else { if(VM_PICK.size>=11){ return; } VM_PICK.add(id); }
+    renderElevenPicker();
+  });
+  $('vmPickClose').onclick = ()=>{ $('vmPickerOverlay').style.display='none'; };
+  const go = $('vmPickGo');
+  if(go && canGo) go.onclick = submitEleven;
+}
+async function submitEleven(){
+  const go = $('vmPickGo'); if(go){ go.disabled=true; go.textContent='…'; }
+  const eleven = Array.from(VM_PICK);
+  if(VM_PICK_MODE.kind==='create'){
+    const r = await api.vmatchCreate(VM_PICK_MODE.opponentId, eleven);
+    if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
+    $('vmPickerOverlay').style.display='none';
+    alert('Défi envoyé ! Le match se jouera dès que l\'adversaire aura aligné son onze.');
+    renderVmatch();
+  } else {
+    const res = await api.vmatchAccept(VM_PICK_MODE.matchId, eleven);
+    if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
+    $('vmPickerOverlay').style.display='none';
+    showMatchSheet(VM_PICK_MODE.matchId);
+  }
+}
+
+// ---- Feuille de match (modale) ----
+async function showMatchSheet(matchId){
+  const ov = $('vmSheetOverlay'), modal = $('vmSheetModal');
+  if(!ov||!modal) return;
+  modal.innerHTML = '<div class="empty" style="padding:30px">Chargement…</div>';
+  ov.style.display='flex';
+  const g = await api.vmatchGet(matchId);
+  if(g&&g.__error){ modal.innerHTML=`<div class="empty" style="padding:20px">${g.__error}</div>`; return; }
+  const r = g.result;
+  if(!r){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
+  const A=g.team_a, B=g.team_b;
+  const sc = r.score;
+  const statRow = (label,a,b,pct)=>{
+    const av = pct?`${a}%`:a, bv = pct?`${b}%`:b;
+    const tot = (a+b)||1, aw = pct?a:Math.round(a/tot*100), bw = pct?b:Math.round(b/tot*100);
+    return `<div style="margin:9px 0">
+      <div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px"><b>${av}</b><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">${label}</span><b>${bv}</b></div>
+      <div style="display:flex;height:5px;border-radius:3px;overflow:hidden;background:var(--pitch)"><div style="width:${aw}%;background:var(--transfer)"></div><div style="width:${bw}%;background:#6c8cff"></div></div>
+    </div>`;
+  };
+  const scorers = (arr)=> (Array.isArray(arr)&&arr.length) ? arr.map(s=>vmEsc(s.name)).join(', ') : '—';
+  const cards = (y,rd)=>`${y>0?('🟨'.repeat(y)):''}${rd>0?('🟥'.repeat(rd)):''}`||'—';
+  const motm = r.motm||{};
+  const motmTeam = motm.team==='A'?A:(motm.team==='B'?B:'');
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800">Feuille de match</div>
+      <button id="vmSheetClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0 4px">
+      <div style="flex:1;text-align:right;font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(A)}</div>
+      <div style="flex:0 0 auto;font-family:'Saira',monospace;font-weight:900;font-size:2rem;letter-spacing:1px">${sc.a}<span style="color:var(--muted);margin:0 6px">–</span>${sc.b}</div>
+      <div style="flex:1;text-align:left;font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(B)}</div>
+    </div>
+    <div style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:12px">⚽ ${scorers(r.scorers&&r.scorers.a)} &nbsp;·&nbsp; ${scorers(r.scorers&&r.scorers.b)}</div>
+    <div style="background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:10px;padding:9px 12px;margin-bottom:12px;text-align:center;font-size:.85rem">⭐ Homme du match&nbsp;: <b>${vmEsc(motm.name||'—')}</b>${motmTeam?` <span style="color:var(--muted)">(${vmEsc(motmTeam)})</span>`:''}</div>
+    ${statRow('Possession', r.possession.a, r.possession.b, true)}
+    ${statRow('Tirs', r.shots.a, r.shots.b)}
+    ${statRow('Tirs cadrés', r.shots_on_target.a, r.shots_on_target.b)}
+    ${statRow('xG', r.xg.a, r.xg.b)}
+    ${statRow('Corners', r.corners.a, r.corners.b)}
+    ${statRow('Fautes', r.fouls.a, r.fouls.b)}
+    ${statRow('Hors-jeu', r.offsides.a, r.offsides.b)}
+    <div style="display:flex;justify-content:space-between;font-size:.82rem;margin:9px 0"><span>${cards(r.yellow.a,r.red.a)}</span><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">Cartons</span><span>${cards(r.yellow.b,r.red.b)}</span></div>`;
+  $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; renderVmatch(); };
+}
+
 async function renderGalerie(){
   const sel = $('galerieMatchday'), body = $('galerieBody');
   if(!sel || !body) return;
@@ -10537,8 +10791,8 @@ async function renderGalerie(){
   loadGalerieMatchday(sel.value);
 }
 
-const POS_LABEL = {GK:'Gardien', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants'};
-const POS_ORDER = ['GK','DEF','MID','FWD'];
+// (labels/ordre des postes partagés : voir VM_POS_LABEL / VM_POS_ORDER plus haut —
+//  on réutilise les mêmes pour éviter une redéclaration de const dans le module.)
 
 async function loadGalerieMatchday(mdId){
   const body = $('galerieBody');
@@ -10557,12 +10811,12 @@ async function loadGalerieMatchday(mdId){
     // Regroupe par poste.
     const byPos = {};
     players.forEach(p=>{ (byPos[p.position] = byPos[p.position]||[]).push(p); });
-    const lines = POS_ORDER.filter(pos=>byPos[pos]&&byPos[pos].length).map(pos=>{
+    const lines = VM_POS_ORDER.filter(pos=>byPos[pos]&&byPos[pos].length).map(pos=>{
       const names = byPos[pos].map(p=>{
         const lead = (p.id===team.leader_id) ? ' <span style="color:var(--live,#e0574a);font-weight:800" title="Leader de la journée">🅒</span>' : '';
         return `<span style="display:inline-block;background:var(--pitch);border:1px solid var(--line);border-radius:7px;padding:3px 8px;margin:2px 3px 2px 0;font-size:.82rem">${p.name}${lead}<span style="color:var(--muted);font-size:.72rem"> · ${p.club||'—'}</span></span>`;
       }).join('');
-      return `<div style="margin:5px 0"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:2px">${POS_LABEL[pos]}</div>${names}</div>`;
+      return `<div style="margin:5px 0"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:2px">${VM_POS_LABEL[pos]}</div>${names}</div>`;
     }).join('');
     const mine = team.is_me ? ' <span style="color:var(--transfer);font-size:.72rem">(toi)</span>' : '';
     return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px">
