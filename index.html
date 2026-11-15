@@ -2153,7 +2153,8 @@
         <h3 class="rule-h">33. Les matchs virtuels</h3>
         <p class="rule-p">Entre deux phases (par exemple pendant l'intersaison), tu peux <b>défier un autre manager</b> en match virtuel (menu Plus ⋮ → « ⚔️ Matchs virtuels »). Tu alignes ton onze, l'adversaire aligne le sien, et le match est <b>simulé automatiquement</b> à partir des caractéristiques de tes joueurs.</p>
         <ol class="rule-ol">
-          <li>Tu composes un <b>onze valide</b> avec tes propres joueurs : 11 titulaires dont <b>exactement 1 gardien</b>.</li>
+          <li>Tu choisis une <b>formation</b> (4-4-2, 3-5-2, 4-3-3…) et tu composes ton onze en respectant ce schéma (1 gardien + le bon nombre de défenseurs, milieux et attaquants).</li>
+          <li>La <b>disposition compte</b> : plus de défenseurs = défense plus solide mais attaque plus légère (et inversement), le milieu pèse sur la possession. Le 4-4-2 est l'équilibre de référence. Tu vois la répartition des forces (attaque / milieu / défense) de chaque équipe sur la feuille de match.</li>
           <li>Le défi est <b>asynchrone</b> et <b>à l'aveugle</b> : chacun aligne son onze sans voir celui de l'autre. Le match se joue dès que les deux onze sont posés, et c'est seulement <b>à ce moment</b> que les deux compositions se dévoilent sur la feuille de match.</li>
           <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons, <b>homme du match</b> et les <b>deux onze alignés</b>.</li>
           <li>La force de chaque équipe vient des <b>caractéristiques de tes joueurs</b> (finition, défense, vitesse…), <b>ajustée par leur forme récente</b> (la moyenne de leurs dernières notes Sofascore). Un joueur en forme pèse un peu plus ; sans historique de notes, seuls les attributs comptent.</li>
@@ -5239,7 +5240,7 @@ const FAQ_DATA = [
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
     ['C’est quoi les « Matchs virtuels » ? ⚔️',
-     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b>, et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore). Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b>, et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore) <b>et par la formation choisie</b> (4-4-2, 3-5-2…) : la disposition compte vraiment. Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
     ['C’est quoi les « Tournois » ? 🏆',
      "Des <b>coupes à élimination directe</b> organisées par l’organisation (menu <b>Plus ⋮ → 🏆 Tournois</b>). À chaque tour tu alignes ton onze ; le match se joue dès que ton adversaire a posé le sien, et le vainqueur monte jusqu’à la finale. Tu suis le <b>bracket</b> complet avec tous les scores, et tu peux rouvrir chaque feuille de match. En cas d’égalité le match est départagé (xG, tirs cadrés, puis au sort). Le <b>vainqueur du tournoi</b> gagne un bonus de flair. Amical : aucun effet sur le classement officiel."],
     ['C’est quoi les « Fiches tactiques » ? 📋',
@@ -10966,6 +10967,7 @@ const VM_MIND_LABEL = {off:'Offensif', bal:'Équilibré', def:'Défensif'};
 const VM_MIND_DESC = {off:'plus d\'occasions créées, mais tu t\'exposes', bal:'approche neutre', def:'tu te refermes, moins d\'occasions des deux côtés'};
 async function openElevenPicker(mode){
   if(!mode.mind) mode.mind = 'bal';
+  if(!mode.form) mode.form = '4-4-2';
   VM_PICK_MODE = mode; VM_PICK = new Set();
   await vmLoadSquad();
   renderElevenPicker();
@@ -10980,28 +10982,33 @@ function renderElevenPicker(){
   const modal = $('vmPickerModal'); if(!modal) return;
   const c = vmCountBy();
   const total = VM_PICK.size;
-  const gkOk = c.GK===1, totalOk = total===11;
-  const canGo = gkOk && totalOk;
-  const title = VM_PICK_MODE.kind==='create' ? `Défier ${vmEsc(VM_PICK_MODE.opponentName||'')}` : `Relever le défi de ${vmEsc(VM_PICK_MODE.opponentName||'')}`;
+  const q = tacticParse(VM_PICK_MODE.form);  // {GK:1,DEF,MID,FWD}
+  const posOk = c.GK===q.GK && c.DEF===q.DEF && c.MID===q.MID && c.FWD===q.FWD;
+  const canGo = posOk && total===11;
+  const title = VM_PICK_MODE.kind==='create' ? `Défier ${vmEsc(VM_PICK_MODE.opponentName||'')}` : (VM_PICK_MODE.kind==='tournament' ? 'Aligner ton onze' : `Relever le défi de ${vmEsc(VM_PICK_MODE.opponentName||'')}`);
+  const fopts = TACTIC_FORMATIONS.map(f=>`<option value="${f}"${f===VM_PICK_MODE.form?' selected':''}>${f}</option>`).join('');
   const groups = VM_POS_ORDER.map(pos=>{
     const list = VM_SQUAD.filter(p=>p.pos===pos);
-    if(!list.length) return '';
-    const chips = list.map(p=>{
+    const need=q[pos], have=c[pos];
+    const hdrCol = have===need ? '#4ade80' : (have>need?'var(--live,#e0574a)':'var(--muted)');
+    const chips = list.length ? list.map(p=>{
       const on = VM_PICK.has(p.id);
       return `<button data-vmtoggle="${p.id}" style="display:inline-block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span></button>`;
-    }).join('');
-    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:3px">${VM_POS_LABEL[pos]} (${c[pos]})</div>${chips}</div>`;
+    }).join('') : `<span style="color:var(--muted);font-size:.8rem">aucun ${VM_POS_LABEL[pos].toLowerCase()} dans ton effectif</span>`;
+    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px;color:${hdrCol}">${VM_POS_LABEL[pos]} · ${have}/${need}</div>${chips}</div>`;
   }).join('');
   modal.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
       <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.15rem">${title}</div>
       <button id="vmPickClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
     </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px">
-      <div style="font-size:.84rem;color:${totalOk?'#4ade80':'var(--muted)'}">Sélection&nbsp;: <b>${total}/11</b> ${gkOk?'':'· <span style="color:var(--live,#e0574a)">il faut exactement 1 gardien</span>'}</div>
-      <button id="vmLoadTactic" style="background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:7px;padding:5px 10px;font-size:.78rem;cursor:pointer;white-space:nowrap">📋 Charger une fiche</button>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+      <label style="font-size:.8rem;color:var(--muted)">Formation</label>
+      <select id="vmForm" style="flex:1;padding:8px">${fopts}</select>
+      <button id="vmLoadTactic" style="background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:.78rem;cursor:pointer;white-space:nowrap">📋 Fiche</button>
     </div>
-    <div style="max-height:40vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
+    <div style="font-size:.84rem;color:${canGo?'#4ade80':'var(--muted)'};margin-bottom:4px">Sélection&nbsp;: <b>${total}/11</b>${posOk?'':` · respecte le schéma <b>${VM_PICK_MODE.form}</b> (1 gardien)`}</div>
+    <div style="max-height:38vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
     <div style="margin:10px 0 12px">
       <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:5px">Mentalité</div>
       <div style="display:flex;gap:6px">
@@ -11011,11 +11018,16 @@ function renderElevenPicker(){
     </div>
     <button id="vmPickGo" ${canGo?'':'disabled'} class="btn" style="width:100%;background:${canGo?'var(--transfer)':'var(--pitch)'};color:${canGo?'#1a1a1a':'var(--muted)'};border:1px solid ${canGo?'var(--transfer)':'var(--line)'};border-radius:9px;padding:11px;font-weight:800;cursor:${canGo?'pointer':'default'}">${VM_PICK_MODE.kind==='create'?'Envoyer le défi':'Jouer le match'}</button>`;
   modal.querySelectorAll('[data-vmtoggle]').forEach(b=>b.onclick=()=>{
-    const id=b.dataset.vmtoggle;
+    const id=b.dataset.vmtoggle, p=VM_SQUAD.find(x=>x.id===id);
     if(VM_PICK.has(id)) VM_PICK.delete(id);
-    else { if(VM_PICK.size>=11){ return; } VM_PICK.add(id); }
+    else {
+      if(VM_PICK.size>=11) return;
+      if(vmCountBy()[p.pos] >= q[p.pos]){ alert(`Ton ${VM_PICK_MODE.form} demande ${q[p.pos]} ${VM_POS_LABEL[p.pos].toLowerCase()}. Retire-en un d'abord, ou change de formation.`); return; }
+      VM_PICK.add(id);
+    }
     renderElevenPicker();
   });
+  $('vmForm').onchange = (e)=>{ VM_PICK_MODE.form = e.target.value; renderElevenPicker(); };
   modal.querySelectorAll('[data-vmmind]').forEach(b=>b.onclick=()=>{ VM_PICK_MODE.mind=b.dataset.vmmind; renderElevenPicker(); });
   $('vmPickClose').onclick = ()=>{ $('vmPickerOverlay').style.display='none'; };
   const lt = $('vmLoadTactic');
@@ -11023,8 +11035,9 @@ function renderElevenPicker(){
     const squadIds = new Set(VM_SQUAD.map(p=>p.id));
     const kept = ids.filter(id=>squadIds.has(id)).slice(0,11);
     VM_PICK = new Set(kept);
+    if(tactic.formation) VM_PICK_MODE.form = tactic.formation;  // la fiche fixe aussi le schéma
     renderElevenPicker();
-    if(kept.length<11) setTimeout(()=>alert(`Fiche « ${tactic.name} » chargée : ${kept.length}/11 joueurs encore dans ton effectif. Complète les postes manquants.`),50);
+    if(kept.length<11) setTimeout(()=>alert(`Fiche « ${tactic.name} » (${tactic.formation}) chargée : ${kept.length}/11 joueurs encore dans ton effectif. Complète les postes manquants.`),50);
   });
   const go = $('vmPickGo');
   if(go && canGo) go.onclick = submitEleven;
@@ -11033,19 +11046,20 @@ async function submitEleven(){
   const go = $('vmPickGo'); if(go){ go.disabled=true; go.textContent='…'; }
   const eleven = Array.from(VM_PICK);
   const mind = VM_PICK_MODE.mind || 'bal';
+  const form = VM_PICK_MODE.form || '4-4-2';
   if(VM_PICK_MODE.kind==='create'){
-    const r = await api.vmatchCreateMind(VM_PICK_MODE.opponentId, eleven, mind);
+    const r = await api.vmatchCreateMind(VM_PICK_MODE.opponentId, eleven, mind, form);
     if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
     alert('Défi envoyé ! Le match se jouera dès que l\'adversaire aura aligné son onze.');
     renderVmatch();
   } else if(VM_PICK_MODE.kind==='accept'){
-    const res = await api.vmatchAcceptMind(VM_PICK_MODE.matchId, eleven, mind);
+    const res = await api.vmatchAcceptMind(VM_PICK_MODE.matchId, eleven, mind, form);
     if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
     showMatchSheet(VM_PICK_MODE.matchId);
   } else if(VM_PICK_MODE.kind==='tournament'){
-    const res = await api.vtournamentSetEleven(VM_PICK_MODE.matchId, eleven, mind);
+    const res = await api.vtournamentSetEleven(VM_PICK_MODE.matchId, eleven, mind, form);
     if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
     if(res && res.status==='waiting'){ alert('Onze aligné ! Le match se jouera dès que ton adversaire aura posé le sien.'); if(VM_PICK_MODE.onDone) VM_PICK_MODE.onDone(); }
@@ -11081,7 +11095,8 @@ function vmLineupsHTML(lu, A, B){
 function vmSheetHTML(r, A, B, lineups){
   const sc = r.score;
   const minds = r.minds || {};
-  const mindTag = (m)=> m ? `<span style="font-size:.64rem;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:1px 6px;margin-top:3px;display:inline-block">${VM_MIND_LABEL[m]||m}</span>` : '';
+  const forms = r.formations || {};
+  const mindTag = (m, f)=> `<span style="font-size:.64rem;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:1px 6px;margin-top:3px;display:inline-block">${f?f+' · ':''}${m?(VM_MIND_LABEL[m]||m):''}</span>`;
   const statRow = (label,a,b,pct)=>{
     const av = pct?`${a}%`:a, bv = pct?`${b}%`:b;
     const tot = (a+b)||1, aw = pct?a:Math.round(a/tot*100), bw = pct?b:Math.round(b/tot*100);
@@ -11115,9 +11130,9 @@ function vmSheetHTML(r, A, B, lineups){
       <button id="vmSheetClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
     </div>
     <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin:10px 0 4px">
-      <div style="flex:1;text-align:right"><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(A)}</div>${mindTag(minds.a)}</div>
+      <div style="flex:1;text-align:right"><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(A)}</div>${mindTag(minds.a, forms.a)}</div>
       <div style="flex:0 0 auto;font-family:'Saira',monospace;font-weight:900;font-size:2rem;letter-spacing:1px">${sc.a}<span style="color:var(--muted);margin:0 6px">–</span>${sc.b}${shoot}</div>
-      <div style="flex:1;text-align:left"><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(B)}</div>${mindTag(minds.b)}</div>
+      <div style="flex:1;text-align:left"><div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem">${vmEsc(B)}</div>${mindTag(minds.b, forms.b)}</div>
     </div>
     <div style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:12px">⚽ ${scorers(r.scorers&&r.scorers.a)} &nbsp;·&nbsp; ${scorers(r.scorers&&r.scorers.b)}</div>
     <div style="background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:10px;padding:9px 12px;margin-bottom:12px;text-align:center;font-size:.85rem">⭐ Homme du match&nbsp;: <b>${vmEsc(motm.name||'—')}</b>${motmTeam?` <span style="color:var(--muted)">(${vmEsc(motmTeam)})</span>`:''}</div>

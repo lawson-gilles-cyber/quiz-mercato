@@ -2135,13 +2135,13 @@ export async function tacticDelete(id) {
 // Matchs virtuels — améliorations (268/269/270/271)
 // =====================================================================
 // Mentalité : vmatchCreate/Accept acceptent un 3e param 'off'|'bal'|'def'.
-export async function vmatchCreateMind(opponentId, eleven, mind = 'bal') {
-  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven, p_mind: mind });
+export async function vmatchCreateMind(opponentId, eleven, mind = 'bal', form = '4-4-2') {
+  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven, p_mind: mind, p_form: form });
   if (error) return { __error: error.message };
   return { id: data };
 }
-export async function vmatchAcceptMind(matchId, eleven, mind = 'bal') {
-  const { data, error } = await sb.rpc('qm_vmatch_accept', { p_id: matchId, p_eleven: eleven, p_mind: mind });
+export async function vmatchAcceptMind(matchId, eleven, mind = 'bal', form = '4-4-2') {
+  const { data, error } = await sb.rpc('qm_vmatch_accept', { p_id: matchId, p_eleven: eleven, p_mind: mind, p_form: form });
   if (error) return { __error: error.message };
   return data;
 }
@@ -2167,8 +2167,8 @@ export async function vtournamentBracket(id) {
   if (error) return { __error: error.message };
   return data;
 }
-export async function vtournamentSetEleven(matchId, eleven, mind = 'bal') {
-  const { data, error } = await sb.rpc('qm_vtournament_set_eleven', { p_match: matchId, p_eleven: eleven, p_mind: mind });
+export async function vtournamentSetEleven(matchId, eleven, mind = 'bal', form = '4-4-2') {
+  const { data, error } = await sb.rpc('qm_vtournament_set_eleven', { p_match: matchId, p_eleven: eleven, p_mind: mind, p_form: form });
   if (error) return { __error: error.message };
   return data;
 }
