@@ -608,8 +608,29 @@
       <div><label>Libellé (optionnel)</label><input id="mdLabel" type="text" placeholder="Journée 5"></div>
       <div><label>Date limite d'alignement</label><input id="mdDeadline" type="datetime-local"></div>
     </div>
+    <label style="display:flex;align-items:center;gap:8px;margin:4px 0 12px;font-size:.88rem;color:var(--muted);cursor:pointer">
+      <input type="checkbox" id="mdIsTest" style="width:auto"> 🧪 Journée de <b>test</b> (invisible des autres managers, ne compte pas au classement)
+    </label>
     <button class="btn-primary btn-sm" id="btnCreateMatchday">Créer la journée</button>
     <div id="mdList" style="margin-top:16px"></div>
+  </div>
+
+  <!-- Phase de test : comptes désignés -->
+  <div class="card" style="margin-bottom:14px;border:1px solid rgba(224,90,77,.4)">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:1.1rem">🧪</span><h3 style="margin:0;font-size:1.05rem">Phase de test</h3>
+    </div>
+    <p class="hint" style="margin:0 0 12px">Répète le cycle d'une journée (onze → notes → résultats) sur un <b>compte Manager test</b>, invisible des autres managers. Marque une journée comme <b>test</b> (case ci-dessus à la création, ou bouton dans la liste). Les points d'une journée test <b>ne comptent jamais</b> au classement. Désigne qui peut y accéder :</p>
+    <div class="row c2" style="margin-bottom:10px">
+      <div><label>Compte Manager test (le onze est aligné dessus)</label><select id="testManager"></select></div>
+      <div><label>Compte testeur autorisé (ex. Audrey)</label><select id="testViewer"></select></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn-primary btn-sm" id="btnSetTestManager">Enregistrer le compte test</button>
+      <button class="btn-primary btn-sm" id="btnSetTestViewer">Enregistrer le testeur</button>
+    </div>
+    <div id="testStateBox" style="margin-top:12px"></div>
+    <div id="msgTest" class="admin-msg" style="margin-top:8px"></div>
   </div>
   <div class="card" style="margin-bottom:14px" id="coachAssignCard">
     <p class="hint" style="margin-bottom:12px"><b>Associer un Coach à une équipe.</b> Le Coach est un compte séparé qui alignera les 11 titulaires de l'équipe choisie. <b>Important :</b> tant qu'un coach n'est pas associé ici, il compte comme un manager à part entière — avec son <b>propre budget de 800 M€</b> et sa ligne au classement. Une fois associé, le duo ne partage qu'<b>un seul budget</b> (celui du Manager) : le coach ne peut plus <b>enchérir, recruter, échanger, faire d'offre ni prêter</b> (ni proposer, ni accepter) — il ne fait qu'<b>aligner la compo</b>. Pour <b>dissocier</b> un coach de son équipe, utilise le bouton <b>« Dissocier »</b> en face de son nom dans la liste ci-dessous : il redeviendra un manager indépendant.</p>
@@ -1607,7 +1628,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -5017,6 +5038,8 @@ async function loadMatchdays(){
         ${m.status==='open'?`<button class="btn-ghost btn-sm" data-mdscore="${m.id}">Passer en notation</button>`:''}
         ${m.status==='scoring'?`<button class="btn-primary btn-sm" data-mdclose="${m.id}">Clôturer</button>`:''}
         ${m.status!=='closed'?`<button class="btn-ghost btn-sm" data-mdduel="${m.id}" title="Apparie les managers 2 à 2 pour le Duel de la journée (tirage équilibré). Les gagnants seront désignés à la clôture.">⚔️ Générer les duels</button>`:''}
+        <button class="btn-ghost btn-sm" data-mdgallery="${m.id}" data-open="${m.gallery_open?1:0}" title="${m.gallery_open?'La galerie de cette journée est ouverte à tous. Cliquer pour revenir au comportement normal (après deadline).':'Forcer l\'ouverture de la galerie de cette journée pour tous, sans attendre la deadline.'}">${m.gallery_open?'🖼️ Galerie ouverte ✓':'🖼️ Ouvrir la galerie'}</button>
+        <button class="btn-ghost btn-sm" data-mdtest="${m.id}" data-istest="${m.is_test?1:0}" title="${m.is_test?'Journée de test : invisible des autres, hors classement. Cliquer pour la rendre réelle.':'Marquer cette journée comme test (invisible des autres managers, hors classement). Refusé si elle a déjà des points.'}" style="${m.is_test?'color:var(--live);border-color:rgba(224,90,77,.5)':''}">${m.is_test?'🧪 Test ✓':'🧪 Marquer test'}</button>
       </div></td></tr>`).join('')
   }</tbody></table><p class="hint" style="margin-top:8px">À l'ouverture d'une journée, si aucune deadline n'est fixée, elle est mise automatiquement au <b>prochain lundi 23h00</b>. Tu peux l'ajuster ici à tout moment.</p>` : `<p class="hint">Aucune journée créée.</p>`;
 
@@ -5032,6 +5055,23 @@ async function loadMatchdays(){
     const r = await api.adminSetDeadlineNextMonday(b.dataset.dlmonday);
     if(r.error) return showMsg($('msg2'), r.error.message);
     showMsg($('msg2'), 'Deadline fixée au prochain lundi 23h00.', true); loadMatchdays();
+  });
+  // Interrupteur « ouvrir la galerie maintenant » (force l'ouverture, hors deadline)
+  $('mdList').querySelectorAll('[data-mdgallery]').forEach(b=>b.onclick=async()=>{
+    const open = b.dataset.open !== '1';  // bascule
+    const r = await api.adminSetGalleryOpen(b.dataset.mdgallery, open);
+    if(r.error) return showMsg($('msg2'), r.error.message);
+    showMsg($('msg2'), open ? 'Galerie ouverte pour cette journée (visible par tous).' : 'Galerie remise en mode normal (visible après la deadline).', true);
+    loadMatchdays();
+  });
+  // Marquer / démarquer « journée de test »
+  $('mdList').querySelectorAll('[data-mdtest]').forEach(b=>b.onclick=async()=>{
+    const makeTest = b.dataset.istest !== '1';  // bascule
+    if(makeTest && !confirm('Marquer cette journée comme journée de TEST ?\n\nElle deviendra invisible des autres managers et ne comptera pas au classement. Seuls l\'admin et le compte testeur désigné y accèderont.')) return;
+    const r = await api.adminSetMatchdayTest(b.dataset.mdtest, makeTest);
+    if(r.error) return showMsg($('msg2'), r.error.message);
+    showMsg($('msg2'), makeTest ? 'Journée marquée comme test.' : 'Journée redevenue réelle.', true);
+    loadMatchdays(); loadTestPhase();
   });
 
   $('mdList').querySelectorAll('[data-mdopen]').forEach(b=>b.onclick=async()=>{
@@ -5066,9 +5106,45 @@ $('btnCreateMatchday').onclick = async ()=>{
   const dl = $('mdDeadline').value ? new Date($('mdDeadline').value).toISOString() : null;
   const r = await api.adminCreateMatchday(num, label, dl);
   if(r.error) return showMsg($('msg2'),r.error.message);
-  showMsg($('msg2'),'Journée créée.',true);
-  $('mdNumber').value=''; $('mdLabel').value=''; $('mdDeadline').value='';
+  // Marquer comme journée test si la case est cochée.
+  const wantTest = $('mdIsTest') && $('mdIsTest').checked;
+  if(wantTest){
+    const newId = (r.data && (r.data.id || (Array.isArray(r.data) && r.data[0] && r.data[0].id))) || null;
+    let id = newId;
+    if(!id){ const mds = await api.listMatchdays(); const f = mds.find(m=>m.number===num); id = f && f.id; }
+    if(id){ const rt = await api.adminSetMatchdayTest(id, true); if(rt.error) showMsg($('msg2'), 'Journée créée, mais test non appliqué : '+rt.error.message); }
+  }
+  showMsg($('msg2'), wantTest ? 'Journée de test créée.' : 'Journée créée.', true);
+  $('mdNumber').value=''; $('mdLabel').value=''; $('mdDeadline').value=''; if($('mdIsTest')) $('mdIsTest').checked=false;
   loadMatchdays();
+};
+
+// ---------- Phase de test : comptes désignés + état ----------
+async function loadTestPhase(){
+  if(!$('testManager')) return;
+  const [managers, st] = await Promise.all([ api.listManagers(), api.adminTestState() ]);
+  const opt = (m, sel)=>`<option value="${m.id}"${sel===m.id?' selected':''}>${m.display_name}${m.team_name?` · ${m.team_name}`:''}</option>`;
+  // Compte test : un manager réel (hors admin). Testeur : n'importe quel compte (hors admin).
+  const realMgrs = managers.filter(m=>!m.is_admin);
+  $('testManager').innerHTML = `<option value="">— aucun —</option>` + realMgrs.map(m=>opt(m, st.test_manager_id)).join('');
+  $('testViewer').innerHTML  = `<option value="">— aucun —</option>` + realMgrs.map(m=>opt(m, st.test_viewer_id)).join('');
+
+  const box = $('testStateBox');
+  const tmds = (st.test_matchdays||[]);
+  box.innerHTML = `<div style="padding:8px 10px;border-radius:8px;background:rgba(224,90,77,.07);border:1px solid rgba(224,90,77,.3);font-size:.86rem">
+    <div>Compte test : <b>${st.test_manager_name||'—'}</b> · Testeur : <b>${st.test_viewer_name||'—'}</b></div>
+    <div style="color:var(--muted);font-size:.8rem;margin-top:4px">Journées test : ${tmds.length ? tmds.map(m=>`#${m.number} ${m.label||''} (${m.status})`).join(' · ') : 'aucune'}</div>
+  </div>`;
+}
+if($('btnSetTestManager')) $('btnSetTestManager').onclick = async ()=>{
+  const r = await api.adminSetTestManager($('testManager').value || null);
+  if(r.error) return showMsg($('msgTest'), r.error.message);
+  showMsg($('msgTest'), 'Compte Manager test enregistré.', true); loadTestPhase();
+};
+if($('btnSetTestViewer')) $('btnSetTestViewer').onclick = async ()=>{
+  const r = await api.adminSetTestViewer($('testViewer').value || null);
+  if(r.error) return showMsg($('msgTest'), r.error.message);
+  showMsg($('msgTest'), 'Compte testeur enregistré.', true); loadTestPhase();
 };
 
 async function loadCoaches(){
@@ -5833,6 +5909,10 @@ const ADMIN_FAQ = [
      "Dans « Tous les joueurs », un compteur indique « X/Y notés » et le filtre <b>« Seulement les manquants »</b> isole les joueurs sans note."],
   ]],
   ['Journées, compos & leader', [
+    ['Comment faire une répétition (journée de test) avant la vraie reprise ? 🧪',
+     "Dans <b>« Journées & Compositions »</b> : (1) crée une journée en cochant <b>« 🧪 Journée de test »</b> (ou clique <b>« 🧪 Marquer test »</b> sur une journée neuve) ; (2) dans l'encart <b>« 🧪 Phase de test »</b>, désigne le <b>Compte Manager test</b> (le onze sera aligné dessus) et le <b>Compte testeur</b> (ex. Audrey). La journée test est <b>invisible des autres managers</b> et ses points <b>ne comptent jamais</b> au classement. Le testeur peut, <b>uniquement sur cette journée test</b>, aligner le onze du compte test, saisir les notes et faire avancer l'état (ouverte → notation → clôturée). Quand la répétition est concluante, clique <b>« 🧪 Test ✓ »</b> pour rendre la journée réelle, ou supprime-la."],
+    ['Je ne peux pas marquer une journée comme test, pourquoi ?',
+     "Le marquage test est <b>refusé si la journée a déjà des points enregistrés</b> — pour éviter qu'une vraie journée disputée bascule en test par erreur. Utilise une <b>journée neuve</b> (sans notes). Le testeur, lui, ne peut noter/piloter <b>que</b> les journées test : il n'a aucun accès aux vraies journées."],
     ['Qu\'est-ce que la deadline hebdomadaire de composition ?',
      "Chaque <b>Coach</b> doit déposer son onze avant une date limite — par défaut <b>chaque lundi à 23h00</b> (heure de Paris). Passé ce délai, la <b>dernière compo validée est reconduite automatiquement</b> (aucune pénalité). Tu règles la deadline par journée dans <b>« Journées & Compositions »</b>, colonne <b>« Deadline compo »</b> : saisie manuelle, ou bouton <b>« 📅 Lun 23h »</b> pour la caler au prochain lundi 23h. À l'ouverture d'une journée, si aucune deadline n'est fixée, le lundi 23h est appliqué automatiquement."],
     ['C\'est quoi le « leader de la journée » et son bonus ?',

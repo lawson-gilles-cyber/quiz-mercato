@@ -1114,6 +1114,7 @@
         <button data-v="alerts" data-ic="bell">Mes alertes</button>
         <button data-v="gazette" data-ic="megaphone">Journal</button>
         <button data-v="polls" data-ic="chart">Sondages</button>
+        <button data-v="galerie" data-ic="grid">🖼️ Galerie</button>
         <button data-v="calendar" data-ic="calendar">Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" data-ic="target" style="display:none">Draft</button>
         <button data-v="rules" data-ic="scroll">Règlement</button>
@@ -1702,6 +1703,15 @@
     <div id="pollsBody"><div class="empty">Chargement…</div></div>
   </section>
 
+  <!-- GALERIE DES COMPOSITIONS -->
+  <section class="view" id="galerie">
+    <div class="eyebrow">La galerie · les onze de la journée</div>
+    <h1>La <em>galerie</em> des compos</h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Découvre le onze entrant de chaque équipe. Les compositions apparaissent <b>une fois la date limite passée</b> — avant, chacun garde son onze secret.</p>
+    <select id="galerieMatchday" style="width:100%;padding:9px;margin-bottom:16px"></select>
+    <div id="galerieBody"><div class="empty">Chargement…</div></div>
+  </section>
+
   <!-- JOURNAL DU MERCATO (gazette hebdo) -->
   <section class="view" id="gazette">
     <div class="eyebrow">La gazette de la semaine</div>
@@ -2077,7 +2087,18 @@
         </ol>
         <p class="rule-p" style="margin-top:10px">C'est un <b>filet de secours</b> au service du fair-play : il évite qu'une équipe soit pénalisée par l'indisponibilité ponctuelle de son coach, sans jamais toucher à l'intégrité du mercato.</p>
 
-        <h3 class="rule-h">31. Le quiz de fin de mercato</h3>
+        <h3 class="rule-h">31b. Les journées de test (répétitions)</h3>
+        <p class="rule-p">L'organisation peut organiser des <b>répétitions</b> avant la vraie reprise : une « journée de test » sert à vérifier le bon déroulement d'une journée (composition, notes, résultats). Ces journées sont <b>invisibles</b> pour les managers, <b>ne comptent pas</b> au classement, et sont pilotées uniquement par l'organisation et un testeur désigné. Tu n'as rien à faire — si tu ne vois pas une journée, c'est normal, elle ne te concerne pas.</p>
+
+        <h3 class="rule-h">31. La galerie des compositions</h3>
+        <p class="rule-p">La <b>Galerie</b> (menu Plus ⋮ → « 🖼️ Galerie ») te permet de voir le <b>onze entrant de chaque équipe</b> pour une journée : la formation, les 11 titulaires par poste, le club de chacun et le leader 🅒.</p>
+        <ol class="rule-ol">
+          <li>Les compositions des autres n'apparaissent qu'<b>une fois la date limite de dépôt passée</b> (lundi 23h). Avant l'heure, chacun garde son onze secret — pas de copie de dernière minute.</li>
+          <li>Tu peux choisir la journée à consulter. Seules les journées dont la deadline est passée (ou en cours de notation / terminées) sont affichées.</li>
+        </ol>
+        <p class="rule-p" style="margin-top:10px">La galerie est là pour <b>animer la ligue</b> : comparer les choix tactiques, commenter les paris audacieux, et nourrir les discussions dans le chat.</p>
+
+        <h3 class="rule-h">32. Le quiz de fin de mercato</h3>
         <p class="rule-p">À la fin de chaque mercato, un <b>quiz de 20 questions</b> est proposé. Il porte sur les <b>activités du mercato écoulé</b> (le transfert le plus cher, le joueur le plus convoité, le club le plus représenté…) et sur les <b>règles du jeu</b>.</p>
         <ol class="rule-ol">
           <li>Le quiz <b>s'ouvre automatiquement 1 heure après la fin du mercato</b> et reste ouvert <b>10 heures</b>. Un pop-up te prévient dès qu'il est jouable.</li>
@@ -2571,7 +2592,7 @@ let ME = null;         // manager connecté (ou null)
 let PLAYERS = [];      // cache des joueurs
 
 // ---------- Navigation (centralisée : nav haut, menu Plus, barre du bas) ----------
-const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares'];
+const SECONDARY_VIEWS = ['bonus','penalty','rank','feed','chat','messages','managers','pronos','achievements','mystats','scouts','alerts','gazette','polls','calendar','draft','rules','faq','records','palmares','galerie'];
 let CURRENT_VIEW = 'home';
 // --- Analytics : identifiant de session + traçage des vues ---
 let ANALYTICS_SESSION = null;
@@ -2618,7 +2639,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -5128,6 +5149,8 @@ const FAQ_DATA = [
      "L’organisateur peut lancer des <b>sondages</b> pour animer la ligue : une question à <b>choix multiples</b>, ou un vote <b>pour un manager</b> (meilleur recruteur, plus beau coup de poker…). Tu votes en un clic et tu vois les <b>résultats en direct</b> (voix et pourcentages). Un sondage reste ouvert jusqu’à ce que l’organisateur le clôture. C’est purement ludique, sans effet sur ton budget ni ton classement."],
     ['C’est quoi le bandeau qui défile en haut de l’accueil ?',
      "C’est ton <b>fil d’actu</b> : il mélange l’<b>actu de ton mercato</b> (enchères en cours, derniers transferts, leader du classement) et l’<b>actualité du football européen</b> — coups d’envoi à venir et résultats récents des grands championnats (Ligue 1, Premier League, Liga, Serie A, Bundesliga, Ligue des Champions…). C’est de l’information en lecture seule, pour suivre le jeu et le vrai foot d’un même coup d’œil."],
+    ['C’est quoi la « Galerie des compos » ? 🖼️',
+     "Dans <b>Plus ⋮ → « 🖼️ Galerie »</b>, tu vois le <b>onze entrant de chaque équipe</b> pour une journée : formation, titulaires par poste, club et leader 🅒. Les compos des autres n’apparaissent qu’<b>après la date limite de dépôt</b> (lundi 23h) — avant, chacun garde son onze secret. C’est fait pour comparer les tactiques et animer les discussions."],
     ['C’est quoi le « Quiz de fin de mercato » ? 🏁',
      "Un quiz de <b>20 questions</b> qui s’ouvre <b>automatiquement 1 heure après la fin du mercato</b> et reste jouable <b>10 heures</b> : des questions sur le mercato qui vient de s’écouler (transfert le plus cher, joueur le plus convoité, club le plus représenté…) et sur les règles du jeu. Il est <b>chronométré (5 minutes)</b> et se joue <b>une seule fois</b>. Chaque bonne réponse vaut <b>+1 flair</b>, et un <b>bonus de budget</b> s’ajoute selon ton score (≥10 → +5 M€, ≥15 → +15 M€, 20/20 → +30 M€). Après avoir joué, tu vois ton récap et le classement. Tu peux le rouvrir depuis <b>Plus ⋮ → « 🏁 Quiz mercato »</b>."],
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
@@ -10370,6 +10393,64 @@ async function shareBilan(b){
 // ---------- Journal du mercato (gazette hebdo) ----------
 // Compile l'actu des 7 derniers jours à partir des données publiques :
 // plus gros transferts, qui a le plus dépensé, pépite la plus disputée, podium.
+// ======================================================================
+// GALERIE DES COMPOSITIONS — le onze entrant de chaque équipe (post-deadline)
+// ======================================================================
+let GALERIE_MDS = [];
+async function renderGalerie(){
+  const sel = $('galerieMatchday'), body = $('galerieBody');
+  if(!sel || !body) return;
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  try { GALERIE_MDS = await api.galleryMatchdays(); }
+  catch(e){ body.innerHTML = '<div class="empty">Galerie indisponible (script 259 à passer).</div>'; sel.innerHTML=''; return; }
+  if(!GALERIE_MDS.length){
+    sel.innerHTML = '';
+    body.innerHTML = '<div class="empty">Aucune journée à afficher pour l\'instant. La galerie s\'ouvre après la date limite de composition.</div>';
+    return;
+  }
+  sel.innerHTML = GALERIE_MDS.map(md=>`<option value="${md.id}">${md.label||('Journée '+md.number)}</option>`).join('');
+  sel.onchange = ()=>loadGalerieMatchday(sel.value);
+  loadGalerieMatchday(sel.value);
+}
+
+const POS_LABEL = {GK:'Gardien', DEF:'Défenseurs', MID:'Milieux', FWD:'Attaquants'};
+const POS_ORDER = ['GK','DEF','MID','FWD'];
+
+async function loadGalerieMatchday(mdId){
+  const body = $('galerieBody');
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  const res = await api.lineupsGallery(mdId);
+  if(res && res.__error){
+    body.innerHTML = `<div class="empty">${res.__error}</div>`;
+    return;
+  }
+  if(!res.length){
+    body.innerHTML = '<div class="empty">Aucune composition déposée pour cette journée.</div>';
+    return;
+  }
+  body.innerHTML = res.map(team=>{
+    const players = Array.isArray(team.players) ? team.players : [];
+    // Regroupe par poste.
+    const byPos = {};
+    players.forEach(p=>{ (byPos[p.position] = byPos[p.position]||[]).push(p); });
+    const lines = POS_ORDER.filter(pos=>byPos[pos]&&byPos[pos].length).map(pos=>{
+      const names = byPos[pos].map(p=>{
+        const lead = (p.id===team.leader_id) ? ' <span style="color:var(--live,#e0574a);font-weight:800" title="Leader de la journée">🅒</span>' : '';
+        return `<span style="display:inline-block;background:var(--pitch);border:1px solid var(--line);border-radius:7px;padding:3px 8px;margin:2px 3px 2px 0;font-size:.82rem">${p.name}${lead}<span style="color:var(--muted);font-size:.72rem"> · ${p.club||'—'}</span></span>`;
+      }).join('');
+      return `<div style="margin:5px 0"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:2px">${POS_LABEL[pos]}</div>${names}</div>`;
+    }).join('');
+    const mine = team.is_me ? ' <span style="color:var(--transfer);font-size:.72rem">(toi)</span>' : '';
+    return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:'Saira Condensed','Archivo Narrow',sans-serif;font-weight:800;font-size:1.05rem">${team.team_name||team.display_name}${mine}</div>
+        <div style="font-family:'Saira',monospace;font-weight:800;color:var(--transfer);font-size:.95rem">${team.formation||'—'}</div>
+      </div>
+      ${lines}
+    </div>`;
+  }).join('');
+}
+
 async function renderPolls(){
   const box = $('pollsBody'); if(!box) return;
   box.innerHTML = '<div class="empty">Chargement…</div>';

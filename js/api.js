@@ -1673,6 +1673,38 @@ export async function myLineup(matchdayId, teamId) {
   const { data } = await sb.rpc('qm_my_lineup', args);
   return data ?? null;
 }
+// --- Phase de test ---
+export async function adminTestState() {
+  const { data } = await sb.rpc('qm_admin_test_state');
+  return data ?? { admin:false };
+}
+export async function adminSetTestManager(managerId) {
+  return sb.rpc('qm_admin_set_test_manager', { p_manager: managerId || null });
+}
+export async function adminSetTestViewer(managerId) {
+  return sb.rpc('qm_admin_set_test_viewer', { p_manager: managerId || null });
+}
+export async function adminSetMatchdayTest(matchdayId, isTest) {
+  return sb.rpc('qm_admin_set_matchday_test', { p_matchday_id: matchdayId, p_is_test: isTest });
+}
+export async function testSetMatchdayStatus(matchdayId, status) {
+  return sb.rpc('qm_test_set_matchday_status', { p_matchday_id: matchdayId, p_status: status });
+}
+
+// --- Galerie des compositions ---
+export async function adminSetGalleryOpen(matchdayId, open) {
+  return sb.rpc('qm_admin_set_gallery_open', { p_matchday_id: matchdayId, p_open: open });
+}
+export async function galleryMatchdays() {
+  const { data } = await sb.rpc('qm_gallery_matchdays');
+  return data ?? [];
+}
+export async function lineupsGallery(matchdayId) {
+  const { data, error } = await sb.rpc('qm_lineups_gallery', { p_matchday_id: matchdayId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+
 // --- Quiz de fin de mercato ---
 export async function mercatoQuizGet() {
   const { data } = await sb.rpc('qm_mercato_quiz_get');
