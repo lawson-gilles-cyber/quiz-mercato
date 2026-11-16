@@ -5250,7 +5250,7 @@ const FAQ_DATA = [
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
     ['C’est quoi les « Matchs virtuels » ? ⚔️',
-     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b>, et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore) <b>et par la formation choisie</b> (4-4-2, 3-5-2…) : la disposition compte vraiment. Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b> et un onglet <b>📝 Récit</b> qui raconte le match comme un vrai compte-rendu (mi-temps par mi-temps, passeur, buteur, note…), et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore) <b>et par la formation choisie</b> (4-4-2, 3-5-2…) : la disposition compte vraiment. Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
     ['C’est quoi les « Tournois » ? 🏆',
      "Des <b>coupes à élimination directe</b> organisées par l’organisation (menu <b>Plus ⋮ → 🏆 Tournois</b>). À chaque tour tu alignes ton onze ; le match se joue dès que ton adversaire a posé le sien, et le vainqueur monte jusqu’à la finale. Tu suis le <b>bracket</b> complet avec tous les scores, et tu peux rouvrir chaque feuille de match. En cas d’égalité le match est départagé (xG, tirs cadrés, puis au sort). Le <b>vainqueur du tournoi</b> gagne un bonus de flair. Amical : aucun effet sur le classement officiel."],
     ['C’est quoi les « Fiches tactiques » ? 📋',
@@ -11213,8 +11213,70 @@ async function showMatchSheet(matchId){
   const r = g.result;
   if(!r){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
   let lu = null; try { lu = await api.vmatchLineups(matchId); } catch(e){}
-  modal.innerHTML = vmSheetHTML(r, g.team_a, g.team_b, lu);
-  $('vmSheetClose').onclick = ()=>{ ov.style.display='none'; renderVmatch(); };
+  renderSheetWithTabs(modal, r, g.team_a, g.team_b, lu, matchId, ()=>{ ov.style.display='none'; renderVmatch(); });
+}
+
+// Feuille de match à onglets : Stats | Récit. Le récit est chargé à la demande.
+function renderSheetWithTabs(modal, result, teamA, teamB, lineups, matchId, onClose){
+  const tabBar = `
+    <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button id="vmTabStats" class="vmtab" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--transfer);background:var(--transfer);color:#1a1a1a;font-weight:700;cursor:pointer">Stats</button>
+      <button id="vmTabRecit" class="vmtab" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk);font-weight:600;cursor:pointer">📝 Récit</button>
+    </div>`;
+  // Rendu complet (stats) avec header/fermeture d'origine, + barre d'onglets insérée.
+  const renderStats = ()=>{
+    const full = vmSheetHTML(result, teamA, teamB, lineups);
+    // insère la barre d'onglets juste après le header (le bouton ×)
+    modal.innerHTML = full.replace('</button>\n    </div>', '</button>\n    </div>'+tabBar);
+    wireTabs(); bindClose(); markActive('stats');
+  };
+  const renderRecit = async ()=>{
+    modal.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800">Récit du match</div>
+        <button id="vmSheetClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+      </div>${tabBar}<div id="vmTabBody"><div class="empty" style="padding:24px">Rédaction du compte-rendu…</div></div>`;
+    wireTabs(); bindClose(); markActive('recit');
+    const n = await api.vmatchNarrative(matchId);
+    const body = $('vmTabBody'); if(!body) return;
+    if(n&&n.__error){ body.innerHTML=`<div class="empty" style="padding:18px">${n.__error}</div>`; return; }
+    body.innerHTML = narrativeHTML(n, teamA, teamB);
+  };
+  const wireTabs = ()=>{
+    const s=$('vmTabStats'), r=$('vmTabRecit');
+    if(s) s.onclick = renderStats;
+    if(r) r.onclick = renderRecit;
+  };
+  const markActive = (which)=>{
+    const s=$('vmTabStats'), r=$('vmTabRecit');
+    const on='background:var(--transfer);color:#1a1a1a;border-color:var(--transfer);font-weight:700';
+    const off='background:var(--pitch);color:var(--chalk);border-color:var(--line);font-weight:600';
+    if(s) s.style.cssText=`flex:1;padding:7px;border-radius:8px;border:1px solid;cursor:pointer;${which==='stats'?on:off}`;
+    if(r) r.style.cssText=`flex:1;padding:7px;border-radius:8px;border:1px solid;cursor:pointer;${which==='recit'?on:off}`;
+  };
+  const bindClose = ()=>{ const c=$('vmSheetClose'); if(c) c.onclick=onClose; };
+  renderStats();
+}
+
+// Met en forme le récit narratif (intro + mi-temps + conclusion).
+function narrativeHTML(n, A, B){
+  if(!n) return '<div class="empty">Récit indisponible.</div>';
+  const esc = vmEsc;
+  const halves = Array.isArray(n.halves)?n.halves:[];
+  let html = `<div style="font-size:.9rem;line-height:1.55">`;
+  html += `<div style="text-align:center;font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1rem;margin-bottom:8px">${esc(A)} <span style="color:var(--muted)">vs</span> ${esc(B)}</div>`;
+  if(n.intro) html += `<p style="color:var(--chalk);font-style:italic;margin:0 0 14px">${esc(n.intro)}</p>`;
+  halves.forEach(h=>{
+    html += `<div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--transfer);font-weight:800;margin:14px 0 4px">⚡ ${esc(h.title||'')}</div>`;
+    if(h.lead) html += `<p style="color:var(--muted);margin:0 0 8px">${esc(h.lead)}</p>`;
+    const hl = Array.isArray(h.highlights)?h.highlights:[];
+    hl.forEach(line=>{
+      html += `<div style="padding:4px 0 4px 12px;border-left:2px solid var(--line);margin:3px 0;color:var(--chalk)">${esc(line)}</div>`;
+    });
+  });
+  if(n.conclusion) html += `<p style="color:var(--chalk);font-weight:600;margin:14px 0 0;padding-top:10px;border-top:1px solid var(--line)">${esc(n.conclusion)}</p>`;
+  html += `</div>`;
+  return html;
 }
 
 // Construit le HTML d'une feuille de match (partagé défis + tournoi).

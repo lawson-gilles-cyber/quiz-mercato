@@ -2210,3 +2210,10 @@ export async function adminSetVmatchWindow(days) {
   if (error) return { __error: error.message };
   return data;
 }
+
+// Récit narratif d'un match (280)
+export async function vmatchNarrative(matchId) {
+  const { data, error } = await sb.rpc('qm_vmatch_narrative_by_match', { p_id: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}
