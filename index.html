@@ -1237,8 +1237,8 @@
       <div>
         <div class="status"><span class="dot"></span>
           <span id="homeStatus" style="font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:2px;font-size:.78rem">Mercato</span></div>
-        <h2>Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.</h2>
-        <p>Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.</p>
+        <h2 id="homeHeroTitle">Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.</h2>
+        <p id="homeHeroText">Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.</p>
         <div id="homeCTA" style="margin-top:18px"></div>
         <button id="obLaunch" class="ob-launch" type="button" data-ic="compass" style="display:none;align-items:center;justify-content:center;gap:6px">Guide de démarrage</button>
       </div>
@@ -8291,6 +8291,16 @@ async function renderHome(){
   MARKET_OPEN = marketOpen;   // mémorisé pour le ruban (masque l'actu transferts si fermé)
   $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Mercato fermé';
 
+  // Bloc héros adapté à l'état du mercato.
+  const _ht = $('homeHeroTitle'), _hp = $('homeHeroText');
+  if(marketOpen){
+    if(_ht) _ht.innerHTML = 'Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.';
+    if(_hp) _hp.textContent = 'Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.';
+  } else {
+    if(_ht) _ht.innerHTML = 'Le mercato est <em style="color:var(--transfer)">terminé</em>.<br>Place au jeu !';
+    if(_hp) _hp.textContent = 'Les enchères sont closes. Ton effectif est constitué : compose ton onze chaque journée, suis le classement, relève des défis et affronte les autres managers en matchs virtuels.';
+  }
+
   // Mercato fermé → on masque les cartes de marché (enchères, joueur convoité).
   // « Managers en lice » reste (stat de ligue valable hors mercato).
   const _ca = $('homeCardAuctions'), _cw = $('homeCardWanted');
@@ -8326,10 +8336,14 @@ async function renderHome(){
     setCountdownRing(0, false);
   }
 
-  // CTA selon connexion
-  $('homeCTA').innerHTML = ME
-    ? `<button class="bid-btn" onclick="document.querySelector('[data-v=&quot;auctions&quot;]').click()" style="margin:0">Voir les enchères →</button>`
-    : `<button class="bid-btn" onclick="document.getElementById('authBtn').click()" style="margin:0">Rejoindre le mercato →</button>`;
+  // CTA selon connexion ET état du mercato
+  if(!ME){
+    $('homeCTA').innerHTML = `<button class="bid-btn" onclick="document.getElementById('authBtn').click()" style="margin:0">Rejoindre le mercato →</button>`;
+  } else if(marketOpen){
+    $('homeCTA').innerHTML = `<button class="bid-btn" onclick="document.querySelector('[data-v=&quot;auctions&quot;]').click()" style="margin:0">Voir les enchères →</button>`;
+  } else {
+    $('homeCTA').innerHTML = `<button class="bid-btn" onclick="document.querySelector('[data-v=&quot;lineup&quot;]').click()" style="margin:0">Composer mon onze →</button>`;
+  }
 
   // Derniers mouvements (mini fil)
   $('homeFeed').innerHTML = moves.length
@@ -9511,6 +9525,13 @@ function setCountdownRing(frac, urgent){
 
 function updateHomeClock(){
   if(!$('homeNextClock')) return;
+  // Mercato clôturé : on n'affiche pas de minuteur, mais l'état « terminé ».
+  if(marketIsClosedNow()){
+    $('homeNextClock').textContent='🔒';
+    $('homeNextLabel').textContent='mercato terminé';
+    setCountdownRing(0, false);
+    return;
+  }
   if(!HOME_NEXT_END){ setCountdownRing(0, false); return; }
   const now = new Date();
   const end = new Date(HOME_NEXT_END);
