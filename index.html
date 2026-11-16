@@ -8280,6 +8280,7 @@ async function renderHome(){
   // Statut marché
   let marketOpen = true;
   try { marketOpen = await api.marketIsOpen(); } catch(e){}
+  MARKET_OPEN = marketOpen;   // mémorisé pour le ruban (masque l'actu transferts si fermé)
   $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Mercato fermé';
 
   // Enchères en cours
@@ -9198,6 +9199,7 @@ async function renderDailyChecklist(auctions){
 // arrière-plan tant qu'on est sur l'accueil.
 let LIVE_FOOT = [];        // [{kind, comp, text, status, id}]
 let HOME_CACHE = null;     // dernières données passées à renderTicker (redessin léger)
+let MARKET_OPEN = true;    // état du mercato ; quand false, le ruban masque l'actu transferts
 let _footTimer = null;     // interval de rafraîchissement
 let _footLastFetch = 0;
 
@@ -9280,10 +9282,14 @@ function renderTicker(moves, auctions, managers, records){
   const now = Date.now();
   const fmtLeft = (ms)=>{ const m=Math.max(0,Math.round(ms/60000)); if(m<60) return m+' min'; const h=Math.floor(m/60); return h<24?(h+' h'):(Math.floor(h/24)+' j'); };
 
-  const aucs = (auctions||[]).slice();
+  // Quand le mercato est FERMÉ, on ne montre plus l'actu liée aux transferts
+  // (enchères, alertes perso, mouvements, agents libres, pouls du marché) :
+  // elle n'a plus de sens. On garde le classement et l'actu foot.
+  const mktOpen = MARKET_OPEN !== false;
+  const aucs = mktOpen ? (auctions||[]).slice() : [];
 
   // 0) ALERTES PERSONNELLES (manager connecté) — priorité absolue.
-  if(ME){
+  if(mktOpen && ME){
     const watch = AUC_WATCH || new Set();
     const mine = aucs.filter(a=>{ const tb=a.top_bidder_id||a.top_bidder?.id; return watch.has(a.id) || (tb && tb===ME.id); });
     const outbid = mine.filter(a=>{ const tb=a.top_bidder_id||a.top_bidder?.id; return tb && tb!==ME.id; });
@@ -9323,7 +9329,7 @@ function renderTicker(moves, auctions, managers, records){
     });
 
   // 3) Derniers mouvements (achats / ventes / échanges / libérations).
-  (moves||[]).forEach(m=>{
+  (mktOpen ? (moves||[]) : []).forEach(m=>{
     const pname = m.player?.name || 'Un joueur';
     let icn, txt;
     if(m.to && m.from){ icn='repeat'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
@@ -9343,9 +9349,9 @@ function renderTicker(moves, auctions, managers, records){
     }
   }
 
-  // 5) Agents libres réclamables (gratuits, périssables).
+  // 5) Agents libres réclamables (gratuits, périssables) — seulement si mercato ouvert.
   try {
-    const claimable = (FREE_AGENTS||[]).filter(a=>a.claimable);
+    const claimable = mktOpen ? (FREE_AGENTS||[]).filter(a=>a.claimable) : [];
     if(claimable.length){
       const names = claimable.slice(0,3).map(a=>a.name).join(', ');
       items.push(it('gift', `🆓 <b>${claimable.length}</b> agent${claimable.length>1?'s':''} libre${claimable.length>1?'s':''} à réclamer : ${names}`, '', 'market'));
