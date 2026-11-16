@@ -2152,6 +2152,7 @@
 
         <h3 class="rule-h">33. Les matchs virtuels</h3>
         <p class="rule-p">Entre deux phases (par exemple pendant l'intersaison), tu peux <b>défier un autre manager</b> en match virtuel (menu Plus ⋮ → « ⚔️ Matchs virtuels »). Tu alignes ton onze, l'adversaire aligne le sien, et le match est <b>simulé automatiquement</b> à partir des caractéristiques de tes joueurs.</p>
+        <p class="rule-p">⏳ Les matchs virtuels ne sont ouverts que pendant une <b>fenêtre limitée</b> (en général 5 jours). Un message t'indique le temps restant. Passé le délai, le menu est <b>grisé</b> et tu ne peux plus lancer de nouveau défi — mais tu peux toujours <b>finir les défis reçus et les tournois en cours</b>. L'organisation peut rouvrir une nouvelle fenêtre quand elle le souhaite.</p>
         <ol class="rule-ol">
           <li>Tu choisis une <b>formation</b> (4-4-2, 3-5-2, 4-3-3…) et tu composes ton onze en respectant ce schéma (1 gardien + le bon nombre de défenseurs, milieux et attaquants).</li>
           <li>La <b>disposition compte</b> : plus de défenseurs = défense plus solide mais attaque plus légère (et inversement), le milieu pèse sur la possession. Le 4-4-2 est l'équilibre de référence. Tu vois la répartition des forces (attaque / milieu / défense) de chaque équipe sur la feuille de match.</li>
@@ -10634,6 +10635,56 @@ const vmEsc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&
 let VM_SQUAD = [];          // mon effectif [{id,name,pos,club}]
 let VM_PICK = new Set();    // ids sélectionnés pour le onze en cours
 let VM_PICK_MODE = null;    // {kind:'create',opponentId} | {kind:'accept',matchId}
+let VMATCH_WINDOW = null;   // {open, ends_at, seconds_left, window_days}
+
+// Grise les entrées « Matchs virtuels » et « Tournois » du menu Plus quand la
+// fenêtre est fermée (le clic reste possible pour finir les matchs en cours).
+async function refreshVmatchMenuState(){
+  let win; try { win = await api.vmatchWindow(); } catch(e){ return; }
+  VMATCH_WINDOW = win;
+  const closed = win && !win.open;
+  document.querySelectorAll('#moreMenu button[data-v="vmatch"], #moreMenu button[data-v="vtournament"]').forEach(b=>{
+    b.style.opacity = closed ? '.5' : '';
+    b.title = closed ? 'Fenêtre fermée — tu peux finir les matchs en cours' : '';
+    b.dataset.vclosed = closed ? '1' : '';
+  });
+}
+
+// Formate une durée (secondes) en « Xj Yh » ou « Yh Zmin ».
+function vmFmtDuration(sec){
+  sec = Math.max(0, parseInt(sec,10)||0);
+  const d = Math.floor(sec/86400), h = Math.floor((sec%86400)/3600), m = Math.floor((sec%3600)/60);
+  if(d>0) return `${d} jour${d>1?'s':''}${h>0?` et ${h} h`:''}`;
+  if(h>0) return `${h} h${m>0?` ${m} min`:''}`;
+  return `${m} min`;
+}
+// Pop-up informatif sur la fenêtre, une fois par jour et par état (ouverte/fermée).
+function maybeShowVmatchWindowNotice(win){
+  if(!win) return;
+  try {
+    const key = 'vmwin_notice', today = new Date().toISOString().slice(0,10);
+    const seen = JSON.parse(localStorage.getItem(key)||'null');
+    const state = win.open ? ('open:'+today) : ('closed:'+today);
+    if(seen === state) return;
+    localStorage.setItem(key, state);
+  } catch(e){}
+  const ov=$('uxOverlay'), md=$('uxModal'); if(!ov||!md) return;
+  if(win.open){
+    md.innerHTML = `
+      <div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--transfer);font-weight:800;margin-bottom:6px">⚔️ Matchs virtuels</div>
+      <h3 style="margin-top:0">C'est ouvert !</h3>
+      <p style="color:var(--chalk)">Les matchs virtuels sont disponibles encore <b>${vmFmtDuration(win.seconds_left)}</b>. Profites-en pour défier les autres managers et grimper au classement amical — après, le menu se grisera jusqu'à une éventuelle réouverture.</p>
+      <div class="ux-actions" style="margin-top:4px"><button class="ux-ok" data-close>Compris</button></div>`;
+  } else {
+    md.innerHTML = `
+      <div style="font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--live,#e0574a);font-weight:800;margin-bottom:6px">⚔️ Matchs virtuels</div>
+      <h3 style="margin-top:0">Fenêtre fermée</h3>
+      <p style="color:var(--chalk)">La période des matchs virtuels est terminée. Tu ne peux plus lancer de nouveau défi, mais tu peux <b>finir les défis reçus et les tournois en cours</b>. L'organisation rouvrira peut-être une nouvelle fenêtre.</p>
+      <div class="ux-actions" style="margin-top:4px"><button class="ux-ok" data-close>Compris</button></div>`;
+  }
+  ov.classList.add('show');
+  md.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>ov.classList.remove('show'));
+}
 
 // Charge (une fois) mon effectif jouable, partagé par les matchs virtuels et
 // les fiches tactiques. force=true pour rafraîchir après un transfert.
@@ -10834,17 +10885,20 @@ async function openTacticChooser(onPick){
 async function renderVmatch(){
   const body = $('vmatchBody'); if(!body) return;
   body.innerHTML = '<div class="empty">Chargement…</div>';
-  let pending=[], history=[], opponents=[], today=0, leaderboard=[], badges=[];
+  let pending=[], history=[], opponents=[], today=0, leaderboard=[], badges=[], win={open:true};
   try {
-    [pending, history, opponents, today, leaderboard, badges] = await Promise.all([
+    [pending, history, opponents, today, leaderboard, badges, win] = await Promise.all([
       api.vmatchPending(), api.vmatchHistory(), api.vmatchOpponents(), api.vmatchCreatedToday(),
-      api.vmatchLeaderboard(), api.vmatchBadges()
+      api.vmatchLeaderboard(), api.vmatchBadges(), api.vmatchWindow()
     ]);
   } catch(e){
     body.innerHTML = '<div class="empty">Matchs virtuels indisponibles (scripts 264 + 265 à passer).</div>';
     return;
   }
+  VMATCH_WINDOW = win;
   VM_PICK = new Set(); VM_PICK_MODE = null;
+  const winOpen = win && win.open;
+  maybeShowVmatchWindowNotice(win);
 
   const incoming = pending.filter(p=>p.role==='incoming');
   const outgoing = pending.filter(p=>p.role==='outgoing');
@@ -10856,6 +10910,15 @@ async function renderVmatch(){
   const l = history.filter(h=>h.outcome==='loss').length;
 
   let html = '';
+
+  // --- Bandeau fenêtre d'activité ---
+  if(!winOpen){
+    html += `<div class="card" style="background:rgba(224,87,74,.10);border:1px solid var(--live,#e0574a);border-radius:12px;padding:12px 15px;margin-bottom:14px;font-size:.88rem">
+      🔒 <b>Les matchs virtuels sont fermés.</b> Tu ne peux plus lancer de nouveau défi — mais tu peux toujours <b>finir les défis reçus et tournois en cours</b>. L'organisation rouvrira peut-être une nouvelle fenêtre.</div>`;
+  } else if(win && win.seconds_left){
+    html += `<div class="card" style="background:rgba(245,197,66,.08);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:.84rem;color:var(--muted)">
+      ⏳ Fenêtre en cours — il te reste <b style="color:var(--chalk)">${vmFmtDuration(win.seconds_left)}</b> pour défier et jouer.</div>`;
+  }
 
   // --- Défis reçus (à moi de jouer) ---
   if(incoming.length){
@@ -10872,7 +10935,10 @@ async function renderVmatch(){
       </div>`).join('');
   }
 
-  // --- Nouveau défi ---
+  // --- Nouveau défi (seulement si la fenêtre est ouverte) ---
+  if(!winOpen){
+    // fenêtre fermée : pas de bloc « lancer un défi »
+  } else {
   html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:16px 0 8px">Lancer un défi</div>`;
   if(!opponents.length){
     html += `<div class="empty">Aucun adversaire disponible pour l'instant.</div>`;
@@ -10888,6 +10954,7 @@ async function renderVmatch(){
       <div class="hint" style="font-size:.76rem;margin-top:3px">Défis restants aujourd'hui&nbsp;: <b>${remaining}/${limit}</b></div>
     </div>`;
   }
+  }  // fin du bloc fenêtre ouverte
 
   // --- Défis envoyés (en attente) ---
   if(outgoing.length){
@@ -12003,6 +12070,7 @@ async function init(){
   renderHommage();             // hommage / distinction (bandeau accueil)
   renderThanks();              // message de remerciement / fin de test (accueil)
   renderDailyRecap();          // récap quotidien « ce qui s'est passé » (accueil)
+  refreshVmatchMenuState();    // grise « Matchs virtuels / Tournois » si la fenêtre est fermée
   renderHome();
   renderMarket();
   renderAuctions();

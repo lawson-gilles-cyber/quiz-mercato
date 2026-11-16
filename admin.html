@@ -991,6 +991,20 @@
     <div id="vtAdminList" style="margin-top:16px"></div>
   </div>
 
+  <!-- Fenêtre d'activité des matchs virtuels -->
+  <h2 data-ic="clock">⏳ Fenêtre des matchs virtuels</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:12px">Les matchs virtuels (défis + tournois) ne sont ouverts que pendant une <b>fenêtre limitée</b>. Passé le délai, les managers ne peuvent plus <b>lancer</b> de nouveau défi (le menu se grise), mais ils peuvent toujours <b>finir les matchs et tournois en cours</b>. Tu peux rouvrir une fenêtre quand tu veux, ou fermer immédiatement.</p>
+    <div id="vmwinState" style="margin-bottom:12px;font-family:'Space Mono';font-size:.9rem"></div>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <label style="margin:0">Durée (jours)</label>
+      <input id="vmwinDays" type="number" min="1" max="60" value="5" style="width:80px">
+      <button class="btn-primary btn-sm" id="btnVmwinOpen">Ouvrir / prolonger</button>
+      <button class="btn-ghost btn-sm" id="btnVmwinClose" style="color:var(--live)">Fermer maintenant</button>
+      <span id="vmwinMsg" class="hint" style="font-size:.82rem"></span>
+    </div>
+  </div>
+
   <!-- Draft -->
   <h2 data-ic="target">Draft de début de saison</h2>
   <div class="card" style="margin-bottom:14px">
@@ -1658,7 +1672,7 @@ async function refreshGate(){
   $('gate').classList.add('hidden'); $('console').classList.remove('hidden');
   maybeShowWelcome();
   makeSectionsCollapsible();   // replie chaque section (demande d'Audrey)
-  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadResumeDate(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadVtournament(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
+  loadPhase(); loadPlayers(); loadProposals(); loadScheduled(); loadTransactions(); loadBonusSettings(); loadBonusTrace(); loadTheme(); loadReleases(); loadMatchdays(); loadTestPhase(); loadResumeDate(); loadCoaches(); loadDelegates(); loadScoringMatchdays(); loadWindows(); loadMarketDates(); loadQuizAdmin(); loadAwards(); loadInjuries(); loadAdminTools(); loadRanking(); loadSquadControl(); loadRetired(); loadDirectTest(); loadOverview(); loadFinance(); loadProposalHistory(); loadTradesHistory(); loadSeasons(); loadDivisions(); loadChallenges(); loadBaremes(); loadMuteList(); loadDeleteManagerSelect(); loadPronos(); loadMatchPronos(); loadPlayerNotes(); loadPolls(); loadVtournament(); loadVmwin(); loadAnalytics(); loadDraftAdmin(); renderAdminFaq(); loadAnnonce(); loadHonor(); loadThanks(); loadAdminActions(); loadHealth(); loadConseilAdmin(); loadScoutLock(); loadClosedAuctions();
 }
 
 // Organise les sections (<h2> + contenu) en ONGLETS thématiques, pour ne
@@ -1680,7 +1694,7 @@ const ADMIN_TABS = [
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison"] },
   { id:'jeu', label:'🎮 Jeu & animations', titles:[
       "Journées & Compositions","Notes des joueurs — par journée","Pronostics — matchs","Pronostics",
-      "Défis & objectifs","Sondages de ligue","🏆 Tournoi (coupe éclair)","Draft"] },
+      "Défis & objectifs","Sondages de ligue","🏆 Tournoi (coupe éclair)","⏳ Fenêtre des matchs virtuels","Draft"] },
   { id:'config', label:'🎛️ Config', titles:[
       "Éditeur de barèmes","Barèmes","Bonus & Quiz","Apparence du site","Export","Récap de journée"] },
   { id:'aide', label:'❓ Aide', titles:[
@@ -4403,6 +4417,37 @@ if($('btnCreateVt')) $('btnCreateVt').onclick = async ()=>{
   loadVtournament();
 };
 
+// ---------- Fenêtre des matchs virtuels (admin) ----------
+function vmwinFmt(sec){
+  sec = Math.max(0, parseInt(sec,10)||0);
+  const d=Math.floor(sec/86400), h=Math.floor((sec%86400)/3600), m=Math.floor((sec%3600)/60);
+  if(d>0) return `${d} j ${h} h`; if(h>0) return `${h} h ${m} min`; return `${m} min`;
+}
+async function loadVmwin(){
+  const el=$('vmwinState'); if(!el) return;
+  let w; try { w = await api.vmatchWindow(); } catch(e){ el.innerHTML='<span class="hint">Passe le script 277 pour activer la fenêtre.</span>'; return; }
+  if(w.open){
+    const end = w.ends_at ? new Date(w.ends_at).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}) : '—';
+    el.innerHTML = `<span style="color:#4ade80">● OUVERTE</span> — fin le <b>${end}</b> (reste ${vmwinFmt(w.seconds_left)})`;
+  } else {
+    el.innerHTML = `<span style="color:var(--live)">● FERMÉE</span> — les managers ne peuvent plus lancer de défi (ils finissent les matchs en cours).`;
+  }
+}
+if($('btnVmwinOpen')) $('btnVmwinOpen').onclick = async ()=>{
+  const days = parseInt($('vmwinDays').value,10)||5;
+  const r = await api.adminSetVmatchWindow(days);
+  if(r&&r.__error) return showMsg($('vmwinMsg'), r.__error, false);
+  showMsg($('vmwinMsg'), `Fenêtre ouverte pour ${days} jour(s).`, true);
+  loadVmwin();
+};
+if($('btnVmwinClose')) $('btnVmwinClose').onclick = async ()=>{
+  if(!confirm('Fermer les matchs virtuels maintenant ? Les matchs en cours restent jouables.')) return;
+  const r = await api.adminSetVmatchWindow(0);
+  if(r&&r.__error) return showMsg($('vmwinMsg'), r.__error, false);
+  showMsg($('vmwinMsg'), 'Matchs virtuels fermés.', true);
+  loadVmwin();
+};
+
 // ---------- Draft (admin) ----------
 async function loadDraftAdmin(){
   const el = $('draftAdminState'); if(!el) return;
@@ -6036,6 +6081,8 @@ const ADMIN_FAQ = [
      "Le moteur n'est pas du pur hasard : il part des <b>attributs des joueurs</b> (forces d'attaque, milieu, défense par ligne), <b>ajustés par la forme récente</b> de chacun (moyenne de ses 3 dernières notes Sofascore, effet borné à ±10 %) <b>et par la formation</b> choisie (un 5-3-2 défend mieux mais attaque moins qu'un 3-4-3), pour calculer possession, occasions, qualité de tir et buts — avec une part d'aléa à <b>graine fixe</b> dérivée du match (le même match rejoué donne exactement le même score). La <b>discipline</b> est gérée (2 jaunes = rouge + exclusion), et une équipe réduite à dix joue <b>affaiblie</b> pour le temps restant (malus cumulatif, proportionnel au temps joué en infériorité). Sur un gros écart de niveau le favori gagne environ 6 fois sur 10 — comme au vrai foot, l'outsider peut créer la surprise. Un joueur sans historique de notes compte uniquement par ses attributs. Il n'y a <b>pas de réglage</b> à ajuster ; c'est voulu. Rappelle au manager que c'est une animation sans enjeu (flair uniquement), et que chacun compose <b>à l'aveugle</b> — les deux onze ne se dévoilent qu'après le match."],
     ['Qu’est-ce que les « Fiches tactiques » des managers ? 📋',
      "Chaque manager peut enregistrer ses propres <b>schémas réutilisables</b> (4-4-2, 3-4-3…) avec un joueur par poste, puis les recharger en un clic dans sa <b>compo officielle</b> ou pour un <b>match virtuel</b>. C'est <b>privé à chaque manager</b> (personne d'autre ne voit ses fiches) et composé uniquement de <b>ses</b> joueurs. Si un joueur de la fiche est vendu, la fiche le signale et le manager complète le trou au chargement. Rien à faire côté admin : aucune incidence sur le marché, les budgets ou le classement."],
+    ['Comment gérer la fenêtre des matchs virtuels (les 5 jours) ? ⏳',
+     "Onglet <b>« 🎮 Jeu & animations » → encart « ⏳ Fenêtre des matchs virtuels »</b>. Les matchs virtuels ne sont ouverts que pendant une <b>fenêtre limitée</b> (5 jours par défaut, démarrée automatiquement au déploiement). Quand elle expire, le menu « Matchs virtuels / Tournois » se <b>grise</b> côté managers : ils ne peuvent plus <b>lancer</b> de nouveau défi ni créer de tournoi, mais ils peuvent toujours <b>finir les matchs et tournois en cours</b>. Tu peux « <b>Ouvrir / prolonger</b> » pour (re)lancer une fenêtre de N jours, ou « <b>Fermer maintenant</b> » pour couper immédiatement. Un pop-up informe les managers de la durée en cours ou de la fermeture."],
     ['Comment lancer un tournoi (coupe éclair) ? 🏆',
      "Onglet <b>« 🎮 Jeu & animations » → encart « 🏆 Tournoi (coupe éclair) »</b> : donne un nom, <b>coche au moins 2 participants</b>, puis « Créer le tournoi ». Le bracket à élimination directe est généré automatiquement (complété à la puissance de 2 avec des <b>byes</b> si besoin). Ensuite <b>tout est autonome</b> : chaque manager aligne son onze à chaque tour depuis <b>Plus ⋮ → 🏆 Tournois</b>, le match se joue dès que les deux onze sont posés, le vainqueur monte, et le tournoi se clôt tout seul avec un bonus de flair au gagnant. Tu peux <b>annuler</b> un tournoi en cours depuis la liste (les matchs déjà joués restent). Idéal pour animer l'intersaison — aucun effet sur le classement officiel."],
   ]],

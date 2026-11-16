@@ -2199,3 +2199,14 @@ export async function vtournamentMatchLineups(matchId) {
   if (error) return { __error: error.message };
   return data;
 }
+
+// Fenêtre d'activité des matchs virtuels (277)
+export async function vmatchWindow() {
+  const { data } = await sb.rpc('qm_vmatch_window');
+  return data ?? { open:false, ends_at:null, seconds_left:0, window_days:5 };
+}
+export async function adminSetVmatchWindow(days) {
+  const { data, error } = await sb.rpc('qm_admin_set_vmatch_window', { p_days: days });
+  if (error) return { __error: error.message };
+  return data;
+}
