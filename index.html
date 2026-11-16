@@ -1273,8 +1273,8 @@
       </div>
     </div>
     <div class="newsgrid">
-      <div class="news"><div class="k">Enchères en cours</div><div class="v" id="homeActiveAuctions"><b>—</b></div></div>
-      <div class="news"><div class="k">Joueur le plus convoité</div><div class="v" id="homeMostWanted"><b>—</b></div></div>
+      <div class="news" id="homeCardAuctions"><div class="k">Enchères en cours</div><div class="v" id="homeActiveAuctions"><b>—</b></div></div>
+      <div class="news" id="homeCardWanted"><div class="k">Joueur le plus convoité</div><div class="v" id="homeMostWanted"><b>—</b></div></div>
       <div class="news"><div class="k">Managers en lice</div><div class="v" id="homeManagers"><b>—</b></div></div>
     </div>
     <!-- Checklist du jour (manager connecté) -->
@@ -8290,6 +8290,12 @@ async function renderHome(){
   try { marketOpen = await api.marketIsOpen(); } catch(e){}
   MARKET_OPEN = marketOpen;   // mémorisé pour le ruban (masque l'actu transferts si fermé)
   $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Mercato fermé';
+
+  // Mercato fermé → on masque les cartes de marché (enchères, joueur convoité).
+  // « Managers en lice » reste (stat de ligue valable hors mercato).
+  const _ca = $('homeCardAuctions'), _cw = $('homeCardWanted');
+  if(_ca) _ca.style.display = marketOpen ? '' : 'none';
+  if(_cw) _cw.style.display = marketOpen ? '' : 'none';
 
   // Enchères en cours
   $('homeActiveAuctions').innerHTML = `<b>${auctions.length}</b>`;
