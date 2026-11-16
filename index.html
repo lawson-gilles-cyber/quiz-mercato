@@ -4511,7 +4511,9 @@ async function renderAuctions(){
       : `<div class="col-empty">Aucune</div>`;
   }
   applyAucFilters();  // remplit la colonne "live" selon les filtres (+ updateColsHasMore)
-  updateSpeaker(open, transfers||[]);  // commentaire live du marché
+  let mktOpen = true; try { mktOpen = await api.marketIsOpen(); } catch(_){}
+  MARKET_OPEN = mktOpen;
+  updateSpeaker(open, transfers||[], mktOpen);  // commentaire live du marché
   updateColsHasMore();
   updateAucStickyBar();  // barre d'enchère flottante (action à portée de clic)
 }
@@ -4529,9 +4531,15 @@ function spPush(ic, txt){
   if(SP_LINES.length>SP_MAX) SP_LINES.length = SP_MAX;
 }
 function spPick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-function updateSpeaker(auctions, transfers){
+function updateSpeaker(auctions, transfers, marketOpen){
   const box = $('speaker'), feed = $('speakerFeed');
   if(!box || !feed) return;
+  // Mercato fermé : pas de commentaire « live » du marché. On masque le direct.
+  if(marketOpen === false){
+    SP_LINES = []; SP_SNAP = null;
+    box.style.display = 'none';
+    return;
+  }
   const live = (auctions||[]).filter(a=>a.player);
   const prices = {}, interest = {};
   live.forEach(a=>{ prices[a.id]=Number(a.current_price)||0; interest[a.id]=a.interest||0; });
