@@ -1281,6 +1281,10 @@
       <div class="news" id="homeCardPoints" style="display:none"><div class="k">Mes points</div><div class="v" id="homeMyPoints"><b>—</b></div></div>
       <div class="news"><div class="k" id="homeManagersK">Managers en lice</div><div class="v" id="homeManagers"><b>—</b></div></div>
     </div>
+    <!-- Mon duel (phase de jeu) : rivaux devant/derrière -->
+    <div id="homeDuel" style="display:none;margin-top:18px"></div>
+    <!-- Activité de la ligue (phase de jeu) : temps forts collectifs -->
+    <div id="homeLeagueFeed" style="display:none;margin-top:22px"></div>
     <!-- Checklist du jour (manager connecté) -->
     <div id="dailyChecklist" class="daily-check" style="display:none"></div>
     <!-- Tendances du marché (ce qui bouge) -->
@@ -8356,6 +8360,11 @@ async function renderHomeGamePhase(managers){
     catch(e){ needLineup = true; }
   }
 
+  // --- Carte « Mon duel » : rivaux juste devant / juste derrière -----------
+  renderHomeDuel(sorted, idx);
+  // --- Activité de la ligue : temps forts collectifs de la saison ----------
+  try { await renderHomeLeagueFeed(managers); } catch(e){ const b=$('homeLeagueFeed'); if(b){ b.style.display='none'; } }
+
   if(openMd && needLineup && openMd.lineup_deadline){
     // Cercle = compte à rebours de la prochaine compo.
     HOME_RING_MODE = 'matchday';
@@ -8371,6 +8380,87 @@ async function renderHomeGamePhase(managers){
     if($('homeNextLabel')) $('homeNextLabel').textContent = idx>=0 ? `sur ${total} managers` : 'classement';
     setCountdownRing(frac, false);
   }
+}
+
+// « Activité de la ligue » : temps forts collectifs, construits à partir des
+// données déjà disponibles (classement + évolution + transferts récents).
+async function renderHomeLeagueFeed(managers){
+  const box = $('homeLeagueFeed'); if(!box) return;
+  const esc = vmEsc;
+  const I = (n,s)=> (typeof ic==='function'?ic(n,s||16):'');
+  const items = [];
+
+  // 1) Meilleurs à la dernière journée clôturée (last_md_points).
+  const byLast = [...(managers||[])].filter(m=>Number(m.last_md_points)>0)
+    .sort((a,b)=>Number(b.last_md_points)-Number(a.last_md_points)).slice(0,3);
+  byLast.forEach((m,i)=>{
+    items.push({ ic:'star', c:'#f0b429',
+      txt:`<b>${esc(m.display_name)}</b> ${i===0?'cartonne':'brille'} à la dernière journée : <b>+${m.last_md_points} pts</b>` });
+  });
+
+  // 2) Plus fortes progressions (trend ▲) depuis la dernière journée.
+  let trend = [];
+  try { trend = await api.rankingWithTrend(); } catch(e){}
+  const climbers = (trend||[]).filter(m=>Number(m.trend)>0)
+    .sort((a,b)=>Number(b.trend)-Number(a.trend)).slice(0,2);
+  climbers.forEach(m=>{
+    items.push({ ic:'trendingUp', c:'#4ade80',
+      txt:`<b>${esc(m.display_name)}</b> grimpe de <b>${m.trend}</b> place${Number(m.trend)>1?'s':''} au classement` });
+  });
+
+  // 3) Leader du moment.
+  const sorted = [...(managers||[])].sort((a,b)=>Number(b.season_points||0)-Number(a.season_points||0));
+  if(sorted.length){ const L=sorted[0];
+    items.push({ ic:'trophy', c:'var(--transfer)', txt:`👑 <b>${esc(L.display_name)}</b> est en tête avec <b>${L.season_points||0} pts</b>` });
+  }
+
+  // 4) Derniers mouvements marquants (si encore pertinents).
+  try {
+    const moves = await api.recentTransfers(4);
+    (moves||[]).slice(0,2).forEach(m=>{
+      const pn = m.player?.name||'un joueur';
+      if(m.to && m.from) items.push({ ic:'repeat', c:'#5fd0e0', txt:`<b>${esc(m.from.display_name)}</b> → <b>${esc(m.to.display_name)}</b> : ${esc(pn)}` });
+      else if(m.to) items.push({ ic:'trendingUp', c:'#4ade80', txt:`<b>${esc(m.to.display_name)}</b> a recruté ${esc(pn)}` });
+    });
+  } catch(e){}
+
+  if(!items.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.style.display='block';
+  box.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:12px">${I('zap')} Activité de la ligue</div>
+    ${items.slice(0,6).map(it=>`
+      <div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
+        <span style="display:inline-flex;flex:0 0 auto;color:${it.c}">${I(it.ic,16)}</span>
+        <span style="font-size:.86rem;color:var(--chalk)">${it.txt}</span>
+      </div>`).join('')}`;
+}
+
+// Carte « Mon duel » : le rival juste devant (à rattraper) et juste derrière
+// (à tenir), avec l'écart de points. Donne un objectif concret chaque journée.
+function renderHomeDuel(sorted, idx){
+  const box = $('homeDuel'); if(!box) return;
+  if(!ME || idx<0 || !sorted.length){ box.style.display='none'; box.innerHTML=''; return; }
+  const me = sorted[idx];
+  const myPts = Number(me.season_points||0);
+  const ahead = idx>0 ? sorted[idx-1] : null;        // rival devant
+  const behind = idx<sorted.length-1 ? sorted[idx+1] : null;  // rival derrière
+  const esc = vmEsc;
+  const side = (m, label, color, gapTxt)=> m ? `
+    <div style="flex:1;min-width:0;background:var(--pitch-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+      <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:3px">${label}</div>
+      <div style="font-weight:700;font-size:.92rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(m.display_name)}</div>
+      <div style="color:${color};font-weight:800;font-size:.9rem;margin-top:2px">${gapTxt}</div>
+    </div>` : `<div style="flex:1"></div>`;
+  const aheadGap = ahead ? Number(ahead.season_points||0)-myPts : 0;
+  const behindGap = behind ? myPts-Number(behind.season_points||0) : 0;
+  box.style.display='block';
+  box.innerHTML = `
+    <div class="eyebrow" style="margin-bottom:10px">⚔️ Mon duel · ${idx+1}${idx===0?'er':'e'} sur ${sorted.length}</div>
+    <div style="display:flex;gap:10px;align-items:stretch">
+      ${side(ahead, '▲ À rattraper', '#4ade80', ahead?`+${aheadGap} pt${aheadGap>1?'s':''} devant`:'')}
+      ${side(behind, '▼ À tenir', 'var(--live,#e0574a)', behind?`${behindGap} pt${behindGap>1?'s':''} d'avance`:'')}
+    </div>
+    ${idx===0?`<div class="hint" style="font-size:.78rem;margin-top:8px;text-align:center">👑 Tu es en tête — défends ton trône !</div>`:''}`;
 }
 
 // ---------- Page d'accueil dynamique ----------
@@ -8429,6 +8519,7 @@ async function renderHome(){
     try { await renderHomeGamePhase(managers); } catch(e){}
   } else {
     HOME_RING_MODE = 'auction';   // marché ouvert : le cercle = clôture d'enchère
+    ['homeDuel','homeLeagueFeed'].forEach(id=>{ const el=$(id); if(el){ el.style.display='none'; el.innerHTML=''; } });
   }
 
   // Enchères en cours
@@ -12685,30 +12776,132 @@ function mdOpenSeenSet(){
 function mdOpenSeenSave(set){
   try { localStorage.setItem('us_md_open_seen', JSON.stringify([...set].slice(-100))); } catch(e){}
 }
-// Détecte une journée OUVERTE et NON-TEST pas encore vue → notif + pop-up.
-async function checkMatchdayOpen(){
+// Petit stockage JSON générique (localStorage) pour la mémoire des rappels.
+function lsGet(key, def){ try { return JSON.parse(localStorage.getItem(key)||JSON.stringify(def)); } catch(e){ return def; } }
+function lsSet(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+
+// ============ CENTRE DE SAISON : événements & rappels (côté client) =======
+// Détecte, au fil des poll (60s), les événements de la saison qui méritent une
+// notif (pop-up + cloche + navigateur) : ouverture de journée, compo non rendue
+// (J-24h / J-2h), journée clôturée (+ gain de points & évolution de rang).
+// 100 % client, aucune dépendance au schéma serveur des notifications.
+async function checkMatchdayOpen(){   // (nom conservé pour les appels existants)
   if(!ME) return;
-  let mds = [];
+  let mds = [], managers = [];
   try { mds = await api.listMatchdays(); } catch(e){ return; }
-  const open = (mds||[]).filter(m=> m.status==='open' && !m.is_test);
-  if(!open.length) return;
-  // Construit les entrées cloche pour toutes les journées ouvertes non-test.
-  MATCHDAY_NOTIF = open.map(m=>({
-    kind:'matchday_open', ref:m.id,
-    title:'Nouvelle journée ouverte',
+  try { managers = await api.rankingFull(); } catch(e){ managers = []; }
+  const notifs = [];
+  const myId = ME.id;
+
+  const real = (mds||[]).filter(m=> !m.is_test);
+  const open = real.filter(m=> m.status==='open');
+  const closed = real.filter(m=> m.status==='closed');
+
+  // --- 1) Journée OUVERTE : entrée cloche permanente + pop-up (1x/journée) ---
+  open.forEach(m=> notifs.push({
+    kind:'matchday_open', ref:m.id, title:'Nouvelle journée ouverte',
     detail:`${m.label || ('Journée '+m.number)} — compose ton onze`,
-    created_at: m.lineup_deadline || m.updated_at || new Date().toISOString()
-  }));
-  // Pop-up (une seule fois par journée, mémorisé localement).
+    created_at: m.lineup_deadline || new Date().toISOString() }));
+
   const seen = mdOpenSeenSet();
-  const fresh = open.filter(m=> !seen.has(m.id));
-  if(fresh.length){
-    fresh.forEach(m=> seen.add(m.id)); mdOpenSeenSave(seen);
-    const m = fresh[0];
+  const freshOpen = open.filter(m=> !seen.has(m.id));
+  if(freshOpen.length){
+    freshOpen.forEach(m=> seen.add(m.id)); mdOpenSeenSave(seen);
+    const m = freshOpen[0];
     const dl = m.lineup_deadline ? new Date(m.lineup_deadline) : null;
     const dlTxt = dl ? `<br><span style="color:var(--muted);font-size:.88rem">Clôture des compos : ${dl.toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : '';
     showMatchdayOpenPopup(m.label || ('Journée '+m.number), dlTxt);
   }
+
+  // --- 2) RAPPELS de deadline : compo non rendue, J-24h puis J-2h ---------
+  const now = Date.now();
+  const remSeen = lsGet('us_rem_seen', {});   // {mdId_24:true, mdId_2:true}
+  for(const m of open){
+    if(!m.lineup_deadline) continue;
+    const left = new Date(m.lineup_deadline) - now;
+    if(left <= 0) continue;
+    let composed = false;
+    try { const lu = await api.myLineup(m.id); composed = (lu && (lu.player_ids||[]).length>=11); } catch(e){}
+    if(composed) continue;   // compo rendue : pas de rappel
+    const label = m.label || ('Journée '+m.number);
+    // palier 2h (prioritaire) puis 24h
+    if(left <= 2*3600e3){
+      notifs.push({ kind:'remind_lineup', ref:m.id+'_2', title:'Compo bientôt verrouillée',
+        detail:`${label} — clôture dans moins de 2 h. Compose vite !`, created_at:new Date().toISOString() });
+      if(!remSeen[m.id+'_2']){ remSeen[m.id+'_2']=true;
+        showSeasonPopup('⏰', `${label} : clôture imminente`, `Il te reste moins de <b>2 heures</b> pour composer ton onze. Après, la compo est verrouillée.`, 'Composer →'); }
+    } else if(left <= 24*3600e3){
+      notifs.push({ kind:'remind_lineup', ref:m.id+'_24', title:'Compo à rendre',
+        detail:`${label} — clôture dans moins de 24 h`, created_at:new Date().toISOString() });
+      if(!remSeen[m.id+'_24']){ remSeen[m.id+'_24']=true;
+        showSeasonPopup('📋', `${label} : pense à ta compo`, `La clôture est dans moins de <b>24 heures</b>. Aligne tes 11 titulaires et ton leader.`, 'Composer →'); }
+    }
+  }
+  lsSet('us_rem_seen', remSeen);
+
+  // --- 3) Journée CLÔTURÉE : récap points + évolution de rang -------------
+  // On mémorise les journées clôturées déjà annoncées + mon total de points.
+  const clSeen = lsGet('us_closed_seen', []);
+  const prevPts = lsGet('us_my_season_pts', null);
+  const meNow = managers.find(x=> x.id===myId);
+  const myPts = meNow ? Number(meNow.season_points||0) : null;
+  // rang courant
+  const sorted = [...managers].sort((a,b)=> Number(b.season_points||0)-Number(a.season_points||0));
+  const myRank = sorted.findIndex(x=> x.id===myId) + 1;
+  const newlyClosed = closed.filter(m=> !clSeen.includes(m.id));
+  if(newlyClosed.length && myPts!=null){
+    // Dernière journée clôturée (la plus haute).
+    const m = [...newlyClosed].sort((a,b)=> (b.number||0)-(a.number||0))[0];
+    const gain = (prevPts!=null) ? (myPts - prevPts) : null;
+    const label = m.label || ('Journée '+m.number);
+    const rankTxt = myRank>0 ? ` Tu es <b>${myRank}${myRank===1?'er':'e'}</b> au classement.` : '';
+    notifs.push({ kind:'matchday_closed', ref:m.id, title:`${label} terminée`,
+      detail: gain!=null ? `+${gain} pts cette journée · ${myRank>0?myRank+(myRank===1?'er':'e'):''} au général` : `Résultats disponibles`,
+      created_at:new Date().toISOString() });
+    showSeasonPopup('🏁', `${label} terminée`,
+      (gain!=null ? `Tu as marqué <b>${gain} point${Math.abs(gain)>1?'s':''}</b> cette journée.` : `Les résultats sont disponibles.`)+rankTxt,
+      'Voir le classement →', 'rank');
+    // Duel : ai-je gagné/perdu des places vs la dernière journée clôturée ?
+    const prevRank = lsGet('us_my_rank', null);
+    if(prevRank!=null && myRank>0 && myRank!==prevRank){
+      if(myRank < prevRank){
+        notifs.push({ kind:'matchday_closed', ref:m.id+'_up', title:'Tu gagnes des places !',
+          detail:`Tu passes ${prevRank}${prevRank===1?'er':'e'} → <b>${myRank}${myRank===1?'er':'e'}</b> au classement`, created_at:new Date().toISOString() });
+      } else {
+        notifs.push({ kind:'matchday_closed', ref:m.id+'_down', title:'Un rival te dépasse',
+          detail:`Tu recules ${prevRank}${prevRank===1?'er':'e'} → ${myRank}${myRank===1?'er':'e'} — reprends l'avantage`, created_at:new Date().toISOString() });
+      }
+    }
+    newlyClosed.forEach(x=> clSeen.push(x.id));
+    lsSet('us_closed_seen', clSeen.slice(-50));
+  }
+  if(myPts!=null) lsSet('us_my_season_pts', myPts);
+  if(myRank>0) lsSet('us_my_rank', myRank);
+
+  MATCHDAY_NOTIF = notifs;
+}
+
+// Pop-up générique de saison (réutilise l'overlay ux + une vue cible au clic).
+function showSeasonPopup(emoji, title, bodyHTML, ctaText, view){
+  const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
+  if(!ov||!md) return;
+  md.innerHTML = `
+    <div style="text-align:center;padding:6px 4px">
+      <div style="font-size:2.2rem;margin-bottom:6px">${emoji}</div>
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.25rem;margin-bottom:4px">${vmEsc(title)}</div>
+      <p style="color:var(--chalk);font-size:.95rem;margin:8px 0">${bodyHTML}</p>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button id="seasonPopLater" class="btn-ghost" style="flex:1">Plus tard</button>
+        <button id="seasonPopGo" class="bid-btn" style="flex:1;margin:0">${vmEsc(ctaText||'OK')}</button>
+      </div>
+    </div>`;
+  ov.style.display='flex';
+  const close=()=>{ ov.style.display='none'; };
+  const later=document.getElementById('seasonPopLater'), go=document.getElementById('seasonPopGo');
+  if(later) later.onclick=close;
+  if(go) go.onclick=()=>{ close(); const target = view || 'lineup';
+    if(target==='rank' && typeof goView==='function') goView('rank');
+    else { const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); } };
 }
 function showMatchdayOpenPopup(label, dlTxt){
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
@@ -12785,7 +12978,7 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend','matchday_open'];
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend','matchday_open','matchday_closed','remind_lineup'];
   // Clé de dédoublonnage : pour watch_ending/chat/dm, on distingue par horodatage
   // (sinon un seul rappel par enchère). Une demande d'ami ne notifie qu'une fois.
   const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat' || n.kind==='dm') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
@@ -12857,11 +13050,11 @@ setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'warning', trade:'repeat', winning:'check',
   proposal_published:'megaphone', proposal_changes:'edit', proposal_rejected:'ban',
   auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat', dm:'mail', friend:'userPlus',
-  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell', matchday_open:'soccer'};
+  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell', matchday_open:'soccer', matchday_closed:'trophy'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
   auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0', dm:'var(--transfer)', friend:'#4ade80',
-  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)', matchday_open:'var(--transfer)'};
+  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)', matchday_open:'var(--transfer)', matchday_closed:'#4ade80'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
@@ -12869,7 +13062,7 @@ const NOTIF_ACTION_LABEL = {
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
   watch_ending:'Enchérir', chat:'Ouvrir le chat', dm:'Ouvrir la conversation', friend:'Voir la demande',
   remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif',
-  matchday_open:'Composer mon onze'
+  matchday_open:'Composer mon onze', matchday_closed:'Voir le classement'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
@@ -12880,7 +13073,7 @@ const NOTIF_CAT = {
   proposal_published:'marche', proposal_changes:'marche', proposal_rejected:'marche',
   watch_ending:'marche', remind_idle_budget:'marche', remind_market_end:'marche',
   chat:'social', dm:'social', friend:'social',
-  remind_lineup:'jeu', matchday_open:'jeu'
+  remind_lineup:'jeu', matchday_open:'jeu', matchday_closed:'jeu'
 };
 function notifCat(n){ return NOTIF_CAT[n.kind] || 'jeu'; }
 // Filtre actif du panneau (tout | todo | marche | social | jeu).
@@ -12945,6 +13138,9 @@ function notifAction(n){
     case 'remind_lineup':
     case 'matchday_open':
       goView('lineup');   // va directement à la Compo
+      break;
+    case 'matchday_closed':
+      goView('rank');     // va au classement
       break;
     case 'remind_idle_budget':
       goView('auctions'); // va aux enchères pour investir
