@@ -847,6 +847,7 @@
   }
   .bid-btn:hover{background:linear-gradient(180deg,#ffe089,#f8cf52);transform:translateY(-1px);box-shadow:0 8px 22px rgba(245,197,66,.38)}
   .bid-btn:active{transform:translateY(0);box-shadow:0 3px 10px rgba(245,197,66,.3)}
+  .bid-btn:disabled{opacity:.7;cursor:default;transform:none;box-shadow:none}
   .bid-btn.owned{background:transparent;color:var(--muted);border:1px solid var(--line);cursor:default}
   .bid-btn.ghost{background:transparent;color:var(--transfer);border:1px solid var(--transfer)}
   .bid-btn.ghost:hover{background:var(--transfer);color:var(--pitch)}
@@ -7512,6 +7513,10 @@ async function loadLineupForMatchday(mdId){
   } else $('lineupResult').innerHTML = '';
 
   renderLineupPlayers(mine);
+  // Si une compo complète (11) est déjà enregistrée ET non reconduite, le
+  // bouton s'affiche d'emblée en état « ✓ validée » (le manager voit que
+  // c'est fait). Sinon, état normal « Valider ma composition ».
+  setLineupBtnSaved(LINEUP_SELECTED.size===11 && !existing?.reconducted);
   $('btnSaveLineup').onclick = ()=>saveLineup(mdId, teamArg);
 
   // Bouton « Charger une fiche » : visible seulement pour ma propre équipe
@@ -7752,6 +7757,7 @@ function renderLineupPlayers(mine){
     }
     renderLineupPlayers(mine);
     updateLineupCounter();
+    setLineupBtnSaved(false);   // changement non enregistré → bouton orange
   });
   // Bouton leader (brassard) : désigne/retire le leader de la journée (un seul).
   $('lineupPlayers').querySelectorAll('[data-leader]').forEach(el=>el.onclick=(ev)=>{
@@ -7761,6 +7767,7 @@ function renderLineupPlayers(mine){
     LINEUP_LEADER = (LINEUP_LEADER === id) ? null : id;  // toggle
     renderLineupPlayers(mine);
     updateLineupCounter();
+    setLineupBtnSaved(false);
   });
   // Bouton « Banc » = un remplaçant PAR POSTE (1 DEF + 1 MID + 1 FWD).
   $('lineupPlayers').querySelectorAll('[data-bench]').forEach(el=>el.onclick=(ev)=>{
@@ -7780,6 +7787,7 @@ function renderLineupPlayers(mine){
     }
     renderLineupPlayers(mine);
     updateLineupCounter();
+    setLineupBtnSaved(false);
   });
   // Bouton « Suggérer mon 11 »
   const sb = $('btnSuggestLineup');
@@ -7823,6 +7831,7 @@ function suggestLineup(mine){
   if(LINEUP_LEADER && !LINEUP_SELECTED.has(LINEUP_LEADER)) LINEUP_LEADER = null;
   renderLineupPlayers(mine);
   updateLineupCounter();
+  setLineupBtnSaved(false);   // suggestion = compo non encore enregistrée
   const gk = chosen.filter(p=>p.position==='GK').length;
   const df = chosen.filter(p=>p.position==='DEF').length;
   const mf = chosen.filter(p=>p.position==='MID').length;
@@ -7874,10 +7883,37 @@ async function saveLineup(mdId, teamArg){
   }
   // Leader : seulement s'il est bien dans les 11 titulaires.
   const leader = (LINEUP_LEADER && LINEUP_SELECTED.has(LINEUP_LEADER)) ? LINEUP_LEADER : null;
+  const btn = $('btnSaveLineup');
+  if(btn){ btn.disabled = true; btn.textContent = 'Enregistrement…'; }
   const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED), bench, teamArg, leader);
-  if(error){ $('lineupResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
+  if(error){
+    $('lineupResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`;
+    if(btn){ btn.disabled = false; btn.textContent = 'Valider ma composition'; setLineupBtnSaved(false); }
+    return;
+  }
   const bTxt = bench.length ? ` (+ banc complet : 1 DÉF, 1 MIL, 1 ATT)` : '';
-  $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée${bTxt} !</span>`;
+  $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée${bTxt} ! Tu peux la modifier à tout moment avant la clôture.</span>`;
+  // Le bouton passe en état VALIDÉ (vert, ✓) pour lever le doute d'Audrey.
+  if(btn) btn.disabled = false;
+  setLineupBtnSaved(true);
+}
+// Bascule l'apparence du bouton compo : vert « ✓ validée » quand enregistré,
+// orange « Valider ma composition » dès qu'il y a un changement non enregistré.
+function setLineupBtnSaved(saved){
+  const btn = $('btnSaveLineup'); if(!btn) return;
+  if(saved){
+    btn.classList.add('saved-ok');
+    btn.innerHTML = '✓ Composition validée';
+    btn.style.background = 'linear-gradient(180deg,#4ade80,#22c55e)';
+    btn.style.color = '#06290f';
+    btn.title = 'Compo enregistrée — modifie-la si tu veux, puis revalide';
+  } else {
+    btn.classList.remove('saved-ok');
+    btn.textContent = 'Valider ma composition';
+    btn.style.background = '';
+    btn.style.color = '';
+    btn.title = '';
+  }
 }
 
 // ---------- Bandeau fenêtre de mercato (compte à rebours) ----------
