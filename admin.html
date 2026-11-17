@@ -642,6 +642,20 @@
     <div id="mdList" style="margin-top:16px"></div>
   </div>
 
+  <!-- État des compositions : qui a validé son onze (pour relances) -->
+  <div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:1.1rem">📋</span><h3 style="margin:0;font-size:1.05rem">État des compositions</h3>
+    </div>
+    <p class="hint" style="margin:0 0 10px">Vois en un coup d'œil <b>quelles équipes ont validé leur onze</b> pour une journée, et relance les retardataires.</p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <select id="compoStatusMd" style="font-size:.86rem;flex:1;min-width:160px"><option value="">Choisis une journée…</option></select>
+      <button class="btn-ghost btn-sm" id="btnCompoStatus" style="font-size:.78rem">Actualiser</button>
+      <span id="compoStatusSummary" class="hint" style="font-size:.8rem"></span>
+    </div>
+    <div id="compoStatusList"></div>
+  </div>
+
   <!-- Phase de test : comptes désignés -->
   <div class="card" style="margin-bottom:14px;border:1px solid rgba(224,90,77,.4)">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
@@ -5973,8 +5987,55 @@ async function loadMatchdays(){
     if(r.error) return showMsg($('msg2'),r.error.message);
     showMsg($('msg2'),`${r.data ?? 0} duel(s) généré(s) pour cette journée.`,true);
   });
+
+  // Remplit le sélecteur « État des compositions » (journées réelles, ouvertes/notation en tête).
+  const cs = $('compoStatusMd');
+  if(cs){
+    const cur = cs.value;
+    const ordered = mds.slice().sort((a,b)=>{
+      const rk = s => s==='open'?0 : s==='scoring'?1 : s==='upcoming'?2 : 3;
+      return rk(a.status)-rk(b.status) || (b.number||0)-(a.number||0);
+    });
+    cs.innerHTML = '<option value="">Choisis une journée…</option>' +
+      ordered.filter(m=>!m.is_test).map(m=>`<option value="${m.id}">${(m.label||('Journée '+m.number))} — ${MD_STATUS[m.status]||m.status}</option>`).join('');
+    if(ordered.some(m=>m.id===cur)) cs.value = cur;
+  }
 }
 const MD_STATUS = {upcoming:'À venir', open:'Ouverte', scoring:'Notation', closed:'Clôturée'};
+
+// --- État des compositions : qui a validé son onze (relances admin) -------
+async function renderCompoStatus(){
+  const mdId = $('compoStatusMd') ? $('compoStatusMd').value : '';
+  const box = $('compoStatusList'), sum = $('compoStatusSummary');
+  if(!box) return;
+  if(!mdId){ box.innerHTML = '<p class="hint">Choisis une journée ci-dessus.</p>'; if(sum) sum.textContent=''; return; }
+  box.innerHTML = '<p class="hint">Chargement…</p>';
+  let rows;
+  try { rows = await api.adminLineupStatus(mdId); }
+  catch(e){ box.innerHTML = '<p class="hint">Passe le script 293 pour activer cet outil.</p>'; return; }
+  if(!rows.length){ box.innerHTML = '<p class="hint">Aucune équipe attendue pour cette journée.</p>'; if(sum) sum.textContent=''; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const done = rows.filter(r=>r.submitted).length, total = rows.length;
+  if(sum) sum.innerHTML = `<b style="color:${done===total?'#4ade80':'var(--live,#e0574a)'}">${done}/${total}</b> compos validées`;
+  const when = iso => iso ? new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+  box.innerHTML = `<table style="width:100%;font-size:.86rem"><thead><tr><th>Équipe</th><th>Manager</th><th>État</th><th>Détail</th></tr></thead><tbody>${
+    rows.map(r=>{
+      const ok = r.submitted;
+      const badge = ok
+        ? `<span style="color:#4ade80;font-weight:700">✓ Validée</span>`
+        : (Number(r.titulaires)>0
+            ? `<span style="color:#f0b429;font-weight:700">⚠ Incomplète</span>`
+            : `<span style="color:var(--live,#e0574a);font-weight:700">✗ Rien</span>`);
+      const detail = ok
+        ? `${r.reconducted?'reconduite · ':''}${r.bench_count>0?'banc complet · ':''}<span class="hint">${when(r.updated_at)}</span>`
+        : `<span class="hint">${r.titulaires}/11 titulaires</span>`;
+      return `<tr style="${ok?'':'background:rgba(224,87,74,.05)'}"><td><b>${esc(r.team_name||'—')}</b></td><td>${esc(r.display_name||'')}</td><td>${badge}</td><td>${detail}</td></tr>`;
+    }).join('')
+  }</tbody></table>
+  <p class="hint" style="font-size:.78rem;margin-top:8px">Les équipes <b>sans compo complète</b> apparaissent en tête (surlignées) — ce sont elles à relancer.</p>`;
+}
+if($('btnCompoStatus')) $('btnCompoStatus').onclick = renderCompoStatus;
+if($('compoStatusMd')) $('compoStatusMd').onchange = renderCompoStatus;
 
 $('btnCreateMatchday').onclick = async ()=>{
   const num = parseInt($('mdNumber').value);

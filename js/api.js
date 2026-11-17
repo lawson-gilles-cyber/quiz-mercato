@@ -1674,6 +1674,11 @@ export async function adminCreateMatchday(number, label, deadline) {
 export async function adminSetMatchdayStatus(matchdayId, status) {
   return sb.rpc('qm_admin_set_matchday_status', { p_matchday_id: matchdayId, p_status: status });
 }
+// État des compositions d'une journée : qui a validé son onze (pour relances).
+export async function adminLineupStatus(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_lineup_status', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
 // Ajuste la deadline de dépôt du onze d'une journée (null = la retirer).
 export async function adminSetLineupDeadline(matchdayId, deadlineISO) {
   return sb.rpc('qm_admin_set_lineup_deadline', { p_matchday_id: matchdayId, p_deadline: deadlineISO });
