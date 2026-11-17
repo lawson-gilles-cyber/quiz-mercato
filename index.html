@@ -11408,6 +11408,27 @@ function narrativeHTML(n, A, B){
 }
 
 // Construit le HTML d'une feuille de match (partagé défis + tournoi).
+// #10 — Pronostic d'avant-match, calculé à partir des forces de ligne
+// (att/def) révélées sur la feuille de match. Modèle de Poisson simplifié.
+function vmPreOdds(strength, A, B){
+  if(!strength || !strength.a || !strength.b) return '';
+  const aa=strength.a.att, da=strength.a.def, ab=strength.b.att, db=strength.b.def;
+  if(!(aa&&da&&ab&&db)) return '';
+  const lamA = Math.max(0.25, 1.35*(0.5+0.7*(aa/(aa+db)-0.5))*2);
+  const lamB = Math.max(0.25, 1.35*(0.5+0.7*(ab/(ab+da)-0.5))*2);
+  const pois=(l,k)=>{ let f=1; for(let i=2;i<=k;i++) f*=i; return Math.exp(-l)*Math.pow(l,k)/f; };
+  let pa=0,pb=0,pd=0;
+  for(let i=0;i<=8;i++) for(let j=0;j<=8;j++){ const p=pois(lamA,i)*pois(lamB,j); if(i>j)pa+=p; else if(i<j)pb+=p; else pd+=p; }
+  const t=pa+pb+pd||1; const wa=Math.round(100*pa/t), dr=Math.round(100*pd/t), wb=Math.round(100*pb/t);
+  const bar=(v,c)=>`<span style="display:block;height:100%;width:${v}%;background:${c};float:left"></span>`;
+  return `<div style="margin:4px 0 12px">
+    <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:3px">Pronostic d'avant-match</div>
+    <div style="height:9px;border-radius:5px;overflow:hidden;background:var(--line)">${bar(wa,'var(--transfer,#e0a106)')}${bar(dr,'#8a8f98')}${bar(wb,'#5fa8d0')}</div>
+    <div style="display:flex;justify-content:space-between;font-size:.72rem;margin-top:3px">
+      <span style="color:var(--transfer,#e0a106)">${vmEsc(A)} ${wa}%</span>
+      <span style="color:var(--muted)">nul ${dr}%</span>
+      <span style="color:#5fa8d0">${wb}% ${vmEsc(B)}</span></div></div>`;
+}
 function vmLineupsHTML(lu, A, B){
   if(!lu || lu.__error || (!Array.isArray(lu.a) && !Array.isArray(lu.b))) return '';
   const col = (arr)=> (Array.isArray(arr)?arr:[]).map(p=>`<div style="font-size:.78rem;padding:1px 0"><span style="color:var(--muted);font-size:.64rem;text-transform:uppercase;display:inline-block;width:30px">${POS[p.position]||p.position}</span> ${vmEsc(p.name)}</div>`).join('');
@@ -11437,13 +11458,18 @@ function vmSheetHTML(r, A, B, lineups){
   const shoot = r.shootout ? ` <span style="font-size:.62rem;color:var(--muted)">(départage)</span>` : '';
   // Timeline des temps forts
   const ev = Array.isArray(r.events) ? r.events : [];
-  const icon = {goal:'⚽', chance:'➰', yellow:'🟨', red:'🟥'};
+  const icon = {goal:'⚽', chance:'➰', yellow:'🟨', red:'🟥', save:'🧤', injury:'🚑'};
   const timeline = ev.length ? `<div style="margin:12px 0 4px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px">Temps forts</div>
     <div style="border-left:2px solid var(--line);margin-left:6px;padding-left:12px">
       ${ev.map(e=>{
         const side = e.team==='A';
         const ico = (e.type==='red' && e.second_yellow) ? '🟨🟥' : (icon[e.type]||'•');
-        const label = (e.type==='red' && e.second_yellow) ? ' <span style="font-size:.66rem">(2e j.)</span>' : (e.type==='red' ? ' <span style="font-size:.66rem">(exclu)</span>' : '');
+        // libellé : 2e jaune, exclusion, type de but (pénalty / coup franc), blessure.
+        let label = (e.type==='red' && e.second_yellow) ? ' <span style="font-size:.66rem">(2e j.)</span>' : (e.type==='red' ? ' <span style="font-size:.66rem">(exclu)</span>' : '');
+        if(e.type==='goal' && e.goal_type==='penalty') label += ' <span style="font-size:.66rem">(pénalty)</span>';
+        else if(e.type==='goal' && e.goal_type==='free_kick') label += ' <span style="font-size:.66rem">(coup franc)</span>';
+        else if(e.type==='injury') label += ' <span style="font-size:.66rem">(blessé)</span>';
+        else if(e.type==='save') label += ' <span style="font-size:.66rem">(arrêt)</span>';
         // passeur décisif : petite godasse 👟 sous le buteur
         const assist = (e.type==='goal' && e.assist_name)
           ? `<span style="display:block;font-size:.7rem;color:var(--muted);font-weight:400">👟 ${vmEsc(e.assist_name)}</span>` : '';
@@ -11465,6 +11491,7 @@ function vmSheetHTML(r, A, B, lineups){
     </div>
     <div style="text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:12px">⚽ ${scorers(r.scorers&&r.scorers.a)} &nbsp;·&nbsp; ${scorers(r.scorers&&r.scorers.b)}</div>
     <div style="background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:10px;padding:9px 12px;margin-bottom:12px;text-align:center;font-size:.85rem">⭐ Homme du match&nbsp;: <b>${vmEsc(motm.name||'—')}</b>${motmTeam?` <span style="color:var(--muted)">(${vmEsc(motmTeam)})</span>`:''}</div>
+    ${vmPreOdds(r.strength, A, B)}
     ${timeline}
     ${statRow('Possession', r.possession.a, r.possession.b, true)}
     ${statRow('Tirs', r.shots.a, r.shots.b)}
@@ -11473,6 +11500,9 @@ function vmSheetHTML(r, A, B, lineups){
     ${statRow('Corners', r.corners.a, r.corners.b)}
     ${statRow('Fautes', r.fouls.a, r.fouls.b)}
     ${statRow('Hors-jeu', r.offsides.a, r.offsides.b)}
+    ${r.passes ? statRow('Passes réussies', r.passes.a, r.passes.b) : ''}
+    ${r.duels ? statRow('Duels gagnés', r.duels.a, r.duels.b) : ''}
+    ${r.team_rating ? `<div style="display:flex;justify-content:space-between;font-size:.82rem;margin:9px 0"><span style="font-weight:700">${r.team_rating.a ?? '—'}</span><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">Note d'équipe</span><span style="font-weight:700">${r.team_rating.b ?? '—'}</span></div>` : ''}
     <div style="display:flex;justify-content:space-between;font-size:.82rem;margin:9px 0"><span>${cards(r.yellow.a,r.red.a)}</span><span style="color:var(--muted);text-transform:uppercase;letter-spacing:.03em;font-size:.68rem">Cartons</span><span>${cards(r.yellow.b,r.red.b)}</span></div>
     ${vmLineupsHTML(lineups, A, B)}`;
 }
