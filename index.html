@@ -1256,27 +1256,30 @@
         </div>
       </div>
     </div>
-    <div class="pillars">
-      <div class="pillar">
+    <div class="pillars" id="homePillars">
+      <div class="pillar" id="homePillar1">
         <div class="pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe89a"/><stop offset="1" stop-color="#d4a017"/></linearGradient></defs><path d="m14 13-7.5 7.5a2.12 2.12 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/></svg></div>
-        <div class="pillar-t">Mercato en direct</div>
-        <div class="pillar-d">Enchères temps réel sur de vrais joueurs</div>
+        <div class="pillar-t" id="homePillar1T">Mercato en direct</div>
+        <div class="pillar-d" id="homePillar1D">Enchères temps réel sur de vrais joueurs</div>
       </div>
-      <div class="pillar">
+      <div class="pillar" id="homePillar2">
         <div class="pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><circle cx="7" cy="8" r="1.4" fill="url(#gold)"/><circle cx="17" cy="16" r="1.4" fill="url(#gold)"/><path d="M8 9l8 6" stroke-dasharray="2 2"/></svg></div>
-        <div class="pillar-t">Tactique avancée</div>
-        <div class="pillar-d">Aligne tes 11 titulaires chaque journée</div>
+        <div class="pillar-t" id="homePillar2T">Tactique avancée</div>
+        <div class="pillar-d" id="homePillar2D">Aligne tes 11 titulaires chaque journée</div>
       </div>
-      <div class="pillar">
+      <div class="pillar" id="homePillar3">
         <div class="pillar-ic"><svg viewBox="0 0 24 24" fill="none" stroke="url(#gold)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg></div>
-        <div class="pillar-t">Défis exclusifs</div>
-        <div class="pillar-d">Bonus, coups de poker et récompenses</div>
+        <div class="pillar-t" id="homePillar3T">Défis exclusifs</div>
+        <div class="pillar-d" id="homePillar3D">Bonus, coups de poker et récompenses</div>
       </div>
     </div>
     <div class="newsgrid">
       <div class="news" id="homeCardAuctions"><div class="k">Enchères en cours</div><div class="v" id="homeActiveAuctions"><b>—</b></div></div>
       <div class="news" id="homeCardWanted"><div class="k">Joueur le plus convoité</div><div class="v" id="homeMostWanted"><b>—</b></div></div>
-      <div class="news"><div class="k">Managers en lice</div><div class="v" id="homeManagers"><b>—</b></div></div>
+      <!-- Phase de jeu (mercato fermé) : ma place + mes points -->
+      <div class="news" id="homeCardRank" style="display:none"><div class="k">Ma place au classement</div><div class="v" id="homeMyRank"><b>—</b></div></div>
+      <div class="news" id="homeCardPoints" style="display:none"><div class="k">Mes points</div><div class="v" id="homeMyPoints"><b>—</b></div></div>
+      <div class="news"><div class="k" id="homeManagersK">Managers en lice</div><div class="v" id="homeManagers"><b>—</b></div></div>
     </div>
     <!-- Checklist du jour (manager connecté) -->
     <div id="dailyChecklist" class="daily-check" style="display:none"></div>
@@ -8317,6 +8320,59 @@ setInterval(()=>{
   if((++_mercatoTick % 60 === 0) && (MERCATO_WINDOW || MERCATO_NEXT)) renderMercatoBanner();
 }, 1000);
 
+// Phase de jeu (mercato fermé) : remplit « ma place » / « mes points » et
+// pilote le gros cercle — prochaine journée à composer, sinon classement.
+async function renderHomeGamePhase(managers){
+  // Reset par défaut au cas où rien ne s'applique.
+  HOME_RING_MODE = 'auction'; HOME_MD_DEADLINE = null; HOME_MD_START = null;
+  if(!ME) return;
+  // Mon rang + mes points depuis le classement (managers déjà trié par points).
+  const myId = ME.manager_id || ME.id;
+  const sorted = [...managers].sort((a,b)=> (b.season_points||0)-(a.season_points||0));
+  const idx = sorted.findIndex(m=> (m.id===myId) || (m.manager_id===myId));
+  const total = sorted.length;
+  if(idx>=0){
+    const me = sorted[idx]; const rank = idx+1;
+    const suff = rank===1?'er':'e';
+    $('homeMyRank') && ($('homeMyRank').innerHTML = `<b>${rank}<span style="font-size:.6em">${suff}</span></b> <span style="color:var(--muted);font-size:.8em">/ ${total}</span>`);
+    $('homeMyPoints') && ($('homeMyPoints').innerHTML = `<b>${me.season_points||0}</b> <span style="color:var(--muted);font-size:.8em">pts</span>`);
+  } else {
+    $('homeMyRank') && ($('homeMyRank').innerHTML = `<b>—</b>`);
+    $('homeMyPoints') && ($('homeMyPoints').innerHTML = `<b>0</b> <span style="color:var(--muted);font-size:.8em">pts</span>`);
+  }
+
+  // Une journée ouverte attend-elle ma compo ?
+  let openMd = null;
+  try {
+    const mds = await api.listMatchdays();
+    const opens = (mds||[]).filter(m=>m.status==='open');
+    opens.sort((a,b)=> (a.number||0)-(b.number||0));
+    openMd = opens[0] || null;
+  } catch(e){}
+
+  let needLineup = false;
+  if(openMd){
+    try { const lu = await api.myLineup(openMd.id); needLineup = !(lu && (lu.player_ids||lu.players)); }
+    catch(e){ needLineup = true; }
+  }
+
+  if(openMd && needLineup && openMd.lineup_deadline){
+    // Cercle = compte à rebours de la prochaine compo.
+    HOME_RING_MODE = 'matchday';
+    HOME_MD_DEADLINE = openMd.lineup_deadline;
+    HOME_MD_START = openMd.opens_at || openMd.created_at || null;
+    updateHomeClock();
+  } else {
+    // Sinon : cercle = ma place au classement (anneau rempli selon le rang).
+    HOME_RING_MODE = 'rank';
+    const rank = idx>=0 ? idx+1 : total;
+    const frac = total>1 ? (total-rank+1)/total : 1;   // 1er = anneau plein
+    if($('homeNextClock')) $('homeNextClock').innerHTML = idx>=0 ? `${rank}<span style="font-size:.5em;vertical-align:.4em">${rank===1?'er':'e'}</span>` : '—';
+    if($('homeNextLabel')) $('homeNextLabel').textContent = idx>=0 ? `sur ${total} managers` : 'classement';
+    setCountdownRing(frac, false);
+  }
+}
+
 // ---------- Page d'accueil dynamique ----------
 async function renderHome(){
   const [auctions, rankRows, moves] = await Promise.all([
@@ -8331,27 +8387,49 @@ async function renderHome(){
     team_name: m.team_name,
     season_points: m.season_points,
   }));
-  // Statut marché
+  // Statut marché — DEUX sources doivent concorder : la RPC marketIsOpen()
+  // ET la fenêtre locale (dates). Le mercato n'est « ouvert » que si les deux
+  // le disent ; dès que la fenêtre est passée (ou absente), il est fermé,
+  // même si la RPC répond encore « ouvert » (évite le hero d'accueil obsolète).
   let marketOpen = true;
   try { marketOpen = await api.marketIsOpen(); } catch(e){}
+  if(marketIsClosedNow()) marketOpen = false;
   MARKET_OPEN = marketOpen;   // mémorisé pour le ruban (masque l'actu transferts si fermé)
-  $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Mercato fermé';
+  $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Saison en cours';
 
-  // Bloc héros adapté à l'état du mercato.
-  const _ht = $('homeHeroTitle'), _hp = $('homeHeroText');
+  // Helpers d'écriture.
+  const setTxt=(id,t)=>{ const el=$(id); if(el) el.textContent=t; };
+  const setHTML=(id,t)=>{ const el=$(id); if(el) el.innerHTML=t; };
+
+  // ---- Bloc héros + piliers + cartes : adaptés à la PHASE ----
   if(marketOpen){
-    if(_ht) _ht.innerHTML = 'Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.';
-    if(_hp) _hp.textContent = 'Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.';
+    setHTML('homeHeroTitle','Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.');
+    setTxt('homeHeroText','Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.');
+    // Piliers « mercato »
+    setTxt('homePillar1T','Mercato en direct'); setTxt('homePillar1D','Enchères temps réel sur de vrais joueurs');
+    setTxt('homePillar2T','Tactique avancée');  setTxt('homePillar2D','Aligne tes 11 titulaires chaque journée');
+    setTxt('homePillar3T','Défis exclusifs');   setTxt('homePillar3D','Bonus, coups de poker et récompenses');
   } else {
-    if(_ht) _ht.innerHTML = 'Le mercato est <em style="color:var(--transfer)">terminé</em>.<br>Place au jeu !';
-    if(_hp) _hp.textContent = 'Les enchères sont closes. Ton effectif est constitué : compose ton onze chaque journée, suis le classement, relève des défis et affronte les autres managers en matchs virtuels.';
+    setHTML('homeHeroTitle','La <em style="color:var(--transfer)">saison</em> est lancée.<br>Fais briller ton effectif.');
+    setTxt('homeHeroText','Le mercato est clos et ton équipe est bâtie. Chaque journée, compose ton onze, grimpe au classement, relève des défis et affronte les autres managers en matchs virtuels.');
+    // Piliers « jeu »
+    setTxt('homePillar1T','Compo de la journée'); setTxt('homePillar1D','Aligne tes 11 + 3 remplaçants et ton leader');
+    setTxt('homePillar2T','Classement & points'); setTxt('homePillar2D','Les vraies perfs de tes joueurs te font grimper');
+    setTxt('homePillar3T','Matchs virtuels');     setTxt('homePillar3D','Défie les autres managers et suis le direct');
   }
 
-  // Mercato fermé → on masque les cartes de marché (enchères, joueur convoité).
-  // « Managers en lice » reste (stat de ligue valable hors mercato).
-  const _ca = $('homeCardAuctions'), _cw = $('homeCardWanted');
-  if(_ca) _ca.style.display = marketOpen ? '' : 'none';
-  if(_cw) _cw.style.display = marketOpen ? '' : 'none';
+  // Cartes de stats : marché (ouvert) vs jeu (fermé).
+  const show=(id,on)=>{ const el=$(id); if(el) el.style.display = on?'':'none'; };
+  show('homeCardAuctions', marketOpen); show('homeCardWanted', marketOpen);
+  show('homeCardRank', !marketOpen && !!ME); show('homeCardPoints', !marketOpen && !!ME);
+  setTxt('homeManagersK', marketOpen ? 'Managers en lice' : 'Managers en course');
+
+  // En phase de jeu : ma place + mes points, et le cercle « alterne ».
+  if(!marketOpen){
+    try { await renderHomeGamePhase(managers); } catch(e){}
+  } else {
+    HOME_RING_MODE = 'auction';   // marché ouvert : le cercle = clôture d'enchère
+  }
 
   // Enchères en cours
   $('homeActiveAuctions').innerHTML = `<b>${auctions.length}</b>`;
@@ -8368,14 +8446,16 @@ async function renderHome(){
   // Managers en lice
   $('homeManagers').innerHTML = `<b>${managers.length}</b>`;
 
-  // Prochaine clôture (enchère qui finit le plus tôt)
+  // Prochaine clôture (enchère qui finit le plus tôt).
+  // En phase de jeu (mercato fermé + connecté), le cercle est déjà géré par
+  // renderHomeGamePhase (prochaine journée OU classement) → on n'y touche pas.
+  const gamePhaseOwnsRing = (!marketOpen && !!ME);
   if(auctions.length){
     const next = [...auctions].sort((a,b)=> new Date(a.ends_at)-new Date(b.ends_at))[0];
     HOME_NEXT_END = next.ends_at;
-    // Départ de la fenêtre pour l'anneau (durée totale de l'enchère).
     HOME_NEXT_START = next.created_at || null;
     updateHomeClock();
-  } else {
+  } else if(!gamePhaseOwnsRing){
     $('homeNextClock').textContent = marketIsClosedNow() ? '🔒' : '—';
     $('homeNextLabel').textContent = marketIsClosedNow() ? 'mercato terminé' : 'aucune enchère en cours';
     HOME_NEXT_END = null; HOME_NEXT_START = null;
@@ -9556,6 +9636,8 @@ async function renderChallenges(){
   });
 }
 let HOME_NEXT_END = null, HOME_NEXT_START = null;
+// Phase de jeu : mode du cercle d'accueil ('auction' | 'matchday' | 'rank').
+let HOME_RING_MODE = 'auction', HOME_MD_DEADLINE = null, HOME_MD_START = null;
 const CD_R = 54, CD_CIRC = 2 * Math.PI * CD_R;  // circonférence de l'anneau
 
 // Positionne l'anneau : frac = part de temps RESTANTE (1 = plein, 0 = vide).
@@ -9571,7 +9653,19 @@ function setCountdownRing(frac, urgent){
 
 function updateHomeClock(){
   if(!$('homeNextClock')) return;
-  // Mercato clôturé : on n'affiche pas de minuteur, mais l'état « terminé ».
+  // Phase de jeu : le cercle affiche la prochaine journée (compte à rebours)
+  // ou la place au classement — géré ici selon HOME_RING_MODE.
+  if(HOME_RING_MODE==='matchday' && HOME_MD_DEADLINE){
+    const left = new Date(HOME_MD_DEADLINE) - new Date();
+    if(left<=0){ $('homeNextClock').textContent='clôturée'; $('homeNextLabel').textContent='compo verrouillée'; setCountdownRing(0,true); return; }
+    $('homeNextClock').textContent = fmtClock(left);
+    $('homeNextLabel').textContent = 'compo à rendre';
+    const total = HOME_MD_START ? (new Date(HOME_MD_DEADLINE)-new Date(HOME_MD_START)) : (5*24*3600*1000);
+    setCountdownRing(total>0?Math.min(1,left/total):1, left < 6*3600*1000);
+    return;
+  }
+  if(HOME_RING_MODE==='rank'){ return; /* statique, posé par renderHomeGamePhase */ }
+  // Mercato clôturé (et pas en phase de jeu gérée) : état « terminé ».
   if(marketIsClosedNow()){
     $('homeNextClock').textContent='🔒';
     $('homeNextLabel').textContent='mercato terminé';
