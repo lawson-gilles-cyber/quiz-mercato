@@ -1144,6 +1144,27 @@ export async function adminPrevNotes(matchdayId) {
   const { data } = await sb.rpc('qm_admin_prev_notes', { p_matchday_id: matchdayId || null });
   return data ?? [];
 }
+// #5 — Journal des modifications d'une note (journée, option : un joueur).
+export async function adminNoteHistory(matchdayId, playerId = null) {
+  const { data } = await sb.rpc('qm_admin_note_history', { p_matchday_id: matchdayId || null, p_player_id: playerId });
+  return data ?? [];
+}
+// #6 — Rouvrir la saisie d'une journée clôturée (closed → scoring).
+export async function adminReopenNotes(matchdayId) {
+  const { data, error } = await sb.rpc('qm_admin_reopen_notes', { p_matchday_id: matchdayId });
+  if (error) return { __error: error.message };
+  return data;
+}
+// #8 — Joueurs alignés (titulaires ≥1 compo) mais non notés pour la journée.
+export async function adminUnratedLineupPlayers(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_unrated_lineup_players', { p_matchday_id: matchdayId || null });
+  return data ?? [];
+}
+// #9 — Moyenne des 3 dernières notes connues (suggestion de pré-remplissage).
+export async function adminNotesAvg3(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_notes_avg3', { p_matchday_id: matchdayId || null });
+  return data ?? [];
+}
 
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body, replyTo = null) {

@@ -963,8 +963,31 @@
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyMissing"> Seulement les manquants</label>
         <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyNoMatch"> Sans match cette semaine</label>
+        <label style="font-size:.8rem;display:flex;align-items:center;gap:4px" title="En appuyant sur Entrée, sauter directement au prochain joueur non noté"><input type="checkbox" id="noteJumpNext" checked> Entrée → prochain non noté</label>
         <button class="btn-ghost btn-sm" id="btnPrefillPrev" style="font-size:.74rem">⤵ Pré-remplir avec la J-1</button>
+        <button class="btn-ghost btn-sm" id="btnNoteDnpNoMatch" style="font-size:.74rem" title="Marquer tous les joueurs sans match restants comme n'a pas joué">⊘ Sans match → n'a pas joué</button>
         <span id="noteGridCount" class="hint" style="font-size:.78rem;margin-left:auto"></span>
+      </div>
+      <!-- #2 — Progression ciblée (quand un filtre manager/championnat est actif) -->
+      <div id="noteProgressTargeted" class="hint" style="font-size:.78rem;margin:-2px 0 8px;display:none"></div>
+      <!-- Vague B : outils de contrôle -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <button class="btn-ghost btn-sm" id="btnNoteUnrated" style="font-size:.74rem" title="Lister les joueurs alignés dans une compo mais pas encore notés">⚠ Alignés non notés</button>
+        <button class="btn-ghost btn-sm" id="btnNoteAvg3" style="font-size:.74rem" title="Pré-remplir les champs vides avec la moyenne des 3 dernières notes">⤵ Suggérer (moyenne 3 J)</button>
+        <button class="btn-ghost btn-sm" id="btnNoteExport" style="font-size:.74rem" title="Exporter l'état des notes de la journée en CSV">⬇ Export CSV</button>
+        <button class="btn-ghost btn-sm" id="btnNoteHistory" style="font-size:.74rem" title="Journal des modifications de notes">🕑 Journal</button>
+        <button class="btn-ghost btn-sm" id="btnNoteReopen" style="font-size:.74rem;display:none" title="Rouvrir la saisie d'une journée clôturée">🔓 Rouvrir la saisie</button>
+        <span id="noteLockBadge" class="hint" style="font-size:.76rem"></span>
+      </div>
+      <!-- #8 — Liste des alignés non notés -->
+      <div id="noteUnratedBox" style="display:none;margin-bottom:8px;border:1px solid var(--live,#e0574a);border-radius:10px;padding:8px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.85rem;color:var(--live,#e0574a)">⚠ Alignés non notés</b><button class="btn-ghost btn-sm" id="btnUnratedClose" style="font-size:.72rem">fermer</button></div>
+        <div id="noteUnratedList" style="max-height:200px;overflow:auto;font-size:.84rem;margin-top:6px"></div>
+      </div>
+      <!-- #5 — Journal des modifications -->
+      <div id="noteHistoryBox" style="display:none;margin-bottom:8px;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:.85rem">🕑 Journal des modifications</b><button class="btn-ghost btn-sm" id="btnHistoryClose" style="font-size:.72rem">fermer</button></div>
+        <div id="noteHistoryList" style="max-height:240px;overflow:auto;font-size:.82rem;margin-top:6px"></div>
       </div>
       <div id="noteGrid" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
       <p class="hint" style="font-size:.76rem;margin-top:6px">Astuce : tape la note et appuie sur <b>Entrée</b> ou <b>Tab</b> pour passer au joueur suivant. Enregistrement automatique (une pastille verte ✓ confirme). « Sans match cette semaine » isole les joueurs dont le club ne joue pas (championnats hors des 5 grands) — à noter ici à la main.</p>
@@ -3959,12 +3982,27 @@ async function loadPlayerNotes(){
   if(sel && sel.options.length <= 1){
     try {
       const mds = await api.listMatchdays();
-      mds.forEach(md=>{ const o=document.createElement('option'); o.value=md.id; o.textContent = md.label || ('Journée '+md.number); sel.appendChild(o); });
+      mds.forEach(md=>{ const o=document.createElement('option'); o.value=md.id; o.textContent = md.label || ('Journée '+md.number); o.dataset.status = md.status||''; sel.appendChild(o); });
     } catch(e){}
   }
   await renderNoteGrid();
   await loadMatchSelector();
   refreshNoteScoreInfo();
+}
+// État de verrouillage de la journée courante (#6) : badge + bouton Rouvrir.
+function noteCurrentStatus(){
+  const sel = $('noteMatchday'); if(!sel) return '';
+  const o = sel.options[sel.selectedIndex]; return o ? (o.dataset.status||'') : '';
+}
+function refreshNoteLock(){
+  const st = noteCurrentStatus();
+  const closed = st==='closed';
+  const badge = $('noteLockBadge'); const reopen = $('btnNoteReopen');
+  if(badge) badge.innerHTML = closed ? '<span style="color:var(--live,#e0574a)">🔒 Journée clôturée — saisie verrouillée</span>' : '';
+  if(reopen) reopen.style.display = closed ? '' : 'none';
+  // Verrouille/déverrouille les champs de saisie.
+  const grid = $('noteGrid');
+  if(grid) grid.querySelectorAll('input[data-note],input[data-dnp]').forEach(i=>{ if(closed) i.disabled = true; });
 }
 async function renderNoteGrid(){
   const grid = $('noteGrid'); if(!grid) return;
@@ -3974,8 +4012,13 @@ async function renderNoteGrid(){
   try { rows = await api.adminNotesGrid(mdId); }
   catch(e){ grid.innerHTML = '<p class="hint" style="padding:12px">Passe le script 228 (notes des joueurs) pour activer cette section.</p>'; return; }
   _noteGridData = rows;
+  NOTE_SAVE_STATE = {}; NOTE_RETRY = {};
+  // Charge discrètement les notes de la J-1 (pour le contrôle d'aberration #3).
+  NOTE_PREV_MAP = {};
+  try { const prev = await api.adminPrevNotes(mdId); (prev||[]).forEach(p=>{ NOTE_PREV_MAP[p.player_id]=p; }); } catch(e){}
   populateNoteFilters();
   paintNoteGrid();
+  updateNoteProgress();
 }
 // Remplit les menus Championnat et Club à partir des données chargées,
 // en conservant la sélection courante si elle existe toujours.
@@ -4053,11 +4096,16 @@ function paintNoteGrid(){
     const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||'')) + meta;
     const val = r.note!=null ? r.note : '';
     const dnp = r.played===false;
-    // Pastille d'état : ✓ noté · ✗ à faire · — n'a pas joué.
-    const badge = dnp
+    // Pastille d'état : priorité à l'état d'ENREGISTREMENT (⏳ en cours / ⚠ échec),
+    // sinon ✓ noté · ✗ à faire · — n'a pas joué.
+    const st = NOTE_SAVE_STATE[r.player_id];
+    let badge;
+    if(st==='pending'){ badge = '<span title="enregistrement…" style="color:#f0b429;font-weight:800">⏳</span>'; }
+    else if(st==='error'){ badge = '<span title="échec — cliquer pour réessayer" data-noteretry="'+r.player_id+'" style="color:var(--live,#e0574a);font-weight:800;cursor:pointer">⚠</span>'; }
+    else badge = dnp
       ? '<span title="n\'a pas joué" style="color:var(--muted);font-weight:700">—</span>'
       : (noteIsSet(r)
-          ? '<span title="noté" style="color:#4ade80;font-weight:800">✓</span>'
+          ? '<span title="noté et enregistré" style="color:#4ade80;font-weight:800">✓</span>'
           : '<span title="à noter" style="color:var(--live,#e0574a);font-weight:800">✗</span>');
     // Rattachement : propriétaire (manager + équipe) pour la gestion des incidents.
     const owner = r.owner_name
@@ -4077,39 +4125,112 @@ function paintNoteGrid(){
   });
   html += '</table>';
   grid.innerHTML = html;
+  // #2 — Progression ciblée : si un filtre manager/équipe/championnat est actif,
+  // montrer l'avancement sur le sous-ensemble filtré (hors recherche texte).
+  const tp = $('noteProgressTargeted');
+  if(tp){
+    const scoped = (fMgr||fTeam||fChamp||fClub||fPos);
+    if(scoped){
+      const sub = _noteGridData.filter(r=>{
+        if(fPos && (r.pos||'')!==fPos) return false;
+        if(fChamp && (r.championship||'')!==fChamp) return false;
+        if(fClub && (r.club||'')!==fClub) return false;
+        if(fMgr && (r.owner_name||'')!==fMgr) return false;
+        if(fTeam && (r.owner_team||'')!==fTeam) return false;
+        return true;
+      });
+      const done = sub.filter(noteIsSet).length;
+      const label = fTeam||fMgr||fClub||fChamp||({GK:'Gardiens',DEF:'Défenseurs',MID:'Milieux',FWD:'Attaquants'}[fPos])||'';
+      const pct = sub.length? Math.round(done/sub.length*100):0;
+      tp.style.display='';
+      tp.innerHTML = `📊 <b>${esc(label)}</b> : ${done}/${sub.length} notés (${pct}%)`
+        + (done<sub.length? ` · reste ${sub.length-done}` : ' · ✅ complet');
+    } else tp.style.display='none';
+  }
   renderNoteRecap();
+  if(typeof refreshNoteLock==='function') refreshNoteLock();
 }
-// Enregistrement d'une note (debounce léger via blur/enter).
+// --- Fiabilité de l'enregistrement (#1) : état par joueur + file de retry ---
+let NOTE_SAVE_STATE = {};   // player_id -> 'pending' | 'saved' | 'error'
+let NOTE_RETRY = {};        // player_id -> {note, played} en échec, à relancer
+let NOTE_PREV_MAP = {};     // player_id -> note J-1 (pour le contrôle d'aberration)
+
+function setNoteBadge(playerId, state){
+  NOTE_SAVE_STATE[playerId] = state;
+  const g = $('noteGrid'); if(!g) return;
+  const inp = g.querySelector(`input[data-note="${playerId}"]`);
+  const row = inp && inp.closest('tr'); if(!row) return;
+  const holder = row.querySelector('td:first-child > span:first-child');
+  if(!holder) return;
+  if(state==='pending') holder.innerHTML = '<span title="enregistrement…" style="color:#f0b429;font-weight:800">⏳</span>';
+  else if(state==='error') holder.innerHTML = '<span title="échec — cliquer pour réessayer" data-noteretry="'+playerId+'" style="color:var(--live,#e0574a);font-weight:800;cursor:pointer">⚠</span>';
+  else { const rec=_noteGridData.find(r=>r.player_id===playerId);
+    holder.innerHTML = rec && rec.played===false
+      ? '<span title="n\'a pas joué" style="color:var(--muted);font-weight:700">—</span>'
+      : (rec && noteIsSet(rec) ? '<span title="noté et enregistré" style="color:#4ade80;font-weight:800">✓</span>'
+                              : '<span title="à noter" style="color:var(--live,#e0574a);font-weight:800">✗</span>'); }
+}
+
+// Contrôle d'aberration (#3) : plage 0–10, et écart inhabituel vs J-1 (si connue).
+function noteLooksOff(playerId, note){
+  if(note==null || isNaN(note)) return null;
+  if(note<0 || note>10) return 'hors de 0–10';
+  const prev = (NOTE_PREV_MAP||{})[playerId];
+  if(prev && prev.prev_played && prev.prev_note!=null && Math.abs(note - prev.prev_note) >= 4)
+    return `très loin de la J-1 (${prev.prev_note})`;
+  return null;
+}
+
+// Enregistrement d'une note (debounce léger via blur/enter), avec état + retry.
 async function saveNote(playerId, noteVal, played){
   const mdId = $('noteMatchday').value;
   if(!mdId) return;
   const note = (noteVal==='' || noteVal==null) ? null : parseFloat(String(noteVal).replace(',','.'));
   if(played && (note==null || isNaN(note) || note<0 || note>10)) return; // rien à enregistrer
+
+  const g = $('noteGrid'); const inp = g && g.querySelector(`input[data-note="${playerId}"]`);
+  // Avertissement d'aberration (n'empêche pas l'enregistrement).
+  if(inp){
+    const warn = played ? noteLooksOff(playerId, note) : null;
+    inp.style.outline = warn ? '2px solid #f0794a' : '';
+    inp.title = warn ? ('⚠ '+warn) : '';
+  }
+
+  setNoteBadge(playerId, 'pending');
   try {
     await api.adminSetPlayerNote(playerId, mdId, played?note:0, played);
+    delete NOTE_RETRY[playerId];
     const rec = _noteGridData.find(r=>r.player_id===playerId);
     if(rec){ rec.note = played?note:0; rec.played = played; }
-    // une suggestion J-1 validée perd son surlignage jaune
-    const g = $('noteGrid'); const inp = g && g.querySelector(`input[data-note="${playerId}"]`);
     if(inp && inp.dataset.suggested){ inp.style.background=''; delete inp.dataset.suggested; }
-    // Confirmation visuelle : flash vert de la ligne + pastille ✓
-    if(inp){
-      const row = inp.closest('tr');
-      if(row){
-        row.style.transition='background .4s'; row.style.background='rgba(74,222,128,.22)';
-        setTimeout(()=>{ row.style.background=''; }, 700);
-        let badge = row.querySelector('.note-ok');
-        const cell = inp.parentElement;
-        if(!badge && cell){ badge=document.createElement('span'); badge.className='note-ok'; badge.style.cssText='color:#4ade80;margin-left:6px;font-weight:700'; cell.appendChild(badge); }
-        if(badge) badge.textContent = played ? '✓' : '✓ NJ';
-      }
-    }
-    const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
-    if($('noteProgress')) $('noteProgress').textContent = `${noted}/${_noteGridData.length} joueurs notés ✓`;
+    if(inp){ const row = inp.closest('tr');
+      if(row){ row.style.transition='background .4s'; row.style.background='rgba(74,222,128,.22)';
+        setTimeout(()=>{ row.style.background=''; }, 600); } }
+    setNoteBadge(playerId, 'saved');
+    updateNoteProgress();
     renderNoteRecap();
   } catch(e){
-    if($('noteProgress')) $('noteProgress').innerHTML = `<span style="color:var(--live)">⚠ note non enregistrée (réessaie)</span>`;
+    NOTE_RETRY[playerId] = { note: played?note:0, played };
+    setNoteBadge(playerId, 'error');
+    updateNoteProgress();
   }
+}
+
+// Relance tous les enregistrements en échec.
+async function retryFailedNotes(){
+  const ids = Object.keys(NOTE_RETRY);
+  for(const pid of ids){ const q = NOTE_RETRY[pid]; if(!q) continue;
+    await saveNote(pid, q.played ? q.note : '', q.played); }
+}
+
+// Compteur global + nb d'échecs en attente.
+function updateNoteProgress(){
+  const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
+  const fails = Object.keys(NOTE_RETRY).length;
+  const el = $('noteProgress'); if(!el) return;
+  el.innerHTML = `${noted}/${_noteGridData.length} joueurs notés ✓`
+    + (fails ? ` · <span style="color:var(--live);cursor:pointer" id="noteRetryLink">⚠ ${fails} à réessayer</span>` : '');
+  const rl = $('noteRetryLink'); if(rl) rl.onclick = retryFailedNotes;
 }
 // Récap : liste des joueurs déjà notés (nom + note), filtrable, cliquable pour revenir dessus.
 function renderNoteRecap(){
@@ -4149,10 +4270,16 @@ function renderNoteRecap(){
     if(!e.target.matches('input[data-note]')) return;
     const inputs = focusables();
     const i = inputs.indexOf(e.target);
-    // Entrée ou flèche bas → enregistrer + joueur suivant
+    // Entrée → enregistrer + sauter au prochain NON NOTÉ (#7). Flèche bas → ligne suivante.
     if(e.key==='Enter' || e.key==='ArrowDown'){
       e.preventDefault();
       saveNote(e.target.getAttribute('data-note'), e.target.value, true);
+      if(e.key==='Enter' && $('noteJumpNext') && $('noteJumpNext').checked){
+        // prochain champ vide (non noté) après la position courante, sinon suivant simple
+        let nx=-1; for(let k=i+1;k<inputs.length;k++){ if(inputs[k].value==='' ){ nx=k; break; } }
+        if(nx<0) for(let k=0;k<i;k++){ if(inputs[k].value===''){ nx=k; break; } }
+        if(nx>=0){ inputs[nx].focus(); inputs[nx].select&&inputs[nx].select(); return; }
+      }
       if(i>=0 && i<inputs.length-1) inputs[i+1].focus();
     }
     // Flèche haut → enregistrer + joueur précédent
@@ -4184,8 +4311,141 @@ function renderNoteRecap(){
       saveNote(pid, played ? (noteInput?noteInput.value:'') : '', played);
     }
   });
+  // Clic sur la pastille ⚠ d'une ligne en échec → réessayer cette note.
+  grid.addEventListener('click', (e)=>{
+    const rt = e.target.closest('[data-noteretry]'); if(!rt) return;
+    const pid = rt.getAttribute('data-noteretry'); const q = NOTE_RETRY[pid];
+    if(q) saveNote(pid, q.played ? q.note : '', q.played);
+  });
   const rf = $('noteRecapFilter'); if(rf) rf.addEventListener('input', renderNoteRecap);
 })();
+
+// #4 — Marquer tous les joueurs SANS MATCH restants comme « n'a pas joué ».
+async function markNoMatchAsDNP(){
+  const todo = _noteGridData.filter(r=> r.has_match===false && !noteIsSet(r));
+  if(!todo.length){ alert('Aucun joueur « sans match » restant à marquer.'); return; }
+  if(!confirm(`Marquer ${todo.length} joueur(s) sans match cette journée comme « n'a pas joué » ?`)) return;
+  for(const r of todo){ await saveNote(r.player_id, '', false); }
+  paintNoteGrid();
+}
+if($('btnNoteDnpNoMatch')) $('btnNoteDnpNoMatch').onclick = markNoMatchAsDNP;
+
+// ===================== Vague B — outils de contrôle des notes ============
+const _noteEsc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+
+// #8 — Alignés non notés
+async function showUnrated(){
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  const box = $('noteUnratedBox'); const list = $('noteUnratedList');
+  if(!mdId){ alert('Choisis une journée.'); return; }
+  if(box) box.style.display='';
+  if(list) list.innerHTML = '<p class="hint">Chargement…</p>';
+  let rows;
+  try { rows = await api.adminUnratedLineupPlayers(mdId); }
+  catch(e){ if(list) list.innerHTML = '<p class="hint">Passe le script 287 pour activer cet outil.</p>'; return; }
+  if(!rows.length){ if(list) list.innerHTML = '<p class="hint" style="color:#4ade80">✅ Tous les joueurs alignés sont notés.</p>'; return; }
+  if(list) list.innerHTML = `<p class="hint" style="margin-bottom:4px">${rows.length} joueur(s) aligné(s) sans note — à traiter en priorité :</p>` +
+    rows.map(r=>`<div data-recapjump="${r.player_id}" style="display:flex;justify-content:space-between;gap:10px;padding:3px 6px;border-top:1px solid var(--line);cursor:pointer" title="Cliquer pour aller noter ce joueur">
+      <span>${_noteEsc(r.name)} <span class="hint" style="font-size:.74rem">· ${_noteEsc(r.club||'')}${r.owner_team?' · 👤 '+_noteEsc(r.owner_team):''}</span></span>
+      <span class="hint" style="font-size:.74rem;white-space:nowrap">aligné ×${r.in_lineups}</span></div>`).join('');
+  // réutilise le mécanisme de saut de la recap
+  if(list) list.querySelectorAll('[data-recapjump]').forEach(el=>el.onclick=()=>{
+    const pid = el.dataset.recapjump;
+    if($('noteFilter')) $('noteFilter').value='';
+    ['noteFilterPos','noteFilterChamp','noteFilterClub','noteFilterMgr','noteFilterTeam'].forEach(id=>{ if($(id)) $(id).value=''; });
+    populateNoteFilters(); paintNoteGrid();
+    const inp = $('noteGrid') && $('noteGrid').querySelector(`input[data-note="${pid}"]`);
+    if(inp){ inp.scrollIntoView({block:'center'}); inp.focus(); inp.select&&inp.select(); }
+  });
+}
+if($('btnNoteUnrated')) $('btnNoteUnrated').onclick = showUnrated;
+if($('btnUnratedClose')) $('btnUnratedClose').onclick = ()=>{ if($('noteUnratedBox')) $('noteUnratedBox').style.display='none'; };
+
+// #9 — Pré-remplir les champs vides avec la moyenne des 3 dernières notes
+async function prefillAvg3(){
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  const cnt = $('noteGridCount');
+  if(!mdId){ if(cnt) cnt.textContent='Choisis une journée.'; return; }
+  let avg;
+  try { avg = await api.adminNotesAvg3(mdId); }
+  catch(e){ if(cnt) cnt.textContent='Passe le script 287 pour activer la suggestion moyenne.'; return; }
+  const map = {}; avg.forEach(a=>{ map[a.player_id]=a; });
+  const grid = $('noteGrid'); if(!grid) return;
+  let filled=0;
+  grid.querySelectorAll('input[data-note]').forEach(inp=>{
+    const pid = inp.getAttribute('data-note');
+    if(!inp.disabled && (inp.value===''||inp.value==null) && map[pid] && map[pid].avg_note!=null){
+      inp.value = map[pid].avg_note;
+      inp.style.background = 'rgba(240,180,41,.18)'; inp.dataset.suggested='1';
+      inp.title = `suggestion : moyenne de ${map[pid].samples} journée(s)`;
+      filled++;
+    }
+  });
+  if(cnt) cnt.innerHTML = `<span style="color:#f0b429">${filled} suggestion(s) (moyenne 3 J)</span> — en jaune, non enregistrées. Entrée pour valider (ou corrige).`;
+}
+if($('btnNoteAvg3')) $('btnNoteAvg3').onclick = prefillAvg3;
+
+// #10 — Export CSV de l'état des notes de la journée
+function exportNotesCsv(){
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  if(!mdId){ alert('Choisis une journée.'); return; }
+  const sel = $('noteMatchday'); const lbl = sel.options[sel.selectedIndex].textContent.replace(/[^\w-]+/g,'_');
+  const esc = v => { const s = String(v==null?'':v); return /[",;\n]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s; };
+  const head = ['Prenom','Nom','Poste','Club','Championnat','Manager','Equipe','Note','AJoue','Statut'];
+  const lines = _noteGridData.map(r=>{
+    const statut = r.played===false ? 'na_pas_joue' : (noteIsSet(r)?'note':'a_noter');
+    return [r.first_name, r.name, r.pos, r.club, r.championship, r.owner_name, r.owner_team,
+            (r.note!=null?r.note:''), (r.played===false?'non':'oui'), statut].map(esc).join(';');
+  });
+  const csv = '﻿' + head.join(';') + '\n' + lines.join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `notes_${lbl}.csv`; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+if($('btnNoteExport')) $('btnNoteExport').onclick = exportNotesCsv;
+
+// #5 — Journal des modifications
+async function showNoteHistory(){
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  const box = $('noteHistoryBox'); const list = $('noteHistoryList');
+  if(!mdId){ alert('Choisis une journée.'); return; }
+  if(box) box.style.display='';
+  if(list) list.innerHTML='<p class="hint">Chargement…</p>';
+  let rows;
+  try { rows = await api.adminNoteHistory(mdId); }
+  catch(e){ if(list) list.innerHTML='<p class="hint">Passe le script 287 pour activer le journal.</p>'; return; }
+  if(!rows.length){ if(list) list.innerHTML='<p class="hint">Aucune modification enregistrée pour cette journée.</p>'; return; }
+  const fmt = v => v==null ? '—' : v;
+  const when = t => { try { return new Date(t).toLocaleString('fr-FR'); } catch(e){ return t; } };
+  if(list) list.innerHTML = rows.map(r=>{
+    let desc;
+    if(r.action==='reopen') desc = '<b>Réouverture de la saisie</b>';
+    else if(r.action==='insert') desc = `${_noteEsc(r.player_name||'?')} : note <b>${fmt(r.new_note)}</b>${r.new_played===false?' (n\'a pas joué)':''}`;
+    else if(r.action==='delete') desc = `${_noteEsc(r.player_name||'?')} : note supprimée (était ${fmt(r.old_note)})`;
+    else desc = `${_noteEsc(r.player_name||'?')} : ${fmt(r.old_note)} → <b>${fmt(r.new_note)}</b>${r.new_played===false?' (n\'a pas joué)':''}`;
+    return `<div style="padding:4px 6px;border-top:1px solid var(--line)">
+      <span class="hint" style="font-size:.74rem">${when(r.changed_at)}${r.by_name?' · '+_noteEsc(r.by_name):''}</span><br>${desc}</div>`;
+  }).join('');
+}
+if($('btnNoteHistory')) $('btnNoteHistory').onclick = showNoteHistory;
+if($('btnHistoryClose')) $('btnHistoryClose').onclick = ()=>{ if($('noteHistoryBox')) $('noteHistoryBox').style.display='none'; };
+
+// #6 — Rouvrir la saisie d'une journée clôturée
+async function reopenNotes(){
+  const mdId = $('noteMatchday') ? $('noteMatchday').value : '';
+  if(!mdId) return;
+  if(!confirm('Rouvrir la saisie des notes de cette journée ? (elle repasse en « scoring », action tracée)')) return;
+  const r = await api.adminReopenNotes(mdId);
+  if(r && r.__error){ alert('Réouverture impossible : '+r.__error); return; }
+  // met à jour le statut stocké sur l'option + rafraîchit
+  const sel = $('noteMatchday'); const o = sel && sel.options[sel.selectedIndex];
+  if(o) o.dataset.status = 'scoring';
+  await renderNoteGrid();
+  refreshNoteLock();
+  if($('noteGridCount')) $('noteGridCount').innerHTML = '<span style="color:#4ade80">🔓 Saisie rouverte.</span>';
+}
+if($('btnNoteReopen')) $('btnNoteReopen').onclick = reopenNotes;
 
 // Pré-remplir les champs VIDES avec les notes de la J-1 (suggestion, non enregistré).
 if($('btnPrefillPrev')) $('btnPrefillPrev').onclick = async ()=>{
