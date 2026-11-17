@@ -1090,6 +1090,18 @@ export async function adminSetPlayerNote(playerId, matchdayId, note, played = tr
 export async function adminDeletePlayerNote(playerId, matchdayId) {
   return sb.rpc('qm_admin_delete_player_note', { p_player_id: playerId, p_matchday_id: matchdayId || null });
 }
+// ---------- Harmonisation des noms de clubs (fusion de variantes) ----------
+// Clubs regroupés par similarité : [{club_key, variant_count, total_players, labels:[{label,players}]}]
+export async function adminClubVariants() {
+  const { data } = await sb.rpc('qm_admin_club_variants');
+  return data ?? [];
+}
+// Réécrit le club des joueurs portant un des libellés `fromLabels` vers `toLabel`.
+export async function adminMergeClub(fromLabels, toLabel) {
+  const { data, error } = await sb.rpc('qm_admin_merge_club', { p_from: fromLabels, p_to: toLabel });
+  if (error) return { __error: error.message };
+  return data;
+}
 // Import en masse (option B) : rows = [{q, club?, note, played}]. Compte-rendu.
 export async function adminImportNotes(matchdayId, rows) {
   const { data, error } = await sb.rpc('qm_admin_import_notes', {

@@ -885,6 +885,27 @@
   </div>
 
   <!-- Notes des joueurs par journée (Sofascore) -->
+  <h2 data-ic="layers">Harmoniser les clubs</h2>
+  <div class="card" style="margin-bottom:14px">
+    <p class="hint" style="margin-bottom:10px">Regroupe les <b>variantes d'un même club</b> (ex. « AC Milan » / « Milan AC » / « Milan », ou « Bayer Leverkusen » / « Leverkusen ») sous un seul libellé officiel. La détection automatique rapproche les écarts de casse, d'accents et d'ordre des mots ; pour les cas qu'elle ne voit pas (nom de sponsor, abréviation), tu peux <b>fusionner à la main</b> les libellés de ton choix.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn-ghost btn-sm" id="btnClubScan">🔍 Analyser les clubs</button>
+      <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="clubOnlyDupes" checked> Afficher seulement les groupes à variantes</label>
+      <input type="text" id="clubScanFilter" placeholder="Filtrer un club…" style="flex:1;min-width:150px;padding:6px 8px;font-size:.84rem">
+      <span id="clubScanMsg" class="hint" style="font-size:.78rem;margin-left:auto"></span>
+    </div>
+    <div id="clubVariantsList" style="max-height:420px;overflow:auto"></div>
+    <!-- Fusion manuelle (cas non détectés) -->
+    <div style="margin-top:12px;border-top:1px solid var(--line);padding-top:10px">
+      <p class="hint" style="font-size:.8rem;margin-bottom:6px"><b>Fusion manuelle</b> — coche plusieurs libellés dans la liste ci-dessus (bouton « + fusion manuelle » de chaque groupe, ou les cases), choisis le libellé officiel, puis fusionne.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input type="text" id="clubMergeTarget" placeholder="Libellé officiel (ex. AC Milan)" style="flex:1;min-width:180px;padding:6px 8px;font-size:.84rem">
+        <button class="btn-ghost btn-sm" id="btnClubMerge" disabled>⇢ Fusionner la sélection</button>
+        <span id="clubMergeSel" class="hint" style="font-size:.78rem"></span>
+      </div>
+    </div>
+  </div>
+
   <h2 data-ic="star">Notes des joueurs — par journée</h2>
   <div class="card" style="margin-bottom:14px">
     <p class="hint" style="margin-bottom:12px">Reporte les notes Sofascore de chaque joueur pour une journée. Deux méthodes : <b>saisie rapide</b> au clavier, ou <b>import</b> en collant un bloc de notes.</p>
@@ -923,6 +944,20 @@
 
     <!-- Méthode A : grille (tous les joueurs) -->
     <div id="notePanelGrid" style="display:none">
+      <!-- Filtres de saisie : poste + championnat + club + tri (la recherche
+           texte est le champ « Filtrer » au-dessus du panneau). -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <span class="hint" style="font-size:.78rem">Filtrer :</span>
+        <select id="noteFilterPos" style="font-size:.82rem"><option value="">Tous postes</option><option value="GK">Gardiens</option><option value="DEF">Défenseurs</option><option value="MID">Milieux</option><option value="FWD">Attaquants</option></select>
+        <select id="noteFilterChamp" style="font-size:.82rem;max-width:170px"><option value="">Tous championnats</option></select>
+        <select id="noteFilterClub" style="font-size:.82rem;max-width:170px"><option value="">Tous clubs</option></select>
+        <select id="noteSort" style="font-size:.82rem" title="Ordre d'affichage">
+          <option value="champ">Par championnat · club</option>
+          <option value="az">Nom A → Z</option>
+          <option value="za">Nom Z → A</option>
+          <option value="club">Par club (A→Z)</option>
+        </select>
+      </div>
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
         <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyMissing"> Seulement les manquants</label>
         <label style="font-size:.8rem;display:flex;align-items:center;gap:4px"><input type="checkbox" id="noteOnlyNoMatch"> Sans match cette semaine</label>
@@ -1694,7 +1729,7 @@ const ADMIN_TABS = [
       "Validation du marché","Interventions manuelles","Trace des bonus",
       "Historique des transactions","Historique des échanges entre managers","Enchères clôturées","Acquisitions reportées","Libérations & pénalités","Historique des propositions"] },
   { id:'joueurs', label:'⚽ Joueurs', titles:[
-      "Ajouter un joueur","Joueurs en base","Import CSV","Saisie des notes","Blessures à valider","Joueurs retirés"] },
+      "Ajouter un joueur","Joueurs en base","Import CSV","Harmoniser les clubs","Saisie des notes","Blessures à valider","Joueurs retirés"] },
   { id:'managers', label:'👥 Managers', titles:[
       "Inviter des managers","Classement des managers","Contrôle des effectifs","Ligues & divisions","Modération du chat",
       "Supprimer un manager","Suspendre le dénichement","Récompenses de fin de saison"] },
@@ -3937,21 +3972,52 @@ async function renderNoteGrid(){
   try { rows = await api.adminNotesGrid(mdId); }
   catch(e){ grid.innerHTML = '<p class="hint" style="padding:12px">Passe le script 228 (notes des joueurs) pour activer cette section.</p>'; return; }
   _noteGridData = rows;
+  populateNoteFilters();
   paintNoteGrid();
+}
+// Remplit les menus Championnat et Club à partir des données chargées,
+// en conservant la sélection courante si elle existe toujours.
+function populateNoteFilters(){
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const champs = [...new Set(_noteGridData.map(r=>r.championship).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  // Si un championnat est sélectionné, on restreint la liste des clubs à celui-ci.
+  const selChamp = $('noteFilterChamp') ? $('noteFilterChamp').value : '';
+  const clubs = [...new Set(_noteGridData.filter(r=>!selChamp||r.championship===selChamp).map(r=>r.club).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  const fill = (id, items, allLabel)=>{
+    const el = $(id); if(!el) return; const cur = el.value;
+    el.innerHTML = `<option value="">${allLabel}</option>` + items.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if(items.includes(cur)) el.value = cur;
+  };
+  fill('noteFilterChamp', champs, 'Tous championnats');
+  fill('noteFilterClub', clubs, 'Tous clubs');
 }
 function noteIsSet(r){ return r.note!=null || r.played===false; }
 function paintNoteGrid(){
   const grid = $('noteGrid'); if(!grid) return;
   const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const f = ($('noteFilter') && $('noteFilter').value || '').trim().toLowerCase();
+  const fPos = $('noteFilterPos') && $('noteFilterPos').value || '';
+  const fChamp = $('noteFilterChamp') && $('noteFilterChamp').value || '';
+  const fClub = $('noteFilterClub') && $('noteFilterClub').value || '';
+  const sort = ($('noteSort') && $('noteSort').value) || 'champ';
   const onlyMissing = $('noteOnlyMissing') && $('noteOnlyMissing').checked;
   const onlyNoMatch = $('noteOnlyNoMatch') && $('noteOnlyNoMatch').checked;
-  const list = _noteGridData.filter(r=>{
+  let list = _noteGridData.filter(r=>{
     if(onlyMissing && noteIsSet(r)) return false;
     if(onlyNoMatch && r.has_match) return false;
+    if(fPos && (r.pos||'') !== fPos) return false;
+    if(fChamp && (r.championship||'') !== fChamp) return false;
+    if(fClub && (r.club||'') !== fClub) return false;
     if(!f) return true;
     return (r.name||'').toLowerCase().includes(f) || (r.club||'').toLowerCase().includes(f) || (r.first_name||'').toLowerCase().includes(f);
   });
+  // Tri choisi. "champ" garde le regroupement championnat·club ; sinon tri à plat.
+  const nm = r => ((r.name||'')+' '+(r.first_name||'')).toLowerCase();
+  const byName = (a,b)=> nm(a).localeCompare(nm(b),'fr');
+  if(sort==='az') list = list.slice().sort(byName);
+  else if(sort==='za') list = list.slice().sort((a,b)=>byName(b,a));
+  else if(sort==='club') list = list.slice().sort((a,b)=> (a.club||'~').localeCompare(b.club||'~','fr') || byName(a,b));
+  const grouped = (sort==='champ');
   // Compteurs de complétude (sur l'ensemble, pas le filtre)
   const total = _noteGridData.length;
   const noted = _noteGridData.filter(noteIsSet).length;
@@ -3963,10 +4029,15 @@ function paintNoteGrid(){
   if(!list.length){ grid.innerHTML = '<p class="hint" style="padding:12px">Aucun joueur (filtre trop restrictif ou tout est noté).</p>'; return; }
   let html = '<table style="width:100%;border-collapse:collapse;font-size:.85rem">';
   let lastGroup = '';
+  const POSLBL = {GK:'G',DEF:'D',MID:'M',FWD:'A'};
   list.forEach((r)=>{
-    const grp = (r.championship||'—') + ' · ' + (r.club||'—');
-    if(grp!==lastGroup){ html += `<tr><td colspan="3" style="padding:6px 10px;background:var(--pitch);font-weight:700;font-size:.78rem;position:sticky;top:0">${esc(grp)}</td></tr>`; lastGroup = grp; }
-    const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||''));
+    if(grouped){
+      const grp = (r.championship||'—') + ' · ' + (r.club||'—');
+      if(grp!==lastGroup){ html += `<tr><td colspan="3" style="padding:6px 10px;background:var(--pitch);font-weight:700;font-size:.78rem;position:sticky;top:0">${esc(grp)}</td></tr>`; lastGroup = grp; }
+    }
+    // Hors regroupement (tri A→Z / club), on rappelle poste + club sur chaque ligne.
+    const meta = grouped ? '' : ` <span style="color:var(--muted);font-size:.74rem">· ${POSLBL[r.pos]||'?'} · ${esc(r.club||'—')}</span>`;
+    const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||'')) + meta;
     const val = r.note!=null ? r.note : '';
     const dnp = r.played===false;
     html += `<tr style="border-top:1px solid var(--line)">
@@ -4040,6 +4111,8 @@ function renderNoteRecap(){
     // vide le filtre pour que le joueur soit visible dans la grille, puis focus
     if($('noteFilter')){ $('noteFilter').value=''; }
     if($('noteOnlyMissing')) $('noteOnlyMissing').checked=false;
+    ['noteFilterPos','noteFilterChamp','noteFilterClub'].forEach(id=>{ if($(id)) $(id).value=''; });
+    populateNoteFilters();
     paintNoteGrid();
     const inp = $('noteGrid') && $('noteGrid').querySelector(`input[data-note="${pid}"]`);
     if(inp){ inp.scrollIntoView({block:'center'}); inp.focus(); inp.select&&inp.select(); }
@@ -4134,9 +4207,105 @@ if($('btnNotesToScores')) $('btnNotesToScores').onclick = async ()=>{
   if(error){ if(el) el.innerHTML = `<span style="color:var(--live)">${error.message||'Échec (script 236 passé ?)'}</span>`; return; }
   if(el) el.innerHTML = `<span style="color:#4ade80">✓ ${data} joueur(s) reportés</span>`;
 };
+// ================= Harmonisation des clubs (fusion de variantes) =========
+let _clubVariants = [];           // [{club_key, variant_count, total_players, labels:[{label,players}]}]
+let _clubMergeSel = new Set();    // libellés cochés pour la fusion manuelle
+function clubEsc(s){ return String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+
+async function scanClubs(){
+  const msg = $('clubScanMsg'); if(msg) msg.textContent = 'Analyse…';
+  try { _clubVariants = await api.adminClubVariants(); }
+  catch(e){ if(msg) msg.textContent = 'Passe le script 285 pour activer cet outil.'; return; }
+  _clubMergeSel.clear(); updateClubMergeBar();
+  renderClubVariants();
+  const dupes = _clubVariants.filter(g=>g.variant_count>1).length;
+  if(msg) msg.textContent = `${_clubVariants.length} clubs · ${dupes} groupe(s) à variantes`;
+}
+function renderClubVariants(){
+  const box = $('clubVariantsList'); if(!box) return;
+  const onlyDupes = $('clubOnlyDupes') && $('clubOnlyDupes').checked;
+  const f = ($('clubScanFilter') && $('clubScanFilter').value || '').trim().toLowerCase();
+  let groups = _clubVariants.slice();
+  if(onlyDupes) groups = groups.filter(g=>g.variant_count>1);
+  if(f) groups = groups.filter(g=>(g.labels||[]).some(l=>(l.label||'').toLowerCase().includes(f)));
+  if(!groups.length){ box.innerHTML = '<p class="hint" style="padding:12px">Aucun groupe à afficher (clique « Analyser les clubs » ou élargis le filtre).</p>'; return; }
+  box.innerHTML = groups.map(g=>{
+    const multi = g.variant_count>1;
+    const official = (g.labels[0]||{}).label || '';
+    const rows = g.labels.map(l=>{
+      const checked = _clubMergeSel.has(l.label) ? 'checked' : '';
+      return `<label style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:.85rem">
+        <input type="checkbox" data-clubsel="${clubEsc(l.label)}" ${checked}>
+        <span style="flex:1">${clubEsc(l.label)}</span>
+        <span class="hint" style="font-size:.76rem">${l.players} joueur${l.players>1?'s':''}</span></label>`;
+    }).join('');
+    const mergeBtn = multi
+      ? `<button class="btn-ghost btn-sm" data-clubgroup="${clubEsc(official)}" style="font-size:.74rem">⇢ Fusionner ce groupe sous « ${clubEsc(official)} »</button>`
+      : '<span class="hint" style="font-size:.76rem">libellé unique</span>';
+    return `<div style="border:1px solid ${multi?'var(--transfer,#e0a106)':'var(--line)'};border-radius:10px;padding:8px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <b style="font-size:.84rem">${multi?'⚠️ '+g.variant_count+' variantes':'✓'} · ${g.total_players} joueur${g.total_players>1?'s':''}</b>
+        ${mergeBtn}
+      </div>${rows}</div>`;
+  }).join('');
+  // Cases de sélection manuelle
+  box.querySelectorAll('[data-clubsel]').forEach(cb=>cb.onchange=()=>{
+    const lbl = cb.dataset.clubsel;
+    if(cb.checked) _clubMergeSel.add(lbl); else _clubMergeSel.delete(lbl);
+    updateClubMergeBar();
+  });
+  // Fusion rapide d'un groupe entier sous son libellé majoritaire
+  box.querySelectorAll('[data-clubgroup]').forEach(b=>b.onclick=async()=>{
+    const official = b.dataset.clubgroup;
+    const g = _clubVariants.find(x=>(x.labels[0]||{}).label===official);
+    if(!g) return;
+    const from = g.labels.map(l=>l.label).filter(l=>l!==official);
+    if(!from.length) return;
+    if(!confirm(`Fusionner ${from.length} variante(s) sous « ${official} » ?\n\n${from.join('\n')}`)) return;
+    await doClubMerge(from, official);
+  });
+}
+function updateClubMergeBar(){
+  const sel = [..._clubMergeSel];
+  if($('clubMergeSel')) $('clubMergeSel').textContent = sel.length ? `${sel.length} libellé(s) sélectionné(s)` : '';
+  // pré-remplit la cible avec le libellé le plus "complet" (le plus long) si vide
+  const tgt = $('clubMergeTarget');
+  if(tgt && !tgt.value && sel.length){ tgt.value = sel.slice().sort((a,b)=>b.length-a.length)[0]; }
+  if($('btnClubMerge')) $('btnClubMerge').disabled = sel.length<1;
+}
+async function doClubMerge(fromLabels, toLabel){
+  const r = await api.adminMergeClub(fromLabels, toLabel);
+  if(r && r.__error){ alert('Fusion impossible : '+r.__error); return; }
+  const n = (r && r.players_updated) || 0;
+  if($('clubScanMsg')) $('clubScanMsg').textContent = `✓ ${n} joueur(s) rattaché(s) à « ${toLabel} »`;
+  // Recharge le cache joueurs + ré-analyse pour refléter la fusion.
+  _clubMergeSel.clear(); if($('clubMergeTarget')) $('clubMergeTarget').value='';
+  try { if(typeof loadPlayers==='function') await loadPlayers(); } catch(e){}
+  // Si la grille de notes est ouverte, la recharger pour refléter les nouveaux libellés.
+  try { if(typeof renderNoteGrid==='function' && $('noteMatchday') && $('noteMatchday').value) await renderNoteGrid(); } catch(e){}
+  await scanClubs();
+}
+if($('btnClubScan'))   $('btnClubScan').onclick   = scanClubs;
+if($('clubOnlyDupes')) $('clubOnlyDupes').onchange = renderClubVariants;
+if($('clubScanFilter'))$('clubScanFilter').oninput = renderClubVariants;
+if($('btnClubMerge'))  $('btnClubMerge').onclick   = ()=>{
+  const sel = [..._clubMergeSel];
+  const to = ($('clubMergeTarget') && $('clubMergeTarget').value || '').trim();
+  if(!to){ alert('Indique le libellé officiel cible.'); return; }
+  const from = sel.filter(l=>l!==to);
+  if(!from.length){ alert('Sélectionne au moins un libellé différent de la cible.'); return; }
+  if(!confirm(`Fusionner sous « ${to} » :\n\n${from.join('\n')}`)) return;
+  doClubMerge(from, to);
+};
+
 if($('noteFilter'))      $('noteFilter').oninput        = paintNoteGrid;
 if($('noteOnlyMissing')) $('noteOnlyMissing').onchange  = paintNoteGrid;
 if($('noteOnlyNoMatch')) $('noteOnlyNoMatch').onchange  = paintNoteGrid;
+if($('noteFilterPos'))   $('noteFilterPos').onchange    = paintNoteGrid;
+// Changer de championnat recalcule la liste des clubs, puis réaffiche.
+if($('noteFilterChamp')) $('noteFilterChamp').onchange  = ()=>{ if($('noteFilterClub')) $('noteFilterClub').value=''; populateNoteFilters(); paintNoteGrid(); };
+if($('noteFilterClub'))  $('noteFilterClub').onchange   = paintNoteGrid;
+if($('noteSort'))        $('noteSort').onchange         = paintNoteGrid;
 
 // Onglets méthode
 function noteSwitch(which){
