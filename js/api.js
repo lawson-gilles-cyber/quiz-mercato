@@ -1165,6 +1165,12 @@ export async function adminNotesAvg3(matchdayId) {
   const { data } = await sb.rpc('qm_admin_notes_avg3', { p_matchday_id: matchdayId || null });
   return data ?? [];
 }
+// #11 — Verrouiller / déverrouiller une note (figer un joueur « validé »).
+export async function adminSetNoteLock(playerId, matchdayId, locked) {
+  const { error } = await sb.rpc('qm_admin_set_note_lock', { p_player_id: playerId, p_matchday_id: matchdayId || null, p_locked: locked });
+  if (error) return { __error: error.message };
+  return { ok: true };
+}
 
 // ---------- CHAT DE LIGUE -------------------------------------------
 export async function chatSend(body, replyTo = null) {
