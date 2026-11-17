@@ -185,6 +185,7 @@
   .wm-overlay{position:fixed;inset:0;z-index:1000;background:rgba(5,10,22,.88);backdrop-filter:blur(6px);
     display:flex;align-items:center;justify-content:center;padding:20px;animation:wmFade .3s ease}
   @keyframes wmFade{from{opacity:0}to{opacity:1}}
+  @keyframes vmLiveIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
   .wm-box{position:relative;max-width:440px;width:100%;max-height:92vh;display:flex;flex-direction:column;align-items:center;
     animation:wmPop .35s cubic-bezier(.2,.9,.3,1.3)}
   @keyframes wmPop{from{transform:scale(.9);opacity:0}to{transform:scale(1);opacity:1}}
@@ -2158,6 +2159,7 @@
           <li>La <b>disposition compte</b> : plus de défenseurs = défense plus solide mais attaque plus légère (et inversement), le milieu pèse sur la possession. Le 4-4-2 est l'équilibre de référence. Tu vois la répartition des forces (attaque / milieu / défense) de chaque équipe sur la feuille de match.</li>
           <li>Le défi est <b>asynchrone</b> et <b>à l'aveugle</b> : chacun aligne son onze sans voir celui de l'autre. Le match se joue dès que les deux onze sont posés, et c'est seulement <b>à ce moment</b> que les deux compositions se dévoilent sur la feuille de match.</li>
           <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons, <b>homme du match</b> et les <b>deux onze alignés</b>.</li>
+          <li>Tu peux <b>regarder le match en direct</b> : l'onglet <b>🔴 Direct</b> rejoue la rencontre minute par minute (deux mi-temps de 45′, pause à la mi-temps, score qui monte, temps forts qui tombent). Boutons pause, vitesse (1× / 2× / 4×) et « passer » pour aller direct au résultat.</li>
           <li>La force de chaque équipe vient des <b>caractéristiques de tes joueurs</b> (finition, défense, vitesse…), <b>ajustée par leur forme récente</b> (la moyenne de leurs dernières notes Sofascore). Un joueur en forme pèse un peu plus ; sans historique de notes, seuls les attributs comptent.</li>
           <li>La <b>discipline compte</b> : deux cartons jaunes = carton rouge et <b>exclusion</b>. Une équipe réduite à dix joue <b>affaiblie pour le temps restant</b> (moins d'occasions, plus concédées) — une exclusion précoce pèse donc lourd, mais ne condamne pas.</li>
           <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
@@ -11320,7 +11322,7 @@ async function submitEleven(){
     const res = await api.vmatchAcceptMind(VM_PICK_MODE.matchId, eleven, mind, form);
     if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
-    showMatchSheet(VM_PICK_MODE.matchId);
+    showMatchSheet(VM_PICK_MODE.matchId, true);   // fresh → propose le direct
   } else if(VM_PICK_MODE.kind==='tournament'){
     const res = await api.vtournamentSetEleven(VM_PICK_MODE.matchId, eleven, mind, form);
     if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
@@ -11331,7 +11333,7 @@ async function submitEleven(){
 }
 
 // ---- Feuille de match (modale) ----
-async function showMatchSheet(matchId){
+async function showMatchSheet(matchId, freshPlay){
   const ov = $('vmSheetOverlay'), modal = $('vmSheetModal');
   if(!ov||!modal) return;
   modal.innerHTML = '<div class="empty" style="padding:30px">Chargement…</div>';
@@ -11341,49 +11343,157 @@ async function showMatchSheet(matchId){
   const r = g.result;
   if(!r){ modal.innerHTML='<div class="empty" style="padding:20px">Match pas encore joué.</div>'; return; }
   let lu = null; try { lu = await api.vmatchLineups(matchId); } catch(e){}
-  renderSheetWithTabs(modal, r, g.team_a, g.team_b, lu, matchId, ()=>{ ov.style.display='none'; renderVmatch(); });
+  renderSheetWithTabs(modal, r, g.team_a, g.team_b, lu, matchId, ()=>{ ov.style.display='none'; renderVmatch(); }, freshPlay);
 }
 
 // Feuille de match à onglets : Stats | Récit. Le récit est chargé à la demande.
-function renderSheetWithTabs(modal, result, teamA, teamB, lineups, matchId, onClose){
+function renderSheetWithTabs(modal, result, teamA, teamB, lineups, matchId, onClose, freshPlay){
+  if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();   // coupe une animation précédente
   const tabBar = `
     <div style="display:flex;gap:6px;margin-bottom:10px">
+      <button id="vmTabLive" class="vmtab" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk);font-weight:600;cursor:pointer">🔴 Direct</button>
       <button id="vmTabStats" class="vmtab" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--transfer);background:var(--transfer);color:#1a1a1a;font-weight:700;cursor:pointer">Stats</button>
       <button id="vmTabRecit" class="vmtab" style="flex:1;padding:7px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk);font-weight:600;cursor:pointer">📝 Récit</button>
     </div>`;
+  const header = (title)=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800">${title}</div>
+      <button id="vmSheetClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    </div>`;
   // Rendu complet (stats) avec header/fermeture d'origine, + barre d'onglets insérée.
   const renderStats = ()=>{
+    if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();
     const full = vmSheetHTML(result, teamA, teamB, lineups);
-    // insère la barre d'onglets juste après le header (le bouton ×)
     modal.innerHTML = full.replace('</button>\n    </div>', '</button>\n    </div>'+tabBar);
     wireTabs(); bindClose(); markActive('stats');
   };
   const renderRecit = async ()=>{
-    modal.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800">Récit du match</div>
-        <button id="vmSheetClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
-      </div>${tabBar}<div id="vmTabBody"><div class="empty" style="padding:24px">Rédaction du compte-rendu…</div></div>`;
+    if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();
+    modal.innerHTML = header('Récit du match')+tabBar+`<div id="vmTabBody"><div class="empty" style="padding:24px">Rédaction du compte-rendu…</div></div>`;
     wireTabs(); bindClose(); markActive('recit');
     const n = await api.vmatchNarrative(matchId);
     const body = $('vmTabBody'); if(!body) return;
     if(n&&n.__error){ body.innerHTML=`<div class="empty" style="padding:18px">${n.__error}</div>`; return; }
     body.innerHTML = narrativeHTML(n, teamA, teamB);
   };
+  // Onglet DIRECT : rejoue le match minute par minute (deux mi-temps de 45').
+  const renderLive = (autostart)=>{
+    modal.innerHTML = header('Direct')+tabBar+`<div id="vmLiveBody"></div>`;
+    wireTabs(); bindClose(); markActive('live');
+    vmLivePlayer($('vmLiveBody'), result, teamA, teamB, autostart, ()=>renderStats());
+  };
   const wireTabs = ()=>{
-    const s=$('vmTabStats'), r=$('vmTabRecit');
+    const l=$('vmTabLive'), s=$('vmTabStats'), r=$('vmTabRecit');
+    if(l) l.onclick = ()=>renderLive(true);
     if(s) s.onclick = renderStats;
     if(r) r.onclick = renderRecit;
   };
   const markActive = (which)=>{
-    const s=$('vmTabStats'), r=$('vmTabRecit');
+    const map={live:$('vmTabLive'), stats:$('vmTabStats'), recit:$('vmTabRecit')};
     const on='background:var(--transfer);color:#1a1a1a;border-color:var(--transfer);font-weight:700';
     const off='background:var(--pitch);color:var(--chalk);border-color:var(--line);font-weight:600';
-    if(s) s.style.cssText=`flex:1;padding:7px;border-radius:8px;border:1px solid;cursor:pointer;${which==='stats'?on:off}`;
-    if(r) r.style.cssText=`flex:1;padding:7px;border-radius:8px;border:1px solid;cursor:pointer;${which==='recit'?on:off}`;
+    Object.keys(map).forEach(k=>{ if(map[k]) map[k].style.cssText=`flex:1;padding:7px;border-radius:8px;border:1px solid;cursor:pointer;${which===k?on:off}`; });
   };
-  const bindClose = ()=>{ const c=$('vmSheetClose'); if(c) c.onclick=onClose; };
-  renderStats();
+  const bindClose = ()=>{ const c=$('vmSheetClose'); if(c) c.onclick=()=>{ if(VM_LIVE&&VM_LIVE.stop) VM_LIVE.stop(); onClose(); }; };
+  // Match tout juste joué → on ouvre sur le DIRECT. Depuis l'historique → Stats.
+  if(freshPlay) renderLive(true); else renderStats();
+}
+
+// ============== LECTEUR « DIRECT » (animation minute par minute) ==========
+let VM_LIVE = null;   // instance courante (pour pouvoir l'arrêter)
+// Rejoue le result event par event. Deux mi-temps de 45', pause mi-temps,
+// horloge qui monte, score incrémenté, temps forts qui tombent.
+function vmLivePlayer(container, r, A, B, autostart, onFinish){
+  if(!container) return;
+  if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();
+  const ev = (Array.isArray(r.events)?r.events:[]).slice().sort((a,b)=>(a.minute-b.minute)||((a.type==='goal')?-1:1));
+  const finalA = r.score?r.score.a:0, finalB = r.score?r.score.b:0;
+  // Rythme rapide : ~70 ms par minute de jeu → ~90' en ~6,3 s de base ;
+  // vitesses 1× / 2× / 4× + bouton passer. Pause mi-temps courte.
+  let speed = 1; let paused = false; let stopped = false;
+  let clock = 0; let shownA = 0, shownB = 0; let evIdx = 0; let halftimeShown = false;
+  let timer = null;
+  const esc = vmEsc;
+  const icon = {goal:'⚽', chance:'➰', yellow:'🟨', red:'🟥', save:'🧤', injury:'🚑'};
+
+  container.innerHTML = `
+    <div style="text-align:center;margin-bottom:10px">
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.05rem">${esc(A)} <span id="vmLiveScore" style="font-family:'Saira',monospace;font-weight:900;font-size:1.8rem;margin:0 8px">0 – 0</span> ${esc(B)}</div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:4px">
+        <span id="vmLiveClock" style="font-family:'Saira',monospace;font-weight:800;font-size:1.1rem;color:var(--transfer)">0'</span>
+        <span id="vmLivePhase" style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">1re mi-temps</span>
+      </div>
+      <div id="vmLiveBar" style="height:5px;background:var(--line);border-radius:4px;margin:8px auto 0;max-width:320px;overflow:hidden"><span id="vmLiveBarFill" style="display:block;height:100%;width:0;background:var(--transfer)"></span></div>
+    </div>
+    <div style="display:flex;gap:6px;justify-content:center;margin-bottom:10px">
+      <button id="vmLivePause" class="btn-ghost btn-sm" style="font-size:.74rem">⏸ Pause</button>
+      <button id="vmLiveSpeed" class="btn-ghost btn-sm" style="font-size:.74rem">⏩ 1×</button>
+      <button id="vmLiveSkip" class="btn-ghost btn-sm" style="font-size:.74rem">⏭ Passer</button>
+    </div>
+    <div id="vmLiveFeed" style="max-height:38vh;overflow:auto;border-top:1px solid var(--line);padding-top:8px"></div>`;
+
+  const feed = container.querySelector('#vmLiveFeed');
+  const setScore = ()=>{ const s=container.querySelector('#vmLiveScore'); if(s) s.textContent=`${shownA} – ${shownB}`; };
+  const setClock = ()=>{ const c=container.querySelector('#vmLiveClock'); if(c) c.textContent=`${clock}'`;
+    const f=container.querySelector('#vmLiveBarFill'); if(f) f.style.width=Math.min(100,clock/90*100)+'%';
+    const ph=container.querySelector('#vmLivePhase'); if(ph) ph.textContent = clock<=45?'1re mi-temps':'2e mi-temps'; };
+  const pushEvent = (e)=>{
+    const side = e.team==='A';
+    const ico = (e.type==='red'&&e.second_yellow)?'🟨🟥':(icon[e.type]||'•');
+    let extra='';
+    if(e.type==='goal'&&e.goal_type==='penalty') extra=' (pén.)';
+    else if(e.type==='goal'&&e.goal_type==='free_kick') extra=' (c.f.)';
+    else if(e.type==='injury') extra=' (blessé)';
+    else if(e.type==='save') extra=' (arrêt)';
+    else if(e.type==='red') extra=e.second_yellow?' (2e j.)':' (exclu)';
+    const assist = (e.type==='goal'&&e.assist_name)?` <span style="color:var(--muted)">👟 ${esc(e.assist_name)}</span>`:'';
+    const row = document.createElement('div');
+    row.style.cssText=`display:flex;${side?'':'flex-direction:row-reverse;text-align:right;'}gap:8px;margin:5px 0;font-size:.82rem;animation:vmLiveIn .25s ease`;
+    row.innerHTML = `<span style="flex:0 0 32px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
+      <span style="flex:1;font-weight:${e.type==='goal'?'800':'500'};color:${e.type==='goal'?'var(--chalk)':'var(--muted)'}">${ico} ${esc(e.name||'')}${extra}${assist}</span>`;
+    feed.insertBefore(row, feed.firstChild);
+    if(e.type==='goal'){ if(side) shownA++; else shownB++; setScore(); }
+  };
+  const banner = (txt)=>{ const b=document.createElement('div');
+    b.style.cssText='text-align:center;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--transfer);font-weight:800;margin:8px 0;padding:4px;border-top:1px dashed var(--line);border-bottom:1px dashed var(--line)';
+    b.textContent=txt; feed.insertBefore(b, feed.firstChild); };
+
+  const finish = ()=>{
+    stopped=true; if(timer) clearTimeout(timer);
+    banner(`⏱ Coup de sifflet final — ${finalA} / ${finalB}`);
+    const pb=container.querySelector('#vmLivePause'), sp=container.querySelector('#vmLiveSpeed');
+    if(pb) pb.style.display='none'; if(sp) sp.style.display='none';
+    const sk=container.querySelector('#vmLiveSkip'); if(sk){ sk.textContent='📊 Voir les stats'; sk.onclick=()=>{ if(onFinish) onFinish(); }; }
+  };
+  const tick = ()=>{
+    if(stopped) return;
+    if(paused){ timer=setTimeout(tick, 120); return; }
+    clock++;
+    setClock();
+    // mi-temps à 45'
+    if(clock===45 && !halftimeShown){ halftimeShown=true; banner('⏸ Mi-temps'); timer=setTimeout(tick, 900/speed); return; }
+    // déverse les events de cette minute
+    while(evIdx<ev.length && ev[evIdx].minute<=clock){ pushEvent(ev[evIdx]); evIdx++; }
+    if(clock>=90 && evIdx>=ev.length){ // gère le temps additionnel (events >90)
+      while(evIdx<ev.length){ pushEvent(ev[evIdx]); evIdx++; }
+      finish(); return;
+    }
+    if(clock>=95){ while(evIdx<ev.length){ pushEvent(ev[evIdx]); evIdx++; } finish(); return; }
+    timer = setTimeout(tick, 70/speed);
+  };
+
+  // contrôles
+  const pauseBtn=container.querySelector('#vmLivePause');
+  const speedBtn=container.querySelector('#vmLiveSpeed');
+  const skipBtn=container.querySelector('#vmLiveSkip');
+  if(pauseBtn) pauseBtn.onclick=()=>{ paused=!paused; pauseBtn.textContent=paused?'▶ Reprendre':'⏸ Pause'; };
+  if(speedBtn) speedBtn.onclick=()=>{ speed = speed===1?2:(speed===2?4:1); speedBtn.textContent=`⏩ ${speed}×`; };
+  if(skipBtn) skipBtn.onclick=()=>{ // passer : déverse tout + fin
+    stopped=true; if(timer) clearTimeout(timer); clock=90; setClock();
+    while(evIdx<ev.length){ pushEvent(ev[evIdx]); evIdx++; } finish(); };
+
+  VM_LIVE = { stop:()=>{ stopped=true; if(timer) clearTimeout(timer); } };
+  if(autostart!==false) timer=setTimeout(tick, 400);
 }
 
 // Met en forme le récit narratif (intro + mi-temps + conclusion).
