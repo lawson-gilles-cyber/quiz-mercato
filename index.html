@@ -11316,9 +11316,12 @@ function vmSheetHTML(r, A, B, lineups){
         const side = e.team==='A';
         const ico = (e.type==='red' && e.second_yellow) ? '🟨🟥' : (icon[e.type]||'•');
         const label = (e.type==='red' && e.second_yellow) ? ' <span style="font-size:.66rem">(2e j.)</span>' : (e.type==='red' ? ' <span style="font-size:.66rem">(exclu)</span>' : '');
+        // passeur décisif : petite godasse 👟 sous le buteur
+        const assist = (e.type==='goal' && e.assist_name)
+          ? `<span style="display:block;font-size:.7rem;color:var(--muted);font-weight:400">👟 ${vmEsc(e.assist_name)}</span>` : '';
         return `<div style="display:flex;${side?'':'flex-direction:row-reverse;text-align:right;'}justify-content:flex-start;gap:8px;margin:4px 0;font-size:.8rem">
           <span style="flex:0 0 34px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
-          <span style="flex:1;color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico} ${vmEsc(e.name||'')}${label}</span>
+          <span style="flex:1;color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico} ${vmEsc(e.name||'')}${label}${assist}</span>
         </div>`;
       }).join('')}
     </div></div>` : '';
