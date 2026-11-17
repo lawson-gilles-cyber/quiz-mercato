@@ -1291,8 +1291,8 @@
       <div class="eyebrow" data-ic="target" style="margin-bottom:12px;display:flex;align-items:center">Objectifs & défis</div>
       <div id="challengesList"></div>
     </div>
-    <div style="margin-top:26px">
-      <div class="eyebrow" style="margin-bottom:12px">Derniers mouvements</div>
+    <div style="margin-top:26px" id="homeFeedWrap">
+      <div class="eyebrow" style="margin-bottom:12px" id="homeFeedTitle">Derniers mouvements</div>
       <div id="homeFeed"></div>
     </div>
   </section>
@@ -8471,19 +8471,26 @@ async function renderHome(){
     $('homeCTA').innerHTML = `<button class="bid-btn" onclick="document.querySelector('[data-v=&quot;lineup&quot;]').click()" style="margin:0">Composer mon onze →</button>`;
   }
 
-  // Derniers mouvements (mini fil)
-  $('homeFeed').innerHTML = moves.length
-    ? moves.map(m=>{
-        const pname = m.player?.name ?? 'Un joueur';
-        let icn, txt, c;
-        if(m.to && m.from){ icn='repeat'; c='#5fd0e0'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
-        else if(m.to){ icn='trendingUp'; c='#4ade80'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
-        else if(m.from){ icn='trendingDown'; c='#e0574a'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
-        else { icn='dot'; c='var(--muted)'; txt=pname; }
-        return `<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
-          <span style="display:inline-flex;color:${c}">${(typeof ic==='function'?ic(icn,16):'')}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
-      }).join('')
-    : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
+  // Derniers mouvements (mini fil). En phase de JEU, ce fil de transferts
+  // n'a plus lieu d'être : on le masque et on bascule le titre.
+  if(!marketOpen){
+    const _ft = $('homeFeedTitle'); if(_ft) _ft.textContent = 'La saison en bref';
+    $('homeFeed').innerHTML = `<div class="empty">Le mercato est clos. Place aux journées : compose ton onze, suis le classement et défie les autres managers.</div>`;
+  } else {
+    const _ft = $('homeFeedTitle'); if(_ft) _ft.textContent = 'Derniers mouvements';
+    $('homeFeed').innerHTML = moves.length
+      ? moves.map(m=>{
+          const pname = m.player?.name ?? 'Un joueur';
+          let icn, txt, c;
+          if(m.to && m.from){ icn='repeat'; c='#5fd0e0'; txt=`<b>${m.from.display_name}</b> → <b>${m.to.display_name}</b> : ${pname}`; }
+          else if(m.to){ icn='trendingUp'; c='#4ade80'; txt=`<b>${m.to.display_name}</b> recrute ${pname}${Number(m.price)>0?' ('+fmtMoney(m.price)+')':''}`; }
+          else if(m.from){ icn='trendingDown'; c='#e0574a'; txt=`<b>${m.from.display_name}</b> libère ${pname}`; }
+          else { icn='dot'; c='var(--muted)'; txt=pname; }
+          return `<div style="display:flex;gap:10px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px;background:var(--pitch-2)">
+            <span style="display:inline-flex;color:${c}">${(typeof ic==='function'?ic(icn,16):'')}</span><span style="font-size:.86rem;color:var(--chalk)">${txt}</span></div>`;
+        }).join('')
+      : `<div class="empty">Le mercato n'a pas encore démarré. Sois le premier à recruter !</div>`;
+  }
   let records = [];
   try { records = await api.seasonRecords(); } catch(e){ records = []; }
   renderTicker(moves, auctions, managers, records);
@@ -9505,6 +9512,28 @@ function renderTicker(moves, auctions, managers, records){
     items.push(it('trophy', `Leader : <b>${L.display_name}</b>${L.season_points!=null?` · ${L.season_points} pts`:''}`, '', 'rank'));
     if(ranked.length>=3){
       items.push(it('medalRank', `Podium : <b>${ranked[0].display_name}</b>, ${ranked[1].display_name}, ${ranked[2].display_name}`, '', 'rank'));
+    }
+  }
+
+  // 4b) PHASE DE JEU (mercato fermé) : actu de saison dans le ruban.
+  if(!mktOpen){
+    // Prochaine journée + état de ma compo (via le cache posé par renderHomeGamePhase).
+    if(HOME_RING_MODE==='matchday' && HOME_MD_DEADLINE){
+      const left = new Date(HOME_MD_DEADLINE)-now;
+      if(left>0) items.push(it('clock', `📋 <b>Compo à rendre</b> — prochaine journée dans <b>${fmtLeft(left)}</b>`, 'tk-mine', 'lineup'));
+      else items.push(it('clock', `📋 Journée en cours — compose ton onze`, 'tk-mine', 'lineup'));
+    } else if(ME){
+      items.push(it('target', `⚽ Compose ton onze et grimpe au classement`, '', 'lineup'));
+    }
+    // Incitation matchs virtuels.
+    items.push(it('swords', `⚔️ Défie un manager en <b>match virtuel</b>`, '', 'vmatch'));
+    // Ma position personnelle, si connue.
+    if(ME){
+      const myId = ME.id;
+      const ms = [...(managers||[])].sort((a,b)=>Number(b.season_points||0)-Number(a.season_points||0));
+      const mr = ms.findIndex(m=>m.id===myId);
+      if(mr>=0){ const myPts = ms[mr].season_points||0;
+        items.push(it('medalRank', `Tu es <b>${mr+1}${mr===0?'er':'e'}</b> sur ${ms.length} — ${myPts} pts`, '', 'rank')); }
     }
   }
 
