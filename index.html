@@ -2154,7 +2154,7 @@
         <p class="rule-p">Entre deux phases (par exemple pendant l'intersaison), tu peux <b>défier un autre manager</b> en match virtuel (menu Plus ⋮ → « ⚔️ Matchs virtuels »). Tu alignes ton onze, l'adversaire aligne le sien, et le match est <b>simulé automatiquement</b> à partir des caractéristiques de tes joueurs.</p>
         <p class="rule-p">⏳ Les matchs virtuels ne sont ouverts que pendant une <b>fenêtre limitée</b> (en général 5 jours). Un message t'indique le temps restant. Passé le délai, le menu est <b>grisé</b> et tu ne peux plus lancer de nouveau défi — mais tu peux toujours <b>finir les défis reçus et les tournois en cours</b>. L'organisation peut rouvrir une nouvelle fenêtre quand elle le souhaite.</p>
         <ol class="rule-ol">
-          <li>Tu choisis une <b>formation</b> (4-4-2, 3-5-2, 4-3-3…) et tu composes ton onze en respectant ce schéma (1 gardien + le bon nombre de défenseurs, milieux et attaquants).</li>
+          <li>Tu choisis une <b>formation</b> (4-4-2, 3-5-2, 4-3-3…) et tu composes ton onze en remplissant chaque <b>ligne</b> du schéma (1 gardien + le bon nombre par ligne). <b>Postes libres</b> : comme un vrai coach, tu peux aligner un joueur <b>hors de son poste</b> (un milieu en défense, un latéral en attaque…) pour t'adapter — avec un petit <b>malus d'adaptation</b> d'autant plus marqué que le poste est éloigné (un attaquant placé en défense perd plus qu'un milieu descendu d'un cran).</li>
           <li>La <b>disposition compte</b> : plus de défenseurs = défense plus solide mais attaque plus légère (et inversement), le milieu pèse sur la possession. Le 4-4-2 est l'équilibre de référence. Tu vois la répartition des forces (attaque / milieu / défense) de chaque équipe sur la feuille de match.</li>
           <li>Le défi est <b>asynchrone</b> et <b>à l'aveugle</b> : chacun aligne son onze sans voir celui de l'autre. Le match se joue dès que les deux onze sont posés, et c'est seulement <b>à ce moment</b> que les deux compositions se dévoilent sur la feuille de match.</li>
           <li>La <b>feuille de match</b> est complète : score, possession, tirs et tirs cadrés, expected goals (xG), corners, fautes, hors-jeu, cartons, <b>homme du match</b> et les <b>deux onze alignés</b>.</li>
@@ -10724,6 +10724,7 @@ const VM_POS_ORDER = ['GK','DEF','MID','FWD'];
 const vmEsc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
 let VM_SQUAD = [];          // mon effectif [{id,name,pos,club}]
 let VM_PICK = new Set();    // ids sélectionnés pour le onze en cours
+let VM_ALIGN = {};          // id -> ligne assignée ('GK'|'DEF'|'MID'|'FWD') : formation flexible
 let VM_PICK_MODE = null;    // {kind:'create',opponentId} | {kind:'accept',matchId}
 let VMATCH_WINDOW = null;   // {open, ends_at, seconds_left, window_days}
 
@@ -10986,7 +10987,7 @@ async function renderVmatch(){
     return;
   }
   VMATCH_WINDOW = win;
-  VM_PICK = new Set(); VM_PICK_MODE = null;
+  VM_PICK = new Set(); VM_ALIGN = {}; VM_PICK_MODE = null;
   const winOpen = win && win.open;
   maybeShowVmatchWindowNotice(win);
 
@@ -11147,15 +11148,31 @@ const VM_MIND_DESC = {off:'plus d\'occasions créées, mais tu t\'exposes', bal:
 async function openElevenPicker(mode){
   if(!mode.mind) mode.mind = 'bal';
   if(!mode.form) mode.form = '4-4-2';
-  VM_PICK_MODE = mode; VM_PICK = new Set();
+  VM_PICK_MODE = mode; VM_PICK = new Set(); VM_ALIGN = {};
   await vmLoadSquad();
   renderElevenPicker();
   $('vmPickerOverlay').style.display = 'flex';
 }
+// Compte par LIGNE ASSIGNÉE (formation flexible), pas par poste réel.
 function vmCountBy(){
   const c = {GK:0,DEF:0,MID:0,FWD:0};
-  VM_SQUAD.forEach(p=>{ if(VM_PICK.has(p.id)) c[p.pos]++; });
+  VM_SQUAD.forEach(p=>{ if(VM_PICK.has(p.id)){ const line = VM_ALIGN[p.id] || p.pos; c[line]++; } });
   return c;
+}
+// Trouve une ligne de champ avec une place libre, en commençant par la ligne
+// voulue (le poste réel du joueur), puis les lignes voisines.
+function vmFreeLine(q, prefer){
+  const c = vmCountBy();
+  const order = [prefer, 'MID', 'DEF', 'FWD'].filter((v,i,a)=>a.indexOf(v)===i); // prefer en tête, sans doublon
+  for(const line of order){ if(line!=='GK' && c[line] < q[line]) return line; }
+  return null;
+}
+// Écart poste réel → ligne, pour l'étiquette "hors poste" et le malus indicatif.
+const VM_POS_RANK = {DEF:0, MID:1, FWD:2};
+function vmMalusPct(realPos, line){
+  if(realPos==='GK' || line==='GK' || line===realPos) return 0;
+  const gap = Math.abs(VM_POS_RANK[realPos] - VM_POS_RANK[line]);
+  return gap===1 ? 10 : 22;   // 0.90 -> -10%, 0.78 -> -22% (cf. db/284)
 }
 function renderElevenPicker(){
   const modal = $('vmPickerModal'); if(!modal) return;
@@ -11166,15 +11183,34 @@ function renderElevenPicker(){
   const canGo = posOk && total===11;
   const title = VM_PICK_MODE.kind==='create' ? `Défier ${vmEsc(VM_PICK_MODE.opponentName||'')}` : (VM_PICK_MODE.kind==='tournament' ? 'Aligner ton onze' : `Relever le défi de ${vmEsc(VM_PICK_MODE.opponentName||'')}`);
   const fopts = TACTIC_FORMATIONS.map(f=>`<option value="${f}"${f===VM_PICK_MODE.form?' selected':''}>${f}</option>`).join('');
+  // Récap des lignes (nombre requis par la formation) — rempli selon les
+  // LIGNES ASSIGNÉES, postes réels libres.
+  const lineChip = (line)=>{ const have=c[line], need=q[line], ok=have===need;
+    return `<span style="display:inline-block;margin-right:8px;color:${ok?'#4ade80':(have>need?'var(--live,#e0574a)':'var(--muted)')};font-weight:700">${line==='GK'?'GAR':VM_POS_LABEL[line].slice(0,3).toUpperCase()} ${have}/${need}</span>`; };
+  const lineSummary = `<div style="font-size:.74rem;margin:2px 0 8px">${['GK','DEF','MID','FWD'].map(lineChip).join('')}</div>`;
+
+  // Liste des joueurs groupés par POSTE RÉEL (facile à parcourir). Chaque
+  // joueur sélectionné affiche sa ligne d'alignement + un sélecteur pour le
+  // déplacer (un milieu peut descendre en défense, etc.).
+  const lineBtn = (p, line)=>{
+    const assigned = (VM_ALIGN[p.id]||p.pos)===line;
+    const full = c[line] >= q[line] && !assigned;
+    const mal = vmMalusPct(p.pos, line);
+    return `<button data-vmline="${p.id}" data-line="${line}" ${full?'disabled':''} title="${line===p.pos?'poste naturel':(mal?('hors poste · −'+mal+'%'):'')}" style="background:${assigned?'var(--transfer)':'var(--pitch)'};color:${assigned?'#1a1a1a':(full?'var(--muted)':'var(--chalk)')};border:1px solid ${assigned?'var(--transfer)':'var(--line)'};border-radius:6px;padding:2px 7px;margin:0 3px 0 0;font-size:.68rem;font-weight:${assigned?'800':'500'};cursor:${full?'default':'pointer'};opacity:${full?'.45':'1'}">${VM_POS_LABEL[line].slice(0,3)}</button>`;
+  };
   const groups = VM_POS_ORDER.map(pos=>{
     const list = VM_SQUAD.filter(p=>p.pos===pos);
-    const need=q[pos], have=c[pos];
-    const hdrCol = have===need ? '#4ade80' : (have>need?'var(--live,#e0574a)':'var(--muted)');
     const chips = list.length ? list.map(p=>{
       const on = VM_PICK.has(p.id);
-      return `<button data-vmtoggle="${p.id}" style="display:inline-block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;margin:3px 4px 3px 0;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span></button>`;
+      const line = VM_ALIGN[p.id] || p.pos;
+      const mal = on ? vmMalusPct(p.pos, line) : 0;
+      const tag = (on && line!==p.pos) ? ` <span style="color:#ffb86b;font-size:.68rem">⇄ ${VM_POS_LABEL[line].slice(0,3)} −${mal}%</span>` : '';
+      // sélecteur de ligne (seulement pour un joueur de champ sélectionné)
+      const sel = (on && pos!=='GK') ? `<div style="margin:4px 0 2px">${['DEF','MID','FWD'].map(l=>lineBtn(p,l)).join('')}</div>` : '';
+      return `<div style="display:inline-block;vertical-align:top;margin:3px 5px 3px 0">
+        <button data-vmtoggle="${p.id}" style="display:block;background:${on?'var(--transfer)':'var(--pitch)'};color:${on?'#1a1a1a':'var(--chalk)'};border:1px solid ${on?'var(--transfer)':'var(--line)'};border-radius:8px;padding:5px 10px;font-size:.82rem;cursor:pointer;font-weight:${on?'700':'500'}">${on?'✓ ':''}${vmEsc(p.name)}<span style="opacity:.6;font-size:.72rem"> · ${vmEsc(p.club||'—')}</span>${tag}</button>${sel}</div>`;
     }).join('') : `<span style="color:var(--muted);font-size:.8rem">aucun ${VM_POS_LABEL[pos].toLowerCase()} dans ton effectif</span>`;
-    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px;color:${hdrCol}">${VM_POS_LABEL[pos]} · ${have}/${need}</div>${chips}</div>`;
+    return `<div style="margin-bottom:10px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:3px;color:var(--muted)">${VM_POS_LABEL[pos]}</div>${chips}</div>`;
   }).join('');
   modal.innerHTML = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
@@ -11186,8 +11222,10 @@ function renderElevenPicker(){
       <select id="vmForm" style="flex:1;padding:8px">${fopts}</select>
       <button id="vmLoadTactic" style="background:var(--pitch);color:var(--chalk);border:1px solid var(--line);border-radius:7px;padding:7px 10px;font-size:.78rem;cursor:pointer;white-space:nowrap">📋 Fiche</button>
     </div>
-    <div style="font-size:.84rem;color:${canGo?'#4ade80':'var(--muted)'};margin-bottom:4px">Sélection&nbsp;: <b>${total}/11</b>${posOk?'':` · respecte le schéma <b>${VM_PICK_MODE.form}</b> (1 gardien)`}</div>
-    <div style="max-height:38vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
+    <div style="font-size:.84rem;color:${canGo?'#4ade80':'var(--muted)'};margin-bottom:2px">Sélection&nbsp;: <b>${total}/11</b>${posOk?' · onze complet':` · remplis chaque ligne du <b>${VM_PICK_MODE.form}</b>`}</div>
+    ${lineSummary}
+    <div style="font-size:.72rem;color:var(--muted);margin-bottom:6px">Postes libres : tu peux aligner un joueur <b>hors de son poste</b> (ex. un milieu en défense) via les petits boutons DÉF/MIL/ATT. Hors poste = petit malus d'adaptation.</div>
+    <div style="max-height:34vh;overflow-y:auto;margin:8px 0;padding-right:4px">${groups||'<div class="empty">Ton effectif est vide.</div>'}</div>
     <div style="margin:10px 0 12px">
       <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:5px">Mentalité</div>
       <div style="display:flex;gap:6px">
@@ -11198,15 +11236,33 @@ function renderElevenPicker(){
     <button id="vmPickGo" ${canGo?'':'disabled'} class="btn" style="width:100%;background:${canGo?'var(--transfer)':'var(--pitch)'};color:${canGo?'#1a1a1a':'var(--muted)'};border:1px solid ${canGo?'var(--transfer)':'var(--line)'};border-radius:9px;padding:11px;font-weight:800;cursor:${canGo?'pointer':'default'}">${VM_PICK_MODE.kind==='create'?'Envoyer le défi':'Jouer le match'}</button>`;
   modal.querySelectorAll('[data-vmtoggle]').forEach(b=>b.onclick=()=>{
     const id=b.dataset.vmtoggle, p=VM_SQUAD.find(x=>x.id===id);
-    if(VM_PICK.has(id)) VM_PICK.delete(id);
+    if(VM_PICK.has(id)){ VM_PICK.delete(id); delete VM_ALIGN[id]; }
     else {
-      if(VM_PICK.size>=11) return;
-      if(vmCountBy()[p.pos] >= q[p.pos]){ alert(`Ton ${VM_PICK_MODE.form} demande ${q[p.pos]} ${VM_POS_LABEL[p.pos].toLowerCase()}. Retire-en un d'abord, ou change de formation.`); return; }
-      VM_PICK.add(id);
+      if(VM_PICK.size>=11){ alert('Onze déjà complet (11 joueurs).'); return; }
+      if(p.pos==='GK'){
+        if(vmCountBy().GK >= q.GK){ alert('Un seul gardien dans le onze.'); return; }
+        VM_PICK.add(id); VM_ALIGN[id]='GK';
+      } else {
+        // Place le joueur sur une ligne de champ libre, en privilégiant son poste réel.
+        const line = vmFreeLine(q, p.pos);
+        if(!line){ alert(`Toutes les lignes de champ du ${VM_PICK_MODE.form} sont pleines. Retire un joueur ou change de formation.`); return; }
+        VM_PICK.add(id); VM_ALIGN[id]=line;
+      }
     }
     renderElevenPicker();
   });
-  $('vmForm').onchange = (e)=>{ VM_PICK_MODE.form = e.target.value; renderElevenPicker(); };
+  // Sélecteur de ligne : déplace un joueur de champ vers une autre ligne
+  // (si une place y est libre). C'est la "formation flexible".
+  modal.querySelectorAll('[data-vmline]').forEach(b=>b.onclick=()=>{
+    if(b.disabled) return;
+    const id=b.dataset.vmline, line=b.dataset.line, p=VM_SQUAD.find(x=>x.id===id);
+    if(!VM_PICK.has(id)) return;
+    if((VM_ALIGN[id]||p.pos)===line) return;        // déjà sur cette ligne
+    if(vmCountBy()[line] >= q[line]){ alert(`La ligne ${VM_POS_LABEL[line].toLowerCase()} du ${VM_PICK_MODE.form} est pleine.`); return; }
+    VM_ALIGN[id]=line;
+    renderElevenPicker();
+  });
+  $('vmForm').onchange = (e)=>{ VM_PICK_MODE.form = e.target.value; vmRepackAlign(); renderElevenPicker(); };
   modal.querySelectorAll('[data-vmmind]').forEach(b=>b.onclick=()=>{ VM_PICK_MODE.mind=b.dataset.vmmind; renderElevenPicker(); });
   $('vmPickClose').onclick = ()=>{ $('vmPickerOverlay').style.display='none'; };
   const lt = $('vmLoadTactic');
@@ -11214,6 +11270,9 @@ function renderElevenPicker(){
     const squadIds = new Set(VM_SQUAD.map(p=>p.id));
     const kept = ids.filter(id=>squadIds.has(id)).slice(0,11);
     VM_PICK = new Set(kept);
+    // Une fiche a un joueur par poste : on aligne chacun sur sa ligne naturelle.
+    VM_ALIGN = {};
+    kept.forEach(id=>{ const p=VM_SQUAD.find(x=>x.id===id); if(p) VM_ALIGN[id]=p.pos; });
     if(tactic.formation) VM_PICK_MODE.form = tactic.formation;  // la fiche fixe aussi le schéma
     renderElevenPicker();
     if(kept.length<11) setTimeout(()=>alert(`Fiche « ${tactic.name} » (${tactic.formation}) chargée : ${kept.length}/11 joueurs encore dans ton effectif. Complète les postes manquants.`),50);
@@ -11221,9 +11280,34 @@ function renderElevenPicker(){
   const go = $('vmPickGo');
   if(go && canGo) go.onclick = submitEleven;
 }
+// Réaffecte les lignes des joueurs sélectionnés pour coller à la formation
+// courante (après changement de schéma). Priorité au poste naturel, puis on
+// case les surplus dans les lignes de champ encore libres.
+function vmRepackAlign(){
+  const q = tacticParse(VM_PICK_MODE.form);
+  const picks = VM_SQUAD.filter(p=>VM_PICK.has(p.id));
+  const cap = {GK:q.GK, DEF:q.DEF, MID:q.MID, FWD:q.FWD};
+  const used = {GK:0,DEF:0,MID:0,FWD:0};
+  const next = {};
+  // 1) chaque joueur sur sa ligne naturelle si place
+  picks.forEach(p=>{ const nat=p.pos; if(used[nat]<cap[nat]){ next[p.id]=nat; used[nat]++; } });
+  // 2) les non casés vont dans n'importe quelle ligne de champ libre
+  picks.forEach(p=>{ if(next[p.id]) return;
+    for(const l of ['DEF','MID','FWD']){ if(used[l]<cap[l]){ next[p.id]=l; used[l]++; break; } }
+    if(!next[p.id]) next[p.id] = VM_ALIGN[p.id] || p.pos;  // dernier recours (surplus : sera signalé)
+  });
+  VM_ALIGN = next;
+}
+// Ordonne le onze pour le moteur : [GK, DEF×, MID×, FWD×] selon la LIGNE
+// ASSIGNÉE (convention de db/284). L'indice porte la ligne, pas le poste réel.
+function vmOrderedEleven(){
+  const byLine = {GK:[],DEF:[],MID:[],FWD:[]};
+  VM_SQUAD.forEach(p=>{ if(VM_PICK.has(p.id)){ const l=VM_ALIGN[p.id]||p.pos; (byLine[l]||byLine.MID).push(p.id); } });
+  return [...byLine.GK, ...byLine.DEF, ...byLine.MID, ...byLine.FWD];
+}
 async function submitEleven(){
   const go = $('vmPickGo'); if(go){ go.disabled=true; go.textContent='…'; }
-  const eleven = Array.from(VM_PICK);
+  const eleven = vmOrderedEleven();
   const mind = VM_PICK_MODE.mind || 'bal';
   const form = VM_PICK_MODE.form || '4-4-2';
   if(VM_PICK_MODE.kind==='create'){
