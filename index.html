@@ -12677,11 +12677,65 @@ let CHAT_NOTIF = [];
 let DM_NOTIF = [];
 // Signalement local « demandes d'ami reçues » (1 entrée par demande).
 let FRIEND_NOTIF = [];
+// ---- Ouverture d'une VRAIE journée : pop-up + entrée cloche (tous managers) ----
+let MATCHDAY_NOTIF = [];   // notif(s) locale(s) d'ouverture de journée
+function mdOpenSeenSet(){
+  try { return new Set(JSON.parse(localStorage.getItem('us_md_open_seen')||'[]')); } catch(e){ return new Set(); }
+}
+function mdOpenSeenSave(set){
+  try { localStorage.setItem('us_md_open_seen', JSON.stringify([...set].slice(-100))); } catch(e){}
+}
+// Détecte une journée OUVERTE et NON-TEST pas encore vue → notif + pop-up.
+async function checkMatchdayOpen(){
+  if(!ME) return;
+  let mds = [];
+  try { mds = await api.listMatchdays(); } catch(e){ return; }
+  const open = (mds||[]).filter(m=> m.status==='open' && !m.is_test);
+  if(!open.length) return;
+  // Construit les entrées cloche pour toutes les journées ouvertes non-test.
+  MATCHDAY_NOTIF = open.map(m=>({
+    kind:'matchday_open', ref:m.id,
+    title:'Nouvelle journée ouverte',
+    detail:`${m.label || ('Journée '+m.number)} — compose ton onze`,
+    created_at: m.lineup_deadline || m.updated_at || new Date().toISOString()
+  }));
+  // Pop-up (une seule fois par journée, mémorisé localement).
+  const seen = mdOpenSeenSet();
+  const fresh = open.filter(m=> !seen.has(m.id));
+  if(fresh.length){
+    fresh.forEach(m=> seen.add(m.id)); mdOpenSeenSave(seen);
+    const m = fresh[0];
+    const dl = m.lineup_deadline ? new Date(m.lineup_deadline) : null;
+    const dlTxt = dl ? `<br><span style="color:var(--muted);font-size:.88rem">Clôture des compos : ${dl.toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : '';
+    showMatchdayOpenPopup(m.label || ('Journée '+m.number), dlTxt);
+  }
+}
+function showMatchdayOpenPopup(label, dlTxt){
+  const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
+  if(!ov||!md) return;
+  md.innerHTML = `
+    <div style="text-align:center;padding:6px 4px">
+      <div style="font-size:2.2rem;margin-bottom:6px">⚽</div>
+      <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.3rem;margin-bottom:4px">${vmEsc(label)} est ouverte !</div>
+      <p style="color:var(--chalk);font-size:.95rem;margin:8px 0">La nouvelle journée vient de démarrer. <b>Compose ton onze</b> pour marquer des points.${dlTxt}</p>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button id="mdOpenLater" class="btn-ghost" style="flex:1">Plus tard</button>
+        <button id="mdOpenGo" class="bid-btn" style="flex:1;margin:0">Composer →</button>
+      </div>
+    </div>`;
+  ov.style.display='flex';
+  const close=()=>{ ov.style.display='none'; };
+  const later=document.getElementById('mdOpenLater'), go=document.getElementById('mdOpenGo');
+  if(later) later.onclick=close;
+  if(go) go.onclick=()=>{ close(); const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); };
+}
+
 async function loadNotifications(){
   if(!ME) return;
   const server = await api.myNotifications();
-  // On place les signalements locaux (demandes d'ami, DM, chat, enchères) en tête.
-  NOTIFS = [...FRIEND_NOTIF, ...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
+  try { await checkMatchdayOpen(); } catch(e){}
+  // On place les signalements locaux (demandes d'ami, DM, chat, enchères, journée) en tête.
+  NOTIFS = [...MATCHDAY_NOTIF, ...FRIEND_NOTIF, ...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
   updateNotifBadge();
   maybeSystemNotify(NOTIFS);
   // Si le panneau est ouvert, on le rafraîchit en direct.
@@ -12731,7 +12785,7 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend'];
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend','matchday_open'];
   // Clé de dédoublonnage : pour watch_ending/chat/dm, on distingue par horodatage
   // (sinon un seul rappel par enchère). Une demande d'ami ne notifie qu'une fois.
   const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat' || n.kind==='dm') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
@@ -12803,29 +12857,30 @@ setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'warning', trade:'repeat', winning:'check',
   proposal_published:'megaphone', proposal_changes:'edit', proposal_rejected:'ban',
   auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat', dm:'mail', friend:'userPlus',
-  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell'};
+  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell', matchday_open:'soccer'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
   auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0', dm:'var(--transfer)', friend:'#4ade80',
-  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)'};
+  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)', matchday_open:'var(--transfer)'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
   trade:'Voir l\'échange', proposal_published:'Voir le marché',
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
   watch_ending:'Enchérir', chat:'Ouvrir le chat', dm:'Ouvrir la conversation', friend:'Voir la demande',
-  remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif'
+  remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif',
+  matchday_open:'Composer mon onze'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','friend','remind_lineup','remind_market_end']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','friend','remind_lineup','remind_market_end','matchday_open']);
 // Catégorie de chaque type, pour les filtres du centre de notifications.
 const NOTIF_CAT = {
   outbid:'marche', trade:'marche', winning:'marche', auction_won:'marche', bonus:'marche',
   proposal_published:'marche', proposal_changes:'marche', proposal_rejected:'marche',
   watch_ending:'marche', remind_idle_budget:'marche', remind_market_end:'marche',
   chat:'social', dm:'social', friend:'social',
-  remind_lineup:'jeu'
+  remind_lineup:'jeu', matchday_open:'jeu'
 };
 function notifCat(n){ return NOTIF_CAT[n.kind] || 'jeu'; }
 // Filtre actif du panneau (tout | todo | marche | social | jeu).
@@ -12888,6 +12943,7 @@ function notifAction(n){
       goView('managers');
       break;
     case 'remind_lineup':
+    case 'matchday_open':
       goView('lineup');   // va directement à la Compo
       break;
     case 'remind_idle_budget':
