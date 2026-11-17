@@ -1784,6 +1784,11 @@ export async function adminCloseMatchday(matchdayId) {
   // La fonction SQL qm_admin_close_matchday sera créée à l'étape 4
   return sb.rpc('qm_admin_close_matchday', { p_matchday_id: matchdayId });
 }
+export async function adminDeleteMatchday(matchdayId) {
+  const { data, error } = await sb.rpc('qm_admin_delete_matchday', { p_matchday_id: matchdayId });
+  if (error) return { __error: error.message };
+  return data;
+}
 
 // ---------- VAGUE 3 : Saisie des notes ----------------------------
 export async function scoringPlayers(matchdayId) {

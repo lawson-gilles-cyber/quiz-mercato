@@ -1564,10 +1564,10 @@
         <div id="lineupInfo" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div>
       </div>
       <p style="color:var(--muted);font-size:.85rem;margin-bottom:8px">Sélectionne exactement <b>11 titulaires</b> parmi ton effectif. Seuls ces 11 marquent des points, selon leurs performances réelles.</p>
-      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Tu peux aussi désigner jusqu'à <b>3 réservistes</b> (bouton 🪑 Banc) : si un titulaire ne joue pas du tout, le premier réserviste disponible <b>du même poste</b> le remplace automatiquement. L'ordre R1 → R2 → R3 est leur priorité.</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Compose aussi ton <b>banc</b> avec le bouton 🪑 de chaque joueur : <b>1 défenseur, 1 milieu et 1 attaquant</b> (3 remplaçants, un par poste). Si un titulaire ne dispute <b>aucune minute</b>, le remplaçant du <b>même poste</b> prend sa place automatiquement au calcul des points. Le banc est <b>facultatif</b> — mais s'il est rempli, c'est 1 par poste (pas de gardien remplaçant).</p>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div><div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 titulaires</div>
-          <div id="benchCounter" style="font-size:.8rem;color:var(--muted)">0 / 3 réservistes</div>
+          <div id="benchCounter" style="font-size:.8rem;color:var(--muted)">🪑 Banc : · DÉF · MIL · ATT <span style="color:var(--muted)">(facultatif)</span></div>
           <div id="leaderCounter" style="font-size:.78rem;color:var(--muted);margin-top:3px">🅒 Aucun leader désigné <span style="color:var(--muted)">(optionnel — bonus +1/+2/+3)</span></div></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button id="btnLoadTactic" class="bid-btn" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem;display:none;align-items:center;justify-content:center;background:var(--pitch);border:1px solid var(--line)">📋 Charger une fiche</button>
@@ -1958,7 +1958,7 @@
       </div>
       <div class="rule-block">
         <h3 class="rule-h">12. Points & performances</h3>
-        <p class="rule-p">Tes points de classement viennent <b>uniquement des performances réelles</b> de tes 11 titulaires. La note de chaque titulaire (source Sofascore) est pondérée par son temps de jeu : <b>0-19 min → 0 %, 20-39 min → 50 %, 40-59 min → 75 %, 60 min et + → 100 %</b>. La somme des 11 notes pondérées = tes points de la journée. Tu peux en plus désigner un <b>leader</b> qui ajoute un bonus (voir §29). Le classement évolue à chaque journée clôturée.</p>
+        <p class="rule-p">Tes points de classement viennent <b>uniquement des performances réelles</b> de tes 11 titulaires. La note de chaque titulaire (source Sofascore) est pondérée par son temps de jeu : <b>0-19 min → 0 %, 20-39 min → 50 %, 40-59 min → 75 %, 60 min et + → 100 %</b>. La somme des 11 notes pondérées = tes points de la journée. Si un titulaire ne dispute <b>aucune minute</b> (0 %), son <b>remplaçant du même poste</b> (banc 1 DÉF + 1 MIL + 1 ATT, voir onglet Compo) prend automatiquement sa place dans le calcul — à condition d'avoir joué. Tu peux en plus désigner un <b>leader</b> qui ajoute un bonus (voir §29). Le classement évolue à chaque journée clôturée.</p>
       </div>
       <div class="rule-block">
         <h3 class="rule-h">13. Les deux mercatos</h3>
@@ -5202,7 +5202,7 @@ const FAQ_DATA = [
     ['Comment voir le profil d’un autre manager ?',
      "Clique sur un <b>nom d’équipe dans le classement</b>, ou sur le <b>pseudo d’un manager dans le chat</b> : son profil s’ouvre (stats, palmarès, badges, bilan, historique, effectif, et le tête-à-tête avec toi). Depuis un profil, le bouton <b>« 🔗 Lien du profil »</b> copie ou partage un lien direct que tu peux envoyer sur WhatsApp."],
     ['Qui choisit les 11 titulaires ?',
-     "Le <b>Coach</b>, depuis l’onglet Compo. Le bouton <b>« Suggérer mon 11 »</b> propose automatiquement une équipe équilibrée (1 gardien, défenseurs, milieux, attaquants) classée par note — à ajuster ensuite si tu veux. Tu peux aussi désigner un <b>leader</b> (🅒) parmi tes titulaires pour un bonus de points."],
+     "Le <b>Coach</b>, depuis l’onglet Compo. Le bouton <b>« Suggérer mon 11 »</b> propose automatiquement une équipe équilibrée (1 gardien, défenseurs, milieux, attaquants) classée par note, <b>et un banc complet</b> (1 défenseur, 1 milieu, 1 attaquant) — à ajuster ensuite si tu veux. Tu composes ton <b>banc</b> avec le bouton 🪑 sous chaque joueur : <b>1 remplaçant par poste</b>. Si un titulaire ne joue <b>aucune minute</b>, son remplaçant du même poste prend sa place automatiquement au calcul des points. Tu peux aussi désigner un <b>leader</b> (🅒) parmi tes titulaires pour un bonus de points."],
     ['Pourquoi je ne vois pas la note exacte d’un joueur ?',
      "Tu vois une <b>jauge de couleur</b> (Faible / Correct / Bon / Élite). La <b>note exacte sur 100</b> n’est révélée que pour les joueurs de ton propre effectif."],
     ['Que signifient les flèches ▲▼ dans le classement ?',
@@ -7305,7 +7305,8 @@ async function renderMyActivity(){
 
 // ---------- Composition (11 titulaires) ----------
 let LINEUP_SELECTED = new Set();
-let LINEUP_BENCH = [];   // réservistes ORDONNÉS (R1, R2, R3) — l'ordre = priorité
+let LINEUP_BENCH = [];   // réservistes : 1 DEF + 1 MID + 1 FWD (un par poste)
+let LINEUP_MINE = [];    // effectif courant affiché dans le picker de compo
 let LINEUP_MDS = [];
 let LINEUP_TEAMS = [];   // équipes que je peux composer (la mienne + dépannages)
 let LINEUP_TEAM = null;  // équipe actuellement composée (id). null = la mienne
@@ -7686,18 +7687,32 @@ async function renderConseil(mdId, md, mine){
 
 function renderLineupPlayers(mine){
   const I=(typeof ic==='function')?ic:(()=>'');
+  LINEUP_MINE = mine;    // mémorisé pour updateLineupCounter (postes du banc)
   const POSORDER = {GK:0,DEF:1,MID:2,FWD:3};
   mine.sort((a,b)=>(POSORDER[a.position]-POSORDER[b.position]) || Number(b.current_value)-Number(a.current_value));
   $('lineupPlayers').innerHTML = mine.map(p=>{
     const on = LINEUP_SELECTED.has(p.id);
     const benchIdx = LINEUP_BENCH.indexOf(p.id);     // -1 si pas réserviste
     const isBench = benchIdx >= 0;
+    const canBench = (p.position==='DEF'||p.position==='MID'||p.position==='FWD'); // pas de banc GK
+    // Un réserviste de ce poste est-il déjà pris (par un autre joueur) ?
+    const benchPosTaken = canBench && !isBench && LINEUP_BENCH.some(id=>{
+      const q = mine.find(x=>x.id===id); return q && q.position===p.position;
+    });
+    const posLabel = {DEF:'DÉF',MID:'MIL',FWD:'ATT'}[p.position] || p.position;
     const border = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--line)');
     const bg = on ? 'rgba(224,168,0,.08)' : (isBench ? 'rgba(95,208,224,.08)' : 'var(--pitch-2)');
-    const mark = on ? '✓' : (isBench ? ('R'+(benchIdx+1)) : '+');
+    const mark = on ? '✓' : (isBench ? ('R·'+posLabel) : '+');
     const markCol = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--muted)');
-    // Bouton banc : ajoute/retire le joueur des réservistes (si pas titulaire).
-    const benchBtn = `<button class="lp-bench" data-bench="${p.id}" style="margin-top:8px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;border:1px solid ${isBench?'#5fd0e0':'var(--line)'};background:${isBench?'rgba(95,208,224,.12)':'transparent'};color:${isBench?'#5fd0e0':'var(--muted)'}"><span style="display:inline-flex;vertical-align:-.15em;margin-right:4px">${I('chair',12)}</span>${isBench?('Réserviste R'+(benchIdx+1)+' — retirer'):'Mettre au banc'}</button>`;
+    // Bouton banc : un remplaçant PAR POSTE (DEF/MID/FWD). Pas de gardien.
+    let benchBtn = '';
+    if(canBench){
+      const lbl = isBench
+        ? ('Remplaçant '+posLabel+' — retirer')
+        : (benchPosTaken ? ('Banc '+posLabel+' déjà pris') : ('Mettre au banc ('+posLabel+')'));
+      const dim = benchPosTaken ? '.5' : '1';
+      benchBtn = `<button class="lp-bench" data-bench="${p.id}" style="margin-top:8px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;opacity:${dim};border:1px solid ${isBench?'#5fd0e0':'var(--line)'};background:${isBench?'rgba(95,208,224,.12)':'transparent'};color:${isBench?'#5fd0e0':'var(--muted)'}"><span style="display:inline-flex;vertical-align:-.15em;margin-right:4px">${I('chair',12)}</span>${lbl}</button>`;
+    }
     // Bouton leader (brassard) : visible uniquement pour un TITULAIRE sélectionné.
     const isLeader = on && LINEUP_LEADER === p.id;
     const leaderBtn = on ? `<button class="lp-leader" data-leader="${p.id}" style="margin-top:6px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;border:1px solid ${isLeader?'var(--live,#e0574a)':'var(--line)'};background:${isLeader?'rgba(224,87,74,.14)':'transparent'};color:${isLeader?'#ff9a8f':'var(--muted)'};font-weight:${isLeader?'800':'400'}">🅒 ${isLeader?'Leader de la journée':'Désigner leader'}</button>` : '';
@@ -7738,15 +7753,20 @@ function renderLineupPlayers(mine){
     renderLineupPlayers(mine);
     updateLineupCounter();
   });
-  // Bouton « Banc » = (dé)sélectionner réserviste (ordonné)
+  // Bouton « Banc » = un remplaçant PAR POSTE (1 DEF + 1 MID + 1 FWD).
   $('lineupPlayers').querySelectorAll('[data-bench]').forEach(el=>el.onclick=(ev)=>{
     ev.stopPropagation();
     const id = el.dataset.bench;
     const idx = LINEUP_BENCH.indexOf(id);
-    if(idx>=0){ LINEUP_BENCH.splice(idx,1); }   // retirer (les suivants remontent)
+    if(idx>=0){ LINEUP_BENCH.splice(idx,1); }   // retirer du banc
     else {
       if(LINEUP_SELECTED.has(id)){ toast('Ce joueur est titulaire. Retire-le des titulaires d\'abord.','info',3500); return; }
-      if(LINEUP_BENCH.length>=3){ toast('3 réservistes maximum.','err'); return; }
+      const pl = mine.find(x=>x.id===id);
+      if(!pl){ return; }
+      if(pl.position==='GK'){ toast('Pas de gardien remplaçant : le banc, c\'est 1 défenseur, 1 milieu et 1 attaquant.','info',4000); return; }
+      // Un seul réserviste par poste : si la place du poste est prise, on la remplace.
+      const occupant = LINEUP_BENCH.find(bid=>{ const q=mine.find(x=>x.id===bid); return q && q.position===pl.position; });
+      if(occupant){ LINEUP_BENCH.splice(LINEUP_BENCH.indexOf(occupant),1); }
       LINEUP_BENCH.push(id);
     }
     renderLineupPlayers(mine);
@@ -7785,8 +7805,11 @@ function suggestLineup(mine){
     toast(`Tu n'as que ${chosen.length} joueur${chosen.length>1?'s':''} — recrute pour aligner 11 titulaires.`,'err',4000);
   }
   LINEUP_SELECTED = new Set(chosen.slice(0,11).map(p=>p.id));
-  // Un joueur suggéré comme titulaire ne peut pas rester au banc.
-  LINEUP_BENCH = LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id));
+  // Banc suggéré : le meilleur joueur restant de chaque poste (1 DEF + 1 MID + 1 FWD),
+  // s'il en reste. byPos a déjà été vidé des titulaires retenus et reste trié par note.
+  const newBench = [];
+  ['DEF','MID','FWD'].forEach(pos=>{ const cand = byPos[pos].find(p=>!LINEUP_SELECTED.has(p.id)); if(cand) newBench.push(cand.id); });
+  LINEUP_BENCH = newBench;   // vide si l'effectif ne couvre pas les 3 postes
   // Le leader n'est conservé que s'il fait toujours partie des titulaires suggérés.
   if(LINEUP_LEADER && !LINEUP_SELECTED.has(LINEUP_LEADER)) LINEUP_LEADER = null;
   renderLineupPlayers(mine);
@@ -7795,14 +7818,26 @@ function suggestLineup(mine){
   const df = chosen.filter(p=>p.position==='DEF').length;
   const mf = chosen.filter(p=>p.position==='MID').length;
   const fw = chosen.filter(p=>p.position==='FWD').length;
-  toast(`11 suggéré (${gk}-${df}-${mf}-${fw}). Ajuste si tu veux, puis valide.`,'ok',4000);
+  const bTxt = newBench.length===3 ? ' + banc complet' : (newBench.length? ` + ${newBench.length} au banc` : '');
+  toast(`11 suggéré (${gk}-${df}-${mf}-${fw})${bTxt}. Ajuste si tu veux, puis valide.`,'ok',4000);
 }
 function updateLineupCounter(){
   const n = LINEUP_SELECTED.size;
   const c = $('lineupCounter');
   if(c){ c.textContent = `${n} / 11 titulaires`; c.style.color = n===11 ? '#4ade80' : (n>11?'var(--live)':'var(--chalk)'); }
   const b = $('benchCounter');
-  if(b){ b.textContent = `${LINEUP_BENCH.length} / 3 réservistes`; }
+  if(b){
+    // Compte les remplaçants par poste (1 DEF + 1 MID + 1 FWD attendus).
+    const bp = {DEF:0,MID:0,FWD:0};
+    LINEUP_BENCH.forEach(id=>{ const q=(LINEUP_MINE||[]).find(x=>x.id===id); if(q&&bp[q.position]!=null) bp[q.position]++; });
+    const ok = (bp.DEF===1 && bp.MID===1 && bp.FWD===1);
+    const none = LINEUP_BENCH.length===0;
+    const chip = (lbl,n)=>`<span style="color:${n===1?'#5fd0e0':'var(--muted)'}">${n===1?'✓':'·'} ${lbl}</span>`;
+    b.innerHTML = `🪑 Banc : ${chip('DÉF',bp.DEF)} ${chip('MIL',bp.MID)} ${chip('ATT',bp.FWD)}`
+      + (none ? ` <span style="color:var(--muted)">(facultatif)</span>`
+             : (ok ? ` <span style="color:#4ade80">— complet</span>`
+                   : ` <span style="color:var(--live)">— 1 par poste requis</span>`));
+  }
   // Statut du leader (sous le compteur).
   const l = $('leaderCounter');
   if(l){
@@ -7819,11 +7854,20 @@ async function saveLineup(mdId, teamArg){
   if(LINEUP_SELECTED.size!==11){ toast('Il faut exactement 11 titulaires.','err'); return; }
   // Sécurité : un réserviste ne doit pas être aussi titulaire.
   const bench = LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id));
+  // Banc : vide (facultatif) OU exactement 1 DEF + 1 MID + 1 FWD.
+  if(bench.length !== 0){
+    const bp = {DEF:0,MID:0,FWD:0,GK:0};
+    bench.forEach(id=>{ const q=(LINEUP_MINE||[]).find(x=>x.id===id); if(q&&bp[q.position]!=null) bp[q.position]++; });
+    if(bp.GK>0){ toast('Pas de gardien sur le banc. Choisis 1 défenseur, 1 milieu et 1 attaquant.','err',4000); return; }
+    if(bp.DEF!==1 || bp.MID!==1 || bp.FWD!==1){
+      toast('Le banc doit être vide OU compter exactement 1 défenseur, 1 milieu et 1 attaquant.','err',4500); return;
+    }
+  }
   // Leader : seulement s'il est bien dans les 11 titulaires.
   const leader = (LINEUP_LEADER && LINEUP_SELECTED.has(LINEUP_LEADER)) ? LINEUP_LEADER : null;
   const { error } = await api.setLineup(mdId, Array.from(LINEUP_SELECTED), bench, teamArg, leader);
   if(error){ $('lineupResult').innerHTML = `<span style="color:var(--live)">${error.message}</span>`; return; }
-  const bTxt = bench.length ? ` (+ ${bench.length} réserviste${bench.length>1?'s':''})` : '';
+  const bTxt = bench.length ? ` (+ banc complet : 1 DÉF, 1 MIL, 1 ATT)` : '';
   $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée${bTxt} !</span>`;
 }
 

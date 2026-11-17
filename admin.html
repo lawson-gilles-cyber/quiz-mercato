@@ -930,7 +930,13 @@
         <span id="noteGridCount" class="hint" style="font-size:.78rem;margin-left:auto"></span>
       </div>
       <div id="noteGrid" style="max-height:460px;overflow:auto;border:1px solid var(--line);border-radius:10px"></div>
-      <p class="hint" style="font-size:.76rem;margin-top:6px">Astuce : tape la note et appuie sur <b>Entrée</b> ou <b>Tab</b> pour passer au joueur suivant. Enregistrement automatique. « Sans match cette semaine » isole les joueurs dont le club ne joue pas (championnats hors des 5 grands) — à noter ici à la main.</p>
+      <p class="hint" style="font-size:.76rem;margin-top:6px">Astuce : tape la note et appuie sur <b>Entrée</b> ou <b>Tab</b> pour passer au joueur suivant. Enregistrement automatique (une pastille verte ✓ confirme). « Sans match cette semaine » isole les joueurs dont le club ne joue pas (championnats hors des 5 grands) — à noter ici à la main.</p>
+      <!-- Récap des joueurs déjà notés -->
+      <details id="noteRecapBox" style="margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+        <summary style="cursor:pointer;font-weight:700;font-size:.85rem">✅ Déjà notés <span id="noteRecapCount" class="hint" style="font-weight:400"></span></summary>
+        <input id="noteRecapFilter" type="text" placeholder="Filtrer les notés…" style="width:100%;margin:8px 0;padding:6px;font-size:.84rem">
+        <div id="noteRecapList" style="max-height:220px;overflow:auto;font-size:.84rem"></div>
+      </details>
     </div>
 
     <!-- Méthode B : import -->
@@ -3977,6 +3983,7 @@ function paintNoteGrid(){
   });
   html += '</table>';
   grid.innerHTML = html;
+  renderNoteRecap();
 }
 // Enregistrement d'une note (debounce léger via blur/enter).
 async function saveNote(playerId, noteVal, played){
@@ -3991,9 +3998,52 @@ async function saveNote(playerId, noteVal, played){
     // une suggestion J-1 validée perd son surlignage jaune
     const g = $('noteGrid'); const inp = g && g.querySelector(`input[data-note="${playerId}"]`);
     if(inp && inp.dataset.suggested){ inp.style.background=''; delete inp.dataset.suggested; }
+    // Confirmation visuelle : flash vert de la ligne + pastille ✓
+    if(inp){
+      const row = inp.closest('tr');
+      if(row){
+        row.style.transition='background .4s'; row.style.background='rgba(74,222,128,.22)';
+        setTimeout(()=>{ row.style.background=''; }, 700);
+        let badge = row.querySelector('.note-ok');
+        const cell = inp.parentElement;
+        if(!badge && cell){ badge=document.createElement('span'); badge.className='note-ok'; badge.style.cssText='color:#4ade80;margin-left:6px;font-weight:700'; cell.appendChild(badge); }
+        if(badge) badge.textContent = played ? '✓' : '✓ NJ';
+      }
+    }
     const noted = _noteGridData.filter(r=>r.note!=null || r.played===false).length;
     if($('noteProgress')) $('noteProgress').textContent = `${noted}/${_noteGridData.length} joueurs notés ✓`;
-  } catch(e){ /* silencieux : l'admin verra la note non enregistrée */ }
+    renderNoteRecap();
+  } catch(e){
+    if($('noteProgress')) $('noteProgress').innerHTML = `<span style="color:var(--live)">⚠ note non enregistrée (réessaie)</span>`;
+  }
+}
+// Récap : liste des joueurs déjà notés (nom + note), filtrable, cliquable pour revenir dessus.
+function renderNoteRecap(){
+  const box = $('noteRecapList'); if(!box) return;
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const f = ($('noteRecapFilter') && $('noteRecapFilter').value || '').trim().toLowerCase();
+  const noted = _noteGridData.filter(r=>r.note!=null || r.played===false)
+    .map(r=>({ r, label:((r.first_name?r.first_name+' ':'')+(r.name||'')) }))
+    .filter(x=> !f || x.label.toLowerCase().includes(f) || (x.r.club||'').toLowerCase().includes(f))
+    .sort((a,b)=>a.label.localeCompare(b.label));
+  if($('noteRecapCount')) $('noteRecapCount').textContent = `(${_noteGridData.filter(r=>r.note!=null||r.played===false).length})`;
+  if(!noted.length){ box.innerHTML = '<p class="hint" style="padding:6px">Aucun joueur noté pour l\'instant.</p>'; return; }
+  box.innerHTML = noted.map(x=>{
+    const dnp = x.r.played===false;
+    const val = dnp ? 'N\'a pas joué' : (x.r.note!=null? ('<b>'+x.r.note+'</b>') : '—');
+    return `<div data-recapjump="${x.r.player_id}" style="display:flex;justify-content:space-between;gap:10px;padding:4px 6px;border-top:1px solid var(--line);cursor:pointer" title="Cliquer pour revenir sur ce joueur">
+      <span>${esc(x.label)} <span class="hint" style="font-size:.74rem">· ${esc(x.r.club||'')}</span></span>
+      <span style="color:${dnp?'var(--muted)':'#4ade80'};white-space:nowrap">${val}</span></div>`;
+  }).join('');
+  box.querySelectorAll('[data-recapjump]').forEach(el=>el.onclick=()=>{
+    const pid = el.dataset.recapjump;
+    // vide le filtre pour que le joueur soit visible dans la grille, puis focus
+    if($('noteFilter')){ $('noteFilter').value=''; }
+    if($('noteOnlyMissing')) $('noteOnlyMissing').checked=false;
+    paintNoteGrid();
+    const inp = $('noteGrid') && $('noteGrid').querySelector(`input[data-note="${pid}"]`);
+    if(inp){ inp.scrollIntoView({block:'center'}); inp.focus(); inp.select&&inp.select(); }
+  });
 }
 // Délégation d'événements sur la grille.
 (function bindNoteGrid(){
@@ -4038,6 +4088,7 @@ async function saveNote(playerId, noteVal, played){
       saveNote(pid, played ? (noteInput?noteInput.value:'') : '', played);
     }
   });
+  const rf = $('noteRecapFilter'); if(rf) rf.addEventListener('input', renderNoteRecap);
 })();
 
 // Pré-remplir les champs VIDES avec les notes de la J-1 (suggestion, non enregistré).
@@ -5174,6 +5225,7 @@ async function loadMatchdays(){
         ${m.status!=='closed'?`<button class="btn-ghost btn-sm" data-mdduel="${m.id}" title="Apparie les managers 2 à 2 pour le Duel de la journée (tirage équilibré). Les gagnants seront désignés à la clôture.">⚔️ Générer les duels</button>`:''}
         <button class="btn-ghost btn-sm" data-mdgallery="${m.id}" data-open="${m.gallery_open?1:0}" title="${m.gallery_open?'La galerie de cette journée est ouverte à tous. Cliquer pour revenir au comportement normal (après deadline).':'Forcer l\'ouverture de la galerie de cette journée pour tous, sans attendre la deadline.'}">${m.gallery_open?'🖼️ Galerie ouverte ✓':'🖼️ Ouvrir la galerie'}</button>
         <button class="btn-ghost btn-sm" data-mdtest="${m.id}" data-istest="${m.is_test?1:0}" title="${m.is_test?'Journée de test : invisible des autres, hors classement. Cliquer pour la rendre réelle.':'Marquer cette journée comme test (invisible des autres managers, hors classement). Refusé si elle a déjà des points.'}" style="${m.is_test?'color:var(--live);border-color:rgba(224,90,77,.5)':''}">${m.is_test?'🧪 Test ✓':'🧪 Marquer test'}</button>
+        <button class="btn-ghost btn-sm" data-mddelete="${m.id}" data-mdnum="${m.number}" title="Supprimer définitivement cette journée et toutes ses données (notes, compos, points). En cas d'erreur d'encodage, pour repartir de zéro." style="color:var(--live);border-color:rgba(224,90,77,.5)">🗑 Supprimer</button>
       </div></td></tr>`).join('')
   }</tbody></table><p class="hint" style="margin-top:8px">À l'ouverture d'une journée, si aucune deadline n'est fixée, elle est mise automatiquement au <b>prochain lundi 23h00</b>. Tu peux l'ajuster ici à tout moment.</p>` : `<p class="hint">Aucune journée créée.</p>`;
 
@@ -5208,21 +5260,42 @@ async function loadMatchdays(){
     loadMatchdays(); loadTestPhase();
   });
 
+  // Pour une journée de TEST, les changements d'état passent par la fonction
+  // test (utilisable par le testeur désigné, pas seulement l'admin) ; pour une
+  // journée réelle, par les fonctions admin habituelles.
+  const mdById = Object.fromEntries(mds.map(m=>[m.id, m]));
   $('mdList').querySelectorAll('[data-mdopen]').forEach(b=>b.onclick=async()=>{
-    const r = await api.adminSetMatchdayStatus(b.dataset.mdopen,'open');
+    const isTest = mdById[b.dataset.mdopen]?.is_test;
+    const r = isTest ? await api.testSetMatchdayStatus(b.dataset.mdopen,'open')
+                     : await api.adminSetMatchdayStatus(b.dataset.mdopen,'open');
     if(r.error) return showMsg($('msg2'),r.error.message);
     showMsg($('msg2'),'Journée ouverte — compos précédentes reconduites.',true); loadMatchdays();
   });
   $('mdList').querySelectorAll('[data-mdscore]').forEach(b=>b.onclick=async()=>{
-    const r = await api.adminSetMatchdayStatus(b.dataset.mdscore,'scoring');
+    const isTest = mdById[b.dataset.mdscore]?.is_test;
+    const r = isTest ? await api.testSetMatchdayStatus(b.dataset.mdscore,'scoring')
+                     : await api.adminSetMatchdayStatus(b.dataset.mdscore,'scoring');
     if(r.error) return showMsg($('msg2'),r.error.message);
     showMsg($('msg2'),'Journée en notation — saisis les notes des joueurs.',true); loadMatchdays(); loadScoringMatchdays();
   });
   $('mdList').querySelectorAll('[data-mdclose]').forEach(b=>b.onclick=async()=>{
-    if(!confirm('Clôturer cette journée ? Les points seront calculés et ajoutés au classement.')) return;
-    const r = await api.adminCloseMatchday(b.dataset.mdclose);
-    if(r.error) return showMsg($('msg2'),r.error.message);
-    showMsg($('msg2'),'Journée clôturée, points attribués.',true); loadMatchdays();
+    if(!confirm('Clôturer cette journée ? Les points seront calculés et ajoutés au classement.\n\nEnsuite, le bouton « Clôturer » disparaîtra (plus d\'encodage possible).')) return;
+    const isTest = mdById[b.dataset.mdclose]?.is_test;
+    const r = isTest ? await api.testSetMatchdayStatus(b.dataset.mdclose,'closed')
+                     : await api.adminCloseMatchday(b.dataset.mdclose);
+    if(r.error) return showMsg($('msg2'),'Échec de la clôture : '+r.error.message, false);
+    showMsg($('msg2'),'Journée clôturée, points attribués. Le bouton « Clôturer » a disparu.',true); loadMatchdays();
+  });
+  // Supprimer définitivement une journée (double confirmation).
+  $('mdList').querySelectorAll('[data-mddelete]').forEach(b=>b.onclick=async()=>{
+    const num = b.dataset.mdnum;
+    if(!confirm(`⚠️ Supprimer la JOURNÉE ${num} ?\n\nCela efface DÉFINITIVEMENT la journée et TOUTES ses données : notes des joueurs, compositions, points et son effet sur le classement. Irréversible.`)) return;
+    if(!confirm(`Dernière confirmation : es-tu sûre de vouloir supprimer la journée ${num} et repartir de zéro ?\n\nIl n'y a pas de retour en arrière.`)) return;
+    const r = await api.adminDeleteMatchday(b.dataset.mddelete);
+    if(r && r.__error) return showMsg($('msg2'), 'Échec de la suppression : '+r.__error, false);
+    const cd = r && r.children_deleted ? Object.entries(r.children_deleted).map(([k,v])=>`${v} ${k.replace('qm_','')}`).join(', ') : '';
+    showMsg($('msg2'), `Journée ${num} supprimée.${cd?' ('+cd+')':''}`, true);
+    loadMatchdays(); if(typeof loadScoringMatchdays==='function') loadScoringMatchdays();
   });
   $('mdList').querySelectorAll('[data-mdduel]').forEach(b=>b.onclick=async()=>{
     if(!confirm('Générer les duels de cette journée ?\n\nLes managers sont appariés 2 à 2 (tirage équilibré). Les gagnants seront désignés automatiquement à la clôture. Relancer remplace les duels existants.')) return;
