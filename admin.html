@@ -951,6 +951,8 @@
         <select id="noteFilterPos" style="font-size:.82rem"><option value="">Tous postes</option><option value="GK">Gardiens</option><option value="DEF">Défenseurs</option><option value="MID">Milieux</option><option value="FWD">Attaquants</option></select>
         <select id="noteFilterChamp" style="font-size:.82rem;max-width:170px"><option value="">Tous championnats</option></select>
         <select id="noteFilterClub" style="font-size:.82rem;max-width:170px"><option value="">Tous clubs</option></select>
+        <select id="noteFilterMgr" style="font-size:.82rem;max-width:160px" title="Manager propriétaire"><option value="">Tous managers</option></select>
+        <select id="noteFilterTeam" style="font-size:.82rem;max-width:170px" title="Équipe du manager"><option value="">Toutes équipes</option></select>
         <select id="noteSort" style="font-size:.82rem" title="Ordre d'affichage">
           <option value="champ">Par championnat · club</option>
           <option value="az">Nom A → Z</option>
@@ -3990,6 +3992,13 @@ function populateNoteFilters(){
   };
   fill('noteFilterChamp', champs, 'Tous championnats');
   fill('noteFilterClub', clubs, 'Tous clubs');
+  // Managers propriétaires + équipes (pour rattachement / incidents).
+  const mgrs = [...new Set(_noteGridData.map(r=>r.owner_name).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  // Si un manager est sélectionné, restreindre les équipes à celles de ce manager.
+  const selMgr = $('noteFilterMgr') ? $('noteFilterMgr').value : '';
+  const teams = [...new Set(_noteGridData.filter(r=>!selMgr||r.owner_name===selMgr).map(r=>r.owner_team).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'fr'));
+  fill('noteFilterMgr', mgrs, 'Tous managers');
+  fill('noteFilterTeam', teams, 'Toutes équipes');
 }
 function noteIsSet(r){ return r.note!=null || r.played===false; }
 function paintNoteGrid(){
@@ -3999,6 +4008,8 @@ function paintNoteGrid(){
   const fPos = $('noteFilterPos') && $('noteFilterPos').value || '';
   const fChamp = $('noteFilterChamp') && $('noteFilterChamp').value || '';
   const fClub = $('noteFilterClub') && $('noteFilterClub').value || '';
+  const fMgr = $('noteFilterMgr') && $('noteFilterMgr').value || '';
+  const fTeam = $('noteFilterTeam') && $('noteFilterTeam').value || '';
   const sort = ($('noteSort') && $('noteSort').value) || 'champ';
   const onlyMissing = $('noteOnlyMissing') && $('noteOnlyMissing').checked;
   const onlyNoMatch = $('noteOnlyNoMatch') && $('noteOnlyNoMatch').checked;
@@ -4008,6 +4019,8 @@ function paintNoteGrid(){
     if(fPos && (r.pos||'') !== fPos) return false;
     if(fChamp && (r.championship||'') !== fChamp) return false;
     if(fClub && (r.club||'') !== fClub) return false;
+    if(fMgr && (r.owner_name||'') !== fMgr) return false;
+    if(fTeam && (r.owner_team||'') !== fTeam) return false;
     if(!f) return true;
     return (r.name||'').toLowerCase().includes(f) || (r.club||'').toLowerCase().includes(f) || (r.first_name||'').toLowerCase().includes(f);
   });
@@ -4040,8 +4053,18 @@ function paintNoteGrid(){
     const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||'')) + meta;
     const val = r.note!=null ? r.note : '';
     const dnp = r.played===false;
+    // Pastille d'état : ✓ noté · ✗ à faire · — n'a pas joué.
+    const badge = dnp
+      ? '<span title="n\'a pas joué" style="color:var(--muted);font-weight:700">—</span>'
+      : (noteIsSet(r)
+          ? '<span title="noté" style="color:#4ade80;font-weight:800">✓</span>'
+          : '<span title="à noter" style="color:var(--live,#e0574a);font-weight:800">✗</span>');
+    // Rattachement : propriétaire (manager + équipe) pour la gestion des incidents.
+    const owner = r.owner_name
+      ? `<div style="font-size:.72rem;color:var(--muted);margin-top:1px">👤 ${esc(r.owner_name)}${r.owner_team?` · <b style="color:var(--chalk,#cbd5e1);font-weight:600">${esc(r.owner_team)}</b>`:''}</div>`
+      : `<div style="font-size:.72rem;color:var(--muted);margin-top:1px">🆓 joueur libre</div>`;
     html += `<tr style="border-top:1px solid var(--line)">
-      <td style="padding:6px 10px">${nameDisp}</td>
+      <td style="padding:6px 10px"><span style="display:inline-block;width:1.1em;text-align:center;margin-right:6px">${badge}</span>${nameDisp}${owner}</td>
       <td style="padding:6px 10px;text-align:right;white-space:nowrap">
         <input type="number" min="0" max="10" step="0.1" inputmode="decimal"
                data-note="${r.player_id}" value="${val}" ${dnp?'disabled':''}
@@ -4095,7 +4118,7 @@ function renderNoteRecap(){
   const f = ($('noteRecapFilter') && $('noteRecapFilter').value || '').trim().toLowerCase();
   const noted = _noteGridData.filter(r=>r.note!=null || r.played===false)
     .map(r=>({ r, label:((r.first_name?r.first_name+' ':'')+(r.name||'')) }))
-    .filter(x=> !f || x.label.toLowerCase().includes(f) || (x.r.club||'').toLowerCase().includes(f))
+    .filter(x=> !f || x.label.toLowerCase().includes(f) || (x.r.club||'').toLowerCase().includes(f) || (x.r.owner_team||'').toLowerCase().includes(f) || (x.r.owner_name||'').toLowerCase().includes(f))
     .sort((a,b)=>a.label.localeCompare(b.label));
   if($('noteRecapCount')) $('noteRecapCount').textContent = `(${_noteGridData.filter(r=>r.note!=null||r.played===false).length})`;
   if(!noted.length){ box.innerHTML = '<p class="hint" style="padding:6px">Aucun joueur noté pour l\'instant.</p>'; return; }
@@ -4103,7 +4126,7 @@ function renderNoteRecap(){
     const dnp = x.r.played===false;
     const val = dnp ? 'N\'a pas joué' : (x.r.note!=null? ('<b>'+x.r.note+'</b>') : '—');
     return `<div data-recapjump="${x.r.player_id}" style="display:flex;justify-content:space-between;gap:10px;padding:4px 6px;border-top:1px solid var(--line);cursor:pointer" title="Cliquer pour revenir sur ce joueur">
-      <span>${esc(x.label)} <span class="hint" style="font-size:.74rem">· ${esc(x.r.club||'')}</span></span>
+      <span>${esc(x.label)} <span class="hint" style="font-size:.74rem">· ${esc(x.r.club||'')}${x.r.owner_team?' · 👤 '+esc(x.r.owner_team):''}</span></span>
       <span style="color:${dnp?'var(--muted)':'#4ade80'};white-space:nowrap">${val}</span></div>`;
   }).join('');
   box.querySelectorAll('[data-recapjump]').forEach(el=>el.onclick=()=>{
@@ -4111,7 +4134,7 @@ function renderNoteRecap(){
     // vide le filtre pour que le joueur soit visible dans la grille, puis focus
     if($('noteFilter')){ $('noteFilter').value=''; }
     if($('noteOnlyMissing')) $('noteOnlyMissing').checked=false;
-    ['noteFilterPos','noteFilterChamp','noteFilterClub'].forEach(id=>{ if($(id)) $(id).value=''; });
+    ['noteFilterPos','noteFilterChamp','noteFilterClub','noteFilterMgr','noteFilterTeam'].forEach(id=>{ if($(id)) $(id).value=''; });
     populateNoteFilters();
     paintNoteGrid();
     const inp = $('noteGrid') && $('noteGrid').querySelector(`input[data-note="${pid}"]`);
@@ -4305,6 +4328,9 @@ if($('noteFilterPos'))   $('noteFilterPos').onchange    = paintNoteGrid;
 // Changer de championnat recalcule la liste des clubs, puis réaffiche.
 if($('noteFilterChamp')) $('noteFilterChamp').onchange  = ()=>{ if($('noteFilterClub')) $('noteFilterClub').value=''; populateNoteFilters(); paintNoteGrid(); };
 if($('noteFilterClub'))  $('noteFilterClub').onchange   = paintNoteGrid;
+// Changer de manager recalcule la liste des équipes, puis réaffiche.
+if($('noteFilterMgr'))   $('noteFilterMgr').onchange    = ()=>{ if($('noteFilterTeam')) $('noteFilterTeam').value=''; populateNoteFilters(); paintNoteGrid(); };
+if($('noteFilterTeam'))  $('noteFilterTeam').onchange   = paintNoteGrid;
 if($('noteSort'))        $('noteSort').onchange         = paintNoteGrid;
 
 // Onglets méthode
