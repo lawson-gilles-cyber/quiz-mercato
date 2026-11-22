@@ -11506,6 +11506,13 @@ async function renderVmatch(){
 // ---- Sélecteur de onze (modale) ----
 const VM_MIND_LABEL = {off:'Offensif', bal:'Équilibré', def:'Défensif'};
 const VM_MIND_DESC = {off:'plus d\'occasions créées, mais tu t\'exposes', bal:'approche neutre', def:'tu te refermes, moins d\'occasions des deux côtés'};
+// Icônes des temps forts (feuille de match + Direct), harmonisées façon Sofascore.
+// 'chance' = grosse occasion → 🎯 (l'ancien ➰ se lisait comme un signe astro sur Android).
+const VM_EVT_ICON = {goal:'⚽', chance:'🎯', yellow:'🟨', red:'🟥', save:'🧤', injury:'🚑'};
+// Petite légende des pictos, pour lever toute ambiguïté.
+const VM_EVT_LEGEND = `<div style="display:flex;flex-wrap:wrap;gap:8px 12px;font-size:.64rem;color:var(--muted);margin:0 0 8px 6px">
+  <span>⚽ But</span><span>🎯 Grosse occasion</span><span>🧤 Arrêt</span><span>🟨 Carton jaune</span><span>🟥 Exclusion</span><span>🚑 Blessure</span><span>👟 Passe décisive</span>
+</div>`;
 async function openElevenPicker(mode){
   if(!mode.mind) mode.mind = 'bal';
   if(!mode.form) mode.form = '4-4-2';
@@ -11773,7 +11780,7 @@ function vmLivePlayer(container, r, A, B, autostart, onFinish){
   let clock = 0; let shownA = 0, shownB = 0; let evIdx = 0; let halftimeShown = false;
   let timer = null;
   const esc = vmEsc;
-  const icon = {goal:'⚽', chance:'➰', yellow:'🟨', red:'🟥', save:'🧤', injury:'🚑'};
+  const icon = VM_EVT_ICON;
 
   container.innerHTML = `
     <div style="text-align:center;margin-bottom:10px">
@@ -11927,8 +11934,9 @@ function vmSheetHTML(r, A, B, lineups){
   const shoot = r.shootout ? ` <span style="font-size:.62rem;color:var(--muted)">(départage)</span>` : '';
   // Timeline des temps forts
   const ev = Array.isArray(r.events) ? r.events : [];
-  const icon = {goal:'⚽', chance:'➰', yellow:'🟨', red:'🟥', save:'🧤', injury:'🚑'};
+  const icon = VM_EVT_ICON;
   const timeline = ev.length ? `<div style="margin:12px 0 4px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px">Temps forts</div>
+    ${VM_EVT_LEGEND}
     <div style="border-left:2px solid var(--line);margin-left:6px;padding-left:12px">
       ${ev.map(e=>{
         const side = e.team==='A';
