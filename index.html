@@ -6235,11 +6235,11 @@ function renderFinalSheet(sheet, opts){
        </div>`
     : '';
   const head = (opts.title || sheet.team_name || sheet.display_name)
-    ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:linear-gradient(180deg,#132257,#0d1a40);border-radius:12px 12px 0 0;color:#fff">
-         <div style="font-family:'Saira Condensed','Archivo Narrow',sans-serif;font-weight:800;font-size:1.05rem">${opts.title || sheet.team_name || sheet.display_name}</div>
-         <div style="display:flex;align-items:center;gap:10px">
-           <span style="font-family:'Saira',monospace;font-weight:800;color:#5fd0e0;font-size:.95rem">${sheet.formation||'—'}</span>
-           ${opts.showTotal!==false ? `<span style="background:#38bdf8;color:#06283d;font-weight:900;border-radius:8px;padding:3px 10px;font-size:.9rem">${sheet.total||0} pts</span>` : ''}
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:9px 12px;background:linear-gradient(180deg,#132257,#0d1a40);border-radius:12px 12px 0 0;color:#fff">
+         <div style="flex:1;min-width:0;font-family:'Saira Condensed','Archivo Narrow',sans-serif;font-weight:800;font-size:.95rem;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${(opts.title || sheet.team_name || sheet.display_name||'').replace(/"/g,'&quot;')}">${opts.title || sheet.team_name || sheet.display_name}</div>
+         <div style="flex:0 0 auto;display:flex;align-items:center;gap:8px;white-space:nowrap">
+           <span style="font-family:'Saira',monospace;font-weight:800;color:#5fd0e0;font-size:.9rem;white-space:nowrap">${sheet.formation||'—'}</span>
+           ${opts.showTotal!==false ? `<span style="background:#38bdf8;color:#06283d;font-weight:900;border-radius:8px;padding:3px 9px;font-size:.85rem;white-space:nowrap">${sheet.total||0} pts</span>` : ''}
          </div>
        </div>` : '';
   return `<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--pitch-2)">
