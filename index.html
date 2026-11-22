@@ -1572,8 +1572,17 @@
         <select id="lineupMatchday" style="width:100%;padding:9px;margin-top:6px"></select>
         <div id="lineupInfo" style="margin-top:10px;font-size:.85rem;color:var(--muted)"></div>
       </div>
-      <p style="color:var(--muted);font-size:.85rem;margin-bottom:8px">Sélectionne exactement <b>11 titulaires</b> parmi ton effectif. Seuls ces 11 marquent des points, selon leurs performances réelles.</p>
-      <p style="color:var(--muted);font-size:.85rem;margin-bottom:14px">Compose aussi ton <b>banc</b> avec le bouton 🪑 de chaque joueur : <b>1 défenseur, 1 milieu et 1 attaquant</b> (3 remplaçants, un par poste). Si un titulaire ne dispute <b>aucune minute</b>, le remplaçant du <b>même poste</b> prend sa place automatiquement au calcul des points. Le banc est <b>facultatif</b> — mais s'il est rempli, c'est 1 par poste (pas de gardien remplaçant).</p>
+      <p style="color:var(--muted);font-size:.85rem;margin-bottom:10px">Sélectionne exactement <b>11 titulaires</b> parmi ton effectif. Seuls ces 11 marquent des points, selon leurs performances réelles.</p>
+      <!-- Encart d'aide BANC : bien visible pour que personne ne rate la fonctionnalité -->
+      <div style="background:rgba(95,208,224,.08);border:1px solid rgba(95,208,224,.4);border-radius:10px;padding:11px 13px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start">
+        <span style="font-size:1.3rem;line-height:1">🪑</span>
+        <div style="font-size:.82rem;color:var(--chalk);line-height:1.45">
+          <b style="color:#5fd0e0">Compose ton banc (facultatif)</b> — sous chaque joueur <b>non aligné</b>, le bouton
+          <span style="display:inline-block;background:rgba(95,208,224,.14);border:1px solid #5fd0e0;color:#5fd0e0;border-radius:5px;padding:0 5px;font-size:.72rem;font-weight:700">🪑&nbsp;Banc</span>
+          en fait un remplaçant. Mets-en <b>1 par poste</b> : 1&nbsp;défenseur, 1&nbsp;milieu, 1&nbsp;attaquant.
+          Si un titulaire ne joue <b>aucune minute</b>, son remplaçant du même poste prend sa place automatiquement au calcul des points.
+        </div>
+      </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
         <div><div id="lineupCounter" style="font-family:'Saira Condensed';font-weight:800;font-size:1.2rem">0 / 11 titulaires</div>
           <div id="benchCounter" style="font-size:.8rem;color:var(--muted)">🪑 Banc : · DÉF · MIL · ATT <span style="color:var(--muted)">(facultatif)</span></div>
@@ -2172,7 +2181,7 @@
           <li>La <b>discipline compte</b> : deux cartons jaunes = carton rouge et <b>exclusion</b>. Une équipe réduite à dix joue <b>affaiblie pour le temps restant</b> (moins d'occasions, plus concédées) — une exclusion précoce pèse donc lourd, mais ne condamne pas.</li>
           <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
           <li>C'est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de ton équipe), <b>sans aucun impact</b> sur le classement officiel, le budget ou les notes de journée.</li>
-          <li>Tu peux lancer jusqu'à <b>3 défis par jour</b>. Un défi que tu <b>annules</b>, ou qu'un adversaire <b>refuse</b>, <b>ne consomme pas</b> ton quota — seuls les défis joués ou en attente de réponse comptent. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
+          <li>Tu peux lancer jusqu'à <b>5 défis par jour</b> — et si tu <b>enchaînes 3 victoires d'affilée</b>, tu débloques une <b>6<sup>e</sup> invitation bonus</b> 🔥 pour la journée. Un défi que tu <b>annules</b>, ou qu'un adversaire <b>refuse</b>, <b>ne consomme pas</b> ton quota — seuls les défis joués ou en attente de réponse comptent. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
           <li>Avant chaque match tu choisis une <b>mentalité</b> : <b>offensif</b> (tu crées plus d'occasions mais tu t'exposes), <b>équilibré</b> ou <b>défensif</b> (tu te refermes). Ça influe sur le déroulé — à toi de t'adapter à l'adversaire.</li>
           <li>La feuille de match affiche les <b>temps forts minute par minute</b> (buts ⚽, grosses occasions, cartons 🟨🟥), l'homme du match et toutes les statistiques.</li>
           <li>Depuis l'historique, le bouton <b>🔄 Revanche</b> relance un défi vers le même adversaire, et tu vois ton <b>bilan tête-à-tête</b> (V-N-D) quand tu choisis un adversaire.</li>
@@ -5260,7 +5269,7 @@ const FAQ_DATA = [
     ['Je peux rejouer le quiz de fin de mercato pour améliorer mon score ?',
      "Non : le quiz se joue <b>une seule fois</b> par manager, et ton score est définitif une fois validé. Prends ton temps avant de valider — tu peux revenir en arrière et changer tes réponses <b>tant que tu n’as pas cliqué sur « Valider mes réponses »</b>."],
     ['C’est quoi les « Matchs virtuels » ? ⚔️',
-     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>3 défis par jour</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b> et un onglet <b>📝 Récit</b> qui raconte le match comme un vrai compte-rendu (mi-temps par mi-temps, passeur, buteur, note…), et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore) <b>et par la formation choisie</b> (4-4-2, 3-5-2…) : la disposition compte vraiment. Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
+     "Dans <b>Plus ⋮ → « ⚔️ Matchs virtuels »</b>, tu peux <b>défier un autre manager</b> : tu alignes ton onze (11 joueurs à toi, dont 1 gardien), l’adversaire aligne le sien quand il veut, et le match est <b>simulé</b> à partir des caractéristiques des joueurs. Tu obtiens une <b>feuille de match complète</b> : score, possession, tirs (et tirs cadrés), xG, corners, fautes, hors-jeu, cartons et <b>homme du match</b>. C’est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l’homme du match vient de ton équipe), <b>sans impact</b> sur le classement, le budget ou les notes. Tu peux lancer <b>5 défis par jour</b>, et une <b>6<sup>e</sup> invitation bonus</b> 🔥 se débloque si tu <b>enchaînes 3 victoires d’affilée</b> ; un défi annulé par toi ou refusé par l’adversaire <b>ne compte pas</b> dans ce quota. Avant le match tu choisis une <b>mentalité</b> (offensif / équilibré / défensif) qui influe sur le jeu, la feuille affiche les <b>temps forts minute par minute</b> et un onglet <b>📝 Récit</b> qui raconte le match comme un vrai compte-rendu (mi-temps par mi-temps, passeur, buteur, note…), et tu as un bouton <b>🔄 Revanche</b>, ton <b>bilan tête-à-tête</b>, un <b>classement amical</b> et des <b>badges</b>. La force des équipes vient des <b>caractéristiques des joueurs</b> ajustées par leur <b>forme récente</b> (notes Sofascore) <b>et par la formation choisie</b> (4-4-2, 3-5-2…) : la disposition compte vraiment. Chacun compose <b>à l’aveugle</b> : les deux onze ne se révèlent qu’<b>une fois le match joué</b>. Tu retrouves tous tes résultats dans l’historique."],
     ['C’est quoi les « Tournois » ? 🏆',
      "Des <b>coupes à élimination directe</b> organisées par l’organisation (menu <b>Plus ⋮ → 🏆 Tournois</b>). À chaque tour tu alignes ton onze ; le match se joue dès que ton adversaire a posé le sien, et le vainqueur monte jusqu’à la finale. Tu suis le <b>bracket</b> complet avec tous les scores, et tu peux rouvrir chaque feuille de match. En cas d’égalité le match est départagé (xG, tirs cadrés, puis au sort). Le <b>vainqueur du tournoi</b> gagne un bonus de flair. Amical : aucun effet sur le classement officiel."],
     ['C’est quoi les « Fiches tactiques » ? 📋',
@@ -6084,6 +6093,74 @@ function buildPitch(mine, readonly, colors){
       <div class="pitch-line">${jerseys}${empties}</div>`;
   }).join('');
   return `<div class="pitch">${lines}</div>`;
+}
+
+// ======================================================================
+// Feuille finale « terrain » d'une compo (galerie + récap de sa compo).
+// Reproduit la maquette : maillot coloré par club, nom + points sous chaque
+// joueur, capitaine (leader) marqué 🅒/★, banc de touche détaché (points
+// barrés pour les remplaçants non entrés en jeu).
+// ======================================================================
+function sheetKit(club, size){
+  const k = CLUB_KITS[club] || {a:'#5a6b62',b:'#e0e6e2'};
+  return kitSvgColors(k.a, k.b, size||46);
+}
+function sheetPlayerCell(p, isBenchRow){
+  const nm = (p.name||'').length>13 ? (p.name.slice(0,12)+'…') : (p.name||'');
+  const pts = (p.pts==null?0:p.pts);
+  // Banc non entré : points barrés et grisés (comme la maquette).
+  const dim = isBenchRow && !p.came_in;
+  const lead = p.is_leader
+    ? `<span style="position:absolute;top:-6px;right:-6px;display:flex;flex-direction:column;align-items:center;gap:1px">
+         <span title="Leader (étoile)" style="font-size:.8rem;line-height:1">⭐</span>
+         <span title="Capitaine" style="background:#a855f7;color:#fff;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:800">C</span>
+       </span>` : '';
+  const subIn = (!isBenchRow && p.is_sub)
+    ? `<span title="Entré en jeu (remplaçant)" style="position:absolute;top:-5px;left:-5px;font-size:.72rem">🔄</span>` : '';
+  const nameBox = `<div style="background:${dim?'#64748b':'#1e4fd8'};color:#fff;font-weight:700;font-size:.7rem;border-radius:5px 5px 0 0;padding:2px 4px;max-width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`;
+  const ptsBox = `<div style="background:${dim?'#cbd5e1':'#38bdf8'};color:${dim?'#64748b':'#06283d'};font-weight:800;font-size:.72rem;border-radius:0 0 5px 5px;padding:1px 4px;${dim?'text-decoration:line-through':''}">${pts} pts</div>`;
+  return `<div style="position:relative;display:flex;flex-direction:column;align-items:center;width:96px">
+    ${lead}${subIn}
+    <div style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">${sheetKit(p.club, isBenchRow?36:46)}</div>
+    <div style="margin-top:2px;text-align:center">${nameBox}${ptsBox}</div>
+  </div>`;
+}
+// opts: {title, showTotal:true}
+function renderFinalSheet(sheet, opts){
+  opts = opts||{};
+  if(!sheet || sheet.empty || sheet.__error){
+    return `<div class="empty">${(sheet&&sheet.__error)||'Aucune composition pour cette journée.'}</div>`;
+  }
+  const titu = Array.isArray(sheet.titulaires)?sheet.titulaires:[];
+  const bench = Array.isArray(sheet.bench)?sheet.bench:[];
+  const byPos = {GK:[],DEF:[],MID:[],FWD:[]};
+  titu.forEach(p=>{ (byPos[p.pos]||byPos.FWD).push(p); });
+  // Terrain : attaquants en haut → gardien en bas (comme la maquette).
+  const order = ['FWD','MID','DEF','GK'];
+  const rows = order.filter(pos=>byPos[pos] && byPos[pos].length).map(pos=>
+    `<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:8px 0">${byPos[pos].map(p=>sheetPlayerCell(p,false)).join('')}</div>`
+  ).join('');
+  const benchRow = bench.length
+    ? `<div style="margin-top:10px;padding:10px 8px 8px;background:rgba(10,20,15,.35);border-top:2px solid rgba(255,255,255,.18);border-radius:0 0 12px 12px">
+         <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#cfe8d8;font-weight:800;margin-bottom:6px;text-align:center">🪑 Banc de touche</div>
+         <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">${bench.map(p=>sheetPlayerCell(p,true)).join('')}</div>
+       </div>`
+    : '';
+  const head = (opts.title || sheet.team_name || sheet.display_name)
+    ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:linear-gradient(180deg,#132257,#0d1a40);border-radius:12px 12px 0 0;color:#fff">
+         <div style="font-family:'Saira Condensed','Archivo Narrow',sans-serif;font-weight:800;font-size:1.05rem">${opts.title || sheet.team_name || sheet.display_name}</div>
+         <div style="display:flex;align-items:center;gap:10px">
+           <span style="font-family:'Saira',monospace;font-weight:800;color:#5fd0e0;font-size:.95rem">${sheet.formation||'—'}</span>
+           ${opts.showTotal!==false ? `<span style="background:#38bdf8;color:#06283d;font-weight:900;border-radius:8px;padding:3px 10px;font-size:.9rem">${sheet.total||0} pts</span>` : ''}
+         </div>
+       </div>` : '';
+  return `<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--pitch-2)">
+    ${head}
+    <div style="background:linear-gradient(180deg,#2e8b57,#246b43);background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 28px,transparent 28px 56px);padding:12px 8px 0">
+      ${rows}
+    </div>
+    ${benchRow}
+  </div>`;
 }
 
 
@@ -7571,7 +7648,14 @@ async function loadLineupForMatchday(mdId){
       const bonusRow = (leaderRow)
         ? `<tr style="border-top:1px solid var(--line)"><td><span style="color:#ff9a8f;font-weight:700">🅒 Bonus leader</span>${leaderBonus>0?` <span style="color:var(--muted);font-size:.72rem">(${leaderName})</span>`:` <span style="color:var(--muted);font-size:.72rem">(${leaderName} — aucun bonus${(leaderRow.minutes!=null&&leaderRow.minutes<=0)?' : 0 min':(leaderRow.rating!=null&&Number(leaderRow.rating)<6?' : note < 6':'')})</span>`}</td><td>—</td><td>—</td><td>—</td><td style="font-family:'Saira';font-weight:700;color:${leaderBonus>0?'#ff9a8f':'var(--muted)'}">${leaderBonus>0?('+'+leaderBonus.toFixed(0)):'0'}</td></tr>`
         : '';
+      // Feuille finale « terrain » (maquette Audrey) : au-dessus du détail chiffré.
+      let sheetHtml = '';
+      try {
+        const sheet = await api.lineupSheet(composing, mdId);
+        if(sheet && !sheet.empty && !sheet.__error) sheetHtml = renderFinalSheet(sheet, { title:'Ta feuille de match', showTotal:true });
+      } catch(e){}
       $('lineupBreakdown').innerHTML = `<div class="eyebrow" style="margin-bottom:12px">Résultat de la journée</div>
+        ${sheetHtml}
         ${provBadge}
         <div style="font-family:'Saira';font-size:1.6rem;font-weight:800;color:var(--transfer);margin-bottom:14px">${total.toFixed(2)} points${hasPending?' <span style="font-size:.8rem;color:var(--muted)">(provisoire)</span>':''}</div>
         <table style="width:100%"><thead><tr><th>Joueur</th><th>Note</th><th>Min.</th><th>Poids</th><th>Points</th></tr></thead><tbody>${
@@ -7719,13 +7803,16 @@ function renderLineupPlayers(mine){
     const mark = on ? '✓' : (isBench ? ('R·'+posLabel) : '+');
     const markCol = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--muted)');
     // Bouton banc : un remplaçant PAR POSTE (DEF/MID/FWD). Pas de gardien.
+    // Affiché seulement sur les joueurs NON titulaires (on ne met pas au banc
+    // un joueur qu'on aligne) OU sur un réserviste déjà au banc (pour le retirer).
     let benchBtn = '';
-    if(canBench){
+    if(canBench && (!on || isBench)){
       const lbl = isBench
-        ? ('Remplaçant '+posLabel+' — retirer')
-        : (benchPosTaken ? ('Banc '+posLabel+' déjà pris') : ('Mettre au banc ('+posLabel+')'));
-      const dim = benchPosTaken ? '.5' : '1';
-      benchBtn = `<button class="lp-bench" data-bench="${p.id}" style="margin-top:8px;width:100%;padding:5px;font-size:.72rem;border-radius:7px;cursor:pointer;opacity:${dim};border:1px solid ${isBench?'#5fd0e0':'var(--line)'};background:${isBench?'rgba(95,208,224,.12)':'transparent'};color:${isBench?'#5fd0e0':'var(--muted)'}"><span style="display:inline-flex;vertical-align:-.15em;margin-right:4px">${I('chair',12)}</span>${lbl}</button>`;
+        ? ('🪑 Remplaçant '+posLabel+' — retirer')
+        : (benchPosTaken ? ('🪑 Banc '+posLabel+' déjà pris') : ('🪑 Mettre au banc ('+posLabel+')'));
+      const dim = benchPosTaken ? '.55' : '1';
+      // Plus gros, coloré bleu « réserviste », bien visible.
+      benchBtn = `<button class="lp-bench" data-bench="${p.id}" ${benchPosTaken?'disabled':''} style="margin-top:9px;width:100%;padding:8px;font-size:.78rem;font-weight:700;border-radius:8px;cursor:${benchPosTaken?'default':'pointer'};opacity:${dim};border:1.5px solid ${isBench?'#5fd0e0':'rgba(95,208,224,.55)'};background:${isBench?'rgba(95,208,224,.18)':'rgba(95,208,224,.06)'};color:#5fd0e0;display:flex;align-items:center;justify-content:center;gap:5px"><span style="display:inline-flex;vertical-align:-.15em">${I('chair',14)}</span>${lbl}</button>`;
     }
     // Bouton leader (brassard) : visible uniquement pour un TITULAIRE sélectionné.
     const isLeader = on && LINEUP_LEADER === p.id;
@@ -7850,11 +7937,12 @@ function updateLineupCounter(){
     LINEUP_BENCH.forEach(id=>{ const q=(LINEUP_MINE||[]).find(x=>x.id===id); if(q&&bp[q.position]!=null) bp[q.position]++; });
     const ok = (bp.DEF===1 && bp.MID===1 && bp.FWD===1);
     const none = LINEUP_BENCH.length===0;
-    const chip = (lbl,n)=>`<span style="color:${n===1?'#5fd0e0':'var(--muted)'}">${n===1?'✓':'·'} ${lbl}</span>`;
-    b.innerHTML = `🪑 Banc : ${chip('DÉF',bp.DEF)} ${chip('MIL',bp.MID)} ${chip('ATT',bp.FWD)}`
-      + (none ? ` <span style="color:var(--muted)">(facultatif)</span>`
-             : (ok ? ` <span style="color:#4ade80">— complet</span>`
-                   : ` <span style="color:var(--live)">— 1 par poste requis</span>`));
+    // Chips bordées, bien lisibles : vert quand le poste du banc est pourvu.
+    const chip = (lbl,n)=>`<span style="display:inline-block;border:1px solid ${n===1?'#4ade80':'var(--line)'};color:${n===1?'#4ade80':'var(--muted)'};background:${n===1?'rgba(74,222,128,.12)':'transparent'};border-radius:6px;padding:1px 7px;margin-right:4px;font-size:.72rem;font-weight:700">${n===1?'✓':'+'} ${lbl}</span>`;
+    b.innerHTML = `<span style="color:var(--muted);font-size:.72rem;margin-right:4px">🪑 BANC</span>${chip('DÉF',bp.DEF)}${chip('MIL',bp.MID)}${chip('ATT',bp.FWD)}`
+      + (none ? ` <span style="color:var(--muted);font-size:.72rem">facultatif</span>`
+             : (ok ? ` <span style="color:#4ade80;font-size:.72rem;font-weight:700">complet ✓</span>`
+                   : ` <span style="color:var(--live);font-size:.72rem">1 par poste</span>`));
   }
   // Statut du leader (sous le compteur).
   const l = $('leaderCounter');
@@ -11228,11 +11316,11 @@ async function openTacticChooser(onPick){
 async function renderVmatch(){
   const body = $('vmatchBody'); if(!body) return;
   body.innerHTML = '<div class="empty">Chargement…</div>';
-  let pending=[], history=[], opponents=[], today=0, leaderboard=[], badges=[], win={open:true};
+  let pending=[], history=[], opponents=[], today=0, leaderboard=[], badges=[], win={open:true}, quota=null;
   try {
-    [pending, history, opponents, today, leaderboard, badges, win] = await Promise.all([
+    [pending, history, opponents, today, leaderboard, badges, win, quota] = await Promise.all([
       api.vmatchPending(), api.vmatchHistory(), api.vmatchOpponents(), api.vmatchCreatedToday(),
-      api.vmatchLeaderboard(), api.vmatchBadges(), api.vmatchWindow()
+      api.vmatchLeaderboard(), api.vmatchBadges(), api.vmatchWindow(), api.vmatchQuota()
     ]);
   } catch(e){
     body.innerHTML = '<div class="empty">Matchs virtuels indisponibles (scripts 264 + 265 à passer).</div>';
@@ -11245,7 +11333,14 @@ async function renderVmatch(){
 
   const incoming = pending.filter(p=>p.role==='incoming');
   const outgoing = pending.filter(p=>p.role==='outgoing');
-  const limit = 3, remaining = Math.max(0, limit - (today||0));
+  // Quota du jour : base 5, +1 invitation bonus si série ≥ 3 victoires.
+  const qUsed  = quota ? (quota.used|0)  : (today||0);
+  const qBase  = quota ? (quota.base|0)  : 5;
+  const qBonus = quota ? (quota.bonus|0) : 0;
+  const qStreak= quota ? (quota.streak|0): 0;
+  const qThresh= quota ? (quota.threshold|0) : 3;
+  const limit     = quota ? (quota.limit|0) : qBase;
+  const remaining = quota ? Math.max(0, quota.remaining|0) : Math.max(0, limit - qUsed);
 
   // Bilan rapide
   const w = history.filter(h=>h.outcome==='win').length;
@@ -11286,15 +11381,26 @@ async function renderVmatch(){
   if(!opponents.length){
     html += `<div class="empty">Aucun adversaire disponible pour l'instant.</div>`;
   } else if(remaining<=0){
-    html += `<div class="empty">Tu as atteint la limite de ${limit} défis pour aujourd'hui. Reviens demain&nbsp;!</div>`;
+    const bonusMsg = qBonus>0
+      ? ` (dont ta <b>6<sup>e</sup> invitation bonus</b> de série 🔥)`
+      : '';
+    html += `<div class="empty">Tu as utilisé tes <b>${limit}</b> défis${bonusMsg} pour aujourd'hui. Reviens demain&nbsp;!${qBonus>0?'':` <br><span style="font-size:.8rem;color:var(--muted)">Astuce : enchaîne <b>${qThresh} victoires d'affilée</b> pour débloquer une invitation bonus.</span>`}</div>`;
   } else {
+    // Pastille d'état du quota : série en cours + invitation bonus.
+    let quotaChip = '';
+    if(qBonus>0){
+      quotaChip = `<span style="display:inline-block;margin-left:6px;background:rgba(255,213,74,.16);border:1px solid var(--transfer);color:var(--transfer);border-radius:999px;padding:1px 8px;font-weight:800;font-size:.72rem">🔥 +1 invitation bonus (série de ${qStreak})</span>`;
+    } else if(qStreak>0){
+      const need = Math.max(0, qThresh - qStreak);
+      quotaChip = `<span style="display:inline-block;margin-left:6px;color:var(--muted);font-size:.72rem">série ${qStreak} · encore ${need} victoire${need>1?'s':''} pour l'invitation bonus</span>`;
+    }
     html += `<div class="card" style="background:var(--pitch);border:1px solid var(--line);border-radius:12px;padding:14px 15px;margin-bottom:10px">
       <div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">
         <select id="vmOpponent" style="flex:1;min-width:160px;padding:9px">${opponents.map(o=>`<option value="${o.id}">${vmEsc(o.team_name)}</option>`).join('')}</select>
         <button class="btn" id="vmNewBtn" style="background:var(--transfer);color:#1a1a1a;border:none;border-radius:8px;padding:9px 15px;font-weight:700;cursor:pointer">Composer mon onze →</button>
       </div>
       <div id="vmH2H" class="hint" style="font-size:.76rem;margin-top:7px;min-height:1.1em"></div>
-      <div class="hint" style="font-size:.76rem;margin-top:3px">Défis restants aujourd'hui&nbsp;: <b>${remaining}/${limit}</b></div>
+      <div class="hint" style="font-size:.76rem;margin-top:3px">Défis restants aujourd'hui&nbsp;: <b>${remaining}/${limit}</b>${quotaChip}</div>
     </div>`;
   }
   }  // fin du bloc fenêtre ouverte
@@ -11388,8 +11494,11 @@ async function renderVmatch(){
   });
   body.querySelectorAll('[data-vmview]').forEach(b=>b.onclick=()=>showMatchSheet(b.dataset.vmview));
   body.querySelectorAll('[data-vmrematch]').forEach(b=>b.onclick=async()=>{
-    const todayN = await api.vmatchCreatedToday();
-    if(todayN>=3){ alert('Tu as atteint la limite de 3 défis pour aujourd\'hui.'); return; }
+    const q = await api.vmatchQuota();
+    if((q.remaining|0) <= 0){
+      alert(`Tu as utilisé tes ${q.limit|0} défis pour aujourd'hui${(q.bonus|0)>0?' (invitation bonus de série incluse)':''}.`);
+      return;
+    }
     openElevenPicker({kind:'create', opponentId:b.dataset.vmrematch, opponentName:b.dataset.vmrematchname});
   });
 }
@@ -11984,6 +12093,7 @@ async function renderGalerie(){
 // (labels/ordre des postes partagés : voir VM_POS_LABEL / VM_POS_ORDER plus haut —
 //  on réutilise les mêmes pour éviter une redéclaration de const dans le module.)
 
+let GALERIE_VIEW = 'pitch';   // 'pitch' (terrain, maquette Audrey) | 'list' (compact)
 async function loadGalerieMatchday(mdId){
   const body = $('galerieBody');
   body.innerHTML = '<div class="empty">Chargement…</div>';
@@ -11996,18 +12106,63 @@ async function loadGalerieMatchday(mdId){
     body.innerHTML = '<div class="empty">Aucune composition déposée pour cette journée.</div>';
     return;
   }
-  body.innerHTML = res.map(team=>{
+  // Bascule d'affichage : terrain (feuille finale) ou liste compacte.
+  const toggle = `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:10px">
+    <button id="galViewPitch" style="font-size:.78rem;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer;border:1px solid ${GALERIE_VIEW==='pitch'?'var(--transfer)':'var(--line)'};background:${GALERIE_VIEW==='pitch'?'rgba(245,197,66,.14)':'transparent'};color:${GALERIE_VIEW==='pitch'?'var(--transfer)':'var(--muted)'}">⚽ Terrain</button>
+    <button id="galViewList" style="font-size:.78rem;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer;border:1px solid ${GALERIE_VIEW==='list'?'var(--transfer)':'var(--line)'};background:${GALERIE_VIEW==='list'?'rgba(245,197,66,.14)':'transparent'};color:${GALERIE_VIEW==='list'?'var(--transfer)':'var(--muted)'}">Liste</button>
+  </div>`;
+  const wire = ()=>{
+    const bp=$('galViewPitch'), bl=$('galViewList');
+    if(bp) bp.onclick=()=>{ if(GALERIE_VIEW!=='pitch'){ GALERIE_VIEW='pitch'; loadGalerieMatchday(mdId); } };
+    if(bl) bl.onclick=()=>{ if(GALERIE_VIEW!=='list'){ GALERIE_VIEW='list'; loadGalerieMatchday(mdId); } };
+  };
+
+  // --- Vue TERRAIN : feuille finale par équipe (maquette Audrey) ---
+  if(GALERIE_VIEW==='pitch'){
+    body.innerHTML = toggle + '<div class="empty">Chargement des feuilles…</div>';
+    const sheets = await Promise.all(res.map(t=>api.lineupSheet(t.manager_id, mdId).catch(()=>null)));
+    // Repli si la feuille n'est pas dispo (script 298 non passé) → vue liste.
+    if(sheets.every(s=>!s || s.__error)){
+      GALERIE_VIEW='list'; return loadGalerieMatchday(mdId);
+    }
+    const cards = res.map((t,i)=>{
+      const s = sheets[i];
+      const title = (t.team_name||t.display_name) + (t.is_me?' (toi)':'');
+      if(!s || s.empty || s.__error) return `<div class="card" style="padding:12px;margin-bottom:12px"><b>${title}</b><div class="empty" style="margin-top:6px">Compo indisponible.</div></div>`;
+      return renderFinalSheet(s, { title, showTotal:true });
+    }).join('');
+    body.innerHTML = toggle + cards;
+    wire();
+    return;
+  }
+  // --- Vue LISTE (compacte, historique) ---
+  // Pastille de note (galerie) : note du jour du joueur, colorée selon la valeur.
+  const noteChip = (p)=>{
+    if(p.note==null) return '';
+    const v = Number(p.note);
+    const col = v>=10 ? '#4ade80' : (v>=7 ? '#a3e635' : (v>=5 ? 'var(--transfer)' : '#e0574a'));
+    const nb = (v>10) ? ' 🅒' : '';   // >10 = bonifiée (capitaine)
+    return ` <b style="color:${col};font-size:.78rem">${(Math.round(v*10)/10).toString().replace('.',',')}${nb}</b>`;
+  };
+  body.innerHTML = toggle + res.map(team=>{
     const players = Array.isArray(team.players) ? team.players : [];
+    const bench = Array.isArray(team.bench) ? team.bench : [];
     // Regroupe par poste.
     const byPos = {};
     players.forEach(p=>{ (byPos[p.position] = byPos[p.position]||[]).push(p); });
     const lines = VM_POS_ORDER.filter(pos=>byPos[pos]&&byPos[pos].length).map(pos=>{
       const names = byPos[pos].map(p=>{
-        const lead = (p.id===team.leader_id) ? ' <span style="color:var(--live,#e0574a);font-weight:800" title="Leader de la journée">🅒</span>' : '';
-        return `<span style="display:inline-block;background:var(--pitch);border:1px solid var(--line);border-radius:7px;padding:3px 8px;margin:2px 3px 2px 0;font-size:.82rem">${p.name}${lead}<span style="color:var(--muted);font-size:.72rem"> · ${p.club||'—'}</span></span>`;
+        const lead = (p.id===team.leader_id) ? ' <span style="color:var(--live,#e0574a);font-weight:800" title="Leader de la journée (capitaine)">🅒</span>' : '';
+        return `<span style="display:inline-block;background:var(--pitch);border:1px solid var(--line);border-radius:7px;padding:3px 8px;margin:2px 3px 2px 0;font-size:.82rem">${p.name}${lead}<span style="color:var(--muted);font-size:.72rem"> · ${p.club||'—'}</span>${noteChip(p)}</span>`;
       }).join('');
       return `<div style="margin:5px 0"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:2px">${VM_POS_LABEL[pos]}</div>${names}</div>`;
     }).join('');
+    // Banc (remplaçants) — affiché en retrait, avec note aussi.
+    let benchHtml = '';
+    if(bench.length){
+      const chips = bench.map(p=>`<span style="display:inline-block;background:transparent;border:1px dashed var(--line);border-radius:7px;padding:3px 8px;margin:2px 3px 2px 0;font-size:.8rem;color:var(--muted)">🪑 ${p.name}<span style="font-size:.7rem"> · ${p.club||'—'}</span>${noteChip(p)}</span>`).join('');
+      benchHtml = `<div style="margin:8px 0 0;padding-top:8px;border-top:1px dashed var(--line)"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:2px">Remplaçants</div>${chips}</div>`;
+    }
     const mine = team.is_me ? ' <span style="color:var(--transfer);font-size:.72rem">(toi)</span>' : '';
     return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
@@ -12015,8 +12170,10 @@ async function loadGalerieMatchday(mdId){
         <div style="font-family:'Saira',monospace;font-weight:800;color:var(--transfer);font-size:.95rem">${team.formation||'—'}</div>
       </div>
       ${lines}
+      ${benchHtml}
     </div>`;
   }).join('');
+  wire();
 }
 
 async function renderPolls(){

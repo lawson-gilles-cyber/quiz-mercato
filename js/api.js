@@ -1679,6 +1679,16 @@ export async function adminLineupStatus(matchdayId) {
   const { data } = await sb.rpc('qm_admin_lineup_status', { p_matchday_id: matchdayId });
   return data ?? [];
 }
+// Détail des compos : 11 titulaires + 3 remplaçants + reste de l'effectif (grisé), avec notes.
+export async function adminLineupDetail(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_lineup_detail', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
+// Rôle de chaque joueur pour la journée (titular / bench) → pour griser la grille de notes.
+export async function adminLineupRoles(matchdayId) {
+  const { data } = await sb.rpc('qm_admin_lineup_roles', { p_matchday_id: matchdayId });
+  return data ?? [];
+}
 // Ajuste la deadline de dépôt du onze d'une journée (null = la retirer).
 export async function adminSetLineupDeadline(matchdayId, deadlineISO) {
   return sb.rpc('qm_admin_set_lineup_deadline', { p_matchday_id: matchdayId, p_deadline: deadlineISO });
@@ -1856,6 +1866,12 @@ export async function matchdaySubs(matchdayId) {
 export async function lineupBreakdown(managerId, matchdayId) {
   const { data } = await sb.rpc('qm_lineup_breakdown', { p_manager: managerId, p_matchday_id: matchdayId });
   return data ?? [];
+}
+// Feuille finale « terrain » d'une compo : titulaires + banc + points (jsonb).
+export async function lineupSheet(managerId, matchdayId) {
+  const { data, error } = await sb.rpc('qm_lineup_sheet', { p_manager: managerId, p_matchday_id: matchdayId });
+  if (error) return { __error: error.message };
+  return data ?? null;
 }
 export async function matchdayStandings(matchdayId) {
   const { data } = await sb.rpc('qm_matchday_standings', { p_matchday_id: matchdayId });
@@ -2121,6 +2137,11 @@ export async function vmatchMySquad() {
 export async function vmatchCreatedToday() {
   const { data } = await sb.rpc('qm_vmatch_created_today');
   return data ?? 0;
+}
+// Quota complet du jour (base 5 + bonus de série) → {used, base, streak, threshold, bonus, limit, remaining}
+export async function vmatchQuota() {
+  const { data } = await sb.rpc('qm_vmatch_quota');
+  return data ?? { used: 0, base: 5, streak: 0, threshold: 3, bonus: 0, limit: 5, remaining: 5 };
 }
 export async function vmatchCreate(opponentId, eleven) {
   const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven });

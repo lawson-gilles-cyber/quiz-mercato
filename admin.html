@@ -4052,6 +4052,10 @@ async function renderNoteGrid(){
   // Charge discrètement les notes de la J-1 (pour le contrôle d'aberration #3).
   NOTE_PREV_MAP = {};
   try { const prev = await api.adminPrevNotes(mdId); (prev||[]).forEach(p=>{ NOTE_PREV_MAP[p.player_id]=p; }); } catch(e){}
+  // Rôle de chaque joueur pour la journée (titulaire / remplaçant) → griser les non-sélectionnés.
+  NOTE_ROLE_MAP = {};
+  try { const roles = await api.adminLineupRoles(mdId); (roles||[]).forEach(x=>{ NOTE_ROLE_MAP[x.player_id]=x.role; }); } catch(e){}
+  _noteGridData.forEach(r=>{ r._role = NOTE_ROLE_MAP[r.player_id] || 'none'; });
   populateNoteFilters();
   paintNoteGrid();
   updateNoteProgress();
@@ -4169,14 +4173,21 @@ function paintNoteGrid(){
       ? `<div style="font-size:.72rem;color:var(--muted);margin-top:1px">👤 ${esc(r.owner_name)}${r.owner_team?` · <b style="color:var(--chalk,#cbd5e1);font-weight:600">${esc(r.owner_team)}</b>`:''}</div>`
       : `<div style="font-size:.72rem;color:var(--muted);margin-top:1px">🆓 joueur libre</div>`;
     const locked = r.locked===true;
+    // Rôle du joueur dans les compos du jour : titulaire / remplaçant / non sélectionné.
+    const role = r._role || 'none';
+    let roleChip = '';
+    if(role==='titular')      roleChip = ` <span title="Aligné (titulaire) dans au moins une compo" style="display:inline-block;background:rgba(74,222,128,.14);border:1px solid #4ade80;color:#4ade80;border-radius:5px;padding:0 5px;font-size:.66rem;font-weight:800;vertical-align:1px">XI</span>`;
+    else if(role==='bench')   roleChip = ` <span title="Remplaçant dans au moins une compo" style="display:inline-block;background:rgba(95,208,224,.12);border:1px solid rgba(95,208,224,.55);color:#5fd0e0;border-radius:5px;padding:0 5px;font-size:.66rem;font-weight:800;vertical-align:1px">🪑</span>`;
+    const unused = (role==='none');
     // #11 — cadenas : fige une note validée (grise la saisie).
     const lockBtn = `<button data-notelock="${r.player_id}" title="${locked?'Déverrouiller la note':'Verrouiller (figer) cette note'}" style="background:none;border:none;cursor:pointer;font-size:1rem;padding:0 2px;${noteIsSet(r)?'':'opacity:.3;pointer-events:none'}">${locked?'🔒':'🔓'}</button>`;
-    html += `<tr style="border-top:1px solid var(--line)"${locked?' style="background:rgba(120,120,120,.06)"':''}>
-      <td style="padding:6px 10px"><span style="display:inline-block;width:1.1em;text-align:center;margin-right:6px">${badge}</span>${nameDisp}${owner}</td>
+    const rowBg = locked ? 'rgba(120,120,120,.06)' : (unused ? 'rgba(120,120,120,.05)' : 'transparent');
+    html += `<tr style="border-top:1px solid var(--line);background:${rowBg}${unused?';opacity:.5':''}" title="${unused?'Non sélectionné cette journée (ni titulaire ni remplaçant)':''}">
+      <td style="padding:6px 10px"><span style="display:inline-block;width:1.1em;text-align:center;margin-right:6px">${badge}</span>${nameDisp}${roleChip}${owner}</td>
       <td style="padding:6px 10px;text-align:right;white-space:nowrap">
-        <input type="number" min="0" max="10" step="0.1" inputmode="decimal"
+        <input type="number" min="0" max="15" step="0.1" inputmode="decimal"
                data-note="${r.player_id}" value="${val}" ${dnp||locked?'disabled':''}
-               style="width:64px;padding:5px;text-align:center" placeholder="—" data-pname="${esc((r.first_name?r.first_name+' ':'')+(r.name||''))}">
+               style="width:64px;padding:5px;text-align:center" placeholder="—" title="Note sur 10 — jusqu'à 15 pour le capitaine (bonus leader)" data-pname="${esc((r.first_name?r.first_name+' ':'')+(r.name||''))}">
       </td>
       <td style="padding:6px 10px;text-align:center;white-space:nowrap">
         ${lockBtn}
@@ -4215,6 +4226,7 @@ function paintNoteGrid(){
 let NOTE_SAVE_STATE = {};   // player_id -> 'pending' | 'saved' | 'error'
 let NOTE_RETRY = {};        // player_id -> {note, played} en échec, à relancer
 let NOTE_PREV_MAP = {};     // player_id -> note J-1 (pour le contrôle d'aberration)
+let NOTE_ROLE_MAP = {};     // player_id -> 'titular' | 'bench' (sinon absent = non sélectionné)
 
 function setNoteBadge(playerId, state){
   NOTE_SAVE_STATE[playerId] = state;
@@ -4232,10 +4244,10 @@ function setNoteBadge(playerId, state){
                               : '<span title="à noter" style="color:var(--live,#e0574a);font-weight:800">✗</span>'); }
 }
 
-// Contrôle d'aberration (#3) : plage 0–10, et écart inhabituel vs J-1 (si connue).
+// Contrôle d'aberration (#3) : plage 0–15 (capitaine = bonus leader), et écart inhabituel vs J-1 (si connue).
 function noteLooksOff(playerId, note){
   if(note==null || isNaN(note)) return null;
-  if(note<0 || note>10) return 'hors de 0–10';
+  if(note<0 || note>15) return 'hors de 0–15';
   const prev = (NOTE_PREV_MAP||{})[playerId];
   if(prev && prev.prev_played && prev.prev_note!=null && Math.abs(note - prev.prev_note) >= 4)
     return `très loin de la J-1 (${prev.prev_note})`;
@@ -4247,7 +4259,7 @@ async function saveNote(playerId, noteVal, played){
   const mdId = $('noteMatchday').value;
   if(!mdId) return;
   const note = (noteVal==='' || noteVal==null) ? null : parseFloat(String(noteVal).replace(',','.'));
-  if(played && (note==null || isNaN(note) || note<0 || note>10)) return; // rien à enregistrer
+  if(played && (note==null || isNaN(note) || note<0 || note>15)) return; // rien à enregistrer
 
   const g = $('noteGrid'); const inp = g && g.querySelector(`input[data-note="${playerId}"]`);
   // Avertissement d'aberration (n'empêche pas l'enregistrement).
@@ -4429,10 +4441,10 @@ const NOTES_GUIDE_HTML = `
 
   <h4 style="margin:16px 0 6px">4. Saisir une note</h4>
   <ul style="margin:0;padding-left:20px">
-    <li>Tape la note (0 à 10) et appuie sur <b>Entrée</b> : elle est enregistrée et le curseur saute au <b>prochain joueur non noté</b>.</li>
-    <li>Une pastille indique l'état : <b style="color:#f0b429">⏳</b> en cours · <b style="color:#4ade80">✓</b> enregistré · <b style="color:#e0574a">⚠</b> échec (clique dessus pour réessayer).</li>
+    <li>Tape la note (0 à 10, et <b>jusqu'à 15</b> pour le <b>capitaine/leader</b> bonifié) et appuie sur <b>Entrée</b> : elle est enregistrée et le curseur saute au <b>prochain joueur non noté</b>.</li>
+    <li>Une pastille indique l'état : <b style="color:#f0b429">⏳</b> en cours · <b style="color:#4ade80">✓</b> enregistré · <b style="color:#e0574a">⚠</b> échec (clique dessus pour réessayer). Le badge <b style="color:#4ade80">XI</b> = titulaire du jour, <b style="color:#5fd0e0">🪑</b> = remplaçant ; les joueurs <b>non sélectionnés</b> sont grisés.</li>
     <li>Touche <b>x</b> (ou la case « n'a pas joué ») : marque le joueur comme <b>absent</b> (il compte 0).</li>
-    <li>Une note très inhabituelle (hors 0–10 ou très loin de la J-1) s'entoure d'<b style="color:#f0794a">orange</b> : vérifie avant de valider.</li>
+    <li>Une note très inhabituelle (hors 0–15 ou très loin de la J-1) s'entoure d'<b style="color:#f0794a">orange</b> : vérifie avant de valider.</li>
   </ul>
 
   <h4 style="margin:16px 0 6px">5. Gagner du temps</h4>
@@ -4653,7 +4665,7 @@ async function showCloseSummary(){
   const total = _noteGridData.length;
   const noted = _noteGridData.filter(noteIsSet).length;
   const noMatchTodo = _noteGridData.filter(r=>r.has_match===false && !noteIsSet(r)).length;
-  const aberr = _noteGridData.filter(r=> r.note!=null && (r.note<0||r.note>10)).length;
+  const aberr = _noteGridData.filter(r=> r.note!=null && (r.note<0||r.note>15)).length;
   let unrated = [];
   try { unrated = await api.adminUnratedLineupPlayers(mdId); } catch(e){}
   const okAll = (unrated.length===0 && aberr===0);
@@ -4664,7 +4676,7 @@ async function showCloseSummary(){
     </div>
     ${line('Joueurs notés', noted+' / '+total, noted===total)}
     ${line('Joueurs alignés NON notés (prioritaire)', unrated.length, unrated.length===0)}
-    ${line('Notes hors plage (0–10)', aberr, aberr===0)}
+    ${line('Notes hors plage (0–15)', aberr, aberr===0)}
     ${line('Sans match non traités', noMatchTodo, noMatchTodo===0)}
     ${unrated.length? `<div style="margin-top:12px"><b style="color:var(--live,#e0574a)">À noter d'abord :</b><div style="max-height:180px;overflow:auto;margin-top:6px;font-size:.84rem">${unrated.slice(0,50).map(r=>`<div style="padding:2px 0">• ${_noteEsc(r.name)} <span class="hint">(${_noteEsc(r.club||'')}${r.owner_team?' · '+_noteEsc(r.owner_team):''}, aligné ×${r.in_lineups})</span></div>`).join('')}${unrated.length>50?'<div class="hint">…et '+(unrated.length-50)+' autres</div>':''}</div></div>`:''}
     <p class="hint" style="margin-top:14px;font-size:.78rem">Les joueurs « sans match non traités » et les joueurs sans note comptent 0. Les joueurs alignés non notés sont les plus importants : ils pèsent sur le classement des managers.</p>`;
@@ -6010,14 +6022,49 @@ async function renderCompoStatus(){
   if(!box) return;
   if(!mdId){ box.innerHTML = '<p class="hint">Choisis une journée ci-dessus.</p>'; if(sum) sum.textContent=''; return; }
   box.innerHTML = '<p class="hint">Chargement…</p>';
-  let rows;
-  try { rows = await api.adminLineupStatus(mdId); }
+  let rows, detail=[];
+  try {
+    [rows, detail] = await Promise.all([
+      api.adminLineupStatus(mdId),
+      api.adminLineupDetail(mdId).catch(()=>[])
+    ]);
+  }
   catch(e){ box.innerHTML = '<p class="hint">Passe le script 293 pour activer cet outil.</p>'; return; }
   if(!rows.length){ box.innerHTML = '<p class="hint">Aucune équipe attendue pour cette journée.</p>'; if(sum) sum.textContent=''; return; }
   const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
   const done = rows.filter(r=>r.submitted).length, total = rows.length;
   if(sum) sum.innerHTML = `<b style="color:${done===total?'#4ade80':'var(--live,#e0574a)'}">${done}/${total}</b> compos validées`;
   const when = iso => iso ? new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+  const detById = {}; (detail||[]).forEach(d=>{ detById[d.manager_id]=d; });
+
+  // Rendu du détail d'une compo : titulaires (par ligne, leader 🅒), remplaçants, reste grisé.
+  const POSLBL = {GK:'Gardien',DEF:'Défenseurs',MID:'Milieux',FWD:'Attaquants'};
+  const POSORD = ['GK','DEF','MID','FWD'];
+  const noteTag = (p)=>{
+    if(p.played===false) return ` <span style="color:var(--muted);font-size:.7rem">(n'a pas joué)</span>`;
+    if(p.note==null) return '';
+    const v=Number(p.note); const col = v>=10?'#4ade80':(v>=5?'#f0b429':'var(--live,#e0574a)');
+    return ` <b style="color:${col};font-size:.76rem">${(Math.round(v*10)/10).toString().replace('.',',')}${v>10?' 🅒':''}</b>`;
+  };
+  const chip = (p, extra)=>`<span style="display:inline-block;background:var(--pitch);border:1px solid var(--line);border-radius:6px;padding:2px 7px;margin:2px 3px 2px 0;font-size:.8rem;${extra||''}">${esc((p.name||''))}${p.is_leader?' <span title="Leader (capitaine)" style="color:var(--live,#e0574a);font-weight:800">🅒</span>':''}<span style="color:var(--muted);font-size:.7rem"> · ${esc(p.club||'—')}</span>${noteTag(p)}</span>`;
+  const renderDetail = (d)=>{
+    if(!d || !Array.isArray(d.players) || !d.players.length) return '<p class="hint" style="margin:6px 0">Aucune compo déposée.</p>';
+    const titu = d.players.filter(p=>p.role==='titular');
+    const bench = d.players.filter(p=>p.role==='bench');
+    const rest  = d.players.filter(p=>p.role==='none');
+    const byPos = {}; titu.forEach(p=>{ (byPos[p.pos]=byPos[p.pos]||[]).push(p); });
+    const lines = POSORD.filter(pos=>byPos[pos]&&byPos[pos].length).map(pos=>
+      `<div style="margin:4px 0"><div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700">${POSLBL[pos]}</div>${byPos[pos].map(p=>chip(p)).join('')}</div>`
+    ).join('');
+    const benchHtml = bench.length
+      ? `<div style="margin:6px 0 0;padding-top:6px;border-top:1px dashed var(--line)"><div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700">Remplaçants (banc)</div>${bench.map(p=>chip(p,'border-style:dashed')).join('')}</div>`
+      : '';
+    const restHtml = rest.length
+      ? `<details style="margin-top:6px"><summary style="cursor:pointer;color:var(--muted);font-size:.78rem">Reste de l'effectif non sélectionné (${rest.length})</summary><div style="margin-top:4px;opacity:.5">${rest.map(p=>chip(p)).join('')}</div></details>`
+      : '';
+    return `<div style="padding:8px 0">${lines}${benchHtml}${restHtml}</div>`;
+  };
+
   box.innerHTML = `<table style="width:100%;font-size:.86rem"><thead><tr><th>Équipe</th><th>Manager</th><th>État</th><th>Détail</th></tr></thead><tbody>${
     rows.map(r=>{
       const ok = r.submitted;
@@ -6026,13 +6073,18 @@ async function renderCompoStatus(){
         : (Number(r.titulaires)>0
             ? `<span style="color:#f0b429;font-weight:700">⚠ Incomplète</span>`
             : `<span style="color:var(--live,#e0574a);font-weight:700">✗ Rien</span>`);
-      const detail = ok
+      const detailCell = ok
         ? `${r.reconducted?'reconduite · ':''}${r.bench_count>0?'banc complet · ':''}<span class="hint">${when(r.updated_at)}</span>`
         : `<span class="hint">${r.titulaires}/11 titulaires</span>`;
-      return `<tr style="${ok?'':'background:rgba(224,87,74,.05)'}"><td><b>${esc(r.team_name||'—')}</b></td><td>${esc(r.display_name||'')}</td><td>${badge}</td><td>${detail}</td></tr>`;
+      const d = detById[r.manager_id];
+      const hasAny = d && Array.isArray(d.players) && d.players.some(p=>p.role!=='none');
+      const expand = hasAny
+        ? `<tr><td colspan="4" style="padding:0 10px 8px"><details><summary style="cursor:pointer;color:#5fd0e0;font-size:.8rem">👁️ Voir la compo${r.bench_count>0?' + banc':''}</summary>${renderDetail(d)}</details></td></tr>`
+        : '';
+      return `<tr style="${ok?'':'background:rgba(224,87,74,.05)'}"><td><b>${esc(r.team_name||'—')}</b></td><td>${esc(r.display_name||'')}</td><td>${badge}</td><td>${detailCell}</td></tr>${expand}`;
     }).join('')
   }</tbody></table>
-  <p class="hint" style="font-size:.78rem;margin-top:8px">Les équipes <b>sans compo complète</b> apparaissent en tête (surlignées) — ce sont elles à relancer.</p>`;
+  <p class="hint" style="font-size:.78rem;margin-top:8px">Les équipes <b>sans compo complète</b> apparaissent en tête (surlignées) — ce sont elles à relancer. « 👁️ Voir la compo » déplie les 11 alignés + les 3 remplaçants ; le reste de l'effectif (non sélectionné) est grisé.</p>`;
 }
 if($('btnCompoStatus')) $('btnCompoStatus').onclick = renderCompoStatus;
 if($('compoStatusMd')) $('compoStatusMd').onchange = renderCompoStatus;
