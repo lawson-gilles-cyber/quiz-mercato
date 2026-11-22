@@ -6193,10 +6193,12 @@ function sheetPlayerCell(p, isBenchRow, teamKit){
          <span title="Leader (étoile)" style="font-size:.68rem;line-height:1">⭐</span>
          <span title="Capitaine" style="background:#a855f7;color:#fff;border-radius:50%;width:13px;height:13px;display:flex;align-items:center;justify-content:center;font-size:.56rem;font-weight:800">C</span>
        </span>` : '';
+  // Remplaçant entré en jeu : flèche ↑ verte (plus claire que 🔄).
   const subIn = (!isBenchRow && p.is_sub)
-    ? `<span title="Entré en jeu${p.replaces_name?(' à la place de '+p.replaces_name):''}" style="position:absolute;top:-4px;left:-4px;font-size:.62rem">🔄</span>` : '';
+    ? `<span title="Entré en jeu${p.replaces_name?(' à la place de '+p.replaces_name):''}" style="position:absolute;top:-5px;left:-5px;background:#16a34a;color:#fff;border-radius:50%;width:15px;height:15px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.4)">↑</span>` : '';
+  // Titulaire remplacé (descendu au banc) : flèche ↓ rouge.
   const benchedTag = (isBenchRow && p.benched)
-    ? `<span title="Remplacé (n'a pas joué)" style="position:absolute;top:-4px;left:-4px;font-size:.62rem">⬇️</span>` : '';
+    ? `<span title="Remplacé — n'a pas joué" style="position:absolute;top:-5px;left:-5px;background:#dc2626;color:#fff;border-radius:50%;width:15px;height:15px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;line-height:1;box-shadow:0 1px 2px rgba(0,0,0,.4)">↓</span>` : '';
   // Tailles réduites pour mieux voir la formation d'ensemble.
   const nameBox = `<div style="background:${dim?'#64748b':'#1e4fd8'};color:#fff;font-weight:700;font-size:.58rem;border-radius:4px 4px 0 0;padding:1px 4px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`;
   const ptsBox = `<div style="background:${dim?'#cbd5e1':'#38bdf8'};color:${dim?'#64748b':'#06283d'};font-weight:800;font-size:.6rem;border-radius:0 0 4px 4px;padding:0 4px;${dim?'text-decoration:line-through':''}">${pts} pts</div>`;
@@ -6242,12 +6244,21 @@ function renderFinalSheet(sheet, opts){
            ${opts.showTotal!==false ? `<span style="background:#38bdf8;color:#06283d;font-weight:900;border-radius:8px;padding:3px 9px;font-size:.85rem;white-space:nowrap">${sheet.total||0} pts</span>` : ''}
          </div>
        </div>` : '';
+  // Légende des remplacements (affichée seulement s'il y a eu une substitution).
+  const hasSub = titu.some(p=>p.is_sub) || bench.some(p=>p.benched);
+  const legend = hasSub
+    ? `<div style="display:flex;justify-content:center;gap:16px;flex-wrap:wrap;padding:7px 10px;font-size:.66rem;color:var(--muted);border-top:1px solid var(--line)">
+         <span style="display:inline-flex;align-items:center;gap:4px"><span style="background:#16a34a;color:#fff;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:900">↑</span> Remplaçant entré en jeu</span>
+         <span style="display:inline-flex;align-items:center;gap:4px"><span style="background:#dc2626;color:#fff;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:900">↓</span> Titulaire remplacé (0 min)</span>
+       </div>`
+    : '';
   return `<div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--pitch-2)">
     ${head}
     <div style="background:linear-gradient(180deg,#2e8b57,#246b43);background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 22px,transparent 22px 44px);padding:8px 6px 2px">
       ${rows}
     </div>
     ${benchRow}
+    ${legend}
   </div>`;
 }
 
