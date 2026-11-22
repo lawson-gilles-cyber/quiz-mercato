@@ -6158,10 +6158,23 @@ function sheetKit(club, size){
   const k = kitByKey()[clubKey(club)] || hashKit(club);
   return kitSvgColors(k.a, k.b, size||46);
 }
-function sheetPlayerCell(p, isBenchRow){
+// Maillot aux couleurs de l'ÉQUIPE (uniforme). Le gardien reçoit une
+// variante distincte (couleurs inversées + léger assombrissement) pour se
+// repérer, comme dans le vrai foot.
+function teamKitSvg(teamKit, isGK, size){
+  const a = teamKit && teamKit.a ? teamKit.a : '#1e4fd8';
+  const b = teamKit && teamKit.b ? teamKit.b : '#f5c542';
+  if(isGK){
+    // GK : on inverse primaire/secondaire pour un maillot nettement distinct.
+    return kitSvgColors(b, a, size||46);
+  }
+  return kitSvgColors(a, b, size||46);
+}
+function sheetPlayerCell(p, isBenchRow, teamKit){
   const nm = (p.name||'').length>13 ? (p.name.slice(0,12)+'…') : (p.name||'');
   const pfmt = (v)=> String(v==null?0:v).replace('.',',');
   const pts = pfmt(p.pts);
+  const isGK = (p.pos === 'GK');
   // Sur le banc : un TITULAIRE REMPLACÉ (benched) est barré à 0 ; un
   // réserviste non utilisé reste lisible (il n'a simplement pas joué pour l'équipe).
   const dim = isBenchRow && p.benched === true;
@@ -6176,9 +6189,11 @@ function sheetPlayerCell(p, isBenchRow){
     ? `<span title="Remplacé (n'a pas joué)" style="position:absolute;top:-5px;left:-5px;font-size:.72rem">⬇️</span>` : '';
   const nameBox = `<div style="background:${dim?'#64748b':'#1e4fd8'};color:#fff;font-weight:700;font-size:.7rem;border-radius:5px 5px 0 0;padding:2px 4px;max-width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`;
   const ptsBox = `<div style="background:${dim?'#cbd5e1':'#38bdf8'};color:${dim?'#64748b':'#06283d'};font-weight:800;font-size:.72rem;border-radius:0 0 5px 5px;padding:1px 4px;${dim?'text-decoration:line-through':''}">${pts} pts</div>`;
+  // Maillot : couleurs de l'équipe (uniforme) si fournies, sinon club réel.
+  const jersey = teamKit ? teamKitSvg(teamKit, isGK, isBenchRow?36:46) : sheetKit(p.club, isBenchRow?36:46);
   return `<div style="position:relative;display:flex;flex-direction:column;align-items:center;width:96px">
     ${lead}${subIn}${benchedTag}
-    <div style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">${sheetKit(p.club, isBenchRow?36:46)}</div>
+    <div style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">${jersey}</div>
     <div style="margin-top:2px;text-align:center">${nameBox}${ptsBox}</div>
   </div>`;
 }
@@ -6190,17 +6205,22 @@ function renderFinalSheet(sheet, opts){
   }
   const titu = Array.isArray(sheet.titulaires)?sheet.titulaires:[];
   const bench = Array.isArray(sheet.bench)?sheet.bench:[];
+  // Couleurs de l'équipe → maillots uniformes (fini le bigarré). Fallback
+  // sur les maillots par club si le manager n'a pas de couleurs définies.
+  const teamKit = (sheet.color_primary)
+    ? { a: sheet.color_primary, b: sheet.color_secondary || '#f5c542' }
+    : null;
   const byPos = {GK:[],DEF:[],MID:[],FWD:[]};
   titu.forEach(p=>{ (byPos[p.pos]||byPos.FWD).push(p); });
   // Terrain : attaquants en haut → gardien en bas (comme la maquette).
   const order = ['FWD','MID','DEF','GK'];
   const rows = order.filter(pos=>byPos[pos] && byPos[pos].length).map(pos=>
-    `<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:8px 0">${byPos[pos].map(p=>sheetPlayerCell(p,false)).join('')}</div>`
+    `<div style="display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:8px 0">${byPos[pos].map(p=>sheetPlayerCell(p,false,teamKit)).join('')}</div>`
   ).join('');
   const benchRow = bench.length
     ? `<div style="margin-top:10px;padding:10px 8px 8px;background:rgba(10,20,15,.35);border-top:2px solid rgba(255,255,255,.18);border-radius:0 0 12px 12px">
          <div style="font-size:.66rem;text-transform:uppercase;letter-spacing:.06em;color:#cfe8d8;font-weight:800;margin-bottom:6px;text-align:center">🪑 Banc de touche</div>
-         <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">${bench.map(p=>sheetPlayerCell(p,true)).join('')}</div>
+         <div style="display:flex;justify-content:center;gap:12px;flex-wrap:wrap">${bench.map(p=>sheetPlayerCell(p,true,teamKit)).join('')}</div>
        </div>`
     : '';
   const head = (opts.title || sheet.team_name || sheet.display_name)
