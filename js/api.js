@@ -1769,6 +1769,12 @@ export async function galleryMatchdays() {
   const { data } = await sb.rpc('qm_gallery_matchdays');
   return data ?? [];
 }
+// Archive des notes d'une journée (consultable en galerie, dès la saisie).
+export async function galleryNotes(matchdayId) {
+  const { data, error } = await sb.rpc('qm_gallery_notes', { p_matchday_id: matchdayId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
 export async function lineupsGallery(matchdayId) {
   const { data, error } = await sb.rpc('qm_lineups_gallery', { p_matchday_id: matchdayId });
   if (error) return { __error: error.message };

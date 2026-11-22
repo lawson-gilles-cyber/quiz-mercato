@@ -12101,29 +12101,69 @@ async function renderGalerie(){
 // (labels/ordre des postes partagés : voir VM_POS_LABEL / VM_POS_ORDER plus haut —
 //  on réutilise les mêmes pour éviter une redéclaration de const dans le module.)
 
-let GALERIE_VIEW = 'pitch';   // 'pitch' (terrain, maquette Audrey) | 'list' (compact)
+// Archive des notes d'une journée : tableau groupé par club, note colorée,
+// rôle (titulaire/remplaçant), équipe propriétaire. Filtrable côté front.
+function renderGalerieNotes(notes){
+  const esc = vmEsc;
+  const noteCol = (v)=> v>=10?'#4ade80':(v>=7?'#a3e635':(v>=5?'var(--transfer)':'#e0574a'));
+  const fmt = (v)=> (Math.round(Number(v)*10)/10).toString().replace('.',',');
+  const roleTag = (r)=> r==='titular'
+    ? `<span title="Titulaire" style="display:inline-block;background:rgba(74,222,128,.14);border:1px solid #4ade80;color:#4ade80;border-radius:5px;padding:0 5px;font-size:.62rem;font-weight:800">XI</span>`
+    : (r==='bench'
+        ? `<span title="Remplaçant" style="display:inline-block;background:rgba(95,208,224,.12);border:1px solid rgba(95,208,224,.55);color:#5fd0e0;border-radius:5px;padding:0 5px;font-size:.62rem;font-weight:800">🪑</span>`
+        : '');
+  // Regroupe par championnat · club (comme la grille admin).
+  const groups = {};
+  notes.forEach(n=>{ const g=(n.championship||'—')+' · '+(n.club||'—'); (groups[g]=groups[g]||[]).push(n); });
+  const keys = Object.keys(groups).sort((a,b)=>a.localeCompare(b,'fr'));
+  const avg = notes.reduce((s,n)=>s+Number(n.note||0),0)/(notes.length||1);
+  let html = `<div class="hint" style="font-size:.8rem;margin-bottom:8px">${notes.length} note${notes.length>1?'s':''} saisie${notes.length>1?'s':''} · moyenne <b style="color:${noteCol(avg)}">${fmt(avg)}</b></div>`;
+  html += `<div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">`;
+  keys.forEach(g=>{
+    html += `<div style="padding:6px 10px;background:var(--pitch);font-weight:700;font-size:.76rem">${esc(g)}</div>`;
+    groups[g].sort((a,b)=>Number(b.note)-Number(a.note)).forEach(n=>{
+      const nm = esc((n.first_name?n.first_name+' ':'')+(n.name||''));
+      const owner = n.owner_team ? `<span style="color:var(--muted);font-size:.72rem">· ${esc(n.owner_team)}</span>` : '';
+      const dnp = n.played===false;
+      html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;border-top:1px solid var(--line);font-size:.84rem">
+        <span style="flex:1">${nm} ${roleTag(n.role)} ${owner}</span>
+        <span style="font-weight:800;color:${dnp?'var(--muted)':noteCol(Number(n.note))}">${dnp?'—':fmt(n.note)}${(!dnp&&Number(n.note)>10)?' 🅒':''}</span>
+      </div>`;
+    });
+  });
+  html += `</div>`;
+  return html;
+}
+
+let GALERIE_VIEW = 'pitch';   // 'pitch' (terrain) | 'list' (compact) | 'notes' (archive notes)
 async function loadGalerieMatchday(mdId){
   const body = $('galerieBody');
   body.innerHTML = '<div class="empty">Chargement…</div>';
-  const res = await api.lineupsGallery(mdId);
-  if(res && res.__error){
-    body.innerHTML = `<div class="empty">${res.__error}</div>`;
-    return;
-  }
-  if(!res.length){
-    body.innerHTML = '<div class="empty">Aucune composition déposée pour cette journée.</div>';
-    return;
-  }
-  // Bascule d'affichage : terrain (feuille finale) ou liste compacte.
-  const toggle = `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:10px">
-    <button id="galViewPitch" style="font-size:.78rem;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer;border:1px solid ${GALERIE_VIEW==='pitch'?'var(--transfer)':'var(--line)'};background:${GALERIE_VIEW==='pitch'?'rgba(245,197,66,.14)':'transparent'};color:${GALERIE_VIEW==='pitch'?'var(--transfer)':'var(--muted)'}">⚽ Terrain</button>
-    <button id="galViewList" style="font-size:.78rem;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer;border:1px solid ${GALERIE_VIEW==='list'?'var(--transfer)':'var(--line)'};background:${GALERIE_VIEW==='list'?'rgba(245,197,66,.14)':'transparent'};color:${GALERIE_VIEW==='list'?'var(--transfer)':'var(--muted)'}">Liste</button>
+
+  // Bascule d'affichage : terrain / liste / notes de la journée.
+  const tglBtn = (v,lbl)=>`<button id="galView_${v}" style="font-size:.78rem;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer;border:1px solid ${GALERIE_VIEW===v?'var(--transfer)':'var(--line)'};background:${GALERIE_VIEW===v?'rgba(245,197,66,.14)':'transparent'};color:${GALERIE_VIEW===v?'var(--transfer)':'var(--muted)'}">${lbl}</button>`;
+  const toggle = `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:10px;flex-wrap:wrap">
+    ${tglBtn('pitch','⚽ Terrain')}${tglBtn('list','Liste')}${tglBtn('notes','📊 Notes')}
   </div>`;
   const wire = ()=>{
-    const bp=$('galViewPitch'), bl=$('galViewList');
-    if(bp) bp.onclick=()=>{ if(GALERIE_VIEW!=='pitch'){ GALERIE_VIEW='pitch'; loadGalerieMatchday(mdId); } };
-    if(bl) bl.onclick=()=>{ if(GALERIE_VIEW!=='list'){ GALERIE_VIEW='list'; loadGalerieMatchday(mdId); } };
+    ['pitch','list','notes'].forEach(v=>{ const b=$('galView_'+v); if(b) b.onclick=()=>{ if(GALERIE_VIEW!==v){ GALERIE_VIEW=v; loadGalerieMatchday(mdId); } }; });
   };
+
+  // --- Vue NOTES : archive des notes de la journée (indépendante des compos) ---
+  if(GALERIE_VIEW==='notes'){
+    body.innerHTML = toggle + '<div class="empty">Chargement des notes…</div>';
+    const notes = await api.galleryNotes(mdId);
+    if(notes && notes.__error){ body.innerHTML = toggle + `<div class="empty">${notes.__error}</div>`; wire(); return; }
+    if(!notes.length){ body.innerHTML = toggle + '<div class="empty">Aucune note saisie pour cette journée pour le moment.</div>'; wire(); return; }
+    body.innerHTML = toggle + renderGalerieNotes(notes);
+    wire();
+    return;
+  }
+
+  // Vues terrain/liste : nécessitent des compositions déposées.
+  const res = await api.lineupsGallery(mdId);
+  if(res && res.__error){ body.innerHTML = toggle + `<div class="empty">${res.__error}</div>`; wire(); return; }
+  if(!res.length){ body.innerHTML = toggle + '<div class="empty">Aucune composition déposée pour cette journée. (Les notes restent consultables via 📊 Notes.)</div>'; wire(); return; }
 
   // --- Vue TERRAIN : feuille finale par équipe (maquette Audrey) ---
   if(GALERIE_VIEW==='pitch'){
