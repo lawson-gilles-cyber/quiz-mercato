@@ -425,6 +425,11 @@ export async function rankingFull() {
   const { data } = await sb.rpc('qm_ranking_full');
   return data ?? [];
 }
+// Détails croustillants du classement : capitaine décisif de la dernière journée.
+export async function rankHotDetails() {
+  const { data } = await sb.rpc('qm_rank_hot_details');
+  return data ?? [];
+}
 // Séries d'assiduité (fidélité) : série en cours + record, par manager.
 export async function activityStreaks() {
   const { data } = await sb.rpc('qm_activity_streaks');
