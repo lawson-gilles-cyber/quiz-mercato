@@ -1116,6 +1116,7 @@
         <!-- Regroupé par usage (sections titrées) pour une navigation plus claire. -->
         <div class="more-sec">🏆 Compétition</div>
         <button data-v="rank" data-ic="trophy">Classement</button>
+        <button data-v="totw" data-ic="medal">Équipe de la semaine</button>
         <button data-v="vmatch" data-ic="target">Matchs virtuels</button>
         <button data-v="vtournament" data-ic="trophy">Tournois</button>
         <button data-v="galerie" data-ic="image">Galerie</button>
@@ -1758,6 +1759,15 @@
     <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Découvre le onze entrant de chaque équipe. Les compositions apparaissent <b>une fois la date limite passée</b> — avant, chacun garde son onze secret.</p>
     <select id="galerieMatchday" style="width:100%;padding:9px;margin-bottom:16px"></select>
     <div id="galerieBody"><div class="empty">Chargement…</div></div>
+  </section>
+
+  <!-- ÉQUIPE DE LA SEMAINE (onze type de la journée, tous managers confondus) -->
+  <section class="view" id="totw">
+    <div class="eyebrow">Le meilleur XI de la journée</div>
+    <h1>L'<em>équipe</em> de la semaine</h1>
+    <p style="color:var(--muted);max-width:640px;margin-bottom:14px">Les <b>11 meilleures notes</b> de la journée, tous managers confondus — disponible <b>une fois la journée notée et clôturée</b>.</p>
+    <select id="totwMatchday" style="width:100%;padding:9px;margin-bottom:16px"></select>
+    <div id="totwBody"><div class="empty">Chargement…</div></div>
   </section>
 
   <!-- MATCHS VIRTUELS (défis asynchrones, intersaison) -->
@@ -2752,7 +2762,7 @@ function goView(v){
   // Rendu de la vue
   const R = {team:renderTeam, bonus:renderBonus, penalty:renderPenalty, market:renderMarket,
              rank:renderRank, feed:renderFeed, home:renderHome, lineup:renderLineup, auctions:renderAuctions,
-             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch, tactics:renderTactics, vtournament:renderVtournament};
+             rules:renderLiveRules, chat:renderChat, messages:renderMessages, managers:renderManagers, pronos:renderPronos, calendar:renderCalendar, achievements:renderAchievements, gazette:renderGazette, polls:renderPolls, mystats:renderMyStats, draft:renderDraft, faq:renderFaq, records:renderRecords, alerts:renderAlerts, scouts:renderScouts, palmares:renderPalmares, galerie:renderGalerie, vmatch:renderVmatch, tactics:renderTactics, vtournament:renderVtournament, totw:renderTotw};
   if(R[v]) R[v]();
   if(v==='auctions' && typeof clearAuctionPulse==='function') clearAuctionPulse();
   if(v==='lineup' && typeof setLineupPulse==='function') setLineupPulse(false);
@@ -12279,6 +12289,87 @@ async function renderGalerie(){
   sel.innerHTML = GALERIE_MDS.map(md=>`<option value="${md.id}">${md.label||('Journée '+md.number)}</option>`).join('');
   sel.onchange = ()=>loadGalerieMatchday(sel.value);
   loadGalerieMatchday(sel.value);
+}
+
+// ===================== ÉQUIPE DE LA SEMAINE =====================
+// Onze type de la journée (11 meilleures notes, tous managers confondus),
+// présenté sur un terrain. S'appuie sur qm_team_of_week (déjà en base).
+let TOTW_MDS = [];
+async function renderTotw(){
+  const sel = $('totwMatchday'), body = $('totwBody');
+  if(!sel || !body) return;
+  body.innerHTML = '<div class="empty">Chargement…</div>';
+  // On réutilise les journées de la galerie (clôturées / en notation).
+  try { TOTW_MDS = await api.galleryMatchdays(); }
+  catch(e){ body.innerHTML = '<div class="empty">Indisponible pour l\'instant.</div>'; sel.innerHTML=''; return; }
+  // On ne garde que des journées réellement notables (statut scoring/closed).
+  const mds = (TOTW_MDS||[]).filter(md=> md.status==='closed' || md.status==='scoring' || md.number!=null);
+  if(!mds.length){
+    sel.innerHTML='';
+    body.innerHTML = '<div class="empty">L\'équipe de la semaine s\'affichera une fois une journée notée et clôturée.</div>';
+    return;
+  }
+  sel.innerHTML = mds.map(md=>`<option value="${md.id}">${md.label||('Journée '+md.number)}</option>`).join('');
+  sel.onchange = ()=>loadTotw(sel.value);
+  loadTotw(sel.value);
+}
+// Maillot « all-star » neutre doré (les joueurs viennent d'équipes différentes).
+function totwKit(size){ return kitSvgColors('#1b2340', '#f5c542', size||34); }
+function totwCell(p){
+  const POSFR = {GK:'G',DEF:'DÉF',MID:'MIL',FWD:'ATT'};
+  const nm = (p.player_name||'').length>13 ? (p.player_name.slice(0,12)+'…') : (p.player_name||'');
+  const rating = (p.rating!=null) ? (Math.round(Number(p.rating)*10)/10).toString().replace('.',',') : '—';
+  const mgr = p.manager ? `<div style="font-size:.54rem;color:#cfe8d8;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${vmEsc(p.manager)}</div>` : '';
+  const nameBox = `<div style="background:#1e4fd8;color:#fff;font-weight:700;font-size:.58rem;border-radius:4px 4px 0 0;padding:1px 4px;max-width:70px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`;
+  const ratingBox = `<div style="background:#f5c542;color:#2a2200;font-weight:800;font-size:.6rem;border-radius:0 0 4px 4px;padding:0 4px">${rating}</div>`;
+  return `<div style="position:relative;display:flex;flex-direction:column;align-items:center;width:72px">
+    <div style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">${totwKit(34)}</div>
+    <div style="margin-top:1px;text-align:center">${nameBox}${ratingBox}${mgr}</div>
+  </div>`;
+}
+async function loadTotw(mdId){
+  const body = $('totwBody');
+  body.innerHTML = '<div class="empty">Chargement de l\'équipe de la semaine…</div>';
+  let eleven = [];
+  try { eleven = await api.teamOfWeek(mdId); } catch(e){ body.innerHTML = '<div class="empty">Équipe de la semaine indisponible.</div>'; return; }
+  if(!eleven || !eleven.length){
+    body.innerHTML = '<div class="empty">Pas encore d\'équipe de la semaine : la journée doit être notée et clôturée.</div>';
+    return;
+  }
+  // Groupe par poste (attaquants en haut → gardien en bas).
+  const byPos = {GK:[],DEF:[],MID:[],FWD:[]};
+  eleven.forEach(p=>{ (byPos[p.pos]||byPos.MID).push(p); });
+  const order = ['FWD','MID','DEF','GK'];
+  const rows = order.filter(pos=>byPos[pos] && byPos[pos].length).map(pos=>
+    `<div style="display:flex;justify-content:center;gap:6px;flex-wrap:wrap;margin:4px 0">${byPos[pos].map(p=>totwCell(p)).join('')}</div>`
+  ).join('');
+  // Note moyenne du onze.
+  const avg = eleven.reduce((s,p)=>s+Number(p.rating||0),0)/eleven.length;
+  const avgTxt = (Math.round(avg*10)/10).toString().replace('.',',');
+  // Bloc « sélections saison » (réutilise qm_tow_counts), facultatif.
+  let countsHtml = '';
+  try {
+    const counts = await api.towCounts();
+    const top = (counts||[]).filter(c=>c.selections>0).slice(0,8);
+    if(top.length){
+      countsHtml = `<div class="hint" style="font-size:.8rem;margin:14px 0 6px;display:flex;align-items:center;gap:5px">⭐ Sélections à l'équipe de la semaine (saison) :</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">${
+          top.map(c=>`<span style="border:1px solid var(--line);border-radius:14px;padding:4px 10px;font-size:.78rem${ME&&c.manager_id===ME.id?';border-color:var(--transfer);color:var(--transfer)':''}"><b>${vmEsc(c.display_name)}</b> · ${c.selections}</span>`).join('')
+        }</div>`;
+    }
+  } catch(e){}
+
+  body.innerHTML = `
+    <div style="border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px;background:var(--pitch-2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:linear-gradient(180deg,#3a2f00,#1a1500);color:#fff">
+        <div style="font-family:'Saira Condensed','Archivo Narrow',sans-serif;font-weight:800;font-size:1.05rem">⭐ Équipe de la semaine</div>
+        <span style="background:#f5c542;color:#2a2200;font-weight:900;border-radius:8px;padding:3px 10px;font-size:.85rem">moy. ${avgTxt}</span>
+      </div>
+      <div style="background:linear-gradient(180deg,#2e8b57,#246b43);background-image:repeating-linear-gradient(0deg,rgba(255,255,255,.05) 0 22px,transparent 22px 44px);padding:8px 6px 6px">
+        ${rows}
+      </div>
+    </div>
+    ${countsHtml}`;
 }
 
 // (labels/ordre des postes partagés : voir VM_POS_LABEL / VM_POS_ORDER plus haut —
