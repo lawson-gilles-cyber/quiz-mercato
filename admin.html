@@ -4155,7 +4155,8 @@ function paintNoteGrid(){
     // Hors regroupement (tri A→Z / club), on rappelle poste + club sur chaque ligne.
     const meta = grouped ? '' : ` <span style="color:var(--muted);font-size:.74rem">· ${POSLBL[r.pos]||'?'} · ${esc(r.club||'—')}</span>`;
     const nameDisp = esc((r.first_name?r.first_name+' ':'')+(r.name||'')) + meta;
-    const val = r.note!=null ? r.note : '';
+    // Affichage FR : virgule décimale (7,9 au lieu de 7.9).
+    const val = r.note!=null ? String(r.note).replace('.',',') : '';
     const dnp = r.played===false;
     // Pastille d'état : priorité à l'état d'ENREGISTREMENT (⏳ en cours / ⚠ échec),
     // sinon ✓ noté · ✗ à faire · — n'a pas joué.
@@ -4185,9 +4186,9 @@ function paintNoteGrid(){
     html += `<tr style="border-top:1px solid var(--line);background:${rowBg}${unused?';opacity:.5':''}" title="${unused?'Non sélectionné cette journée (ni titulaire ni remplaçant)':''}">
       <td style="padding:6px 10px"><span style="display:inline-block;width:1.1em;text-align:center;margin-right:6px">${badge}</span>${nameDisp}${roleChip}${owner}</td>
       <td style="padding:6px 10px;text-align:right;white-space:nowrap">
-        <input type="number" min="0" max="15" step="0.1" inputmode="decimal"
+        <input type="text" inputmode="decimal" autocomplete="off"
                data-note="${r.player_id}" value="${val}" ${dnp||locked?'disabled':''}
-               style="width:64px;padding:5px;text-align:center" placeholder="—" title="Note sur 10 — jusqu'à 15 pour le capitaine (bonus leader)" data-pname="${esc((r.first_name?r.first_name+' ':'')+(r.name||''))}">
+               style="width:64px;padding:5px;text-align:center" placeholder="—" title="Note sur 10 (jusqu'à 15 pour le capitaine). Décimale acceptée : 7,9 ou 7.9" data-pname="${esc((r.first_name?r.first_name+' ':'')+(r.name||''))}">
       </td>
       <td style="padding:6px 10px;text-align:center;white-space:nowrap">
         ${lockBtn}
@@ -4319,7 +4320,7 @@ function renderNoteRecap(){
   if(!noted.length){ box.innerHTML = '<p class="hint" style="padding:6px">Aucun joueur noté pour l\'instant.</p>'; return; }
   box.innerHTML = noted.map(x=>{
     const dnp = x.r.played===false;
-    const val = dnp ? 'N\'a pas joué' : (x.r.note!=null? ('<b>'+x.r.note+'</b>') : '—');
+    const val = dnp ? 'N\'a pas joué' : (x.r.note!=null? ('<b>'+String(x.r.note).replace('.',',')+'</b>') : '—');
     return `<div data-recapjump="${x.r.player_id}" style="display:flex;justify-content:space-between;gap:10px;padding:4px 6px;border-top:1px solid var(--line);cursor:pointer" title="Cliquer pour revenir sur ce joueur">
       <span>${esc(x.label)} <span class="hint" style="font-size:.74rem">· ${esc(x.r.club||'')}${x.r.owner_team?' · 👤 '+esc(x.r.owner_team):''}</span></span>
       <span style="color:${dnp?'var(--muted)':'#4ade80'};white-space:nowrap">${val}</span></div>`;
@@ -4555,7 +4556,7 @@ async function prefillAvg3(){
   grid.querySelectorAll('input[data-note]').forEach(inp=>{
     const pid = inp.getAttribute('data-note');
     if(!inp.disabled && (inp.value===''||inp.value==null) && map[pid] && map[pid].avg_note!=null){
-      inp.value = map[pid].avg_note;
+      inp.value = String(map[pid].avg_note).replace('.',',');
       inp.style.background = 'rgba(240,180,41,.18)'; inp.dataset.suggested='1';
       inp.title = `suggestion : moyenne de ${map[pid].samples} journée(s)`;
       filled++;

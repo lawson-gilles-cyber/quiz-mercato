@@ -6117,26 +6117,67 @@ function buildPitch(mine, readonly, colors){
 // joueur, capitaine (leader) marqué 🅒/★, banc de touche détaché (points
 // barrés pour les remplaçants non entrés en jeu).
 // ======================================================================
+// Clé club normalisée (minuscule, sans accents/ponctuation/préfixes) pour
+// retrouver le maillot quel que soit le libellé (après harmonisation en
+// MAJUSCULES, FR, etc.). Aligné sur qm_club_key côté serveur.
+function clubKey(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9 ]/g,' ')
+    .replace(/\b(fc|ac|cf|sc|as|ss|sv|rc|cd|ud|afc|bk|if|de|du|le|la|los|the|club)\b/g,' ')
+    .replace(/\s+/g,' ').trim();
+}
+// Index des maillots connus par clé normalisée (construit une fois).
+let _KIT_BY_KEY = null;
+function kitByKey(){
+  if(_KIT_BY_KEY) return _KIT_BY_KEY;
+  _KIT_BY_KEY = {};
+  try { for(const name in CLUB_KITS){ _KIT_BY_KEY[clubKey(name)] = CLUB_KITS[name]; } } catch(e){}
+  // Alias des libellés harmonisés (db/299) → mêmes couleurs.
+  const alias = {
+    'barcelone':'barcelona', 'paris st germain':'psg', 'as rome':'roma',
+    'atletico madrid':'atletico', 'bayern munich':'bayern', 'inter milan':'inter',
+    'naples':'napoli', 'bayer leverkusen':'leverkusen', 'losc lille':'lille',
+    'manchester city':'man city', 'ajax amsterdam':'ajax', 'al nassr':'al-nassr',
+    'lazio rome':'lazio'
+  };
+  for(const a in alias){ const tgt=_KIT_BY_KEY[clubKey(alias[a])]; if(tgt) _KIT_BY_KEY[clubKey(a)]=tgt; }
+  return _KIT_BY_KEY;
+}
+// Couleur déterministe depuis le nom du club (pour les clubs sans maillot
+// officiel) : chaque club garde une couleur stable et distincte, au lieu
+// d'un gris uniforme qui fait ressortir au hasard les quelques clubs connus.
+function hashKit(club){
+  let h=0; const s=clubKey(club)||'x';
+  for(let i=0;i<s.length;i++){ h=(h*31 + s.charCodeAt(i))>>>0; }
+  const hue = h % 360;
+  const a = `hsl(${hue} 55% 42%)`;
+  const b = `hsl(${(hue+150)%360} 60% 55%)`;
+  return {a,b};
+}
 function sheetKit(club, size){
-  const k = CLUB_KITS[club] || {a:'#5a6b62',b:'#e0e6e2'};
+  const k = kitByKey()[clubKey(club)] || hashKit(club);
   return kitSvgColors(k.a, k.b, size||46);
 }
 function sheetPlayerCell(p, isBenchRow){
   const nm = (p.name||'').length>13 ? (p.name.slice(0,12)+'…') : (p.name||'');
-  const pts = (p.pts==null?0:p.pts);
-  // Banc non entré : points barrés et grisés (comme la maquette).
-  const dim = isBenchRow && !p.came_in;
+  const pfmt = (v)=> String(v==null?0:v).replace('.',',');
+  const pts = pfmt(p.pts);
+  // Sur le banc : un TITULAIRE REMPLACÉ (benched) est barré à 0 ; un
+  // réserviste non utilisé reste lisible (il n'a simplement pas joué pour l'équipe).
+  const dim = isBenchRow && p.benched === true;
   const lead = p.is_leader
     ? `<span style="position:absolute;top:-6px;right:-6px;display:flex;flex-direction:column;align-items:center;gap:1px">
          <span title="Leader (étoile)" style="font-size:.8rem;line-height:1">⭐</span>
          <span title="Capitaine" style="background:#a855f7;color:#fff;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:.64rem;font-weight:800">C</span>
        </span>` : '';
   const subIn = (!isBenchRow && p.is_sub)
-    ? `<span title="Entré en jeu (remplaçant)" style="position:absolute;top:-5px;left:-5px;font-size:.72rem">🔄</span>` : '';
+    ? `<span title="Entré en jeu${p.replaces_name?(' à la place de '+p.replaces_name):''}" style="position:absolute;top:-5px;left:-5px;font-size:.72rem">🔄</span>` : '';
+  const benchedTag = (isBenchRow && p.benched)
+    ? `<span title="Remplacé (n'a pas joué)" style="position:absolute;top:-5px;left:-5px;font-size:.72rem">⬇️</span>` : '';
   const nameBox = `<div style="background:${dim?'#64748b':'#1e4fd8'};color:#fff;font-weight:700;font-size:.7rem;border-radius:5px 5px 0 0;padding:2px 4px;max-width:92px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nm}</div>`;
   const ptsBox = `<div style="background:${dim?'#cbd5e1':'#38bdf8'};color:${dim?'#64748b':'#06283d'};font-weight:800;font-size:.72rem;border-radius:0 0 5px 5px;padding:1px 4px;${dim?'text-decoration:line-through':''}">${pts} pts</div>`;
   return `<div style="position:relative;display:flex;flex-direction:column;align-items:center;width:96px">
-    ${lead}${subIn}
+    ${lead}${subIn}${benchedTag}
     <div style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.35))">${sheetKit(p.club, isBenchRow?36:46)}</div>
     <div style="margin-top:2px;text-align:center">${nameBox}${ptsBox}</div>
   </div>`;
