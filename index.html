@@ -1595,8 +1595,8 @@
         <div style="font-size:.82rem;color:var(--chalk);line-height:1.45">
           <b style="color:#5fd0e0">Compose ton banc (facultatif)</b> — sous chaque joueur <b>non aligné</b>, le bouton
           <span style="display:inline-block;background:rgba(95,208,224,.14);border:1px solid #5fd0e0;color:#5fd0e0;border-radius:5px;padding:0 5px;font-size:.72rem;font-weight:700">🪑&nbsp;Banc</span>
-          en fait un remplaçant. Mets-en <b>1 par poste</b> : 1&nbsp;défenseur, 1&nbsp;milieu, 1&nbsp;attaquant.
-          Si un titulaire ne joue <b>aucune minute</b>, son remplaçant du même poste prend sa place automatiquement au calcul des points.
+          en fait un remplaçant. Mets-en <b>1 par poste</b> : 1&nbsp;gardien, 1&nbsp;défenseur, 1&nbsp;milieu, 1&nbsp;attaquant.
+          Si un titulaire ne joue <b>aucune minute</b>, son remplaçant du même poste prend sa place automatiquement au calcul des points (gardien compris).
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
@@ -7952,12 +7952,12 @@ function renderLineupPlayers(mine){
     const on = LINEUP_SELECTED.has(p.id);
     const benchIdx = LINEUP_BENCH.indexOf(p.id);     // -1 si pas réserviste
     const isBench = benchIdx >= 0;
-    const canBench = (p.position==='DEF'||p.position==='MID'||p.position==='FWD'); // pas de banc GK
+    const canBench = (p.position==='GK'||p.position==='DEF'||p.position==='MID'||p.position==='FWD'); // banc : 1 par poste, gardien compris
     // Un réserviste de ce poste est-il déjà pris (par un autre joueur) ?
     const benchPosTaken = canBench && !isBench && LINEUP_BENCH.some(id=>{
       const q = mine.find(x=>x.id===id); return q && q.position===p.position;
     });
-    const posLabel = {DEF:'DÉF',MID:'MIL',FWD:'ATT'}[p.position] || p.position;
+    const posLabel = {GK:'GARD',DEF:'DÉF',MID:'MIL',FWD:'ATT'}[p.position] || p.position;
     const border = on ? 'var(--transfer)' : (isBench ? '#5fd0e0' : 'var(--line)');
     const bg = on ? 'rgba(224,168,0,.08)' : (isBench ? 'rgba(95,208,224,.08)' : 'var(--pitch-2)');
     const mark = on ? '✓' : (isBench ? ('R·'+posLabel) : '+');
@@ -8092,14 +8092,14 @@ function updateLineupCounter(){
   if(c){ c.textContent = `${n} / 11 titulaires`; c.style.color = n===11 ? '#4ade80' : (n>11?'var(--live)':'var(--chalk)'); }
   const b = $('benchCounter');
   if(b){
-    // Compte les remplaçants par poste (1 DEF + 1 MID + 1 FWD attendus).
-    const bp = {DEF:0,MID:0,FWD:0};
+    // Compte les remplaçants par poste (1 GK + 1 DEF + 1 MID + 1 FWD attendus).
+    const bp = {GK:0,DEF:0,MID:0,FWD:0};
     LINEUP_BENCH.forEach(id=>{ const q=(LINEUP_MINE||[]).find(x=>x.id===id); if(q&&bp[q.position]!=null) bp[q.position]++; });
-    const ok = (bp.DEF===1 && bp.MID===1 && bp.FWD===1);
+    const ok = (bp.GK===1 && bp.DEF===1 && bp.MID===1 && bp.FWD===1);
     const none = LINEUP_BENCH.length===0;
     // Chips bordées, bien lisibles : vert quand le poste du banc est pourvu.
     const chip = (lbl,n)=>`<span style="display:inline-block;border:1px solid ${n===1?'#4ade80':'var(--line)'};color:${n===1?'#4ade80':'var(--muted)'};background:${n===1?'rgba(74,222,128,.12)':'transparent'};border-radius:6px;padding:1px 7px;margin-right:4px;font-size:.72rem;font-weight:700">${n===1?'✓':'+'} ${lbl}</span>`;
-    b.innerHTML = `<span style="color:var(--muted);font-size:.72rem;margin-right:4px">🪑 BANC</span>${chip('DÉF',bp.DEF)}${chip('MIL',bp.MID)}${chip('ATT',bp.FWD)}`
+    b.innerHTML = `<span style="color:var(--muted);font-size:.72rem;margin-right:4px">🪑 BANC</span>${chip('GARD',bp.GK)}${chip('DÉF',bp.DEF)}${chip('MIL',bp.MID)}${chip('ATT',bp.FWD)}`
       + (none ? ` <span style="color:var(--muted);font-size:.72rem">facultatif</span>`
              : (ok ? ` <span style="color:#4ade80;font-size:.72rem;font-weight:700">complet ✓</span>`
                    : ` <span style="color:var(--live);font-size:.72rem">1 par poste</span>`));
@@ -8120,13 +8120,15 @@ async function saveLineup(mdId, teamArg){
   if(LINEUP_SELECTED.size!==11){ toast('Il faut exactement 11 titulaires.','err'); return; }
   // Sécurité : un réserviste ne doit pas être aussi titulaire.
   const bench = LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id));
-  // Banc : vide (facultatif) OU exactement 1 DEF + 1 MID + 1 FWD.
+  // Banc : vide (facultatif) OU exactement 1 GK + 1 DEF + 1 MID + 1 FWD.
+  // (On tolère aussi un ancien banc à 3 sans gardien, pour ne pas bloquer.)
   if(bench.length !== 0){
-    const bp = {DEF:0,MID:0,FWD:0,GK:0};
+    const bp = {GK:0,DEF:0,MID:0,FWD:0};
     bench.forEach(id=>{ const q=(LINEUP_MINE||[]).find(x=>x.id===id); if(q&&bp[q.position]!=null) bp[q.position]++; });
-    if(bp.GK>0){ toast('Pas de gardien sur le banc. Choisis 1 défenseur, 1 milieu et 1 attaquant.','err',4000); return; }
-    if(bp.DEF!==1 || bp.MID!==1 || bp.FWD!==1){
-      toast('Le banc doit être vide OU compter exactement 1 défenseur, 1 milieu et 1 attaquant.','err',4500); return;
+    const ok4 = (bp.GK===1 && bp.DEF===1 && bp.MID===1 && bp.FWD===1);
+    const ok3 = (bp.GK===0 && bp.DEF===1 && bp.MID===1 && bp.FWD===1);
+    if(!ok4 && !ok3){
+      toast('Le banc doit être vide OU compter 1 gardien, 1 défenseur, 1 milieu et 1 attaquant.','err',4500); return;
     }
   }
   // Leader : seulement s'il est bien dans les 11 titulaires.
