@@ -2155,7 +2155,9 @@ export async function vmatchQuota() {
   return data ?? { used: 0, base: 5, streak: 0, threshold: 3, bonus: 0, limit: 5, remaining: 5 };
 }
 export async function vmatchCreate(opponentId, eleven) {
-  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven });
+  // On cible explicitement la version à jour (4 params → plafond 5 + bonus série),
+  // car les anciennes surcharges (2/3 params) gardaient le plafond de 3.
+  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven, p_mind: 'bal', p_form: '4-4-2' });
   if (error) return { __error: error.message };
   return { id: data };
 }

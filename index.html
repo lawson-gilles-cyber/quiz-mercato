@@ -328,6 +328,12 @@
     color:var(--muted);padding:10px 12px;border-radius:8px;cursor:pointer;min-height:40px}
   .more-menu button:hover{color:var(--chalk);background:var(--pitch)}
   .more-menu button.active{color:var(--transfer)}
+  /* Sections titrées du menu Plus (regroupement par usage). */
+  .more-menu{min-width:208px;max-height:72vh;overflow-y:auto}
+  .more-sec{font-family:'Archivo Narrow',sans-serif;font-weight:800;text-transform:uppercase;
+    letter-spacing:.6px;font-size:.64rem;color:var(--transfer);padding:9px 12px 3px;
+    margin-top:2px;border-top:1px solid var(--line);opacity:.85}
+  .more-sec:first-child{border-top:none;margin-top:0}
 
   /* Barre d'onglets du bas (mobile) : masquée par défaut */
   #tabbar{display:none}
@@ -1107,33 +1113,43 @@
     <div class="more-wrap">
       <button type="button" id="moreBtn" class="more-btn" aria-haspopup="true">Plus ▾</button>
       <div id="moreMenu" class="more-menu">
-        <button data-v="bonus" data-ic="coins">Bonus</button>
-        <button data-v="penalty" data-ic="warning">Pénalités</button>
+        <!-- Regroupé par usage (sections titrées) pour une navigation plus claire. -->
+        <div class="more-sec">🏆 Compétition</div>
         <button data-v="rank" data-ic="trophy">Classement</button>
-        <button data-v="feed" data-ic="megaphone">Actu</button>
+        <button data-v="vmatch" data-ic="target">Matchs virtuels</button>
+        <button data-v="vtournament" data-ic="trophy">Tournois</button>
+        <button data-v="galerie" data-ic="image">Galerie</button>
+        <button data-v="records" data-ic="trophy">Records</button>
+        <button data-v="palmares" data-ic="medal">Palmarès</button>
+
+        <div class="more-sec">💬 Social</div>
         <button data-v="chat" id="chatMenuBtn" data-ic="chat">Chat <span id="chatMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
         <button data-v="messages" id="dmMenuBtn" data-ic="mail">Messages <span id="dmMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
         <button data-v="managers" id="mgrMenuBtn" data-ic="users">Managers <span id="mgrMenuBadge" style="display:none;background:var(--live);color:#fff;font-size:.66rem;font-weight:800;padding:1px 7px;border-radius:9px;margin-left:4px"></span></button>
+
+        <div class="more-sec">🎲 Jeux & défis</div>
         <button data-v="pronos" data-ic="dice">Pronos</button>
+        <button id="dailyQuizMenuBtn" data-ic="calendar">Quiz du jour</button>
+        <button id="quizMenuBtn" data-ic="trophy">Quiz mercato</button>
         <button data-v="achievements" data-ic="medal">Succès</button>
-        <button data-v="mystats" data-ic="chart">Mes stats</button>
         <button data-v="scouts" data-ic="target">Dénicheurs</button>
-        <button data-v="alerts" data-ic="bell">Mes alertes</button>
-        <button data-v="gazette" data-ic="megaphone">Journal</button>
-        <button data-v="polls" data-ic="chart">Sondages</button>
-        <button data-v="galerie" data-ic="image">Galerie</button>
-        <button data-v="calendar" data-ic="calendar">Calendrier</button>
         <button data-v="draft" id="draftMenuBtn" data-ic="target" style="display:none">Draft</button>
+
+        <div class="more-sec">📊 Mon suivi</div>
+        <button data-v="mystats" data-ic="chart">Mes stats</button>
+        <button data-v="bonus" data-ic="coins">Bonus</button>
+        <button data-v="penalty" data-ic="warning">Pénalités</button>
+        <button data-v="alerts" data-ic="bell">Mes alertes</button>
+        <button data-v="tactics" data-ic="clipboard">Fiches tactiques</button>
+
+        <div class="more-sec">📖 Infos</div>
+        <button data-v="feed" data-ic="megaphone">Actu</button>
+        <button data-v="gazette" data-ic="megaphone">Journal</button>
+        <button data-v="calendar" data-ic="calendar">Calendrier</button>
+        <button data-v="polls" data-ic="chart">Sondages</button>
         <button data-v="rules" data-ic="scroll">Règlement</button>
-        <button data-v="records" data-ic="trophy">Records</button>
-        <button data-v="palmares" data-ic="medal">Palmarès</button>
         <button data-v="faq" data-ic="help">FAQ</button>
         <button id="dykMenuBtn" data-ic="help">Le saviez-vous&nbsp;?</button>
-        <button id="quizMenuBtn" data-ic="trophy">Quiz mercato</button>
-        <button id="dailyQuizMenuBtn" data-ic="calendar">Quiz du jour</button>
-        <button data-v="vmatch" data-ic="target">Matchs virtuels</button>
-        <button data-v="tactics" data-ic="clipboard">Fiches tactiques</button>
-        <button data-v="vtournament" data-ic="trophy">Tournois</button>
       </div>
     </div>
   </nav>
