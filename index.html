@@ -6216,11 +6216,13 @@ async function renderRank(){
   if(RANK_DIV_FILTER) rows = rows.filter(m=>m.division_id===RANK_DIV_FILTER);
   RANK_ROWS = rows;
 
-  // Badges (1 seul appel)
+  // Badges (1 seul appel). On EXCLUT le badge 'full' (✅ effectif complet) :
+  // en phase post-mercato tout le monde a 21 joueurs → il n'informe de rien
+  // et son ✅ se lit à tort comme « validé/présent ».
   RANK_BADGES = {};
   try {
     const bd = await api.allBadges();
-    bd.forEach(b=>{ (RANK_BADGES[b.manager_id] ||= []).push(b.icon); });
+    bd.filter(b=>b.code!=='full').forEach(b=>{ (RANK_BADGES[b.manager_id] ||= []).push(b.icon); });
   } catch(e){}
 
   // Séries d'assiduité (fidélité) — badge 🔥, sans budget.
@@ -6663,36 +6665,58 @@ function renderRankTable(){
     return;  // rendu dédié (cartes épurées), pas de table générique
   }
   else if(RANK_MODE==='journee'){
-    const sorted = rows.slice().sort((a,b)=>Number(b.last_md_points)-Number(a.last_md_points));
-    head.innerHTML = `<tr><th>#</th><th>Manager</th><th>Points dernière journée</th><th>Meilleure journée</th></tr>`;
-    body.innerHTML = sorted.map((m,i)=>`<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
-      <td class="rank ${i===0?'podium-1':''}">${i+1}</td>
-      <td>${nameCell(m)}</td>
-      <td class="pts">${Number(m.last_md_points)>0?('+'+m.last_md_points):'—'}</td>
-      <td style="color:var(--muted)">${Number(m.best_md_points)>0?(m.best_md_points+' pts'):'—'}</td></tr>`).join('');
+    renderRankCards(rows, {
+      sort:(a,b)=>Number(b.last_md_points)-Number(a.last_md_points),
+      col1:{ label:'journée', val:m=>Number(m.last_md_points)>0?(''+m.last_md_points):'—' },
+      col2:{ label:'record',  val:m=>Number(m.best_md_points)>0?(m.best_md_points):'—' }
+    });
   }
   else if(RANK_MODE==='valeur'){
-    const sorted = rows.slice().sort((a,b)=>Number(b.team_value)-Number(a.team_value));
-    head.innerHTML = `<tr><th>#</th><th>Manager</th><th>Valeur effectif</th><th>Effectif</th><th>Budget</th></tr>`;
-    body.innerHTML = sorted.map((m,i)=>`<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
-      <td class="rank ${i===0?'podium-1':''}">${i+1}</td>
-      <td>${nameCell(m)}</td>
-      <td class="pts">${fmtMoney(Number(m.team_value))}</td>
-      <td>${m.team_count} / 21</td>
-      <td style="color:var(--muted)">${fmtMoney(Number(m.budget_available))}</td></tr>`).join('');
+    renderRankCards(rows, {
+      sort:(a,b)=>Number(b.team_value)-Number(a.team_value),
+      col1:{ label:'valeur', val:m=>fmtMoney(Number(m.team_value)) },
+      col2:{ label:'effectif', val:m=>`${m.team_count}/21` }
+    });
   }
   else if(RANK_MODE==='regularite'){
-    const avg = (m)=> Number(m.md_played)>0 ? Number(m.season_points)/Number(m.md_played) : 0;
-    const sorted = rows.slice().sort((a,b)=>avg(b)-avg(a));
-    head.innerHTML = `<tr><th>#</th><th>Manager</th><th>Moy. pts/journée</th><th>Journées jouées</th><th>Total</th></tr>`;
-    body.innerHTML = sorted.map((m,i)=>`<tr class="rank-row" data-mgr="${m.id}" style="cursor:pointer">
-      <td class="rank ${i===0?'podium-1':''}">${i+1}</td>
-      <td>${nameCell(m)}</td>
-      <td class="pts">${avg(m).toFixed(1)}</td>
-      <td>${m.md_played}</td>
-      <td style="color:var(--muted)">${m.season_points} pts</td></tr>`).join('');
+    const avg = (m)=> Number(m.md_played)>0 ? Number(m.season_points)/Number(m.md_played) : null;
+    renderRankCards(rows, {
+      sort:(a,b)=>(avg(b)??-1)-(avg(a)??-1),
+      col1:{ label:'moy/J', val:m=>{ const a=avg(m); return a==null?'—':a.toFixed(1); } },
+      col2:{ label:'journées', val:m=>Number(m.md_played)>0?(m.md_played):'—' }
+    });
   }
-  body.querySelectorAll('.rank-row').forEach(row=>row.onclick=()=>showManagerSquad(row.dataset.mgr));
+}
+
+// Rendu carte générique pour les classements annexes (même design épuré que
+// le sportif : rang, équipe/manager, deux métriques à droite). cfg = {sort,
+// col1:{label,val}, col2:{label,val}}. Responsive, pas de débordement.
+function renderRankCards(rows, cfg){
+  const head = $('rankHead'), body = $('rankBody');
+  if(!head || !body) return;
+  head.innerHTML = '';
+  const sorted = rows.slice().sort(cfg.sort);
+  const colHead = `<div style="display:flex;align-items:center;gap:10px;padding:0 14px 6px;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em">
+    <span style="flex:0 0 36px">Rang</span><span style="flex:1"></span>
+    <span style="flex:0 0 72px;text-align:right">${cfg.col1.label}</span>
+    <span style="flex:0 0 64px;text-align:right">${cfg.col2.label}</span>
+  </div>`;
+  const cards = sorted.map((m,i)=>{
+    const col = m.color_primary || 'var(--transfer)';
+    const isMe = ME && m.id===ME.id;
+    const bdg = (RANK_BADGES[m.id]||[]).slice(0,3).join('');
+    return `<div class="rk-card" data-mgr="${m.id}" style="display:flex;align-items:center;gap:12px;background:${isMe?'rgba(95,208,224,.08)':'var(--pitch-2)'};border:1px solid ${isMe?'rgba(95,208,224,.5)':'var(--line)'};border-left:4px solid ${col};border-radius:12px;padding:11px 14px;margin-bottom:9px;cursor:pointer">
+      <div style="flex:0 0 36px;text-align:center;font-family:'Saira',monospace;font-weight:900;font-size:1.2rem;color:${i===0?'var(--transfer)':'var(--chalk)'}">${i+1}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.team_name||m.display_name)}${bdg?` ${bdg}`:''}</div>
+        <div style="color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.display_name)}</div>
+      </div>
+      <div style="flex:0 0 72px;text-align:right;font-family:'Saira',monospace;font-weight:800;font-size:1rem">${cfg.col1.val(m)}</div>
+      <div style="flex:0 0 64px;text-align:right;color:var(--muted);font-size:.9rem">${cfg.col2.val(m)}</div>
+    </div>`;
+  }).join('');
+  body.innerHTML = `<tr><td style="padding:0" colspan="9">${colHead}${cards}</td></tr>`;
+  body.querySelectorAll('.rk-card').forEach(c=>c.onclick=()=>showManagerSquad(c.dataset.mgr));
 }
 
 // ---------- Comparateur d'effectifs ----------
