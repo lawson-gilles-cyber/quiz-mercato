@@ -12039,6 +12039,18 @@ function vmEvtIcon(e, size){
   if(e && e.type==='red' && e.second_yellow) return vmEvtSvg('dblcard', size);
   return vmEvtSvg(e && e.type ? e.type : '', size);
 }
+// Construit une carte { player_id: nom } à partir d'un résultat de match
+// (notes + buteurs + events) — sert à nommer le GARDIEN sur un arrêt.
+function vmBuildNameMap(r){
+  const map = {};
+  const add = arr => { if(Array.isArray(arr)) arr.forEach(x=>{ if(x && x.player_id && x.name) map[x.player_id]=x.name; }); };
+  if(r){
+    add(r.ratings);
+    if(r.scorers){ add(r.scorers.a); add(r.scorers.b); }
+    add(r.events);
+  }
+  return map;
+}
 // ------- Avatar joueur (monochrome, discret) ------------------------------
 // Pastille grise uniforme + initiales fines. Déterministe (même rendu pour un
 // même nom), sans licence. Volontairement sobre pour ne pas charger la feuille.
@@ -12509,6 +12521,7 @@ function vmLivePlayer(container, r, A, B, autostart, onFinish){
   if(!container) return;
   if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();
   const ev = (Array.isArray(r.events)?r.events:[]).slice().sort((a,b)=>(a.minute-b.minute)||((a.type==='goal')?-1:1));
+  const VM_NAME_MAP = vmBuildNameMap(r);   // id → nom (pour nommer le gardien sur un arrêt)
   const finalA = r.score?r.score.a:0, finalB = r.score?r.score.b:0;
   // Rythme rapide : ~70 ms par minute de jeu → ~90' en ~6,3 s de base ;
   // vitesses 1× / 2× / 4× + bouton passer. Pause mi-temps courte.
@@ -12545,13 +12558,16 @@ function vmLivePlayer(container, r, A, B, autostart, onFinish){
     if(e.type==='goal'&&e.goal_type==='penalty') extra=' (pén.)';
     else if(e.type==='goal'&&e.goal_type==='free_kick') extra=' (c.f.)';
     else if(e.type==='injury') extra=' (blessé)';
-    else if(e.type==='save') extra=' (arrêt)';
     else if(e.type==='red') extra=e.second_yellow?' (2e j.)':' (exclu)';
+    // ARRÊT : on nomme le GARDIEN (pas le tireur).
+    const isSave = e.type==='save';
+    const keeperName = isSave ? (VM_NAME_MAP[e.keeper] || null) : null;
+    const dispName = isSave ? (keeperName ? ('Arrêt de '+esc(keeperName)) : 'Arrêt du gardien') : (esc(e.name||'')+extra);
     const assist = (e.type==='goal'&&e.assist_name)?` <span style="display:inline-flex;align-items:center;gap:3px;color:var(--muted)">${vmEvtSvg('assist',13)} ${esc(e.assist_name)}</span>`:'';
     const row = document.createElement('div');
     row.style.cssText=`display:flex;align-items:center;${side?'':'flex-direction:row-reverse;text-align:right;'}gap:8px;margin:5px 0;font-size:.82rem;animation:vmLiveIn .25s ease`;
     row.innerHTML = `<span style="flex:0 0 30px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
-      <span style="display:inline-flex;align-items:center;gap:6px;flex:1;${side?'':'flex-direction:row-reverse;'}font-weight:${e.type==='goal'?'800':'500'};color:${e.type==='goal'?'var(--chalk)':'var(--muted)'}">${ico}<span>${esc(e.name||'')}${extra}${assist}</span></span>`;
+      <span style="display:inline-flex;align-items:center;gap:6px;flex:1;${side?'':'flex-direction:row-reverse;'}font-weight:${e.type==='goal'?'800':'500'};color:${e.type==='goal'?'var(--chalk)':'var(--muted)'}">${ico}<span>${dispName}${assist}</span></span>`;
     feed.insertBefore(row, feed.firstChild);
     if(e.type==='goal'){ if(side) shownA++; else shownB++; setScore(); }
   };
@@ -12674,6 +12690,8 @@ function vmSheetHTML(r, A, B, lineups){
   const shoot = r.shootout ? ` <span style="font-size:.62rem;color:var(--muted)">(départage)</span>` : '';
   // Timeline des temps forts
   const ev = Array.isArray(r.events) ? r.events : [];
+  // Carte id → nom (depuis les notes du match) pour nommer le GARDIEN sur un arrêt.
+  const nameById = vmBuildNameMap(r);
   const timeline = ev.length ? `<div style="margin:12px 0 4px"><div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:700;margin-bottom:6px">Temps forts</div>
     ${VM_EVT_LEGEND}
     <div style="border-left:2px solid var(--line);margin-left:6px;padding-left:12px">
@@ -12685,13 +12703,16 @@ function vmSheetHTML(r, A, B, lineups){
         if(e.type==='goal' && e.goal_type==='penalty') label += ' <span style="font-size:.66rem">(pénalty)</span>';
         else if(e.type==='goal' && e.goal_type==='free_kick') label += ' <span style="font-size:.66rem">(coup franc)</span>';
         else if(e.type==='injury') label += ' <span style="font-size:.66rem">(blessé)</span>';
-        else if(e.type==='save') label += ' <span style="font-size:.66rem">(arrêt)</span>';
+        // ARRÊT : on nomme le GARDIEN (héros de l'action), pas le tireur.
+        const isSave = e.type==='save';
+        const keeperName = isSave ? (nameById[e.keeper] || null) : null;
+        const mainName = isSave ? (keeperName ? ('Arrêt de '+keeperName) : 'Arrêt du gardien') : vmEsc(e.name||'');
         // passeur décisif : petite chaussure (SVG) sous le buteur
         const assist = (e.type==='goal' && e.assist_name)
           ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.7rem;color:var(--muted);font-weight:400;margin-top:1px">${vmEvtSvg('assist',12)} ${vmEsc(e.assist_name)}</span>` : '';
         return `<div style="display:flex;align-items:center;${side?'':'flex-direction:row-reverse;text-align:right;'}justify-content:flex-start;gap:8px;margin:5px 0;font-size:.8rem">
           <span style="flex:0 0 30px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
-          <span style="display:inline-flex;align-items:center;gap:6px;flex:1;${side?'':'flex-direction:row-reverse;'}color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico}<span>${vmEsc(e.name||'')}${label}${assist}</span></span>
+          <span style="display:inline-flex;align-items:center;gap:6px;flex:1;${side?'':'flex-direction:row-reverse;'}color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico}<span>${isSave?mainName:(vmEsc(e.name||'')+label)}${assist}</span></span>
         </div>`;
       }).join('')}
     </div></div>` : '';
