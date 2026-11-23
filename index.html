@@ -13239,19 +13239,40 @@ async function checkMatchdayOpen(){   // (nom conservé pour les appels existant
   const closed = real.filter(m=> m.status==='closed');
 
   // --- 1) Journée OUVERTE : entrée cloche permanente + pop-up (1x/journée) ---
+  // On regarde d'abord, pour chaque journée ouverte, si MA compo est déjà
+  // rendue (11 titulaires). Une compo rendue ne doit JAMAIS déclencher le
+  // rappel « compose ton onze » : c'est le bug remonté (le pop-up revenait à
+  // chaque connexion, même après avoir validé sa compo).
+  const composedByMd = {};   // { mdId: true/false }
+  for(const m of open){
+    try { const lu = await api.myLineup(m.id); composedByMd[m.id] = !!(lu && (lu.player_ids||[]).length>=11); }
+    catch(e){ composedByMd[m.id] = false; }
+  }
+
   open.forEach(m=> notifs.push({
     kind:'matchday_open', ref:m.id, title:'Nouvelle journée ouverte',
-    detail:`${m.label || ('Journée '+m.number)} — compose ton onze`,
+    detail: composedByMd[m.id]
+      ? `${m.label || ('Journée '+m.number)} — compo validée ✅`
+      : `${m.label || ('Journée '+m.number)} — compose ton onze`,
     created_at: m.lineup_deadline || new Date().toISOString() }));
 
   const seen = mdOpenSeenSet();
-  const freshOpen = open.filter(m=> !seen.has(m.id));
+  // Pop-up uniquement pour une journée JAMAIS vue ET dont la compo n'est pas
+  // encore rendue. Dès qu'une compo existe, on marque la journée comme vue
+  // (ainsi, même si le localStorage a été purgé, aucun rappel ne réapparaît).
+  const freshOpen = open.filter(m=> !seen.has(m.id) && !composedByMd[m.id]);
+  // Les journées ouvertes déjà composées sont considérées « vues » : plus de pop-up.
+  open.forEach(m=>{ if(composedByMd[m.id]) seen.add(m.id); });
   if(freshOpen.length){
     freshOpen.forEach(m=> seen.add(m.id)); mdOpenSeenSave(seen);
     const m = freshOpen[0];
     const dl = m.lineup_deadline ? new Date(m.lineup_deadline) : null;
     const dlTxt = dl ? `<br><span style="color:var(--muted);font-size:.88rem">Clôture des compos : ${dl.toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : '';
     showMatchdayOpenPopup(m.label || ('Journée '+m.number), dlTxt);
+  } else {
+    // Rien de neuf à notifier, mais on persiste l'état « vu » mis à jour
+    // (journées composées) pour couper définitivement le rappel.
+    mdOpenSeenSave(seen);
   }
 
   // --- 2) RAPPELS de deadline : compo non rendue, J-24h puis J-2h ---------
