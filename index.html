@@ -12095,9 +12095,9 @@ async function submitEleven(){
   const eleven = vmOrderedEleven();
   const mind = VM_PICK_MODE.mind || 'bal';
   const form = VM_PICK_MODE.form || '4-4-2';
-  // Défis & accept → passage par le DUEL PSYCHOLOGIQUE (plan + annonce + cartes).
+  // Défis, accept & match retour → DUEL PSYCHOLOGIQUE (plan + annonce + cartes).
   // Les tournois gardent le flux direct (pas de mind game pour l'instant).
-  if(VM_PICK_MODE.kind==='create' || VM_PICK_MODE.kind==='accept'){
+  if(VM_PICK_MODE.kind==='create' || VM_PICK_MODE.kind==='accept' || VM_PICK_MODE.kind==='rematch'){
     openMindGameStep(eleven, mind, form);
     return;
   }
@@ -12133,6 +12133,7 @@ const MG_CARDS = {
 async function openMindGameStep(eleven, mind, form){
   MG_STATE = { eleven, mind, form, plan:'poss', claim:null, cards:new Set(),
                matchId: VM_PICK_MODE.matchId, opponentId: VM_PICK_MODE.opponentId,
+               originalId: VM_PICK_MODE.originalId,
                kind: VM_PICK_MODE.kind, prep:null };
   const ov = $('vmMindOverlay'), modal = $('vmMindModal');
   modal.innerHTML = '<div class="empty" style="padding:30px">Préparation du duel…</div>';
@@ -12214,7 +12215,7 @@ function renderMindGame(){
     <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:14px 0 6px">Cartes ruse <span style="font-weight:500;text-transform:none;color:var(--muted)">(facultatif)</span></div>
     <div style="display:flex;flex-direction:column;gap:6px">${cards}</div>
     <div style="font-size:.7rem;color:var(--muted);margin-top:6px">${handNote}</div>
-    <button id="mgGo" class="bid-btn" style="width:100%;margin-top:16px">${st.kind==='create'?'Lancer le défi ⚔️':'Jouer le match ⚔️'}</button>
+    <button id="mgGo" class="bid-btn" style="width:100%;margin-top:16px">${st.kind==='create'?'Lancer le défi ⚔️':st.kind==='rematch'?'Demander le retour ⚔️':'Jouer le match ⚔️'}</button>
   `;
 
   modal.querySelectorAll('[data-mgplan]').forEach(b=>b.onclick=()=>{ st.plan=b.dataset.mgplan; renderMindGame(); });
@@ -12233,7 +12234,14 @@ async function submitMindGame(){
   const st = MG_STATE;
   const go = $('mgGo'); if(go){ go.disabled=true; go.textContent='…'; }
   const mg = { plan: st.plan, claim: st.claim, cards: Array.from(st.cards) };
-  if(st.kind==='create'){
+  if(st.kind==='rematch'){
+    const r = await api.vmatchRequestRematch(st.originalId, st.eleven, st.mind, st.form, mg);
+    if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;go.textContent='Demander le retour ⚔️';} return; }
+    $('vmMindOverlay').style.display='none';
+    $('vmPickerOverlay').style.display='none';
+    alert('Demande de match retour envoyée ! Elle attend la réponse de ton adversaire.');
+    renderVmatch();
+  } else if(st.kind==='create'){
     const r = await api.vmatchCreateMind(st.opponentId, st.eleven, st.mind, st.form, mg);
     if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;go.textContent='Lancer le défi ⚔️';} return; }
     $('vmMindOverlay').style.display='none';
@@ -12307,6 +12315,27 @@ function renderSheetWithTabs(modal, result, teamA, teamB, lineups, matchId, onCl
     const full = vmSheetHTML(result, teamA, teamB, lineups);
     modal.innerHTML = full.replace('</button>\n    </div>', '</button>\n    </div>'+tabBar);
     wireTabs(); bindClose(); markActive('stats');
+    maybeOfferRematch();   // bouton « Demander le match retour » si on est le défié
+  };
+  // N'affiche le bouton de retour qu'au manager défié (opponent) d'un match joué.
+  const maybeOfferRematch = async ()=>{
+    if(!matchId) return;
+    let c = null; try { c = await api.vmatchCanRematch(matchId); } catch(e){}
+    if(!c || !c.can) return;
+    const host = document.createElement('div');
+    host.style.cssText = 'margin-top:14px';
+    host.innerHTML = `<button id="vmAskRematch" class="bid-btn" style="width:100%;background:var(--pitch);border:1px solid var(--transfer);color:var(--transfer)">🔄 Demander le match retour</button>
+      <div style="font-size:.72rem;color:var(--muted);text-align:center;margin-top:5px">Tu as été défié : propose un retour que ton adversaire devra accepter.</div>`;
+    modal.appendChild(host);
+    const btn = $('vmAskRematch');
+    if(btn) btn.onclick = ()=>{
+      const other = (result && result.__oppName) ? result.__oppName : (teamA||'');
+      if(VM_LIVE&&VM_LIVE.stop) VM_LIVE.stop();
+      $('vmSheetOverlay').style.display='none';
+      // On ouvre la compo en mode « rematch » : B redevient challenger vers A.
+      openElevenPicker({ kind:'rematch', originalId: matchId,
+        opponentName: (teamA||'ton adversaire') });
+    };
   };
   const renderRecit = async ()=>{
     if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();
@@ -12716,7 +12745,58 @@ function renderGalerieNotes(notes){
   return html;
 }
 
-let GALERIE_VIEW = 'pitch';   // 'pitch' (terrain) | 'list' (compact) | 'notes' (archive notes)
+let GALERIE_VIEW = 'pitch';   // 'pitch' | 'list' | 'notes' | 'rank'
+let GAL_RANK_SCOPE = 'day';   // 'day' (journée affichée) | 'season' (cumul)
+let GAL_RANK_FILTER = '';     // filtre texte sur le nom d'équipe
+
+// Vue CLASSEMENT de la galerie : équipes par points, journée ou saison,
+// avec un filtre par équipe. Chargée à la demande.
+async function renderGalerieRanking(mdId, body, toggle, wire){
+  const scopeBtn = (k,l)=>`<button data-galscope="${k}" style="padding:6px 12px;border-radius:999px;font-size:.78rem;font-weight:${GAL_RANK_SCOPE===k?'800':'600'};cursor:pointer;border:1px solid ${GAL_RANK_SCOPE===k?'var(--transfer)':'var(--line)'};background:${GAL_RANK_SCOPE===k?'rgba(245,197,66,.14)':'var(--pitch)'};color:${GAL_RANK_SCOPE===k?'var(--transfer)':'var(--muted)'}">${l}</button>`;
+  const controls = `<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+    ${scopeBtn('day','Cette journée')}${scopeBtn('season','Toutes journées')}
+    <input id="galRankFilter" type="text" placeholder="Filtrer une équipe…" value="${GAL_RANK_FILTER.replace(/"/g,'&quot;')}"
+      style="flex:1;min-width:120px;padding:6px 10px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--chalk);font-size:.8rem">
+  </div>`;
+
+  const rows = (GAL_RANK_SCOPE==='season')
+    ? await api.galleryRankingSeason()
+    : await api.galleryRanking(mdId);
+
+  const rewire = ()=>{
+    wire();
+    ['day','season'].forEach(k=>{ const b=body.querySelector(`[data-galscope="${k}"]`); if(b) b.onclick=()=>{ GAL_RANK_SCOPE=k; loadGalerieMatchday(mdId); }; });
+    const inp = $('galRankFilter');
+    if(inp) inp.oninput = ()=>{ GAL_RANK_FILTER = inp.value; paintRankRows(); };
+  };
+
+  function paintRankRows(){
+    const host = $('galRankRows'); if(!host) return;
+    const f = GAL_RANK_FILTER.trim().toLowerCase();
+    const list = (Array.isArray(rows)?rows:[]).filter(r=> !f || (r.team_name||'').toLowerCase().includes(f) || (r.display_name||'').toLowerCase().includes(f));
+    if(!list.length){ host.innerHTML = `<div class="empty" style="padding:14px">${f?'Aucune équipe ne correspond.':'Aucun point marqué sur cette période.'}</div>`; return; }
+    const seasonCol = GAL_RANK_SCOPE==='season';
+    host.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:.84rem">
+      <thead><tr style="color:var(--muted);text-align:left">
+        <th style="padding:4px 6px">#</th><th style="padding:4px 6px">Équipe</th>
+        ${seasonCol?'<th style="padding:4px 6px;text-align:center">J</th>':'<th style="padding:4px 6px">Capitaine</th>'}
+        <th style="padding:4px 6px;text-align:center">Pts</th></tr></thead>
+      <tbody>${list.map(r=>`<tr style="border-top:1px solid var(--line);${r.is_me?'background:rgba(245,197,66,.08)':''}">
+        <td style="padding:5px 6px;color:var(--muted)">${r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':r.rank}</td>
+        <td style="padding:5px 6px;font-weight:${r.is_me?'800':'600'}">${vmEsc(r.team_name||r.display_name)}${r.is_me?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</td>
+        ${seasonCol
+          ? `<td style="padding:5px 6px;text-align:center;color:var(--muted)">${r.md_played||0}</td>`
+          : `<td style="padding:5px 6px;color:var(--muted)">${r.leader_name?('🅒 '+vmEsc(r.leader_name)):'—'}</td>`}
+        <td style="padding:5px 6px;text-align:center;font-weight:800">${fmtPts(r.points)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  if(rows && rows.__error){ body.innerHTML = toggle + controls + `<div class="empty" style="padding:14px">${rows.__error}</div>`; rewire(); return; }
+  body.innerHTML = toggle + controls + `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:6px 8px;overflow-x:auto"><div id="galRankRows"></div></div>`;
+  paintRankRows();
+  rewire();
+}
+
 async function loadGalerieMatchday(mdId){
   const body = $('galerieBody');
   body.innerHTML = '<div class="empty">Chargement…</div>';
@@ -12724,11 +12804,18 @@ async function loadGalerieMatchday(mdId){
   // Bascule d'affichage : terrain / liste / notes de la journée.
   const tglBtn = (v,lbl)=>`<button id="galView_${v}" style="font-size:.78rem;font-weight:700;border-radius:8px;padding:5px 12px;cursor:pointer;border:1px solid ${GALERIE_VIEW===v?'var(--transfer)':'var(--line)'};background:${GALERIE_VIEW===v?'rgba(245,197,66,.14)':'transparent'};color:${GALERIE_VIEW===v?'var(--transfer)':'var(--muted)'}">${lbl}</button>`;
   const toggle = `<div style="display:flex;gap:6px;justify-content:flex-end;margin-bottom:10px;flex-wrap:wrap">
-    ${tglBtn('pitch','⚽ Terrain')}${tglBtn('list','Liste')}${tglBtn('notes','📊 Notes')}
+    ${tglBtn('pitch','⚽ Terrain')}${tglBtn('list','Liste')}${tglBtn('notes','📊 Notes')}${tglBtn('rank','🏆 Classement')}
   </div>`;
   const wire = ()=>{
-    ['pitch','list','notes'].forEach(v=>{ const b=$('galView_'+v); if(b) b.onclick=()=>{ if(GALERIE_VIEW!==v){ GALERIE_VIEW=v; loadGalerieMatchday(mdId); } }; });
+    ['pitch','list','notes','rank'].forEach(v=>{ const b=$('galView_'+v); if(b) b.onclick=()=>{ if(GALERIE_VIEW!==v){ GALERIE_VIEW=v; loadGalerieMatchday(mdId); } }; });
   };
+
+  // --- Vue CLASSEMENT : équipes par points (de la journée ou de la saison) ---
+  if(GALERIE_VIEW==='rank'){
+    body.innerHTML = toggle + '<div class="empty">Chargement du classement…</div>';
+    renderGalerieRanking(mdId, body, toggle, wire);
+    return;
+  }
 
   // --- Vue NOTES : archive des notes de la journée (indépendante des compos) ---
   if(GALERIE_VIEW==='notes'){

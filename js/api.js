@@ -1780,6 +1780,18 @@ export async function galleryNotes(matchdayId) {
   if (error) return { __error: error.message };
   return data ?? [];
 }
+// Classement d'une journée (galerie) : équipes par points marqués ce jour.
+export async function galleryRanking(matchdayId) {
+  const { data, error } = await sb.rpc('qm_gallery_ranking', { p_matchday: matchdayId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+// Classement cumulé de la saison (toutes journées clôturées).
+export async function galleryRankingSeason() {
+  const { data, error } = await sb.rpc('qm_gallery_ranking_season');
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
 export async function lineupsGallery(matchdayId) {
   const { data, error } = await sb.rpc('qm_lineups_gallery', { p_matchday_id: matchdayId });
   if (error) return { __error: error.message };
@@ -2247,6 +2259,19 @@ export async function vmatchCreateMind(opponentId, eleven, mind = 'bal', form = 
     p_plan: mg.plan || 'poss', p_claim: mg.claim ?? null, p_cards: mg.cards || [] });
   if (error) return { __error: error.message };
   return { id: data };
+}
+// Match retour : le défié (B) demande un retour que A devra accepter.
+// mg = {plan, claim, cards} (optionnel).
+export async function vmatchRequestRematch(originalId, eleven, mind = 'bal', form = '4-4-2', mg = {}) {
+  const { data, error } = await sb.rpc('qm_vmatch_request_rematch', {
+    p_original: originalId, p_eleven: eleven, p_mind: mind, p_form: form,
+    p_plan: mg.plan || 'poss', p_claim: mg.claim ?? null, p_cards: mg.cards || [] });
+  if (error) return { __error: error.message };
+  return { id: data };
+}
+export async function vmatchCanRematch(originalId) {
+  const { data } = await sb.rpc('qm_vmatch_can_rematch', { p_original: originalId });
+  return data ?? { can: false };
 }
 // Ce qu'on a le droit de voir avant de poser : sa main de cartes, l'annonce
 // adverse, les tendances adverses (masquées si poker face), le plan adverse si
