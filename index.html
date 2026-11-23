@@ -11787,6 +11787,7 @@ async function renderLeagueBanner(){
         <button id="leagueJoinYes" class="bid-btn" style="flex:1;${mine==='in'?'background:#16a34a;border-color:#16a34a':''}">✅ Je participe${mine==='in'?' ✓':''}</button>
         <button id="leagueJoinNo" class="bid-btn" style="flex:1;background:var(--pitch);border:1px solid var(--line);color:var(--muted);${mine==='out'?'border-color:#e0574a;color:#e0574a':''}">❌ Pas cette semaine${mine==='out'?' ✓':''}</button>
       </div>
+      ${st.my_eleven_ready===false ? `<div style="background:rgba(224,87,74,.10);border:1px solid var(--live,#e0574a);border-radius:8px;padding:8px 11px;margin-bottom:10px;font-size:.78rem">⚠️ <b>Compo incomplète</b> — tu dois avoir 11 titulaires encore dans ton effectif pour participer. Aligne ton onze (onglet Compo), sinon tu seras écarté du classement.</div>` : ''}
       <div style="font-size:.72rem;color:var(--muted);margin-bottom:4px">${cnt.in} inscrit${cnt.in>1?'s':''} · ${cnt.out} absent${cnt.out>1?'s':''} · ${cnt.pending} en attente</div>
       <div>${chips}</div>
     </div>`;
