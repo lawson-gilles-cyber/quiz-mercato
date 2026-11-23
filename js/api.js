@@ -2260,6 +2260,35 @@ export async function vmatchCreateMind(opponentId, eleven, mind = 'bal', form = 
   if (error) return { __error: error.message };
   return { id: data };
 }
+// =====================================================================
+// Ligue hebdomadaire automatique (318)
+// =====================================================================
+export async function leagueState() {
+  const { data, error } = await sb.rpc('qm_league_state');
+  if (error) return { __error: error.message };
+  return data ?? { exists: false };
+}
+export async function leagueJoin(isIn) {
+  const { data, error } = await sb.rpc('qm_league_join', { p_in: isIn });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function leagueStandings(leagueId) {
+  const { data, error } = await sb.rpc('qm_league_standings', { p_id: leagueId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+export async function leagueHistory() {
+  const { data, error } = await sb.rpc('qm_league_history');
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+export async function leagueMatches(leagueId) {
+  const { data, error } = await sb.rpc('qm_league_matches', { p_id: leagueId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+
 // Match retour : le défié (B) demande un retour que A devra accepter.
 // mg = {plan, claim, cards} (optionnel).
 export async function vmatchRequestRematch(originalId, eleven, mind = 'bal', form = '4-4-2', mg = {}) {
