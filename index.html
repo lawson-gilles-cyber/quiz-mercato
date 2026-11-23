@@ -12116,10 +12116,9 @@ function vmLivePlayer(container, r, A, B, autostart, onFinish){
     else if(e.type==='red') extra=e.second_yellow?' (2e j.)':' (exclu)';
     const assist = (e.type==='goal'&&e.assist_name)?` <span style="display:inline-flex;align-items:center;gap:3px;color:var(--muted)">${vmEvtSvg('assist',13)} ${esc(e.assist_name)}</span>`:'';
     const row = document.createElement('div');
-    row.style.cssText=`display:flex;align-items:center;${side?'':'flex-direction:row-reverse;text-align:right;'}gap:7px;margin:5px 0;font-size:.82rem;animation:vmLiveIn .25s ease`;
+    row.style.cssText=`display:flex;align-items:center;${side?'':'flex-direction:row-reverse;text-align:right;'}gap:8px;margin:5px 0;font-size:.82rem;animation:vmLiveIn .25s ease`;
     row.innerHTML = `<span style="flex:0 0 30px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
-      ${vmAvatar(e.name, 22)}
-      <span style="display:inline-flex;align-items:center;gap:5px;flex:1;${side?'':'flex-direction:row-reverse;'}font-weight:${e.type==='goal'?'800':'500'};color:${e.type==='goal'?'var(--chalk)':'var(--muted)'}">${ico}<span>${esc(e.name||'')}${extra}${assist}</span></span>`;
+      <span style="display:inline-flex;align-items:center;gap:6px;flex:1;${side?'':'flex-direction:row-reverse;'}font-weight:${e.type==='goal'?'800':'500'};color:${e.type==='goal'?'var(--chalk)':'var(--muted)'}">${ico}<span>${esc(e.name||'')}${extra}${assist}</span></span>`;
     feed.insertBefore(row, feed.firstChild);
     if(e.type==='goal'){ if(side) shownA++; else shownB++; setScore(); }
   };
@@ -12257,10 +12256,9 @@ function vmSheetHTML(r, A, B, lineups){
         // passeur décisif : petite chaussure (SVG) sous le buteur
         const assist = (e.type==='goal' && e.assist_name)
           ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.7rem;color:var(--muted);font-weight:400;margin-top:1px">${vmEvtSvg('assist',12)} ${vmEsc(e.assist_name)}</span>` : '';
-        return `<div style="display:flex;align-items:center;${side?'':'flex-direction:row-reverse;text-align:right;'}justify-content:flex-start;gap:7px;margin:5px 0;font-size:.8rem">
+        return `<div style="display:flex;align-items:center;${side?'':'flex-direction:row-reverse;text-align:right;'}justify-content:flex-start;gap:8px;margin:5px 0;font-size:.8rem">
           <span style="flex:0 0 30px;color:var(--muted);font-family:'Saira',monospace">${e.minute}'</span>
-          ${vmAvatar(e.name, 22)}
-          <span style="display:inline-flex;align-items:center;gap:5px;flex:1;${side?'':'flex-direction:row-reverse;'}color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico}<span>${vmEsc(e.name||'')}${label}${assist}</span></span>
+          <span style="display:inline-flex;align-items:center;gap:6px;flex:1;${side?'':'flex-direction:row-reverse;'}color:${e.type==='goal'?'var(--chalk)':'var(--muted)'};font-weight:${e.type==='goal'?'700':'400'}">${ico}<span>${vmEsc(e.name||'')}${label}${assist}</span></span>
         </div>`;
       }).join('')}
     </div></div>` : '';
