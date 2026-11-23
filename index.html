@@ -1608,6 +1608,7 @@
           <button id="btnSuggestLineup" class="bid-btn" data-ic="puzzle" style="width:auto;margin:0;padding:8px 14px;font-size:.8rem;display:inline-flex;align-items:center;justify-content:center">Suggérer mon 11</button>
         </div>
       </div>
+      <div id="lineupFormLegend" class="hint" style="font-size:.72rem;color:var(--muted);margin:2px 0 10px">Pastille de <b>forme</b> : la dernière note d'Audrey donne un bonus/malus de puissance en <b>match virtuel</b> — <span style="color:#ff7a5c;font-weight:800">🔥</span> décisif (note ≥ 8) · <span style="color:#4ade80;font-weight:800">↗</span> en forme · <span style="color:var(--transfer);font-weight:800">→</span> neutre · <span style="color:#e0574a;font-weight:800">↘</span> méforme.</div>
       <div id="lineupPlayers" class="grid"></div>
       <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
       <div id="lineupResult" style="margin-top:10px"></div>
@@ -4965,6 +4966,34 @@ function formWidget(form){
     <div style="display:flex;gap:6px;flex-wrap:wrap">${pills}</div>`;
 }
 
+// ---- Pastille « FORME » (impact match virtuel) -------------------------
+// À partir de la donnée du moteur (api.playersForm → db/308/309). Montre d'un
+// coup d'œil, au moment de composer, qui est en feu avant un match virtuel.
+//   🔥  note ≥ 8       → décisif, bonus offensif actif
+//   ↗   note 7 à 8     → en forme (bonus de force)
+//   →   ~6,5 (neutre)  → forme neutre
+//   ↘   note < 5,5     → méforme (malus)
+// info = {last_note, md_number, form_mult, decisive, vm_pct} ou undefined.
+function formVmBadge(info){
+  if(!info || info.last_note == null){
+    return `<span title="Aucune note encore saisie — ce joueur joue à sa valeur de base en match virtuel (aucun bonus ni malus de forme)." style="display:inline-flex;align-items:center;gap:3px;background:var(--pitch);border:1px solid var(--line);color:var(--muted);border-radius:999px;padding:1px 7px;font-size:.68rem;font-weight:700">· forme neutre</span>`;
+  }
+  const note = Number(info.last_note);
+  const pct  = Number(info.vm_pct||0);
+  const dec  = info.decisive===true || info.decisive==='true';
+  let glyph, col, bg, bd;
+  if(dec){            glyph='🔥'; col='#ff7a5c'; bg='rgba(255,122,92,.14)'; bd='#ff7a5c'; }
+  else if(note>=7){   glyph='↗';  col='#4ade80'; bg='rgba(74,222,128,.12)'; bd='#4ade80'; }
+  else if(note>=5.5){ glyph='→';  col='var(--transfer)'; bg='rgba(245,197,66,.10)'; bd='var(--line)'; }
+  else {              glyph='↘';  col='#e0574a'; bg='rgba(224,87,74,.12)'; bd='#e0574a'; }
+  const sign = pct>0 ? '+' : '';
+  const noteTxt = (Number.isInteger(note)?note.toFixed(0):note.toFixed(1)).replace('.',',');
+  const jTxt = info.md_number ? ` (J${info.md_number})` : '';
+  const decTxt = dec ? ` · décisif devant` : '';
+  const tip = `Dernière note : ${noteTxt}/10${jTxt} → ${sign}${pct}% de force en match virtuel${decTxt}.`;
+  return `<span title="${tip.replace(/"/g,'&quot;')}" style="display:inline-flex;align-items:center;gap:4px;background:${bg};border:1px solid ${bd};color:${col};border-radius:999px;padding:1px 8px;font-size:.68rem;font-weight:800;white-space:nowrap">${glyph} ${noteTxt} <span style="opacity:.85;font-weight:700">${sign}${pct}%</span></span>`;
+}
+
 // Bloc « Bourse » de la fiche joueur : cote actuelle + variation de la
 // dernière journée + mini-courbe des cotes. Repli sur l'ancienne courbe de
 // valeur interne tant qu'aucune journée n'a encore fait bouger la cote.
@@ -7596,6 +7625,7 @@ let LINEUP_MDS = [];
 let LINEUP_TEAMS = [];   // équipes que je peux composer (la mienne + dépannages)
 let LINEUP_TEAM = null;  // équipe actuellement composée (id). null = la mienne
 let LINEUP_LEADER = null; // titulaire désigné leader de la journée (bonus progressif)
+let LINEUP_FORM = new Map(); // id joueur -> forme/impact VM (api.playersForm)
 // Garde-fou pré-clôture : alerte si la compo n'est pas complète pour une
 // journée ouverte. Urgence selon la proximité de la date limite.
 function renderLineupAlert(md, selectedCount, ownedCount){
@@ -7775,6 +7805,11 @@ async function loadLineupForMatchday(mdId){
   // L'effectif de l'équipe composée
   const all = await api.listPlayers();
   const mine = all.filter(p=>p.owner_id===composing && p.status==='owned');
+
+  // Forme (impact match virtuel) de chaque joueur de l'effectif : pastille
+  // affichée sur chaque carte de compo. Best-effort — n'empêche jamais la compo.
+  try { LINEUP_FORM = await api.playersForm(mine.map(p=>p.id)); }
+  catch(e){ LINEUP_FORM = new Map(); }
 
   // Compo existante de cette équipe pour cette journée
   const existing = await api.myLineup(mdId, teamArg);
@@ -8020,7 +8055,10 @@ function renderLineupPlayers(mine){
       <div data-lp="${p.id}" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center">
         <div><span style="font-family:'Archivo Narrow';font-size:.68rem;text-transform:uppercase;color:var(--muted)">${POS[p.position]}</span>
           <div style="font-weight:700;font-size:.9rem">${p.name}${leaderBadge}</div>
-          <div style="font-size:.72rem;color:var(--muted)">${p.club||'—'}</div></div>
+          <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-top:2px">
+            <span style="font-size:.72rem;color:var(--muted)">${p.club||'—'}</span>
+            ${formVmBadge(LINEUP_FORM.get(p.id))}
+          </div></div>
         <div style="font-size:1.2rem;font-weight:800;color:${markCol}">${mark}</div>
       </div>
       ${leaderBtn}

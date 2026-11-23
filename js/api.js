@@ -1785,6 +1785,19 @@ export async function lineupsGallery(matchdayId) {
   if (error) return { __error: error.message };
   return data ?? [];
 }
+// Forme (impact match virtuel) de plusieurs joueurs : dernière note + le
+// multiplicateur EXACT utilisé par le moteur (db/308). Renvoie une Map
+// player_id -> {last_note, md_number, form_mult, decisive, vm_pct}.
+export async function playersForm(playerIds) {
+  const ids = Array.from(playerIds || []);
+  if (!ids.length) return new Map();
+  const { data, error } = await sb.rpc('qm_players_form', { p_ids: ids });
+  const map = new Map();
+  if (!error && Array.isArray(data)) {
+    for (const r of data) map.set(r.player_id, r);
+  }
+  return map;
+}
 
 // --- Quiz de fin de mercato ---
 export async function mercatoQuizGet() {
