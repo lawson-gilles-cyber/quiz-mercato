@@ -11674,6 +11674,9 @@ async function renderVmatch(){
     }).join('');
   }
 
+  // --- Centre de CLASSEMENTS (périodes + catégories) ---
+  html += `<div id="vmRankCenter" style="margin-top:20px"></div>`;
+
   // --- Classement amical + badges ---
   if(leaderboard.length){
     html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:18px 0 8px">🏆 Classement de la ligue amicale</div>`;
@@ -11701,6 +11704,11 @@ async function renderVmatch(){
   }
 
   body.innerHTML = html;
+
+  // Monte le centre de classements (périodes + catégories). On vide le cache
+  // à chaque (re)chargement de la vue pour refléter les matchs tout juste joués.
+  VM_RANK_CACHE = {};
+  try { renderVmRankCenter(); } catch(e){}
 
   // Bindings
   const nb = $('vmNewBtn');
@@ -11739,6 +11747,112 @@ async function renderVmatch(){
     }
     openElevenPicker({kind:'create', opponentId:b.dataset.vmrematch, opponentName:b.dataset.vmrematchname});
   });
+}
+
+// =====================================================================
+// Centre de CLASSEMENTS des matchs virtuels : périodes (jour/semaine/mois/
+// année/tout) × catégories (managers, buteurs, passeurs, jaunes, rouges).
+// =====================================================================
+let VM_RANK_PERIOD = 'week';
+let VM_RANK_CAT = 'managers';
+const VM_RANK_PERIODS = [
+  {k:'day',   l:'Jour'},
+  {k:'week',  l:'Semaine'},
+  {k:'month', l:'Mois'},
+  {k:'year',  l:'Année'},
+  {k:'all',   l:'Tout'}
+];
+const VM_RANK_CATS = [
+  {k:'managers', l:'Managers',  ic:'trophy'},
+  {k:'scorers',  l:'Buteurs',   ic:'goal'},
+  {k:'assists',  l:'Passeurs',  ic:'assist'},
+  {k:'yellow',   l:'Jaunes',    ic:'yellow'},
+  {k:'red',      l:'Rouges',    ic:'red'}
+];
+let VM_RANK_CACHE = {};   // period -> payload (évite de recharger)
+
+async function renderVmRankCenter(){
+  const host = $('vmRankCenter'); if(!host) return;
+  host.innerHTML = `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--transfer);font-weight:800;margin:0 0 10px">📊 Classements des matchs virtuels</div>
+    <div id="vmRankPeriods" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px"></div>
+    <div id="vmRankCats" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+    <div id="vmRankTable"><div class="empty" style="padding:14px">Chargement…</div></div>`;
+
+  // Onglets période
+  const pc = $('vmRankPeriods');
+  pc.innerHTML = VM_RANK_PERIODS.map(p=>{
+    const on = p.k===VM_RANK_PERIOD;
+    return `<button data-vmper="${p.k}" style="padding:6px 12px;border-radius:999px;font-size:.78rem;font-weight:${on?'800':'600'};cursor:pointer;border:1px solid ${on?'var(--transfer)':'var(--line)'};background:${on?'rgba(245,197,66,.14)':'var(--pitch)'};color:${on?'var(--transfer)':'var(--muted)'}">${p.l}</button>`;
+  }).join('');
+  // Onglets catégorie
+  const cc = $('vmRankCats');
+  cc.innerHTML = VM_RANK_CATS.map(c=>{
+    const on = c.k===VM_RANK_CAT;
+    return `<button data-vmcat="${c.k}" style="display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:9px;font-size:.78rem;font-weight:${on?'800':'600'};cursor:pointer;border:1px solid ${on?'var(--chalk)':'var(--line)'};background:${on?'rgba(255,255,255,.06)':'var(--pitch)'};color:${on?'var(--chalk)':'var(--muted)'}">${c.ic==='trophy'?'🏆':vmEvtSvg(c.ic,13)}<span>${c.l}</span></button>`;
+  }).join('');
+
+  pc.querySelectorAll('[data-vmper]').forEach(b=>b.onclick=()=>{ VM_RANK_PERIOD=b.dataset.vmper; renderVmRankCenter(); });
+  cc.querySelectorAll('[data-vmcat]').forEach(b=>b.onclick=()=>{ VM_RANK_CAT=b.dataset.vmcat; renderVmRankCenter(); });
+
+  // Données (avec petit cache par période)
+  let data = VM_RANK_CACHE[VM_RANK_PERIOD];
+  if(!data){
+    try { data = await api.vmatchLeaderboards(VM_RANK_PERIOD, 20); }
+    catch(e){ data = {__error:'indisponible'}; }
+    VM_RANK_CACHE[VM_RANK_PERIOD] = data;
+  }
+  const tbl = $('vmRankTable'); if(!tbl) return;
+  if(!data || data.__error){
+    tbl.innerHTML = `<div class="empty" style="padding:14px">Classements indisponibles (script db/310 à passer).</div>`;
+    return;
+  }
+  tbl.innerHTML = (VM_RANK_CAT==='managers')
+    ? vmRankManagersTable(data.managers||[])
+    : vmRankPlayersTable(data[VM_RANK_CAT]||[], VM_RANK_CAT);
+}
+
+function vmRankManagersTable(rows){
+  if(!rows.length) return `<div class="empty" style="padding:14px">Aucun match virtuel sur cette période.</div>`;
+  return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:6px 8px;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+      <thead><tr style="color:var(--muted);text-align:left">
+        <th style="padding:4px 6px">#</th><th style="padding:4px 6px">Équipe</th>
+        <th style="padding:4px 6px;text-align:center">J</th>
+        <th style="padding:4px 6px;text-align:center">V-N-D</th>
+        <th style="padding:4px 6px;text-align:center">Diff</th>
+        <th style="padding:4px 6px;text-align:center">Pts</th></tr></thead>
+      <tbody>${rows.map(m=>`<tr style="border-top:1px solid var(--line);${m.is_me?'background:rgba(245,197,66,.08)':''}">
+        <td style="padding:5px 6px;color:var(--muted)">${vmRankMedal(m.rank)}</td>
+        <td style="padding:5px 6px;font-weight:${m.is_me?'800':'600'}">${vmEsc(m.team_name)}${m.is_me?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</td>
+        <td style="padding:5px 6px;text-align:center">${m.played}</td>
+        <td style="padding:5px 6px;text-align:center;white-space:nowrap">${m.wins}-${m.draws}-${m.losses}</td>
+        <td style="padding:5px 6px;text-align:center">${m.diff>0?'+':''}${m.diff}</td>
+        <td style="padding:5px 6px;text-align:center;font-weight:800">${m.points}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+function vmRankPlayersTable(rows, cat){
+  if(!rows.length) return `<div class="empty" style="padding:14px">Aucune donnée sur cette période.</div>`;
+  const unit = cat==='scorers'?'buts':cat==='assists'?'passes déc.':cat==='yellow'?'jaunes':'rouges';
+  return `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:6px 8px;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:.82rem">
+      <thead><tr style="color:var(--muted);text-align:left">
+        <th style="padding:4px 6px">#</th><th style="padding:4px 6px">Joueur</th>
+        <th style="padding:4px 6px">Équipe</th>
+        <th style="padding:4px 6px;text-align:center">${unit}</th></tr></thead>
+      <tbody>${rows.map(p=>`<tr style="border-top:1px solid var(--line);${p.is_mine?'background:rgba(245,197,66,.08)':''}">
+        <td style="padding:5px 6px;color:var(--muted)">${vmRankMedal(p.rank)}</td>
+        <td style="padding:5px 6px;font-weight:${p.is_mine?'800':'600'}">${vmEsc(p.player_name)}<span style="color:var(--muted);font-size:.68rem;margin-left:5px">${vmEsc(p.pos||'')}</span></td>
+        <td style="padding:5px 6px;color:var(--muted)">${vmEsc(p.owner_team||'—')}</td>
+        <td style="padding:5px 6px;text-align:center;font-weight:800">${p.total}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>`;
+}
+
+// Médaille pour le podium, numéro ensuite.
+function vmRankMedal(rank){
+  return rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':String(rank);
 }
 
 // ---- Sélecteur de onze (modale) ----

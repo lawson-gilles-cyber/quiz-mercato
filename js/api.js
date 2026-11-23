@@ -1785,6 +1785,13 @@ export async function lineupsGallery(matchdayId) {
   if (error) return { __error: error.message };
   return data ?? [];
 }
+// Centre de classements des matchs virtuels pour une période
+// ('day'|'week'|'month'|'year'|'all') : managers, buteurs, passeurs, cartons.
+export async function vmatchLeaderboards(period = 'all', limit = 20) {
+  const { data, error } = await sb.rpc('qm_vmatch_leaderboards', { p_period: period, p_limit: limit });
+  if (error) return { __error: error.message };
+  return data ?? { period, managers: [], scorers: [], assists: [], yellow: [], red: [] };
+}
 // Forme (impact match virtuel) de plusieurs joueurs : dernière note + le
 // multiplicateur EXACT utilisé par le moteur (db/308). Renvoie une Map
 // player_id -> {last_note, md_number, form_mult, decisive, vm_pct}.
