@@ -1612,6 +1612,8 @@
       <div id="lineupFormLegend" class="hint" style="font-size:.72rem;color:var(--muted);margin:2px 0 10px">Pastille de <b>forme</b> : la dernière note d'Audrey donne un bonus/malus de puissance en <b>match virtuel</b> — <span style="color:#ff7a5c;font-weight:800">🔥</span> décisif (note ≥ 8) · <span style="color:#4ade80;font-weight:800">↗</span> en forme · <span style="color:var(--transfer);font-weight:800">→</span> neutre · <span style="color:#e0574a;font-weight:800">↘</span> méforme.</div>
       <div id="lineupPlayers" class="grid"></div>
       <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
+      <button id="btnViewMyFormation" class="bid-btn" style="margin-top:8px;width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);display:none">👁️ Voir ma formation envoyée</button>
+      <div id="myFormationView" style="margin-top:12px"></div>
       <div id="lineupResult" style="margin-top:10px"></div>
     </div>
     <div id="lineupBreakdown" style="margin-top:26px"></div>
@@ -7829,6 +7831,27 @@ async function loadLineupForMatchday(mdId){
   // c'est fait). Sinon, état normal « Valider ma composition ».
   setLineupBtnSaved(LINEUP_SELECTED.size===11 && !existing?.reconducted);
   $('btnSaveLineup').onclick = ()=>saveLineup(mdId, teamArg);
+
+  // Bouton « Voir ma formation envoyée » : visible dès qu'une compo (11) est
+  // enregistrée. Affiche la formation sur le terrain (onze + banc), en lecture.
+  {
+    const vb = $('btnViewMyFormation');
+    const fv = $('myFormationView');
+    if(vb && fv){
+      const hasSaved = existing && Array.isArray(existing.player_ids) && existing.player_ids.length>=11;
+      vb.style.display = hasSaved ? 'block' : 'none';
+      fv.innerHTML = '';
+      if(hasSaved){
+        vb.onclick = async ()=>{
+          if(fv.dataset.open==='1'){ fv.innerHTML=''; fv.dataset.open='0'; vb.textContent='👁️ Voir ma formation envoyée'; return; }
+          fv.dataset.open='1'; vb.textContent='🙈 Masquer ma formation';
+          fv.innerHTML = '<div class="empty" style="padding:14px">Chargement…</div>';
+          const sheet = await api.lineupSheet(composing, mdId);
+          fv.innerHTML = renderFinalSheet(sheet, { title: (md && (md.label||('Journée '+md.number)))||'Ma formation', showTotal: !!(md && md.status==='closed') });
+        };
+      }
+    }
+  }
 
   // Bouton « Charger une fiche » : visible seulement pour ma propre équipe
   // (les fiches tactiques sont composées de MES joueurs). On ne l'affiche pas
