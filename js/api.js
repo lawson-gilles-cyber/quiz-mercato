@@ -2238,13 +2238,28 @@ export async function tacticDelete(id) {
 // Matchs virtuels — améliorations (268/269/270/271)
 // =====================================================================
 // Mentalité : vmatchCreate/Accept acceptent un 3e param 'off'|'bal'|'def'.
-export async function vmatchCreateMind(opponentId, eleven, mind = 'bal', form = '4-4-2') {
-  const { data, error } = await sb.rpc('qm_vmatch_create', { p_opponent: opponentId, p_eleven: eleven, p_mind: mind, p_form: form });
+// MIND GAME : + plan secret ('press'|'poss'|'block'), annonce (claim, vraie ou
+// fausse) et cartes ruse jouées (array de codes). Tout est optionnel → défauts
+// rétrocompatibles.
+export async function vmatchCreateMind(opponentId, eleven, mind = 'bal', form = '4-4-2', mg = {}) {
+  const { data, error } = await sb.rpc('qm_vmatch_create', {
+    p_opponent: opponentId, p_eleven: eleven, p_mind: mind, p_form: form,
+    p_plan: mg.plan || 'poss', p_claim: mg.claim ?? null, p_cards: mg.cards || [] });
   if (error) return { __error: error.message };
   return { id: data };
 }
-export async function vmatchAcceptMind(matchId, eleven, mind = 'bal', form = '4-4-2') {
-  const { data, error } = await sb.rpc('qm_vmatch_accept', { p_id: matchId, p_eleven: eleven, p_mind: mind, p_form: form });
+// Ce qu'on a le droit de voir avant de poser : sa main de cartes, l'annonce
+// adverse, les tendances adverses (masquées si poker face), le plan adverse si
+// on a joué l'espion. Ne divulgue jamais le secret réel de l'adversaire.
+export async function vmatchPrep(matchId) {
+  const { data, error } = await sb.rpc('qm_vmatch_prep', { p_id: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function vmatchAcceptMind(matchId, eleven, mind = 'bal', form = '4-4-2', mg = {}) {
+  const { data, error } = await sb.rpc('qm_vmatch_accept', {
+    p_id: matchId, p_eleven: eleven, p_mind: mind, p_form: form,
+    p_plan: mg.plan || 'poss', p_claim: mg.claim ?? null, p_cards: mg.cards || [] });
   if (error) return { __error: error.message };
   return data;
 }

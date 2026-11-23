@@ -1075,6 +1075,7 @@
 <div id="quizOverlay" class="ux-ov" style="z-index:10003"><div class="ux-modal" id="quizModal" style="width:min(94vw,460px);max-height:88vh;overflow:auto"></div></div>
 <div id="vmPickerOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmPickerModal" style="width:min(94vw,460px);max-height:90vh;overflow:auto"></div></div>
 <div id="vmSheetOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="vmSheetModal" style="width:min(94vw,440px);max-height:90vh;overflow:auto"></div></div>
+<div id="vmMindOverlay" class="ux-ov" style="z-index:10005"><div class="ux-modal" id="vmMindModal" style="width:min(94vw,460px);max-height:92vh;overflow:auto"></div></div>
 <div id="tacticEditOverlay" class="ux-ov" style="z-index:10004"><div class="ux-modal" id="tacticEditModal" style="width:min(94vw,480px);max-height:92vh;overflow:auto"></div></div>
 <div id="tacticChooseOverlay" class="ux-ov" style="z-index:10005"><div class="ux-modal" id="tacticChooseModal" style="width:min(94vw,440px);max-height:88vh;overflow:auto"></div></div>
 <div id="vtSheetOverlay" class="ux-ov" style="z-index:10006"><div class="ux-modal" id="vtSheetModal" style="width:min(94vw,440px);max-height:90vh;overflow:auto"></div></div>
@@ -12091,28 +12092,185 @@ function vmOrderedEleven(){
   return [...byLine.GK, ...byLine.DEF, ...byLine.MID, ...byLine.FWD];
 }
 async function submitEleven(){
-  const go = $('vmPickGo'); if(go){ go.disabled=true; go.textContent='…'; }
   const eleven = vmOrderedEleven();
   const mind = VM_PICK_MODE.mind || 'bal';
   const form = VM_PICK_MODE.form || '4-4-2';
-  if(VM_PICK_MODE.kind==='create'){
-    const r = await api.vmatchCreateMind(VM_PICK_MODE.opponentId, eleven, mind, form);
-    if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
-    $('vmPickerOverlay').style.display='none';
-    alert('Défi envoyé ! Le match se jouera dès que l\'adversaire aura aligné son onze.');
-    renderVmatch();
-  } else if(VM_PICK_MODE.kind==='accept'){
-    const res = await api.vmatchAcceptMind(VM_PICK_MODE.matchId, eleven, mind, form);
-    if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
-    $('vmPickerOverlay').style.display='none';
-    showMatchSheet(VM_PICK_MODE.matchId, true);   // fresh → propose le direct
-  } else if(VM_PICK_MODE.kind==='tournament'){
+  // Défis & accept → passage par le DUEL PSYCHOLOGIQUE (plan + annonce + cartes).
+  // Les tournois gardent le flux direct (pas de mind game pour l'instant).
+  if(VM_PICK_MODE.kind==='create' || VM_PICK_MODE.kind==='accept'){
+    openMindGameStep(eleven, mind, form);
+    return;
+  }
+  const go = $('vmPickGo'); if(go){ go.disabled=true; go.textContent='…'; }
+  if(VM_PICK_MODE.kind==='tournament'){
     const res = await api.vtournamentSetEleven(VM_PICK_MODE.matchId, eleven, mind, form);
     if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;} renderElevenPicker(); return; }
     $('vmPickerOverlay').style.display='none';
     if(res && res.status==='waiting'){ alert('Onze aligné ! Le match se jouera dès que ton adversaire aura posé le sien.'); if(VM_PICK_MODE.onDone) VM_PICK_MODE.onDone(); }
     else { showTournamentSheet(VM_PICK_MODE.matchId, VM_PICK_MODE.onDone); }
   }
+}
+
+// =====================================================================
+// DUEL PSYCHOLOGIQUE (mind game) : plan secret + annonce (bluff) + cartes ruse.
+// Voir docs/MIND_GAME_SPEC.md. S'ouvre après la compo, avant l'envoi.
+// =====================================================================
+let MG_STATE = null;
+const MG_PLANS = [
+  {k:'press', ic:'⚡', l:'Pressing',    d:'Étouffe, récupère haut. Bat la Possession, perd contre le Bloc-contre.'},
+  {k:'poss',  ic:'🎯', l:'Possession',  d:'Garde le ballon, patiente. Bat le Bloc-contre, perd contre le Pressing.'},
+  {k:'block', ic:'🛡️', l:'Bloc-contre', d:'Encaisse et pique en contre. Bat le Pressing, perd contre la Possession.'}
+];
+const MG_CARDS = {
+  spy:     {ic:'🔍', l:'Espion',     d:'Révèle le plan secret de l’adversaire (pas son onze).'},
+  poker:   {ic:'🃏', l:'Poker face', d:'Masque tes tendances passées pour ce match.'},
+  voltefu: {ic:'⏱️', l:'Volte-face', d:'Te laisse changer de plan après la révélation.'},
+  pressure:{ic:'💢', l:'Pression',   d:'−10 % de sang-froid adverse (plus de cartons, moins de précision).'},
+  magnet:  {ic:'🧲', l:'Aimant',     d:'+1 occasion franche garantie dans le match.'},
+  wall:    {ic:'🛡️', l:'Mur',        d:'Annule le bonus offensif du plan adverse ce match.'}
+};
+
+async function openMindGameStep(eleven, mind, form){
+  MG_STATE = { eleven, mind, form, plan:'poss', claim:null, cards:new Set(),
+               matchId: VM_PICK_MODE.matchId, opponentId: VM_PICK_MODE.opponentId,
+               kind: VM_PICK_MODE.kind, prep:null };
+  const ov = $('vmMindOverlay'), modal = $('vmMindModal');
+  modal.innerHTML = '<div class="empty" style="padding:30px">Préparation du duel…</div>';
+  ov.style.display='flex';
+  // Pour un ACCEPT, on connaît déjà le match → on lit la prep (annonce + tendances + main).
+  if(MG_STATE.kind==='accept' && MG_STATE.matchId){
+    try { MG_STATE.prep = await api.vmatchPrep(MG_STATE.matchId); } catch(e){}
+  }
+  renderMindGame();
+}
+
+function renderMindGame(){
+  const modal = $('vmMindModal'); if(!modal) return;
+  const st = MG_STATE;
+  const prep = st.prep || {};
+  const hand = Array.isArray(prep.hand) ? prep.hand : [];   // vide pour un create (match pas encore créé)
+
+  // Lecture de l'adversaire (si dispo côté accept).
+  let readBlock = '';
+  if(st.kind==='accept'){
+    const claim = prep.opp_claim;
+    const tend = prep.opp_tendencies || {};
+    const spy = prep.spy_plan;
+    const claimTxt = claim ? `<b>${(MG_PLANS.find(p=>p.k===claim)||{}).l||claim}</b>` : '<i>aucune annonce</i>';
+    let tendTxt;
+    if(tend.hidden) tendTxt = '🃏 L’adversaire masque ses habitudes (Poker face).';
+    else if(!tend.n) tendTxt = 'Pas encore d’historique sur cet adversaire.';
+    else tendTxt = `Sur ${tend.n} match${tend.n>1?'s':''} : ⚡ ${tend.press||0}% · 🎯 ${tend.poss||0}% · 🛡️ ${tend.block||0}% · bluffe ${tend.bluff||0}%`;
+    const spyTxt = spy ? `<div style="margin-top:6px;color:#4ade80;font-weight:700">🔍 Espion : son plan réel est <b>${(MG_PLANS.find(p=>p.k===spy)||{}).l||spy}</b> !</div>` : '';
+    readBlock = `<div style="background:var(--pitch);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:14px">
+      <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin-bottom:5px">Lecture de l’adversaire</div>
+      <div style="font-size:.84rem">Il a annoncé : ${claimTxt}</div>
+      <div style="font-size:.78rem;color:var(--muted);margin-top:3px">${tendTxt}</div>
+      ${spyTxt}
+    </div>`;
+  }
+
+  // Choix du plan secret.
+  const plans = MG_PLANS.map(p=>{
+    const on = st.plan===p.k;
+    return `<button data-mgplan="${p.k}" style="text-align:left;padding:9px 11px;border-radius:10px;cursor:pointer;border:1px solid ${on?'var(--transfer)':'var(--line)'};background:${on?'rgba(245,197,66,.12)':'var(--pitch)'};color:var(--chalk)">
+      <div style="font-weight:800;font-size:.9rem">${p.ic} ${p.l}${on?' ✓':''}</div>
+      <div style="font-size:.72rem;color:var(--muted);margin-top:2px">${p.d}</div></button>`;
+  }).join('');
+
+  // Annonce (bluff) : on peut afficher un plan — vrai ou faux — ou rien.
+  const claims = [{k:null,ic:'🤐',l:'Rien'}].concat(MG_PLANS.map(p=>({k:p.k,ic:p.ic,l:p.l}))).map(c=>{
+    const on = (st.claim||null)===(c.k||null);
+    return `<button data-mgclaim="${c.k||''}" style="padding:6px 10px;border-radius:999px;font-size:.78rem;font-weight:${on?'800':'600'};cursor:pointer;border:1px solid ${on?'#a855f7':'var(--line)'};background:${on?'rgba(168,85,247,.14)':'var(--pitch)'};color:${on?'#c99bff':'var(--muted)'}">${c.ic} ${c.l}</button>`;
+  }).join('');
+  const bluffHint = (st.claim && st.claim!==st.plan)
+    ? '<div style="color:#c99bff;font-size:.74rem;margin-top:5px">🎭 Feinte : tu annonces un plan que tu ne joues pas. Si l’adversaire te croit et se prépare à le contrer, tu prends l’ascendant — mais mentir coûte un peu de précision.</div>'
+    : (st.claim ? '<div style="color:var(--muted);font-size:.74rem;margin-top:5px">Annonce honnête : tu dis vrai (aucun coût).</div>' : '');
+
+  // Cartes ruse (uniquement celles de la main, côté accept ; côté create la main
+  // n’existe qu’une fois le match créé → on propose sans filtre et le backend filtre).
+  const deck = hand.length ? hand : Object.keys(MG_CARDS);
+  const cards = deck.map(code=>{
+    const c = MG_CARDS[code]; if(!c) return '';
+    const on = st.cards.has(code);
+    return `<button data-mgcard="${code}" style="text-align:left;padding:8px 10px;border-radius:9px;cursor:pointer;border:1px solid ${on?'#4ade80':'var(--line)'};background:${on?'rgba(74,222,128,.12)':'var(--pitch)'};color:var(--chalk)">
+      <div style="font-weight:700;font-size:.82rem">${c.ic} ${c.l}${on?' ✓':''}</div>
+      <div style="font-size:.7rem;color:var(--muted)">${c.d}</div></button>`;
+  }).join('');
+  const handNote = st.kind==='create'
+    ? 'Ta main sera tirée à la création du défi : les cartes non tirées seront ignorées.'
+    : `Ta main : ${hand.length?hand.map(c=>MG_CARDS[c]?.ic+' '+MG_CARDS[c]?.l).join(' · '):'—'}. Max 2 jouées.`;
+
+  modal.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--transfer);font-weight:800">🧠 Duel psychologique</div>
+      <button id="mgClose" style="background:transparent;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;line-height:1">×</button>
+    </div>
+    ${readBlock}
+    <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin-bottom:6px">Ton plan secret</div>
+    <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px">${plans}</div>
+    <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin-bottom:6px">Ton annonce à l’adversaire (bluff possible)</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">${claims}</div>${bluffHint}
+    <div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:14px 0 6px">Cartes ruse <span style="font-weight:500;text-transform:none;color:var(--muted)">(facultatif)</span></div>
+    <div style="display:flex;flex-direction:column;gap:6px">${cards}</div>
+    <div style="font-size:.7rem;color:var(--muted);margin-top:6px">${handNote}</div>
+    <button id="mgGo" class="bid-btn" style="width:100%;margin-top:16px">${st.kind==='create'?'Lancer le défi ⚔️':'Jouer le match ⚔️'}</button>
+  `;
+
+  modal.querySelectorAll('[data-mgplan]').forEach(b=>b.onclick=()=>{ st.plan=b.dataset.mgplan; renderMindGame(); });
+  modal.querySelectorAll('[data-mgclaim]').forEach(b=>b.onclick=()=>{ st.claim=b.dataset.mgclaim||null; renderMindGame(); });
+  modal.querySelectorAll('[data-mgcard]').forEach(b=>b.onclick=()=>{
+    const c=b.dataset.mgcard;
+    if(st.cards.has(c)) st.cards.delete(c);
+    else { if(st.cards.size>=2){ alert('2 cartes maximum par match.'); return; } st.cards.add(c); }
+    renderMindGame();
+  });
+  $('mgClose').onclick=()=>{ $('vmMindOverlay').style.display='none'; };
+  $('mgGo').onclick=submitMindGame;
+}
+
+async function submitMindGame(){
+  const st = MG_STATE;
+  const go = $('mgGo'); if(go){ go.disabled=true; go.textContent='…'; }
+  const mg = { plan: st.plan, claim: st.claim, cards: Array.from(st.cards) };
+  if(st.kind==='create'){
+    const r = await api.vmatchCreateMind(st.opponentId, st.eleven, st.mind, st.form, mg);
+    if(r&&r.__error){ alert(r.__error); if(go){go.disabled=false;go.textContent='Lancer le défi ⚔️';} return; }
+    $('vmMindOverlay').style.display='none';
+    $('vmPickerOverlay').style.display='none';
+    alert('Défi envoyé ! Ton plan et tes cartes restent secrets jusqu’à ce que l’adversaire pose les siens.');
+    renderVmatch();
+  } else {
+    const res = await api.vmatchAcceptMind(st.matchId, st.eleven, st.mind, st.form, mg);
+    if(res&&res.__error){ alert(res.__error); if(go){go.disabled=false;go.textContent='Jouer le match ⚔️';} return; }
+    $('vmMindOverlay').style.display='none';
+    $('vmPickerOverlay').style.display='none';
+    showMatchSheet(st.matchId, true);
+  }
+}
+
+// Débrief « passe d'armes » affiché sur la feuille de match.
+// mg = result.mindgame : { triangle, plan_a/b, claim_a/b, bluff_a/b, cards_a/b }.
+function mgDebriefBlock(mg, A, B){
+  if(!mg || (mg.plan_a==null && mg.plan_b==null)) return '';   // match sans mind game
+  const planL = k => ({press:'⚡ Pressing', poss:'🎯 Possession', block:'🛡️ Bloc-contre'}[k] || '—');
+  const cardL = c => ({spy:'🔍 Espion',poker:'🃏 Poker face',voltefu:'⏱️ Volte-face',pressure:'💢 Pression',magnet:'🧲 Aimant',wall:'🛡️ Mur'}[c]||c);
+  const cardsTxt = arr => (Array.isArray(arr)&&arr.length) ? arr.map(cardL).join(' · ') : '—';
+  const tri = Number(mg.triangle||0);
+  const verdict = tri>0 ? `<b style="color:#4ade80">${vmEsc(A)} a pris l’ascendant tactique</b>`
+                : tri<0 ? `<b style="color:#4ade80">${vmEsc(B)} a pris l’ascendant tactique</b>`
+                : `<b style="color:var(--muted)">Duel tactique neutre</b>`;
+  const bluffLine = (side, name, plan, claim, bluff)=>{
+    if(bluff) return `<div style="font-size:.76rem;margin-top:2px">🎭 <b>${vmEsc(name)}</b> a annoncé ${planL(claim)}… et joué ${planL(plan)} <span style="color:#c99bff">(feinte)</span></div>`;
+    if(claim) return `<div style="font-size:.76rem;margin-top:2px"><b>${vmEsc(name)}</b> a annoncé ${planL(claim)} et joué ${planL(plan)}</div>`;
+    return `<div style="font-size:.76rem;margin-top:2px"><b>${vmEsc(name)}</b> a joué ${planL(plan)} <span style="color:var(--muted)">(sans annonce)</span></div>`;
+  };
+  return `<div style="background:rgba(168,85,247,.08);border:1px solid rgba(168,85,247,.4);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+    <div style="font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;color:#c99bff;font-weight:800;margin-bottom:5px">🧠 Duel psychologique — ${verdict}</div>
+    ${bluffLine('a', A, mg.plan_a, mg.claim_a, mg.bluff_a)}
+    ${bluffLine('b', B, mg.plan_b, mg.claim_b, mg.bluff_b)}
+    <div style="font-size:.72rem;color:var(--muted);margin-top:5px">Cartes — ${vmEsc(A)} : ${cardsTxt(mg.cards_a)} · ${vmEsc(B)} : ${cardsTxt(mg.cards_b)}</div>
+  </div>`;
 }
 
 // ---- Feuille de match (modale) ----
@@ -12388,6 +12546,7 @@ function vmSheetHTML(r, A, B, lineups){
     </div>
     <div style="display:flex;align-items:center;justify-content:center;gap:5px;text-align:center;font-size:.78rem;color:var(--muted);margin-bottom:12px">${vmEvtSvg('goal',14)}<span>${scorers(r.scorers&&r.scorers.a)} &nbsp;·&nbsp; ${scorers(r.scorers&&r.scorers.b)}</span></div>
     <div style="background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:10px;padding:9px 12px;margin-bottom:12px;text-align:center;font-size:.85rem">⭐ Homme du match&nbsp;: <b>${vmEsc(motm.name||'—')}</b>${motmTeam?` <span style="color:var(--muted)">(${vmEsc(motmTeam)})</span>`:''}</div>
+    ${mgDebriefBlock(r.mindgame, A, B)}
     ${vmPreOdds(r.strength, A, B)}
     ${timeline}
     ${statRow('Possession', r.possession.a, r.possession.b, true)}
