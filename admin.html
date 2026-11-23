@@ -6080,12 +6080,51 @@ async function renderCompoStatus(){
       const d = detById[r.manager_id];
       const hasAny = d && Array.isArray(d.players) && d.players.some(p=>p.role!=='none');
       const expand = hasAny
-        ? `<tr><td colspan="4" style="padding:0 10px 8px"><details><summary style="cursor:pointer;color:#5fd0e0;font-size:.8rem">👁️ Voir la compo${r.bench_count>0?' + banc':''}</summary>${renderDetail(d)}</details></td></tr>`
+        ? `<tr><td colspan="4" style="padding:0 10px 8px"><details><summary style="cursor:pointer;color:#5fd0e0;font-size:.8rem">👁️ Voir la compo${r.bench_count>0?' + banc':''}</summary>${renderDetail(d)}
+            <button class="btn-ghost btn-sm" data-benchedit="${r.manager_id}" data-benchteam="${esc(r.team_name||'')}" style="margin-top:6px;font-size:.78rem">🪑 Gérer le banc (ajouter un remplaçant / 2e gardien)</button>
+            <div id="benchEditor_${r.manager_id}"></div>
+          </details></td></tr>`
         : '';
       return `<tr style="${ok?'':'background:rgba(224,87,74,.05)'}"><td><b>${esc(r.team_name||'—')}</b></td><td>${esc(r.display_name||'')}</td><td>${badge}</td><td>${detailCell}</td></tr>${expand}`;
     }).join('')
   }</tbody></table>
-  <p class="hint" style="font-size:.78rem;margin-top:8px">Les équipes <b>sans compo complète</b> apparaissent en tête (surlignées) — ce sont elles à relancer. « 👁️ Voir la compo » déplie les 11 alignés + les 3 remplaçants ; le reste de l'effectif (non sélectionné) est grisé.</p>`;
+  <p class="hint" style="font-size:.78rem;margin-top:8px">Les équipes <b>sans compo complète</b> apparaissent en tête (surlignées) — ce sont elles à relancer. « 👁️ Voir la compo » déplie les 11 alignés + les 3 remplaçants ; le reste de l'effectif (non sélectionné) est grisé. « 🪑 Gérer le banc » permet d'ajouter un remplaçant (dont un 2e gardien) : il entrera automatiquement en jeu à la place d'un titulaire qui n'a pas joué, dès qu'il a une note avec minutes.</p>`;
+
+  // Bindings « Gérer le banc » par équipe.
+  box.querySelectorAll('[data-benchedit]').forEach(b=>b.onclick=()=>openBenchEditor(mdId, b.dataset.benchedit, b.dataset.benchteam));
+}
+
+// Éditeur de banc inline : ajouter/retirer un remplaçant (dont 2e gardien).
+async function openBenchEditor(mdId, teamId, teamName){
+  const host = document.getElementById('benchEditor_'+teamId); if(!host) return;
+  if(host.dataset.open==='1'){ host.innerHTML=''; host.dataset.open='0'; return; }
+  host.dataset.open='1';
+  host.innerHTML = '<p class="hint" style="padding:6px">Chargement de l\'effectif…</p>';
+  const opts = await api.adminTeamBenchOptions(mdId, teamId);
+  if(opts && opts.__error){ host.innerHTML = `<p class="hint" style="padding:6px;color:var(--live,#e0574a)">${opts.__error}</p>`; return; }
+  const esc = s => String(s==null?'':s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+  const POSLBL = {GK:'Gardien',DEF:'Défenseur',MID:'Milieu',FWD:'Attaquant'};
+  // On propose les non-titulaires ; les gardiens d'abord (cas fréquent du 2e GK).
+  const candidates = (opts||[]).filter(o=>!o.is_starter);
+  if(!candidates.length){ host.innerHTML='<p class="hint" style="padding:6px">Aucun remplaçant disponible (tout l\'effectif est titulaire).</p>'; return; }
+  host.innerHTML = `<div style="border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:6px;background:var(--pitch)">
+    <div style="font-size:.76rem;color:var(--muted);margin-bottom:6px">Banc de <b>${esc(teamName)}</b> — clique pour ajouter/retirer. Un remplaçant entre à la place d'un titulaire non joué (même poste).</div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">${candidates.map(o=>{
+      const on = o.on_bench;
+      return `<button data-benchtoggle="${o.player_id}" data-on="${on?'1':'0'}" style="font-size:.78rem;padding:4px 9px;border-radius:7px;cursor:pointer;border:1px solid ${on?'#4ade80':'var(--line)'};background:${on?'rgba(74,222,128,.14)':'var(--pitch-2,#0e1620)'};color:${on?'#4ade80':'var(--chalk,#eef3f8)'}">${on?'✓ ':''}${esc(o.name)} <span style="opacity:.7;font-size:.7rem">${POSLBL[o.pos]||o.pos}</span></button>`;
+    }).join('')}</div>
+    <div id="benchMsg_${teamId}" style="font-size:.74rem;margin-top:6px"></div>
+  </div>`;
+  host.querySelectorAll('[data-benchtoggle]').forEach(btn=>btn.onclick=async()=>{
+    const pid = btn.dataset.benchtoggle, isOn = btn.dataset.on==='1';
+    btn.disabled=true;
+    const r = isOn ? await api.adminRemoveBench(mdId, teamId, pid) : await api.adminAddBench(mdId, teamId, pid);
+    const msg = document.getElementById('benchMsg_'+teamId);
+    if(r && r.__error){ if(msg){ msg.style.color='var(--live,#e0574a)'; msg.textContent=r.__error; } btn.disabled=false; return; }
+    if(msg){ msg.style.color='#4ade80'; msg.textContent = isOn ? 'Retiré du banc.' : 'Ajouté au banc ✓ — il entrera si un titulaire du même poste n\'a pas joué.'; }
+    // Recharge l'éditeur pour refléter l'état.
+    host.dataset.open='0'; openBenchEditor(mdId, teamId, teamName);
+  });
 }
 if($('btnCompoStatus')) $('btnCompoStatus').onclick = renderCompoStatus;
 if($('compoStatusMd')) $('compoStatusMd').onchange = renderCompoStatus;

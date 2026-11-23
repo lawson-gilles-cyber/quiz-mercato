@@ -1732,6 +1732,29 @@ export async function myLineup(matchdayId, teamId) {
   const { data } = await sb.rpc('qm_my_lineup', args);
   return data ?? null;
 }
+// Source de vérité serveur : ma compo est-elle prête (>=11) pour cette journée ?
+// Utilisée pour supprimer de façon fiable le pop-up « compose ton onze ».
+export async function myOpenLineupsReady() {
+  const { data, error } = await sb.rpc('qm_my_open_lineups_ready');
+  if (error) return {};
+  return data ?? {};
+}
+// --- Banc admin : gérer les remplaçants (dont 2e gardien) d'une équipe ---
+export async function adminTeamBenchOptions(matchdayId, teamId) {
+  const { data, error } = await sb.rpc('qm_admin_team_bench_options', { p_matchday_id: matchdayId, p_team: teamId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+export async function adminAddBench(matchdayId, teamId, playerId) {
+  const { data, error } = await sb.rpc('qm_admin_add_bench', { p_matchday_id: matchdayId, p_team: teamId, p_player: playerId });
+  if (error) return { __error: error.message };
+  return data;
+}
+export async function adminRemoveBench(matchdayId, teamId, playerId) {
+  const { data, error } = await sb.rpc('qm_admin_remove_bench', { p_matchday_id: matchdayId, p_team: teamId, p_player: playerId });
+  if (error) return { __error: error.message };
+  return data;
+}
 // --- Intersaison : compte à rebours + quiz quotidien ---
 export async function seasonResumeAt() {
   const { data } = await sb.rpc('qm_season_resume_at');

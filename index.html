@@ -8719,7 +8719,8 @@ async function renderHomeGamePhase(managers){
 
   let needLineup = false;
   if(openMd){
-    try { const lu = await api.myLineup(openMd.id); needLineup = !(lu && (lu.player_ids||lu.players)); }
+    // Source de vérité serveur : compo rendue (>=11) ? (fiable, pas de cache)
+    try { const rm = await api.myOpenLineupsReady(); needLineup = (rm[openMd.id] !== true); }
     catch(e){ needLineup = true; }
   }
 
@@ -13819,11 +13820,12 @@ async function checkMatchdayOpen(){   // (nom conservé pour les appels existant
   // rendue (11 titulaires). Une compo rendue ne doit JAMAIS déclencher le
   // rappel « compose ton onze » : c'est le bug remonté (le pop-up revenait à
   // chaque connexion, même après avoir validé sa compo).
+  // Source de vérité SERVEUR (fiable, indépendante du cache/localStorage) :
+  // pour chaque journée ouverte, ma compo est-elle rendue ? Un seul appel.
+  let readyMap = {};
+  try { readyMap = await api.myOpenLineupsReady(); } catch(e){ readyMap = {}; }
   const composedByMd = {};   // { mdId: true/false }
-  for(const m of open){
-    try { const lu = await api.myLineup(m.id); composedByMd[m.id] = !!(lu && (lu.player_ids||[]).length>=11); }
-    catch(e){ composedByMd[m.id] = false; }
-  }
+  for(const m of open){ composedByMd[m.id] = readyMap[m.id] === true; }
 
   open.forEach(m=> notifs.push({
     kind:'matchday_open', ref:m.id, title:'Nouvelle journée ouverte',
