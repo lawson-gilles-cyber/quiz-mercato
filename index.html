@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Oswald:wght@500;600;700&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Chakra+Petch:wght@500;600;700&family=Oswald:wght@500;600;700&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     /* === Direction « cartes flottantes » ===========================
@@ -168,7 +168,8 @@
   /* Mes statistiques */
   .ms-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:18px}
   .ms-kpi{background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center}
-  .ms-kpi .v{font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.6rem;color:var(--transfer);line-height:1}
+  .ms-kpi .v{font-family:'Chakra Petch','Saira Condensed',monospace;font-weight:700;font-size:1.55rem;color:#ffe6a0;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:.3px;text-shadow:0 0 5px rgba(245,197,66,.5),0 0 14px rgba(245,197,66,.28)}
+  html[data-theme="light"] .ms-kpi .v{color:#b9870c;text-shadow:0 0 4px rgba(245,197,66,.35)}
   .ms-kpi .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-top:5px}
   .ms-block{background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin-bottom:16px}
   .ms-h{font-family:'Saira Condensed','Anton',sans-serif;text-transform:uppercase;letter-spacing:.5px;font-weight:800;
@@ -709,9 +710,16 @@
   .hero h2 em{font-style:normal}
   .hero p{color:var(--muted);margin-top:10px;max-width:44ch}
   .countdown{text-align:center;border-left:1px solid var(--line);padding-left:24px;display:flex;flex-direction:column;justify-content:center;align-items:center}
-  .countdown .num{font-family:'Saira','Space Mono';font-size:2.6rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
-    background:linear-gradient(180deg,#ffe89a,#f5c542 60%,#d4a017);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  /* Afficheur « LED » : chiffres Chakra Petch + lueur dorée (ambiance chrono). */
+  .countdown .num{font-family:'Chakra Petch','Saira',monospace;font-size:2.7rem;font-weight:700;line-height:1;font-variant-numeric:tabular-nums;letter-spacing:1px;
+    color:#ffe6a0;
+    text-shadow:0 0 6px rgba(245,197,66,.55), 0 0 16px rgba(245,197,66,.35), 0 0 30px rgba(212,160,23,.25)}
+  html[data-theme="light"] .countdown .num{color:#b9870c;text-shadow:0 0 5px rgba(245,197,66,.4)}
   .countdown small{color:var(--muted);text-transform:uppercase;letter-spacing:2.2px;font-size:.66rem;margin-top:9px}
+  /* Classe utilitaire « LED » réutilisable pour d'autres compteurs. */
+  .led-num{font-family:'Chakra Petch','Saira',monospace;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:.5px;
+    color:#ffe6a0;text-shadow:0 0 5px rgba(245,197,66,.5), 0 0 14px rgba(245,197,66,.28)}
+  html[data-theme="light"] .led-num{color:#b9870c;text-shadow:0 0 4px rgba(245,197,66,.35)}
   /* Anneau de progression autour du décompte */
   .cd-ring{position:relative;width:210px;height:210px;max-width:52vw}
   .cd-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
@@ -739,8 +747,9 @@
   .news:hover{transform:translateY(-3px);border-color:rgba(245,197,66,.4);box-shadow:var(--shadow-2)}
   html[data-theme="light"] .news{background:linear-gradient(165deg,#ffffff,#f1f5fb)}
   .news .k{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);font-size:.7rem}
-  .news .v{font-family:'Saira','Archivo';font-size:1.6rem;font-weight:800;margin-top:7px;font-variant-numeric:tabular-nums;letter-spacing:-.4px}
-  .news .v b{color:var(--transfer)}
+  .news .v{font-family:'Chakra Petch','Saira',monospace;font-size:1.5rem;font-weight:700;margin-top:7px;font-variant-numeric:tabular-nums;letter-spacing:.3px}
+  .news .v b{color:#ffe6a0;text-shadow:0 0 5px rgba(245,197,66,.5),0 0 14px rgba(245,197,66,.28)}
+  html[data-theme="light"] .news .v b{color:#b9870c;text-shadow:0 0 4px rgba(245,197,66,.35)}
 
   /* ---------- Toolbar mercato ---------- */
   .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}
@@ -9265,7 +9274,7 @@ async function renderResumeCountdown(){
       return;
     }
     const d = Math.floor(left/86400000), h = Math.floor(left%86400000/3600000), m = Math.floor(left%3600000/60000), s = Math.floor(left%60000/1000);
-    const cell = (v,l)=>`<div style="text-align:center"><div style="font-family:'Saira',monospace;font-weight:900;font-size:1.5rem;color:var(--transfer);line-height:1">${String(v).padStart(2,'0')}</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${l}</div></div>`;
+    const cell = (v,l)=>`<div style="text-align:center"><div class="led-num" style="font-size:1.7rem;line-height:1">${String(v).padStart(2,'0')}</div><div style="font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)">${l}</div></div>`;
     box.innerHTML = `<div style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(245,197,66,.03));border:1px solid rgba(245,197,66,.4);border-radius:14px;padding:14px 16px;margin-bottom:16px">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.1em;color:var(--transfer);font-weight:800;margin-bottom:8px;text-align:center">⚽ Reprise des championnats dans</div>
       <div style="display:flex;justify-content:center;gap:16px">${cell(d,'jours')}${cell(h,'h')}${cell(m,'min')}${cell(s,'sec')}</div>
