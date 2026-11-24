@@ -1732,6 +1732,32 @@ export async function myLineup(matchdayId, teamId) {
   const { data } = await sb.rpc('qm_my_lineup', args);
   return data ?? null;
 }
+// --- Brouillon de compo SYNCHRONISÉ (serveur, table séparée) ---
+// Enregistre un brouillon (éventuellement incomplet). Ne compte jamais.
+export async function setLineupDraft(matchdayId, playerIds, benchIds, teamId, leaderId) {
+  const args = {
+    p_matchday_id: matchdayId,
+    p_player_ids: playerIds || [],
+    p_bench_ids: benchIds || []
+  };
+  if (teamId) args.p_team = teamId;
+  if (leaderId) args.p_leader = leaderId;
+  const { data, error } = await sb.rpc('qm_set_lineup_draft', args);
+  if (error) return { __error: error.message };
+  return data ?? null;
+}
+export async function myLineupDraft(matchdayId, teamId) {
+  const args = { p_matchday_id: matchdayId };
+  if (teamId) args.p_team = teamId;
+  const { data } = await sb.rpc('qm_my_lineup_draft', args);
+  return data ?? null;   // null s'il n'y a pas de brouillon
+}
+export async function clearLineupDraft(matchdayId, teamId) {
+  const args = { p_matchday_id: matchdayId };
+  if (teamId) args.p_team = teamId;
+  const { error } = await sb.rpc('qm_clear_lineup_draft', args);
+  return error ? { __error: error.message } : { ok: true };
+}
 // Source de vérité serveur : ma compo est-elle prête (>=11) pour cette journée ?
 // Utilisée pour supprimer de façon fiable le pop-up « compose ton onze ».
 export async function myOpenLineupsReady() {
