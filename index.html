@@ -11800,7 +11800,7 @@ async function renderVmatch(){
     const rows = await api.koraStatement(40);
     if(rows && rows.__error){ box.innerHTML=`<div class="hint" style="padding:8px">${rows.__error}</div>`; return; }
     if(!rows.length){ box.innerHTML='<div class="hint" style="padding:8px">Aucun mouvement pour l\'instant. Gagne un match virtuel pour ta première pièce 🪙</div>'; return; }
-    const lbl = r => r.reason==='win' ? `Victoire${r.other_team?' contre '+vmEsc(r.other_team):''}` : (r.reason==='pass'?'Achat d\'un Pass':(r.reason==='joker'?'Achat d\'un joker':r.reason));
+    const lbl = r => r.reason==='win' ? `Victoire${r.other_team?' contre '+vmEsc(r.other_team):''}` : (r.reason==='pass'?'Achat d\'un Pass':(r.reason==='joker'?'Achat d\'un joker':(r.reason==='league'?'🏆 Ligue de la semaine':r.reason)));
     box.innerHTML = `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;max-height:260px;overflow:auto">${rows.map(r=>{
       const pos = r.delta>0;
       const d = new Date(r.at);
@@ -11869,6 +11869,38 @@ async function renderVmatch(){
 // Ouverte lundi 6h → inscriptions → classement → fermée dimanche 20h.
 // =====================================================================
 let LEAGUE_HIST_ID = null;   // édition passée sélectionnée dans l'historique
+// Affiche du thème de la semaine (bandeau coloré) : emoji + nom + règle.
+function leagueThemeAffiche(theme){
+  if(!theme || !theme.key) return '';
+  const col = {buteur:'#f5c542', blindee:'#5fa8d0', chaos:'#a855f7', classique:'#4ade80'}[theme.key] || 'var(--transfer)';
+  return `<div style="background:linear-gradient(135deg, ${col}22, transparent);border:1px solid ${col};border-radius:12px;padding:10px 14px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:1.5rem;line-height:1">${theme.emoji||'🏆'}</span>
+      <div>
+        <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.02rem;color:${col}">${vmEsc(theme.name||'')}</div>
+        <div style="font-size:.76rem;color:var(--muted)">${vmEsc(theme.rule||'')}</div>
+      </div>
+    </div>
+    <div style="font-size:.72rem;color:var(--muted);margin-top:7px;border-top:1px solid rgba(255,255,255,.06);padding-top:6px">🪙 À gagner : podium <b style="color:var(--chalk)">10 / 6 / 3</b> · <b style="color:var(--chalk)">+1</b> par victoire · <b style="color:var(--chalk)">+3</b> si invaincu · titres <b style="color:var(--chalk)">+2</b></div>
+  </div>`;
+}
+// Libellés des titres honorifiques.
+const LEAGUE_TITLE_META = {
+  mur:        {ic:'🛡️', label:'Mur de la semaine',   suffix:b=>`${b} but${b>1?'s':''} encaissé${b>1?'s':''}`},
+  canonnier:  {ic:'🎯', label:'Canonnier',            suffix:b=>`${b} but${b>1?'s':''} marqué${b>1?'s':''}`},
+  invincible: {ic:'🧱', label:'Invincible',           suffix:_=>`aucun but encaissé`}
+};
+function leagueTitlesRow(titles){
+  if(!Array.isArray(titles) || !titles.length) return '';
+  const chips = titles.map(t=>{
+    const m = LEAGUE_TITLE_META[t.title]; if(!m) return '';
+    return `<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:999px;padding:3px 10px;font-size:.74rem;margin:2px">
+      ${m.ic} <b>${m.label}</b> — ${vmEsc(t.team)} <span style="color:var(--muted)">(${m.suffix(t.value)})</span></span>`;
+  }).join('');
+  if(!chips.trim()) return '';
+  return `<div style="margin:4px 0 10px"><div style="font-size:.68rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:4px">🏅 Titres honorifiques</div><div>${chips}</div></div>`;
+}
+
 async function renderLeagueBanner(){
   const host = $('leagueBanner'); if(!host) return;
   const st = await api.leagueState();
@@ -11876,6 +11908,7 @@ async function renderLeagueBanner(){
     host.innerHTML = `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:12px 15px;font-size:.84rem;color:var(--muted)">🏆 <b style="color:var(--chalk)">Ligue hebdomadaire</b> — aucune ligue en cours. Elle s'ouvre automatiquement chaque lundi à 6h.</div>`;
     return;
   }
+  const affiche = leagueThemeAffiche(st.theme);
   const cnt = st.counts || {in:0,out:0,pending:0};
   const members = Array.isArray(st.members) ? st.members : [];
   const chips = members.map(m=>{
@@ -11892,6 +11925,7 @@ async function renderLeagueBanner(){
         <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.1rem">🏆 Ligue de la semaine — ouverte</div>
         <div style="font-size:.74rem;color:var(--muted)">clôture dans <b style="color:var(--chalk)">${cd}</b></div>
       </div>
+      ${affiche}
       <p style="font-size:.84rem;color:var(--muted);margin:6px 0 10px">Tous les inscrits s'affrontent en matchs virtuels (chacun contre chacun). Dès que tout le monde a répondu, la ligue se lance automatiquement.</p>
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="leagueJoinYes" class="bid-btn" style="flex:1;${mine==='in'?'background:#16a34a;border-color:#16a34a':''}">✅ Je participe${mine==='in'?' ✓':''}</button>
@@ -11908,12 +11942,17 @@ async function renderLeagueBanner(){
   }
 
   // played / closed → classement + accès feuilles.
-  const rankTxt = st.my_rank ? `Tu finis <b style="color:var(--transfer)">${st.my_rank}${st.my_rank===1?'er':'e'}</b>` : (st.my_state==='in'?'Classement disponible':'Tu n\'as pas participé');
+  const pod = (st.my_podium_kora|0);
+  const rankTxt = st.my_rank
+    ? `Tu finis <b style="color:var(--transfer)">${st.my_rank}${st.my_rank===1?'er':'e'}</b>${pod>0?` · <b style="color:#f5c542">+${pod} 🪙</b>`:''}`
+    : (st.my_state==='in'?'Classement disponible':'Tu n\'as pas participé');
   host.innerHTML = `<div class="card" style="background:var(--pitch-2);border:1px solid var(--line);border-radius:12px;padding:14px 16px">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:8px">
       <div style="font-family:'Saira Condensed',sans-serif;font-weight:800;font-size:1.1rem">🏆 Ligue de la semaine — ${st.status==='closed'?'terminée':'jouée'}</div>
       <div style="font-size:.78rem;color:var(--muted)">${rankTxt}</div>
     </div>
+    ${affiche}
+    ${leagueTitlesRow(st.titles)}
     <div id="leagueStandings"><div class="empty" style="padding:12px">Chargement du classement…</div></div>
     <button id="leagueHistBtn" style="margin-top:10px;width:100%;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--pitch);color:var(--muted);font-size:.8rem;cursor:pointer">📜 Historique des ligues</button>
     <div id="leagueHistBox"></div>`;
@@ -11931,14 +11970,16 @@ async function renderLeagueStandings(leagueId, host){
     <thead><tr style="color:var(--muted);text-align:left">
       <th style="padding:4px 5px">#</th><th style="padding:4px 5px">Équipe</th>
       <th style="padding:4px 5px;text-align:center">J</th><th style="padding:4px 5px;text-align:center">V-N-D</th>
-      <th style="padding:4px 5px;text-align:center">Diff</th><th style="padding:4px 5px;text-align:center">Pts</th></tr></thead>
+      <th style="padding:4px 5px;text-align:center">Diff</th><th style="padding:4px 5px;text-align:center">Pts</th>
+      <th style="padding:4px 5px;text-align:center" title="Prime Kora">🪙</th></tr></thead>
     <tbody>${rows.map(r=>`<tr style="border-top:1px solid var(--line);${r.is_me?'background:rgba(245,197,66,.08)':''}">
       <td style="padding:5px;color:var(--muted)">${r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':r.rank}</td>
       <td style="padding:5px;font-weight:${r.is_me?'800':'600'}">${vmEsc(r.team_name)}${r.is_me?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</td>
       <td style="padding:5px;text-align:center">${r.played}</td>
       <td style="padding:5px;text-align:center;white-space:nowrap">${r.wins}-${r.draws}-${r.losses}</td>
       <td style="padding:5px;text-align:center">${r.diff>0?'+':''}${r.diff}</td>
-      <td style="padding:5px;text-align:center;font-weight:800">${r.points}</td></tr>`).join('')}</tbody></table></div>
+      <td style="padding:5px;text-align:center;font-weight:800">${r.points}</td>
+      <td style="padding:5px;text-align:center;color:${(r.podium_kora|0)>0?'#f5c542':'var(--muted)'};white-space:nowrap">${(r.podium_kora|0)>0?('+'+r.podium_kora):'·'}</td></tr>`).join('')}</tbody></table></div>
     ${matches.length?`<div style="font-size:.68rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 5px">Résultats</div>
       <div style="display:flex;flex-direction:column;gap:3px">${matches.map(m=>`<button data-lgmatch="${m.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--chalk);font-size:.8rem">
         <span style="flex:1;text-align:right">${vmEsc(m.home_team)}</span>
@@ -11958,7 +11999,8 @@ async function renderLeagueHistory(host){
   host.innerHTML = `<div style="margin-top:8px;display:flex;flex-direction:column;gap:6px">${list.map(l=>{
     const d = new Date(l.week_start);
     const lbl = 'Semaine du '+d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'});
-    return `<div><button data-lghist="${l.id}" style="width:100%;text-align:left;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;color:var(--chalk);font-size:.82rem">🏆 ${lbl} <span style="color:var(--muted);font-size:.72rem">· ${l.members} équipes</span></button><div id="lghist_${l.id}"></div></div>`;
+    const th = l.theme && l.theme.emoji ? ` <span style="color:var(--muted);font-size:.72rem">· ${l.theme.emoji} ${vmEsc(l.theme.name||'')}</span>` : '';
+    return `<div><button data-lghist="${l.id}" style="width:100%;text-align:left;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:8px 11px;cursor:pointer;color:var(--chalk);font-size:.82rem">🏆 ${lbl} <span style="color:var(--muted);font-size:.72rem">· ${l.members} équipes</span>${th}</button><div id="lghist_${l.id}"></div></div>`;
   }).join('')}</div>`;
   host.querySelectorAll('[data-lghist]').forEach(b=>b.onclick=()=>{
     const box=$('lghist_'+b.dataset.lghist);
@@ -14094,7 +14136,7 @@ async function checkKoraNews(){
     const gain = bal - prev;
     notifs.push({ kind:'kora_win', ref:'bal_'+bal,
       title:`+${gain} Kora 🪙`,
-      detail:`Victoire en match virtuel — tu as maintenant ${bal} Kora${bal>1?'s':''}.`,
+      detail:`${gain>1?gain+' Koras gagnés':'1 Kora gagné'} (match ou ligue) — tu as maintenant ${bal} Kora${bal>1?'s':''}.`,
       created_at:new Date().toISOString() });
     // Pop-up discret de célébration (une fois par palier de solde).
     const celebrated = lsGet('us_kora_celebrated', []);
