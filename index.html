@@ -1633,7 +1633,7 @@
     <div id="rankModeTabs" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
     <p id="rankModeHint" class="hint" style="color:var(--muted);font-size:.82rem;margin-bottom:12px"></p>
 
-    <table>
+    <table id="rankTable" style="width:100%;table-layout:fixed">
       <thead id="rankHead"></thead>
       <tbody id="rankBody"></tbody>
     </table>
@@ -6697,10 +6697,11 @@ function renderRankSportif(rows){
   const bestLast = rows.reduce((mx,m)=>Math.max(mx, Number(m.last_md_points||0)), 0);
 
   // En-tête de colonnes (hors table) facon maquette.
-  const colHead = `<div style="display:flex;align-items:center;gap:10px;padding:0 14px 6px;color:var(--muted);font-size:.74rem;text-transform:uppercase;letter-spacing:.03em">
-    <span style="flex:0 0 42px">Rang</span><span style="flex:1"></span>
-    <span style="flex:0 0 62px;text-align:right">${jNum?('J'+jNum):'Journée'}</span>
-    <span style="flex:0 0 62px;text-align:right">Total</span>
+  const colHead = `<div style="display:flex;align-items:center;gap:8px;padding:0 12px 6px;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.02em">
+    <span style="flex:0 0 34px">Rang</span><span style="flex:1;min-width:0"></span>
+    <span style="flex:0 0 46px;text-align:right">${jNum?('J'+jNum):'Jour.'}</span>
+    <span style="flex:0 0 52px;text-align:right">Total</span>
+    <span style="flex:0 0 20px"></span>
   </div>`;
 
   const cards = rows.map((m,i)=>{
@@ -6736,25 +6737,25 @@ function renderRankSportif(rows){
 
     const details = `<div class="rank-hot" data-hot="${m.id}" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--line);font-size:.78rem;color:var(--chalk);line-height:1.6">${bits.map(b=>`<div>${b}</div>`).join('')}</div>`;
 
-    return `<div class="rk-card" data-mgr="${m.id}" style="position:relative;display:block;background:${isMe?'rgba(95,208,224,.08)':'var(--pitch-2)'};border:1px solid ${isMe?'rgba(95,208,224,.5)':'var(--line)'};border-left:4px solid ${col};border-radius:12px;padding:12px 14px;margin-bottom:10px;cursor:pointer">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div style="flex:0 0 42px;text-align:center">
-          <div style="font-family:'Saira',monospace;font-weight:900;font-size:1.3rem;line-height:1;color:${i===0?'var(--transfer)':'var(--chalk)'}">${i+1}</div>
+    return `<div class="rk-card" data-mgr="${m.id}" style="position:relative;display:block;box-sizing:border-box;width:100%;background:${isMe?'rgba(95,208,224,.08)':'var(--pitch-2)'};border:1px solid ${isMe?'rgba(95,208,224,.5)':'var(--line)'};border-left:4px solid ${col};border-radius:12px;padding:11px 12px;margin-bottom:10px;cursor:pointer">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:0 0 34px;text-align:center">
+          <div style="font-family:'Saira',monospace;font-weight:900;font-size:1.25rem;line-height:1;color:${i===0?'var(--transfer)':'var(--chalk)'}">${i+1}</div>
           <div style="margin-top:2px">${arrow}</div>
         </div>
         <div style="flex:1;min-width:0">
-          <div style="font-weight:800;font-size:1rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.team_name||m.display_name)}${crown}</div>
-          <div style="color:var(--muted);font-size:.8rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.display_name)}${(RANK_BADGES[m.id]||[]).length?` ${(RANK_BADGES[m.id]||[]).slice(0,3).join('')}`:''}</div>
+          <div style="font-weight:800;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.team_name||m.display_name)}${crown}</div>
+          <div style="color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.display_name)}${(RANK_BADGES[m.id]||[]).length?` ${(RANK_BADGES[m.id]||[]).slice(0,3).join('')}`:''}</div>
         </div>
-        <div style="flex:0 0 62px;text-align:right">
-          <div style="font-family:'Saira',monospace;font-weight:800;font-size:1.05rem;color:${last>0?'var(--chalk)':'var(--muted)'}">${last>0?fmtPts(last):'—'}</div>
-          <div style="color:var(--muted);font-size:.6rem;text-transform:uppercase">journée</div>
+        <div style="flex:0 0 46px;text-align:right">
+          <div style="font-family:'Saira',monospace;font-weight:800;font-size:1rem;color:${last>0?'var(--chalk)':'var(--muted)'}">${last>0?fmtPts(last):'—'}</div>
+          <div style="color:var(--muted);font-size:.55rem;text-transform:uppercase">jour.</div>
         </div>
-        <div style="flex:0 0 62px;text-align:right">
-          <div style="font-family:'Saira',monospace;font-weight:900;font-size:1.15rem">${fmtPts(m.season_points)}</div>
-          <div style="color:var(--muted);font-size:.6rem;text-transform:uppercase">total</div>
+        <div style="flex:0 0 52px;text-align:right">
+          <div style="font-family:'Saira',monospace;font-weight:900;font-size:1.1rem">${fmtPts(m.season_points)}</div>
+          <div style="color:var(--muted);font-size:.55rem;text-transform:uppercase">total</div>
         </div>
-        <button class="rk-toggle" data-toggle="${m.id}" title="Détails" style="flex:0 0 auto;background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:2px 4px">▾</button>
+        <button class="rk-toggle" data-toggle="${m.id}" title="Détails" style="flex:0 0 20px;background:none;border:none;color:var(--muted);font-size:1rem;cursor:pointer;padding:2px 0">▾</button>
       </div>
       ${details}
     </div>`;
@@ -6823,23 +6824,23 @@ function renderRankCards(rows, cfg){
   if(!head || !body) return;
   head.innerHTML = '';
   const sorted = rows.slice().sort(cfg.sort);
-  const colHead = `<div style="display:flex;align-items:center;gap:10px;padding:0 14px 6px;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.03em">
-    <span style="flex:0 0 36px">Rang</span><span style="flex:1"></span>
-    <span style="flex:0 0 72px;text-align:right">${cfg.col1.label}</span>
-    <span style="flex:0 0 64px;text-align:right">${cfg.col2.label}</span>
+  const colHead = `<div style="display:flex;align-items:center;gap:8px;padding:0 12px 6px;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.02em">
+    <span style="flex:0 0 34px">Rang</span><span style="flex:1;min-width:0"></span>
+    <span style="flex:0 0 58px;text-align:right">${cfg.col1.label}</span>
+    <span style="flex:0 0 52px;text-align:right">${cfg.col2.label}</span>
   </div>`;
   const cards = sorted.map((m,i)=>{
     const col = m.color_primary || 'var(--transfer)';
     const isMe = ME && m.id===ME.id;
     const bdg = (RANK_BADGES[m.id]||[]).slice(0,3).join('');
-    return `<div class="rk-card" data-mgr="${m.id}" style="display:flex;align-items:center;gap:12px;background:${isMe?'rgba(95,208,224,.08)':'var(--pitch-2)'};border:1px solid ${isMe?'rgba(95,208,224,.5)':'var(--line)'};border-left:4px solid ${col};border-radius:12px;padding:11px 14px;margin-bottom:9px;cursor:pointer">
-      <div style="flex:0 0 36px;text-align:center;font-family:'Saira',monospace;font-weight:900;font-size:1.2rem;color:${i===0?'var(--transfer)':'var(--chalk)'}">${i+1}</div>
+    return `<div class="rk-card" data-mgr="${m.id}" style="display:flex;align-items:center;gap:8px;box-sizing:border-box;width:100%;background:${isMe?'rgba(95,208,224,.08)':'var(--pitch-2)'};border:1px solid ${isMe?'rgba(95,208,224,.5)':'var(--line)'};border-left:4px solid ${col};border-radius:12px;padding:11px 12px;margin-bottom:9px;cursor:pointer">
+      <div style="flex:0 0 34px;text-align:center;font-family:'Saira',monospace;font-weight:900;font-size:1.2rem;color:${i===0?'var(--transfer)':'var(--chalk)'}">${i+1}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:.98rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.team_name||m.display_name)}${bdg?` ${bdg}`:''}</div>
+        <div style="font-weight:800;font-size:.95rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.team_name||m.display_name)}${bdg?` ${bdg}`:''}</div>
         <div style="color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc0(m.display_name)}</div>
       </div>
-      <div style="flex:0 0 72px;text-align:right;font-family:'Saira',monospace;font-weight:800;font-size:1rem">${cfg.col1.val(m)}</div>
-      <div style="flex:0 0 64px;text-align:right;color:var(--muted);font-size:.9rem">${cfg.col2.val(m)}</div>
+      <div style="flex:0 0 58px;text-align:right;font-family:'Saira',monospace;font-weight:800;font-size:1rem">${cfg.col1.val(m)}</div>
+      <div style="flex:0 0 52px;text-align:right;color:var(--muted);font-size:.9rem">${cfg.col2.val(m)}</div>
     </div>`;
   }).join('');
   body.innerHTML = `<tr><td style="padding:0" colspan="9">${colHead}${cards}</td></tr>`;
