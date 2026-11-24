@@ -1611,7 +1611,12 @@
       </div>
       <div id="lineupFormLegend" class="hint" style="font-size:.72rem;color:var(--muted);margin:2px 0 10px">Pastille de <b>forme</b> : la dernière note d'Audrey donne un bonus/malus de puissance en <b>match virtuel</b> — <span style="color:#ff7a5c;font-weight:800">🔥</span> décisif (note ≥ 8) · <span style="color:#4ade80;font-weight:800">↗</span> en forme · <span style="color:var(--transfer);font-weight:800">→</span> neutre · <span style="color:#e0574a;font-weight:800">↘</span> méforme.</div>
       <div id="lineupPlayers" class="grid"></div>
-      <button id="btnSaveLineup" class="bid-btn" style="margin-top:18px;width:100%">Valider ma composition</button>
+      <div id="lineupDraftBanner" style="margin-top:14px"></div>
+      <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">
+        <button id="btnSaveDraft" class="bid-btn" style="flex:1;min-width:150px;margin:0;background:var(--pitch);border:1px solid var(--transfer);color:var(--transfer)">💾 Sauvegarder le brouillon</button>
+        <button id="btnSaveLineup" class="bid-btn" style="flex:1;min-width:150px;margin:0">Valider ma composition</button>
+      </div>
+      <div id="lineupDraftHint" class="hint" style="font-size:.72rem;color:var(--muted);margin-top:6px">💾 Le <b>brouillon</b> est enregistré sur cet appareil et peut être <b>incomplet</b> : prépare ton onze tranquillement, reviens le modifier, puis clique <b>Valider</b> pour l'envoi définitif. Tant que tu n'as pas validé, rien n'est transmis.</div>
       <button id="btnViewMyFormation" class="bid-btn" style="margin-top:8px;width:100%;background:var(--pitch);border:1px solid var(--line);color:var(--chalk);display:none">👁️ Voir ma formation envoyée</button>
       <div id="myFormationView" style="margin-top:12px"></div>
       <div id="lineupResult" style="margin-top:10px"></div>
@@ -2125,6 +2130,7 @@
           <li>Passé ce délai, <b>aucune modification</b> ne sera autorisée.</li>
           <li>Les <b>rencontres reportées du lundi soir</b>, lorsqu'elles concernent la journée précédente, seront comptabilisées dans <b>cette dernière</b> et non dans la nouvelle semaine.</li>
           <li>Tout <b>Coach</b> n'ayant pas validé son onze dans les délais <b>conserve automatiquement son dernier onze validé</b>, qui est rejoué tel quel pour la nouvelle semaine. Aucune pénalité — mais attention : une compo non mise à jour peut aligner des joueurs en méforme, blessés ou qui ne jouent plus.</li>
+          <li>💾 <b>Brouillon avant envoi</b> : le Coach peut <b>sauvegarder son onze comme brouillon</b> (bouton « 💾 Sauvegarder le brouillon »), y compris <b>incomplet</b>, pour le préparer et procéder à des <b>changements de dernière minute</b> avant de trancher. Le brouillon est enregistré <b>sur son appareil</b> : tant qu'il n'a pas cliqué <b>« Valider ma composition »</b>, <b>rien n'est transmis</b> — le brouillon ne compte pas, n'apparaît pas dans la Galerie et n'a aucun effet sur le classement ni l'assiduité. Seul l'<b>envoi définitif</b> (qui exige un onze complet et valide) fait foi, et il efface le brouillon.</li>
         </ol>
         <p class="rule-p" style="margin-top:10px"><b>Bon à savoir — deux périodes à ne pas confondre :</b></p>
         <ul class="rule-ul">
@@ -5348,6 +5354,8 @@ const FAQ_DATA = [
      "À chaque journée clôturée, le jeu décerne automatiquement des <b>trophées</b> d’après les points marqués : le <b>🏆 Coach de la journée</b> (plus gros total), <b>💪 Le dominateur</b> (nettement au-dessus de la moyenne) et <b>🥶 Le flop</b> (plus petit total parmi ceux qui ont vraiment joué). Ils s’affichent sur l’accueil et changent chaque journée. C’est de la <b>distinction pure</b> : aucun budget, aucun point — juste de quoi se chambrer gentiment."],
     ['Jusqu’à quand puis-je changer mon onze ? (deadline lundi 23h00)',
      "C’est au <b>Coach</b> de déposer sa composition chaque semaine, au plus tard <b>lundi à 23h00</b>. Le onze enregistré à cette heure-là est celui pris en compte pour la semaine de compétition. Tu peux le modifier autant que tu veux <b>jusqu’à la deadline</b> ; après lundi 23h00, <b>plus aucun changement</b> n’est accepté. Si tu n’enregistres rien à temps, ton <b>dernier onze validé est rejoué automatiquement</b> — aucune pénalité, mais une compo non mise à jour peut te coûter des points (joueurs en méforme ou qui ne jouent plus)."],
+    ['Puis-je préparer mon onze sans l’envoyer tout de suite (brouillon) ? 💾',
+     "Oui. Dans l’écran <b>Compo</b>, à côté de « Valider ma composition », le bouton <b>💾 Sauvegarder le brouillon</b> enregistre ton onze <b>sur cet appareil</b> — et il peut être <b>incomplet</b> (moins de 11, banc non rempli). C’est parfait pour préparer ton équipe, la laisser de côté, et revenir faire tes <b>changements de dernière minute</b> avant de trancher. Tant que tu n’as pas cliqué <b>« Valider »</b>, <b>rien n’est transmis</b> : le brouillon ne compte pas, n’apparaît pas dans la Galerie et n’affecte ni ton classement ni ta série d’assiduité. Quand tu reviens, un bandeau <b>« Brouillon enregistré »</b> te propose de le <b>Reprendre</b> ou de le <b>Supprimer</b>. L’<b>envoi définitif</b> (Valider), lui, exige toujours un onze <b>complet et valide</b> (11 titulaires), et efface le brouillon. Note : le brouillon étant local, tu le retrouves sur l’appareil où tu l’as créé, pas automatiquement sur un autre."],
     ['Un match a été reporté au lundi soir : il compte pour quelle semaine ?',
      "Pour la <b>semaine précédente</b>, pas la nouvelle. On distingue deux périodes : la <b>notation</b> se termine après le dernier match comptabilisé de la semaine (reports du lundi soir inclus), et le <b>dépôt</b> des compos se termine lundi 23h00 pour la semaine suivante. Ainsi un match reporté ne perturbe jamais le classement de la nouvelle journée."],
   ]],
@@ -7893,6 +7901,26 @@ async function loadLineupForMatchday(mdId){
   setLineupBtnSaved(LINEUP_SELECTED.size===11 && !existing?.reconducted);
   $('btnSaveLineup').onclick = ()=>saveLineup(mdId, teamArg);
 
+  // --- BROUILLON : bouton + bandeau (uniquement sur journée OUVERTE) ---------
+  {
+    const isClosed = md && md.status==='closed';
+    const sd = $('btnSaveDraft'), dh = $('lineupDraftHint');
+    if(sd) sd.style.display = isClosed ? 'none' : '';
+    if(dh) dh.style.display = isClosed ? 'none' : '';
+    if(sd && !isClosed){
+      sd.onclick = ()=>{
+        if(LINEUP_SELECTED.size===0 && LINEUP_BENCH.length===0){
+          toast('Rien à sauvegarder pour l\'instant — ajoute au moins un joueur.','info',3000); return;
+        }
+        const ok = saveLineupDraftNow(mdId, teamArg);
+        toast(ok ? '💾 Brouillon enregistré sur cet appareil. Clique « Valider » pour l\'envoi définitif.'
+                 : 'Impossible d\'enregistrer le brouillon sur cet appareil.', ok?'ok':'err', 4000);
+        renderLineupDraftBanner(mdId, teamArg, existing, mine);
+      };
+    }
+    renderLineupDraftBanner(mdId, teamArg, isClosed ? null : existing, mine);
+  }
+
   // Bouton « Voir ma formation envoyée » : visible dès qu'une compo (11) est
   // enregistrée. Affiche la formation sur le terrain (onze + banc), en lecture.
   {
@@ -8277,6 +8305,68 @@ function updateLineupCounter(){
     }
   }
 }
+// ======================= BROUILLON DE COMPO (local) =======================
+// Un coach peut SAUVEGARDER son onze comme brouillon (sur cet appareil), même
+// INCOMPLET, avant l'envoi définitif. Le brouillon n'est JAMAIS transmis au
+// serveur : il ne compte pas, n'apparaît pas dans la Galerie et n'affecte ni le
+// classement ni l'assiduité. Seul « Valider » envoie réellement la compo.
+// Clé par journée × équipe (pour gérer aussi les dépannages).
+function lineupDraftKey(mdId, teamArg){
+  const team = teamArg || (LINEUP_TEAM || 'own');
+  return `us_lineup_draft_${mdId}_${team}`;
+}
+function saveLineupDraftNow(mdId, teamArg){
+  const payload = {
+    players: Array.from(LINEUP_SELECTED),
+    bench: LINEUP_BENCH.filter(id=> !LINEUP_SELECTED.has(id)),
+    leader: (LINEUP_LEADER && LINEUP_SELECTED.has(LINEUP_LEADER)) ? LINEUP_LEADER : null,
+    at: Date.now()
+  };
+  try { localStorage.setItem(lineupDraftKey(mdId, teamArg), JSON.stringify(payload)); return true; }
+  catch(e){ return false; }
+}
+function readLineupDraft(mdId, teamArg){
+  try { const d = localStorage.getItem(lineupDraftKey(mdId, teamArg)); return d ? JSON.parse(d) : null; }
+  catch(e){ return null; }
+}
+function clearLineupDraft(mdId, teamArg){
+  try { localStorage.removeItem(lineupDraftKey(mdId, teamArg)); } catch(e){}
+}
+// Applique un brouillon aux sélections courantes puis rerend.
+function applyLineupDraft(draft, mine){
+  const ids = new Set((mine||LINEUP_MINE||[]).map(p=>p.id));   // joueurs encore dans l'effectif
+  LINEUP_SELECTED = new Set((draft.players||[]).filter(id=>ids.has(id)).slice(0,11));
+  LINEUP_BENCH = (draft.bench||[]).filter(id=> ids.has(id) && !LINEUP_SELECTED.has(id));
+  LINEUP_LEADER = (draft.leader && LINEUP_SELECTED.has(draft.leader)) ? draft.leader : null;
+  renderLineupPlayers(mine||LINEUP_MINE);
+  updateLineupCounter();
+}
+// Bandeau « tu as un brouillon » : proposé quand un brouillon local existe et
+// qu'il n'est pas déjà appliqué tel quel. On le montre surtout s'il est plus
+// récent que la dernière compo envoyée.
+function renderLineupDraftBanner(mdId, teamArg, existing, mine){
+  const host = $('lineupDraftBanner'); if(!host) return;
+  const draft = readLineupDraft(mdId, teamArg);
+  if(!draft){ host.innerHTML=''; return; }
+  const n = (draft.players||[]).length;
+  const d = new Date(draft.at||Date.now());
+  const when = d.toLocaleString('fr-FR',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
+  // Le brouillon est-il « plus récent » que la compo envoyée ?
+  const sentAt = existing?.updated_at ? new Date(existing.updated_at).getTime() : 0;
+  const newer = (draft.at||0) > sentAt;
+  host.innerHTML = `<div style="background:rgba(245,197,66,.10);border:1px solid var(--transfer);border-radius:10px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+    <div style="font-size:.82rem">💾 <b>Brouillon enregistré</b> ${newer?'<span style="color:var(--transfer)">(non envoyé)</span>':''}
+      <span style="color:var(--muted)">— ${n}/11 titulaires · ${when}</span></div>
+    <div style="display:flex;gap:6px">
+      <button id="btnRestoreDraft" class="bid-btn" style="width:auto;margin:0;padding:5px 11px;font-size:.78rem">↩︎ Reprendre</button>
+      <button id="btnDropDraft" class="bid-btn" style="width:auto;margin:0;padding:5px 11px;font-size:.78rem;background:var(--pitch);border:1px solid var(--line);color:var(--muted)">🗑️ Supprimer</button>
+    </div></div>`;
+  const rb = $('btnRestoreDraft');
+  if(rb) rb.onclick = ()=>{ applyLineupDraft(draft, mine); setLineupBtnSaved(false); toast('Brouillon repris — n\'oublie pas de Valider pour l\'envoi définitif.','info',4000); renderLineupDraftBanner(mdId, teamArg, existing, mine); };
+  const db = $('btnDropDraft');
+  if(db) db.onclick = ()=>{ clearLineupDraft(mdId, teamArg); host.innerHTML=''; toast('Brouillon supprimé.','info',2500); };
+}
+
 async function saveLineup(mdId, teamArg){
   if(LINEUP_SELECTED.size!==11){ toast('Il faut exactement 11 titulaires.','err'); return; }
   // Sécurité : un réserviste ne doit pas être aussi titulaire.
@@ -8304,6 +8394,9 @@ async function saveLineup(mdId, teamArg){
   }
   const bTxt = bench.length ? ` (+ banc complet : 1 DÉF, 1 MIL, 1 ATT)` : '';
   $('lineupResult').innerHTML = `<span style="color:#4ade80">✓ Composition enregistrée${bTxt} ! Tu peux la modifier à tout moment avant la clôture.</span>`;
+  // Envoi définitif réussi → le brouillon local n'a plus lieu d'être.
+  clearLineupDraft(mdId, teamArg);
+  const db = $('lineupDraftBanner'); if(db) db.innerHTML='';
   // Le bouton passe en état VALIDÉ (vert, ✓) pour lever le doute d'Audrey.
   if(btn) btn.disabled = false;
   setLineupBtnSaved(true);
