@@ -2207,7 +2207,13 @@ export async function vmatchCreatedToday() {
 // Quota complet du jour (base 5 + bonus de série) → {used, base, streak, threshold, bonus, limit, remaining}
 export async function vmatchQuota() {
   const { data } = await sb.rpc('qm_vmatch_quota');
-  return data ?? { used: 0, base: 5, streak: 0, threshold: 3, bonus: 0, limit: 5, remaining: 5 };
+  return data ?? { used: 0, base: 5, streak: 0, threshold: 3, bonus: 0, limit: 5, remaining: 5, kora: 0, kora_pass_cost: 10, passes: 0 };
+}
+// Achat d'un Pass (10 Koras → +1 invitation VM du jour). Renvoie le quota à jour.
+export async function buyVmatchPass() {
+  const { data, error } = await sb.rpc('qm_buy_vmatch_pass');
+  if (error) return { __error: error.message };
+  return data;
 }
 export async function vmatchCreate(opponentId, eleven) {
   // On cible explicitement la version à jour (4 params → plafond 5 + bonus série),
@@ -2310,6 +2316,12 @@ export async function leagueMatches(leagueId) {
   const { data, error } = await sb.rpc('qm_league_matches', { p_id: leagueId });
   if (error) return { __error: error.message };
   return data ?? [];
+}
+// Feuille complète d'un match de ligue (même forme que vmatchGet).
+export async function leagueMatchSheet(matchId) {
+  const { data, error } = await sb.rpc('qm_league_match_sheet', { p_match_id: matchId });
+  if (error) return { __error: error.message };
+  return data;
 }
 
 // Match retour : le défié (B) demande un retour que A devra accepter.

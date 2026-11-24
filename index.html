@@ -2202,6 +2202,7 @@
           <li>Le résultat est <b>déterministe</b> : une équipe plus forte a l'avantage, mais l'exploit reste possible — comme au vrai foot.</li>
           <li>C'est <b>amical</b> : ça rapporte du <b>flair</b> (victoire +2, nul +1, +1 si l'homme du match sort de ton équipe), <b>sans aucun impact</b> sur le classement officiel, le budget ou les notes de journée.</li>
           <li>Tu peux lancer jusqu'à <b>5 défis par jour</b> — et si tu <b>enchaînes 3 victoires d'affilée</b>, tu débloques une <b>6<sup>e</sup> invitation bonus</b> 🔥 pour la journée. Un défi que tu <b>annules</b>, ou qu'un adversaire <b>refuse</b>, <b>ne consomme pas</b> ton quota — seuls les défis joués ou en attente de réponse comptent. Tu retrouves tous tes résultats dans l'<b>historique</b>.</li>
+          <li>🪙 <b>Les Koras</b> : chaque <b>victoire</b> en match virtuel te rapporte <b>1 Kora</b>. Avec <b>10 Koras</b>, tu achètes un <b>Pass</b> qui t'offre une <b>invitation supplémentaire</b> pour la journée, en plus de tes 5 quotidiennes (et du bonus de série). Le solde et le bouton d'achat sont en tête de l'écran Matchs virtuels.</li>
           <li>Avant chaque match tu choisis une <b>mentalité</b> : <b>offensif</b> (tu crées plus d'occasions mais tu t'exposes), <b>équilibré</b> ou <b>défensif</b> (tu te refermes). Ça influe sur le déroulé — à toi de t'adapter à l'adversaire.</li>
           <li>La feuille de match affiche les <b>temps forts minute par minute</b> (buts ⚽, grosses occasions, cartons 🟨🟥), l'homme du match et toutes les statistiques.</li>
           <li>Depuis l'historique, le bouton <b>🔄 Revanche</b> relance un défi vers le même adversaire, et tu vois ton <b>bilan tête-à-tête</b> (V-N-D) quand tu choisis un adversaire.</li>
@@ -11625,6 +11626,23 @@ async function renderVmatch(){
       ⏳ Fenêtre en cours — il te reste <b style="color:var(--chalk)">${vmFmtDuration(win.seconds_left)}</b> pour défier et jouer.</div>`;
   }
 
+  // --- Porte-monnaie KORA : solde + achat de Pass (invitation supplémentaire) ---
+  {
+    const kora = quota ? (quota.kora|0) : 0;
+    const passCost = quota ? (quota.kora_pass_cost|10) : 10;
+    const passes = quota ? (quota.passes|0) : 0;
+    const canBuy = winOpen && kora >= passCost;
+    html += `<div class="card" style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(168,85,247,.08));border:1px solid var(--transfer);border-radius:12px;padding:12px 15px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <div style="font-weight:800;font-size:.95rem">🪙 ${kora} Kora${kora>1?'s':''}</div>
+          <div style="font-size:.74rem;color:var(--muted)">+1 Kora par victoire · ${passCost} Koras = 1 Pass (invitation en +)${passes>0?` · <b style="color:var(--transfer)">${passes} Pass actif${passes>1?'s':''} aujourd'hui</b>`:''}</div>
+        </div>
+        <button id="vmBuyPass" ${canBuy?'':'disabled'} style="background:${canBuy?'var(--transfer)':'var(--pitch)'};color:${canBuy?'#1a1a1a':'var(--muted)'};border:1px solid ${canBuy?'var(--transfer)':'var(--line)'};border-radius:8px;padding:8px 14px;font-weight:700;cursor:${canBuy?'pointer':'not-allowed'};white-space:nowrap">🎟️ Acheter un Pass (${passCost})</button>
+      </div>
+    </div>`;
+  }
+
   // --- Défis reçus (à moi de jouer) ---
   if(incoming.length){
     html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:var(--live,#e0574a);font-weight:800;margin:4px 0 8px">⚔️ Défis reçus · à toi de jouer</div>`;
@@ -11743,6 +11761,15 @@ async function renderVmatch(){
   // Bindings
   const nb = $('vmNewBtn');
   if(nb) nb.onclick = ()=>openElevenPicker({kind:'create', opponentId: $('vmOpponent').value, opponentName: $('vmOpponent').selectedOptions[0]?.textContent});
+  // Achat d'un Pass avec des Koras (+1 invitation du jour).
+  const bp = $('vmBuyPass');
+  if(bp) bp.onclick = async ()=>{
+    bp.disabled = true; bp.textContent = '…';
+    const r = await api.buyVmatchPass();
+    if(r && r.__error){ alert(r.__error); }
+    else { toast('🎟️ Pass acheté ! +1 invitation pour aujourd\'hui.','ok',3500); }
+    renderVmatch();
+  };
   const osel = $('vmOpponent');
   if(osel){
     const showH2H = async ()=>{
@@ -11859,7 +11886,7 @@ async function renderLeagueStandings(leagueId, host){
         <span style="flex:1;text-align:right">${vmEsc(m.home_team)}</span>
         <b style="font-family:'Saira',monospace">${m.home_goals} – ${m.away_goals}</b>
         <span style="flex:1;text-align:left">${vmEsc(m.away_team)}</span></button>`).join('')}</div>`:''}`;
-  host.querySelectorAll('[data-lgmatch]').forEach(b=>b.onclick=()=>showMatchSheet(b.dataset.lgmatch, false));
+  host.querySelectorAll('[data-lgmatch]').forEach(b=>b.onclick=()=>showLeagueMatchSheet(b.dataset.lgmatch));
 }
 
 async function renderLeagueHistory(host){
@@ -12440,6 +12467,21 @@ async function showMatchSheet(matchId, freshPlay){
   renderSheetWithTabs(modal, r, g.team_a, g.team_b, lu, matchId, ()=>{ ov.style.display='none'; renderVmatch(); }, freshPlay);
 }
 
+// Feuille complète d'un match de LIGUE (même rendu que les matchs virtuels).
+async function showLeagueMatchSheet(matchId){
+  const ov = $('vmSheetOverlay'), modal = $('vmSheetModal');
+  if(!ov||!modal) return;
+  modal.innerHTML = '<div class="empty" style="padding:30px">Chargement…</div>';
+  ov.style.display='flex';
+  const g = await api.leagueMatchSheet(matchId);
+  if(g&&g.__error){ modal.innerHTML=`<div class="empty" style="padding:20px">${g.__error}</div>`; return; }
+  const r = g && g.result;
+  if(!r){ modal.innerHTML='<div class="empty" style="padding:20px">Feuille de match indisponible.</div>'; return; }
+  // Pas de compos détaillées ni de direct pour la ligue : on affiche la feuille
+  // figée (stats + récit) comme un match virtuel déjà joué.
+  renderSheetWithTabs(modal, r, g.team_a, g.team_b, null, null, ()=>{ ov.style.display='none'; }, false);
+}
+
 // Feuille de match à onglets : Stats | Récit. Le récit est chargé à la demande.
 function renderSheetWithTabs(modal, result, teamA, teamB, lineups, matchId, onClose, freshPlay){
   if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();   // coupe une animation précédente
@@ -12486,8 +12528,14 @@ function renderSheetWithTabs(modal, result, teamA, teamB, lineups, matchId, onCl
     if(VM_LIVE && VM_LIVE.stop) VM_LIVE.stop();
     modal.innerHTML = header('Récit du match')+tabBar+`<div id="vmTabBody"><div class="empty" style="padding:24px">Rédaction du compte-rendu…</div></div>`;
     wireTabs(); bindClose(); markActive('recit');
-    const n = await api.vmatchNarrative(matchId);
     const body = $('vmTabBody'); if(!body) return;
+    // Match de ligue (pas d'id vmatch) : pas de récit serveur → on invite à
+    // consulter le Direct / les Stats, qui sont bien réels.
+    if(!matchId){
+      body.innerHTML = '<div class="empty" style="padding:18px">Récit détaillé non disponible pour les matchs de ligue. Consulte le <b>Direct</b> (match rejoué minute par minute) et les <b>Stats</b> complètes.</div>';
+      return;
+    }
+    const n = await api.vmatchNarrative(matchId);
     if(n&&n.__error){ body.innerHTML=`<div class="empty" style="padding:18px">${n.__error}</div>`; return; }
     body.innerHTML = narrativeHTML(n, teamA, teamB);
   };
