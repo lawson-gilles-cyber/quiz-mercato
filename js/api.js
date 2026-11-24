@@ -2215,6 +2215,24 @@ export async function buyVmatchPass() {
   if (error) return { __error: error.message };
   return data;
 }
+// Achat d'un joker de carte ruse (6 Koras). Renvoie le quota à jour.
+export async function buyKoraJoker() {
+  const { data, error } = await sb.rpc('qm_buy_kora_joker');
+  if (error) return { __error: error.message };
+  return data;
+}
+// Relevé des Koras du manager (gains/dépenses datés).
+export async function koraStatement(limit = 40) {
+  const { data, error } = await sb.rpc('qm_kora_statement', { p_limit: limit });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+// Classement des plus riches (Koras gagnés).
+export async function koraRichRanking(limit = 20) {
+  const { data, error } = await sb.rpc('qm_kora_rich_ranking', { p_limit: limit });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
 export async function vmatchCreate(opponentId, eleven) {
   // On cible explicitement la version à jour (4 params → plafond 5 + bonus série),
   // car les anciennes surcharges (2/3 params) gardaient le plafond de 3.

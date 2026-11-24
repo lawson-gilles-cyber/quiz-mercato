@@ -11626,20 +11626,32 @@ async function renderVmatch(){
       ⏳ Fenêtre en cours — il te reste <b style="color:var(--chalk)">${vmFmtDuration(win.seconds_left)}</b> pour défier et jouer.</div>`;
   }
 
-  // --- Porte-monnaie KORA : solde + achat de Pass (invitation supplémentaire) ---
+  // --- Porte-monnaie KORA : solde + boutique (Pass, joker) + relevé ---
   {
     const kora = quota ? (quota.kora|0) : 0;
     const passCost = quota ? (quota.kora_pass_cost|10) : 10;
+    const jokerCost = quota ? (quota.kora_joker_cost|6) : 6;
     const passes = quota ? (quota.passes|0) : 0;
-    const canBuy = winOpen && kora >= passCost;
+    const jokers = quota ? (quota.jokers|0) : 0;
+    const canPass  = winOpen && kora >= passCost;
+    const canJoker = kora >= jokerCost;
     html += `<div class="card" style="background:linear-gradient(135deg,rgba(245,197,66,.12),rgba(168,85,247,.08));border:1px solid var(--transfer);border-radius:12px;padding:12px 15px;margin-bottom:14px">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
         <div>
-          <div style="font-weight:800;font-size:.95rem">🪙 ${kora} Kora${kora>1?'s':''}</div>
-          <div style="font-size:.74rem;color:var(--muted)">+1 Kora par victoire · ${passCost} Koras = 1 Pass (invitation en +)${passes>0?` · <b style="color:var(--transfer)">${passes} Pass actif${passes>1?'s':''} aujourd'hui</b>`:''}</div>
+          <div style="font-weight:800;font-size:1rem">🪙 ${kora} Kora${kora>1?'s':''}${jokers>0?` · 🃏 ${jokers} joker${jokers>1?'s':''}`:''}</div>
+          <div style="font-size:.74rem;color:var(--muted)">+1 par victoire (+1 homme du match, +1 clean sheet)${passes>0?` · <b style="color:var(--transfer)">${passes} Pass actif${passes>1?'s':''}</b>`:''}</div>
         </div>
-        <button id="vmBuyPass" ${canBuy?'':'disabled'} style="background:${canBuy?'var(--transfer)':'var(--pitch)'};color:${canBuy?'#1a1a1a':'var(--muted)'};border:1px solid ${canBuy?'var(--transfer)':'var(--line)'};border-radius:8px;padding:8px 14px;font-weight:700;cursor:${canBuy?'pointer':'not-allowed'};white-space:nowrap">🎟️ Acheter un Pass (${passCost})</button>
+        <div style="display:flex;gap:6px">
+          <button id="vmKoraRich" title="Plus riches" style="background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:.78rem;cursor:pointer">🏆 Plus riches</button>
+          <button id="vmKoraStatement" title="Relevé" style="background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:8px;padding:6px 10px;font-size:.78rem;cursor:pointer">📜 Relevé</button>
+        </div>
       </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button id="vmBuyPass" ${canPass?'':'disabled'} style="flex:1;min-width:140px;background:${canPass?'var(--transfer)':'var(--pitch)'};color:${canPass?'#1a1a1a':'var(--muted)'};border:1px solid ${canPass?'var(--transfer)':'var(--line)'};border-radius:8px;padding:8px 12px;font-weight:700;cursor:${canPass?'pointer':'not-allowed'};font-size:.82rem">🎟️ Pass +1 invitation (${passCost})</button>
+        <button id="vmBuyJoker" ${canJoker?'':'disabled'} style="flex:1;min-width:140px;background:${canJoker?'rgba(168,85,247,.18)':'var(--pitch)'};color:${canJoker?'#c99bff':'var(--muted)'};border:1px solid ${canJoker?'#a855f7':'var(--line)'};border-radius:8px;padding:8px 12px;font-weight:700;cursor:${canJoker?'pointer':'not-allowed'};font-size:.82rem">🃏 Joker carte ruse (${jokerCost})</button>
+      </div>
+      <div id="vmKoraStatementBox"></div>
+      <div id="vmKoraRichBox"></div>
     </div>`;
   }
 
@@ -11769,6 +11781,52 @@ async function renderVmatch(){
     if(r && r.__error){ alert(r.__error); }
     else { toast('🎟️ Pass acheté ! +1 invitation pour aujourd\'hui.','ok',3500); }
     renderVmatch();
+  };
+  // Achat d'un joker de carte ruse.
+  const bj = $('vmBuyJoker');
+  if(bj) bj.onclick = async ()=>{
+    bj.disabled = true; bj.textContent = '…';
+    const r = await api.buyKoraJoker();
+    if(r && r.__error){ alert(r.__error); }
+    else { toast('🃏 Joker acheté ! Tu pourras ajouter une carte ruse de ton choix à ton prochain défi.','ok',4000); }
+    renderVmatch();
+  };
+  // Relevé des Koras (dépliable).
+  const ks = $('vmKoraStatement');
+  if(ks) ks.onclick = async ()=>{
+    const box = $('vmKoraStatementBox'); if(!box) return;
+    if(box.dataset.open==='1'){ box.innerHTML=''; box.dataset.open='0'; return; }
+    box.dataset.open='1'; box.innerHTML='<div class="hint" style="padding:8px">Chargement…</div>';
+    const rows = await api.koraStatement(40);
+    if(rows && rows.__error){ box.innerHTML=`<div class="hint" style="padding:8px">${rows.__error}</div>`; return; }
+    if(!rows.length){ box.innerHTML='<div class="hint" style="padding:8px">Aucun mouvement pour l\'instant. Gagne un match virtuel pour ta première pièce 🪙</div>'; return; }
+    const lbl = r => r.reason==='win' ? `Victoire${r.other_team?' contre '+vmEsc(r.other_team):''}` : (r.reason==='pass'?'Achat d\'un Pass':(r.reason==='joker'?'Achat d\'un joker':r.reason));
+    box.innerHTML = `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;max-height:260px;overflow:auto">${rows.map(r=>{
+      const pos = r.delta>0;
+      const d = new Date(r.at);
+      return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:5px 2px;font-size:.8rem;border-bottom:1px solid rgba(255,255,255,.04)">
+        <span>${lbl(r)}<span style="color:var(--muted);font-size:.7rem;margin-left:5px">${d.toLocaleDateString('fr-FR',{day:'numeric',month:'short'})} ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span></span>
+        <b style="color:${pos?'#4ade80':'#e0574a'};font-family:'Saira',monospace;white-space:nowrap">${pos?'+':''}${r.delta} 🪙</b>
+      </div>`;
+    }).join('')}</div>`;
+  };
+  // Classement des plus riches (Koras gagnés).
+  const kr = $('vmKoraRich');
+  if(kr) kr.onclick = async ()=>{
+    const box = $('vmKoraRichBox'); if(!box) return;
+    if(box.dataset.open==='1'){ box.innerHTML=''; box.dataset.open='0'; return; }
+    box.dataset.open='1'; box.innerHTML='<div class="hint" style="padding:8px">Chargement…</div>';
+    const rows = await api.koraRichRanking(20);
+    if(rows && rows.__error){ box.innerHTML=`<div class="hint" style="padding:8px">${rows.__error}</div>`; return; }
+    if(!rows.length){ box.innerHTML='<div class="hint" style="padding:8px">Personne n\'a encore gagné de Kora.</div>'; return; }
+    box.innerHTML = `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;max-height:280px;overflow:auto">${rows.map(r=>{
+      const medal = r.rank===1?'🥇':r.rank===2?'🥈':r.rank===3?'🥉':r.rank;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:5px 2px;font-size:.82rem;border-bottom:1px solid rgba(255,255,255,.04);${r.is_me?'background:rgba(245,197,66,.08)':''}">
+        <span style="flex:0 0 26px;color:var(--muted);text-align:center">${medal}</span>
+        <span style="flex:1;font-weight:${r.is_me?'800':'600'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${vmEsc(r.team_name)}${r.is_me?' <span style="color:var(--transfer);font-size:.7rem">(toi)</span>':''}</span>
+        <b style="font-family:'Saira',monospace;white-space:nowrap">${r.earned} 🪙</b>
+      </div>`;
+    }).join('')}</div>`;
   };
   const osel = $('vmOpponent');
   if(osel){
@@ -13879,6 +13937,8 @@ let CHAT_NOTIF = [];
 let DM_NOTIF = [];
 // Signalement local « demandes d'ami reçues » (1 entrée par demande).
 let FRIEND_NOTIF = [];
+// Signalement local « Koras » : +gain après victoire, seuil Pass atteint.
+let KORA_NOTIF = [];
 // ---- Ouverture d'une VRAIE journée : pop-up + entrée cloche (tous managers) ----
 let MATCHDAY_NOTIF = [];   // notif(s) locale(s) d'ouverture de journée
 function mdOpenSeenSet(){
@@ -14014,6 +14074,63 @@ async function checkMatchdayOpen(){   // (nom conservé pour les appels existant
   MATCHDAY_NOTIF = notifs;
 }
 
+// ============ KORA : notification « pièce gagnée » + seuil Pass ===========
+// À chaque poll, on relit le solde de Koras (via le quota VM) et on le compare
+// au dernier solde connu (localStorage). Une hausse = une (ou plusieurs)
+// victoire(s) créditée(s) → entrée cloche + notif navigateur. Quand le solde
+// atteint le coût d'un Pass, on signale une fois que la boutique est dispo.
+// 100 % client, aucun nouveau schéma serveur.
+async function checkKoraNews(){
+  if(!ME) return;
+  let q = null;
+  try { q = await api.vmatchQuota(); } catch(e){ return; }
+  if(!q || q.__error || typeof q.kora !== 'number') return;
+  const bal = q.kora|0;
+  const passCost = (typeof q.kora_pass_cost==='number') ? q.kora_pass_cost : 10;
+  const prev = lsGet('us_kora_bal', null);     // dernier solde vu (ou null au 1er passage)
+  const notifs = [];
+
+  if(prev!=null && bal > prev){
+    const gain = bal - prev;
+    notifs.push({ kind:'kora_win', ref:'bal_'+bal,
+      title:`+${gain} Kora 🪙`,
+      detail:`Victoire en match virtuel — tu as maintenant ${bal} Kora${bal>1?'s':''}.`,
+      created_at:new Date().toISOString() });
+    // Pop-up discret de célébration (une fois par palier de solde).
+    const celebrated = lsGet('us_kora_celebrated', []);
+    if(!celebrated.includes(bal)){
+      celebrated.push(bal); lsSet('us_kora_celebrated', celebrated.slice(-80));
+      if(document.visibilityState==='visible'){
+        try { toast(`🪙 +${gain} Kora ! Solde : ${bal}.`,'ok',3500); } catch(e){}
+      }
+    }
+  }
+
+  // Seuil « Pass achetable » franchi (une seule fois par franchissement).
+  const wasBelow = (prev==null) ? false : (prev < passCost);
+  if(bal >= passCost && (prev==null || wasBelow)){
+    const seenPass = lsGet('us_kora_pass_ready', false);
+    if(!seenPass){
+      lsSet('us_kora_pass_ready', true);
+      notifs.push({ kind:'kora_shop', ref:'pass_ready',
+        title:'Pass débloqué 🎟️',
+        detail:`Tu as ${bal} Koras : échange-les contre un Pass (+1 invitation du jour).`,
+        created_at:new Date().toISOString() });
+      if(document.visibilityState==='visible'){
+        try { showSeasonPopup('🪙', 'Tu peux acheter un Pass !',
+          `Avec <b>${passCost} Koras</b>, offre-toi une <b>invitation supplémentaire</b> à un match virtuel aujourd'hui.`,
+          'Aller aux matchs →', 'vmatch'); } catch(e){}
+      }
+    }
+  } else if(bal < passCost){
+    // Repassé sous le seuil (Pass acheté) : on réarme l'alerte pour la prochaine fois.
+    lsSet('us_kora_pass_ready', false);
+  }
+
+  lsSet('us_kora_bal', bal);
+  KORA_NOTIF = notifs;
+}
+
 // Pop-up générique de saison (réutilise l'overlay ux + une vue cible au clic).
 function showSeasonPopup(emoji, title, bodyHTML, ctaText, view){
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
@@ -14033,7 +14150,7 @@ function showSeasonPopup(emoji, title, bodyHTML, ctaText, view){
   const later=document.getElementById('seasonPopLater'), go=document.getElementById('seasonPopGo');
   if(later) later.onclick=close;
   if(go) go.onclick=()=>{ close(); const target = view || 'lineup';
-    if(target==='rank' && typeof goView==='function') goView('rank');
+    if((target==='rank'||target==='vmatch') && typeof goView==='function') goView(target);
     else { const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); } };
 }
 function showMatchdayOpenPopup(label, dlTxt){
@@ -14060,8 +14177,9 @@ async function loadNotifications(){
   if(!ME) return;
   const server = await api.myNotifications();
   try { await checkMatchdayOpen(); } catch(e){}
-  // On place les signalements locaux (demandes d'ami, DM, chat, enchères, journée) en tête.
-  NOTIFS = [...MATCHDAY_NOTIF, ...FRIEND_NOTIF, ...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
+  try { await checkKoraNews(); } catch(e){}
+  // On place les signalements locaux (demandes d'ami, DM, chat, enchères, journée, Koras) en tête.
+  NOTIFS = [...MATCHDAY_NOTIF, ...KORA_NOTIF, ...FRIEND_NOTIF, ...DM_NOTIF, ...CHAT_NOTIF, ...WATCH_NOTIFS, ...server];
   updateNotifBadge();
   maybeSystemNotify(NOTIFS);
   // Si le panneau est ouvert, on le rafraîchit en direct.
@@ -14111,7 +14229,7 @@ function maybeSystemNotify(list){
   }
   const seen = notifSeenSet();
   // Types qui déclenchent une vraie notif (actionnables / importants).
-  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend','matchday_open','matchday_closed','remind_lineup'];
+  const PUSH_KINDS = ['outbid','trade','proposal_published','proposal_changes','proposal_rejected','auction_won','watch_ending','chat','dm','friend','matchday_open','matchday_closed','remind_lineup','kora_win','kora_shop'];
   // Clé de dédoublonnage : pour watch_ending/chat/dm, on distingue par horodatage
   // (sinon un seul rappel par enchère). Une demande d'ami ne notifie qu'une fois.
   const seenKey = n => (n.kind==='watch_ending' || n.kind==='chat' || n.kind==='dm') ? (n.kind+':'+n.ref+':'+(n.created_at||n.detail||'')) : (n.kind+':'+n.ref);
@@ -14183,11 +14301,13 @@ setInterval(remCheck, 30000);
 const NOTIF_ICONS = {outbid:'warning', trade:'repeat', winning:'check',
   proposal_published:'megaphone', proposal_changes:'edit', proposal_rejected:'ban',
   auction_won:'trophy', bonus:'coins', watch_ending:'clock', chat:'chat', dm:'mail', friend:'userPlus',
-  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell', matchday_open:'soccer', matchday_closed:'trophy'};
+  remind_lineup:'clock', remind_idle_budget:'coins', remind_market_end:'bell', matchday_open:'soccer', matchday_closed:'trophy',
+  kora_win:'coins', kora_shop:'coins'};
 const NOTIF_COLORS = {outbid:'var(--live)', trade:'#5fd0e0', winning:'#4ade80',
   proposal_published:'var(--transfer)', proposal_changes:'var(--live)', proposal_rejected:'var(--muted)',
   auction_won:'#4ade80', bonus:'var(--transfer)', watch_ending:'var(--live)', chat:'#5fd0e0', dm:'var(--transfer)', friend:'#4ade80',
-  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)', matchday_open:'var(--transfer)', matchday_closed:'#4ade80'};
+  remind_lineup:'var(--live)', remind_idle_budget:'var(--transfer)', remind_market_end:'var(--live)', matchday_open:'var(--transfer)', matchday_closed:'#4ade80',
+  kora_win:'#f5c542', kora_shop:'#f5c542'};
 // Libellé de l'action proposée au clic, par type.
 const NOTIF_ACTION_LABEL = {
   outbid:'Renchérir', winning:'Voir l\'enchère', auction_won:'Voir',
@@ -14195,18 +14315,20 @@ const NOTIF_ACTION_LABEL = {
   proposal_changes:'Corriger', proposal_rejected:'Voir', bonus:'Réclamer',
   watch_ending:'Enchérir', chat:'Ouvrir le chat', dm:'Ouvrir la conversation', friend:'Voir la demande',
   remind_lineup:'Aligner ma compo', remind_idle_budget:'Aller enchérir', remind_market_end:'Compléter mon effectif',
-  matchday_open:'Composer mon onze', matchday_closed:'Voir le classement'
+  matchday_open:'Composer mon onze', matchday_closed:'Voir le classement',
+  kora_win:'Voir mes Koras', kora_shop:'Acheter un Pass'
 };
 // Notifs « à traiter » : elles demandent une décision/action du manager,
 // par opposition aux notifs d'information (tu as gagné, bonus crédité…).
-const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','friend','remind_lineup','remind_market_end','matchday_open']);
+const NOTIF_TODO = new Set(['outbid','trade','proposal_changes','watch_ending','chat','dm','friend','remind_lineup','remind_market_end','matchday_open','kora_shop']);
 // Catégorie de chaque type, pour les filtres du centre de notifications.
 const NOTIF_CAT = {
   outbid:'marche', trade:'marche', winning:'marche', auction_won:'marche', bonus:'marche',
   proposal_published:'marche', proposal_changes:'marche', proposal_rejected:'marche',
   watch_ending:'marche', remind_idle_budget:'marche', remind_market_end:'marche',
   chat:'social', dm:'social', friend:'social',
-  remind_lineup:'jeu', matchday_open:'jeu', matchday_closed:'jeu'
+  remind_lineup:'jeu', matchday_open:'jeu', matchday_closed:'jeu',
+  kora_win:'jeu', kora_shop:'jeu'
 };
 function notifCat(n){ return NOTIF_CAT[n.kind] || 'jeu'; }
 // Filtre actif du panneau (tout | todo | marche | social | jeu).
@@ -14274,6 +14396,10 @@ function notifAction(n){
       break;
     case 'matchday_closed':
       goView('rank');     // va au classement
+      break;
+    case 'kora_win':
+    case 'kora_shop':
+      goView('vmatch');   // va aux matchs virtuels (wallet Kora + boutique)
       break;
     case 'remind_idle_budget':
       goView('auctions'); // va aux enchères pour investir
