@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" type="image/png" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Narrow:wght@500;600;700&family=Archivo:wght@400;500;600;700;900&family=Oswald:wght@500;600;700&family=Saira+Condensed:wght@600;700;800;900&family=Saira:wght@500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root{
     /* === Direction « cartes flottantes » ===========================
@@ -677,15 +677,15 @@
   .tr-chip{display:inline-flex;align-items:center;gap:5px;background:var(--pitch);border:1px solid var(--line);border-radius:20px;padding:3px 10px;font-size:.8rem;margin:0 6px 6px 0}
   .tr-chip b{color:var(--transfer)}
 
-  .eyebrow{font-family:'Archivo Narrow';text-transform:uppercase;letter-spacing:3.4px;
-    font-size:.7rem;font-weight:700;margin-bottom:8px;
+  .eyebrow{font-family:'Oswald','Archivo Narrow',sans-serif;text-transform:uppercase;letter-spacing:3.4px;
+    font-size:.72rem;font-weight:600;margin-bottom:8px;
     color:var(--transfer);
     background:linear-gradient(90deg,var(--gold-bright),var(--transfer));
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   /* Focus clavier visible (accessibilité + état d'interaction) */
   a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,[tabindex]:focus-visible{
     outline:none;box-shadow:var(--ring);border-radius:8px}
-  h1{font-family:'Anton','Saira Condensed';font-weight:400;font-size:2.7rem;letter-spacing:.5px;line-height:1;margin-bottom:22px;text-transform:uppercase;
+  h1{font-family:'Oswald','Anton','Saira Condensed',sans-serif;font-weight:700;font-size:2.7rem;letter-spacing:1.5px;line-height:1.02;margin-bottom:22px;text-transform:uppercase;
     background:linear-gradient(180deg,#ffe89a 0%,#f5c542 50%,#d4a017 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
   h1 em{font-style:normal;-webkit-text-fill-color:var(--chalk)}
@@ -705,7 +705,8 @@
   .hero .status{display:flex;align-items:center;gap:10px;margin-bottom:14px}
   .dot{width:9px;height:9px;border-radius:50%;background:var(--live);box-shadow:0 0 0 0 var(--live);animation:pulse 1.6s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,90,77,.6)}70%{box-shadow:0 0 0 10px rgba(255,90,77,0)}100%{box-shadow:0 0 0 0 rgba(255,90,77,0)}}
-  .hero h2{font-size:1.9rem;font-weight:900;letter-spacing:-.5px;line-height:1.05}
+  .hero h2{font-family:'Oswald','Archivo',sans-serif;font-size:2rem;font-weight:700;letter-spacing:.5px;line-height:1.06;text-transform:uppercase}
+  .hero h2 em{font-style:normal}
   .hero p{color:var(--muted);margin-top:10px;max-width:44ch}
   .countdown{text-align:center;border-left:1px solid var(--line);padding-left:24px;display:flex;flex-direction:column;justify-content:center;align-items:center}
   .countdown .num{font-family:'Saira','Space Mono';font-size:2.6rem;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
@@ -729,7 +730,7 @@
   .pillar:hover{border-color:var(--transfer-deep);transform:translateY(-2px)}
   .pillar-ic{width:46px;height:46px;margin:0 auto 10px}
   .pillar-ic svg{width:100%;height:100%}
-  .pillar-t{font-family:'Anton','Saira Condensed';font-size:1.05rem;text-transform:uppercase;letter-spacing:.5px;color:var(--transfer);margin-bottom:4px}
+  .pillar-t{font-family:'Oswald','Anton','Saira Condensed',sans-serif;font-weight:600;font-size:1.05rem;text-transform:uppercase;letter-spacing:1px;color:var(--transfer);margin-bottom:4px}
   .pillar-d{font-size:.78rem;color:var(--muted);line-height:1.35}
   @media(max-width:640px){.pillars{grid-template-columns:1fr;gap:10px}.pillar{display:flex;align-items:center;gap:14px;text-align:left;padding:12px 16px}.pillar-ic{margin:0;width:38px;height:38px;flex-shrink:0}}
   .news{border:1px solid var(--line);border-radius:var(--r);padding:17px;
@@ -974,7 +975,7 @@
   @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
   /* Règlement / charte */
   .rule-block{border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-bottom:16px;background:var(--pitch-2)}
-  .rule-h{font-family:'Archivo';font-weight:800;font-size:1.1rem;color:var(--transfer);margin-bottom:10px}
+  .rule-h{font-family:'Oswald','Archivo',sans-serif;font-weight:600;font-size:1.14rem;letter-spacing:.6px;text-transform:uppercase;color:var(--transfer);margin-bottom:10px}
   .rule-p{color:var(--chalk);font-size:.92rem;line-height:1.6}
   .rule-ul{list-style:none;padding:0;margin:0}
   .rule-ul li{color:var(--chalk);font-size:.92rem;line-height:1.6;padding-left:20px;position:relative;margin-bottom:6px}
@@ -984,7 +985,7 @@
   .rule-ol li::marker{color:var(--transfer);font-weight:700}
   :focus-visible{outline:2px solid var(--transfer);outline-offset:2px}
   /* FAQ (accordéon) */
-  .faq-group-h{font-family:'Archivo';font-weight:800;font-size:.82rem;text-transform:uppercase;letter-spacing:1.2px;color:var(--transfer);margin:22px 0 8px}
+  .faq-group-h{font-family:'Oswald','Archivo',sans-serif;font-weight:600;font-size:.86rem;text-transform:uppercase;letter-spacing:1.6px;color:var(--transfer);margin:22px 0 8px}
   .faq-group-h:first-child{margin-top:0}
   .faq-item{border:1px solid var(--line);border-radius:10px;margin-bottom:8px;background:var(--pitch-2);overflow:hidden}
   .faq-q{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;text-align:left;background:none;border:none;cursor:pointer;color:var(--chalk);font-family:'Archivo Narrow';font-weight:700;font-size:.98rem;padding:13px 15px}
@@ -9025,26 +9026,43 @@ async function renderHome(){
   try { marketOpen = await api.marketIsOpen(); } catch(e){}
   if(marketIsClosedNow()) marketOpen = false;
   MARKET_OPEN = marketOpen;   // mémorisé pour le ruban (masque l'actu transferts si fermé)
-  $('homeStatus').textContent = marketOpen ? 'Mercato ouvert' : 'Saison en cours';
-
   // Helpers d'écriture.
   const setTxt=(id,t)=>{ const el=$(id); if(el) el.textContent=t; };
   const setHTML=(id,t)=>{ const el=$(id); if(el) el.innerHTML=t; };
 
-  // ---- Bloc héros + piliers + cartes : adaptés à la PHASE ----
+  // Phase « intersaison » : mercato fermé ET une reprise des championnats est
+  // planifiée (compte à rebours). On lit la date de reprise directement pour que
+  // la phase soit correcte dès le premier affichage.
+  if(!marketOpen && SEASON_RESUME_AT == null){
+    try { SEASON_RESUME_AT = await api.seasonResumeAt(); } catch(e){}
+  }
+  const resumeFuture = SEASON_RESUME_AT ? (new Date(SEASON_RESUME_AT).getTime() > Date.now()) : false;
+  const interseason = !marketOpen && (resumeFuture || !!(MERCATO_NEXT && (MERCATO_NEXT.starts_at || MERCATO_NEXT.id)));
+
+  // Libellé d'état (ton « 24 » : opérationnel, majuscules).
+  $('homeStatus').textContent = marketOpen ? 'Mercato ouvert · temps réel'
+                              : (interseason ? 'Intersaison · reprise imminente' : 'Saison en cours');
+
+  // ---- Bloc héros + piliers + cartes : adaptés à la PHASE (ton « 24 Chrono ») ----
   if(marketOpen){
-    setHTML('homeHeroTitle','Le mercato <em style="color:var(--transfer)">Ultimate Squad</em>.<br>Constitue ton effectif.');
-    setTxt('homeHeroText','Enchéris sur de vrais joueurs, bâtis une équipe de 21, et marque des points grâce à leurs performances réelles. À toi de dénicher les pépites et de gérer ton budget.');
+    setHTML('homeHeroTitle','Le mercato est <em style="color:var(--transfer)">ouvert</em>.<br>Le compte à rebours est lancé.');
+    setTxt('homeHeroText','Chaque enchère est une course contre la montre : repère la pépite, place ton offre au bon moment et bâtis ton effectif de 21 avant la clôture. Hésiter, c\'est déjà perdre le joueur.');
     // Piliers « mercato »
-    setTxt('homePillar1T','Mercato en direct'); setTxt('homePillar1D','Enchères temps réel sur de vrais joueurs');
-    setTxt('homePillar2T','Tactique avancée');  setTxt('homePillar2D','Aligne tes 11 titulaires chaque journée');
-    setTxt('homePillar3T','Défis exclusifs');   setTxt('homePillar3D','Bonus, coups de poker et récompenses');
+    setTxt('homePillar1T','Enchères en direct'); setTxt('homePillar1D','Chaque seconde compte — surenchéris avant la clôture');
+    setTxt('homePillar2T','Flair de dénicheur'); setTxt('homePillar2D','Déniche les pépites avant les autres managers');
+    setTxt('homePillar3T','Coups de poker');     setTxt('homePillar3D','Bonus, paris audacieux et grosses récompenses');
+  } else if(interseason){
+    setHTML('homeHeroTitle','Intersaison.<br>La <em style="color:var(--transfer)">reprise</em> approche.');
+    setTxt('homeHeroText','Le championnat redémarre bientôt — le chrono tourne. En attendant, garde la main : défie les managers en matchs virtuels, joue la Ligue de la semaine et empoche des Koras.');
+    setTxt('homePillar1T','Matchs virtuels');    setTxt('homePillar1D','Défie qui tu veux et grimpe les classements');
+    setTxt('homePillar2T','Ligue de la semaine'); setTxt('homePillar2D','Tous contre tous — primes Koras à la clé');
+    setTxt('homePillar3T','Prêt pour la reprise'); setTxt('homePillar3D','Peaufine ta compo avant le coup d\'envoi');
   } else {
-    setHTML('homeHeroTitle','La <em style="color:var(--transfer)">saison</em> est lancée.<br>Fais briller ton effectif.');
-    setTxt('homeHeroText','Le mercato est clos et ton équipe est bâtie. Chaque journée, compose ton onze, grimpe au classement, relève des défis et affronte les autres managers en matchs virtuels.');
+    setHTML('homeHeroTitle','La <em style="color:var(--transfer)">saison</em> est lancée.<br>Chaque journée compte.');
+    setTxt('homeHeroText','Le mercato est clos, ton effectif est en place. Dépose ta compo avant la deadline, suis tes points en direct, grimpe au classement et règle tes comptes en matchs virtuels.');
     // Piliers « jeu »
-    setTxt('homePillar1T','Compo de la journée'); setTxt('homePillar1D','Aligne tes 11 + 3 remplaçants et ton leader');
-    setTxt('homePillar2T','Classement & points'); setTxt('homePillar2D','Les vraies perfs de tes joueurs te font grimper');
+    setTxt('homePillar1T','Compo de la journée'); setTxt('homePillar1D','Aligne ton onze + ton banc avant la deadline');
+    setTxt('homePillar2T','Classement en direct'); setTxt('homePillar2D','Les vraies perfs de tes joueurs te font grimper');
     setTxt('homePillar3T','Matchs virtuels');     setTxt('homePillar3D','Défie les autres managers et suis le direct');
   }
 
@@ -9229,10 +9247,12 @@ async function maybeShowDailyQuiz(){
 // COMPTE À REBOURS vers la reprise des championnats (intersaison)
 // ======================================================================
 let RESUME_TIMER = null;
+let SEASON_RESUME_AT = null;   // date de reprise planifiée (intersaison), mémorisée pour l'accueil
 async function renderResumeCountdown(){
   const box = $('resumeCountdown'); if(!box) return;
   let when = null;
   try { when = await api.seasonResumeAt(); } catch(e){}
+  SEASON_RESUME_AT = when || null;   // mémorisé pour la détection de phase à l'accueil
   if(RESUME_TIMER){ clearInterval(RESUME_TIMER); RESUME_TIMER = null; }
   if(!when){ box.style.display='none'; box.innerHTML=''; return; }
   const target = new Date(when).getTime();
