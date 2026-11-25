@@ -2367,6 +2367,18 @@ export async function leagueMatchSheet(matchId) {
   if (error) return { __error: error.message };
   return data;
 }
+// Mes rencontres de la ligue (à jouer / jouées) — mode manuel.
+export async function leagueMyMatches(leagueId) {
+  const { data, error } = await sb.rpc('qm_league_my_matches', { p_id: leagueId });
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
+// Jouer UNE rencontre de la ligue (l'un des deux managers la lance).
+export async function leaguePlayMatch(matchId) {
+  const { data, error } = await sb.rpc('qm_league_play_match', { p_match: matchId });
+  if (error) return { __error: error.message };
+  return data;
+}
 
 // Match retour : le défié (B) demande un retour que A devra accepter.
 // mg = {plan, claim, cards} (optionnel).

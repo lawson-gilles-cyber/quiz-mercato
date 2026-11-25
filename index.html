@@ -2259,8 +2259,9 @@
         <h3 class="rule-h">37. La Ligue de la semaine</h3>
         <p class="rule-p">Chaque semaine, une <b>ligue automatique</b> fait s'affronter <b>tous les inscrits</b> en matchs virtuels, <b>chacun contre chacun</b> (round-robin). Elle s'ouvre le <b>lundi à 6h</b> et se clôt le <b>dimanche à 20h</b> (heure de Paris), puis reste consultable dans l'<b>historique</b>.</p>
         <ol class="rule-ol">
-          <li><b>Inscription</b> : à l'ouverture, chaque manager reçoit une <b>invitation</b> (via la cloche). Tu réponds <b>✅ Je participe</b> ou <b>❌ Pas cette semaine</b>. Dès que <b>tout le monde a répondu</b> (et qu'il y a au moins 2 inscrits), la ligue <b>se lance automatiquement</b> — sinon elle se lance le dimanche 20h avec les inscrits présents.</li>
-          <li><b>Ton onze</b> : la ligue réutilise ta <b>dernière composition connue</b>. Il faut avoir <b>11 titulaires encore dans ton effectif</b> ; sinon tu es écarté du classement (un avertissement te prévient). Pas de mentalité ni de mind game : tout le monde est à égalité, mentalité équilibrée.</li>
+          <li><b>Inscription</b> : à l'ouverture, chaque manager reçoit une <b>invitation</b> (via la cloche). Tu réponds <b>✅ Je participe</b> ou <b>❌ Pas cette semaine</b>. Dès que <b>tout le monde a répondu</b> (et qu'il y a au moins 2 inscrits), le <b>calendrier est généré</b> : toutes les rencontres apparaissent « à jouer ».</li>
+          <li>🎮 <b>Tu joues tes rencontres toi-même.</b> Chaque match de la ligue se lance <b>manuellement</b> : pour une rencontre donnée, <b>l'un des deux adversaires</b> clique « Jouer » et le match se joue (l'autre voit le résultat). Les rencontres <b>non jouées d'ici le dimanche 20h ne comptent pas</b> : le classement ne retient que les matchs réellement disputés.</li>
+          <li><b>Ton onze</b> : la ligue réutilise ta <b>dernière composition connue</b> (figée à la génération du calendrier). Il faut avoir <b>11 titulaires encore dans ton effectif</b> ; sinon tu es écarté du classement (un avertissement te prévient). Pas de mentalité ni de mind game : tout le monde est à égalité, mentalité équilibrée.</li>
           <li><b>Classement</b> : barème football (<b>victoire 3, nul 1, défaite 0</b>), départage par différence de buts puis buts marqués. Podium 🥇🥈🥉, ton équipe surlignée.</li>
           <li><b>🎭 Un thème par semaine</b> change une règle, pour que chaque édition soit différente (tiré de façon équitable selon la semaine) :
             <ul class="rule-ul" style="margin-top:4px">
@@ -5391,7 +5392,7 @@ const FAQ_DATA = [
     ['C’est quoi les Koras 🪙 et à quoi ça sert ?',
      "La <b>Kora</b> est la monnaie <b>amicale</b> des matchs virtuels (aucun lien avec ton budget, ton classement ou tes notes). Tu en gagnes <b>1 à 3 par victoire</b> (base +1, +1 si l’homme du match sort de ton équipe, +1 pour un clean sheet), ainsi que par les <b>primes de la Ligue de la semaine</b> (podium, victoires, invaincu, titres). Un nul ou une défaite ne rapporte rien. Tu les dépenses dans la <b>boutique</b> (en tête de l’écran Matchs virtuels) : un <b>🎟️ Pass</b> (10 Koras) = une invitation supplémentaire pour la journée ; un <b>🃏 Joker de carte ruse</b> (6 Koras) = une carte du jeu psychologique de ton choix à ajouter à ton prochain défi. Le bouton <b>📜 Relevé</b> montre tes gains/dépenses, et <b>🏆 Plus riches</b> classe les managers par Koras gagnés. La cloche te prévient quand tu gagnes des Koras et quand tu peux t’offrir un Pass. La Kora ne s’achète pas et ne se transfère pas : elle se mérite sur le terrain."],
     ['C’est quoi la « Ligue de la semaine » ? 🏆',
-     "Une <b>ligue automatique</b> qui fait s’affronter <b>tous les inscrits</b> en matchs virtuels, <b>chacun contre chacun</b>. Elle s’ouvre le <b>lundi 6h</b> et se clôt le <b>dimanche 20h</b> (heure de Paris). À l’ouverture, tu reçois une <b>invitation</b> (cloche) : réponds <b>✅ Je participe</b> ou <b>❌ Pas cette semaine</b>. Dès que tout le monde a répondu (≥ 2 inscrits), la ligue se <b>lance automatiquement</b> ; sinon elle part dimanche 20h avec les présents. Elle réutilise ta <b>dernière compo</b> (il te faut 11 titulaires encore dans ton effectif, sinon tu es écarté). Classement 3/1/0, podium 🥇🥈🥉. <b>Chaque semaine a un thème</b> qui change une règle : ⚽ Classique, 🎯 Canonnier (buts prioritaires au départage), 🛡️ Blindée (+1 Kora par clean sheet), ⚡ Chaos (victoire 4 pts, nul 0). À la clé : des <b>Koras</b> (podium 10/6/3, +1 par victoire, +3 si invaincu) et des <b>titres honorifiques</b> (🛡️ Mur, 🎯 Canonnier, 🧱 Invincible, +2 Koras chacun). Tout est amical : aucun effet sur le classement officiel ou le budget. Les éditions passées restent dans l’<b>historique</b>."],
+     "Une <b>ligue hebdomadaire</b> qui fait s’affronter <b>tous les inscrits</b>, <b>chacun contre chacun</b>. Elle s’ouvre le <b>lundi 6h</b> et se clôt le <b>dimanche 20h</b> (heure de Paris). À l’ouverture, tu reçois une <b>invitation</b> (cloche) : réponds <b>✅ Je participe</b> ou <b>❌ Pas cette semaine</b>. Dès que tout le monde a répondu (≥ 2 inscrits), le <b>calendrier est généré</b>. ⚠️ <b>Tu joues ensuite tes rencontres toi-même</b> : pour chaque match, l’un des deux adversaires clique « Jouer » (l’autre voit le résultat). Les rencontres <b>non jouées avant dimanche 20h ne comptent pas</b>. La ligue réutilise ta <b>dernière compo</b> (il te faut 11 titulaires encore dans ton effectif, sinon tu es écarté). Classement 3/1/0, podium 🥇🥈🥉. <b>Chaque semaine a un thème</b> qui change une règle : ⚽ Classique, 🎯 Canonnier (buts prioritaires au départage), 🛡️ Blindée (+1 Kora par clean sheet), ⚡ Chaos (victoire 4 pts, nul 0). À la clé : des <b>Koras</b> (podium 10/6/3, +1 par victoire, +3 si invaincu) et des <b>titres honorifiques</b> (🛡️ Mur, 🎯 Canonnier, 🧱 Invincible, +2 Koras chacun). Tout est amical : aucun effet sur le classement officiel ou le budget. Les éditions passées restent dans l’<b>historique</b>."],
     ['Pourquoi « limite atteinte » alors que j’avais débloqué une invitation en plus ?',
      "Ce bug est corrigé. L’<b>invitation bonus</b> gagnée en enchaînant <b>3 victoires</b> reste désormais <b>acquise toute la journée</b> : elle ne disparaît plus si tu quittes puis reviens dans l’appli, même si ta série est ensuite interrompue. Si le message persiste, force le rechargement (Ctrl+Maj+R sur PC, ferme/rouvre l’appli sur mobile) : tu utilises peut-être encore une ancienne version en cache."],
     ['Je ne peux pas acheter de Pass / de Joker, pourquoi ?',
@@ -12106,7 +12107,7 @@ async function renderLeagueBanner(){
         <div style="font-size:.74rem;color:var(--muted)">clôture dans <b style="color:var(--chalk)">${cd}</b></div>
       </div>
       ${affiche}
-      <p style="font-size:.84rem;color:var(--muted);margin:6px 0 10px">Tous les inscrits s'affrontent en matchs virtuels (chacun contre chacun). Dès que tout le monde a répondu, la ligue se lance automatiquement.</p>
+      <p style="font-size:.84rem;color:var(--muted);margin:6px 0 10px">Tous les inscrits s'affrontent (chacun contre chacun). Dès que tout le monde a répondu, le <b>calendrier</b> est généré — et <b>tu joues toi-même tes rencontres</b>, quand tu veux, avant dimanche 20h.</p>
       <div style="display:flex;gap:8px;margin-bottom:10px">
         <button id="leagueJoinYes" class="bid-btn" style="flex:1;${mine==='in'?'background:#16a34a;border-color:#16a34a':''}">✅ Je participe${mine==='in'?' ✓':''}</button>
         <button id="leagueJoinNo" class="bid-btn" style="flex:1;background:var(--pitch);border:1px solid var(--line);color:var(--muted);${mine==='out'?'border-color:#e0574a;color:#e0574a':''}">❌ Pas cette semaine${mine==='out'?' ✓':''}</button>
@@ -12118,6 +12119,27 @@ async function renderLeagueBanner(){
     const yes=$('leagueJoinYes'), no=$('leagueJoinNo');
     if(yes) yes.onclick=async()=>{ yes.disabled=true; const r=await api.leagueJoin(true); if(r&&r.__error)alert(r.__error); renderLeagueBanner(); };
     if(no)  no.onclick =async()=>{ no.disabled=true;  const r=await api.leagueJoin(false); if(r&&r.__error)alert(r.__error); renderLeagueBanner(); };
+    return;
+  }
+
+  // ===== PHASE DE JEU (manuelle) : chacun joue ses rencontres =====
+  if(st.status==='running'){
+    const cd = st.seconds_left ? vmFmtDuration(st.seconds_left) : '—';
+    const myPending = st.my_pending|0, totalPending = st.total_pending|0;
+    host.innerHTML = `<div class="card" style="background:rgba(245,197,66,.08);border:1px solid var(--transfer);border-radius:12px;padding:14px 16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">
+        <div style="font-family:'Oswald','Saira Condensed',sans-serif;font-weight:700;font-size:1.12rem;text-transform:uppercase;letter-spacing:.5px">🏆 Ligue de la semaine — à jouer</div>
+        <div style="font-size:.74rem;color:var(--muted)">clôture dans <b style="color:var(--chalk)">${cd}</b></div>
+      </div>
+      ${affiche}
+      <div style="font-size:.8rem;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:8px 11px;margin-bottom:10px">⚙️ <b style="color:var(--chalk)">Tu joues tes rencontres toi-même.</b> Pour chaque match, l'un des deux adversaires clique « Jouer ». Les matchs non joués d'ici <b style="color:var(--chalk)">dimanche 20h</b> ne compteront pas.</div>
+      <div style="font-size:.78rem;margin-bottom:8px">${myPending>0?`<b style="color:var(--transfer)">${myPending}</b> match${myPending>1?'s':''} à jouer pour toi`:'✅ Tu as joué toutes tes rencontres'} <span style="color:var(--muted)">· ${totalPending} en attente dans la ligue</span></div>
+      <div id="leagueMyMatches"><div class="empty" style="padding:10px">Chargement de tes rencontres…</div></div>
+      <div style="font-size:.7rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 5px">Classement en direct</div>
+      <div id="leagueStandings"><div class="empty" style="padding:10px">—</div></div>
+    </div>`;
+    renderLeagueMyMatches(st.id, $('leagueMyMatches'));
+    renderLeagueStandings(st.id, $('leagueStandings'));
     return;
   }
 
@@ -12160,11 +12182,52 @@ async function renderLeagueStandings(leagueId, host){
       <td style="padding:5px;text-align:center">${r.diff>0?'+':''}${r.diff}</td>
       <td style="padding:5px;text-align:center;font-weight:800">${r.points}</td>
       <td style="padding:5px;text-align:center;color:${(r.podium_kora|0)>0?'#f5c542':'var(--muted)'};white-space:nowrap">${(r.podium_kora|0)>0?('+'+r.podium_kora):'·'}</td></tr>`).join('')}</tbody></table></div>
-    ${matches.length?`<div style="font-size:.68rem;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 5px">Résultats</div>
-      <div style="display:flex;flex-direction:column;gap:3px">${matches.map(m=>`<button data-lgmatch="${m.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:5px 10px;cursor:pointer;color:var(--chalk);font-size:.8rem">
+    ${matches.length?`<div style="display:flex;justify-content:space-between;align-items:baseline;margin:12px 0 5px">
+        <div style="font-size:.68rem;text-transform:uppercase;color:var(--muted);font-weight:700">Résultats</div>
+        <div style="font-size:.66rem;color:var(--muted)">touche un match pour voir comment il s'est joué →</div></div>
+      <div style="font-size:.72rem;color:var(--muted);background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:8px;padding:7px 10px;margin-bottom:7px">⚙️ Rencontres <b>jouées par les managers</b> à partir de leur compo. Touche un match pour voir comment il s'est joué.</div>
+      <div style="display:flex;flex-direction:column;gap:3px">${matches.map(m=>`<button data-lgmatch="${m.id}" style="display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;color:var(--chalk);font-size:.8rem">
         <span style="flex:1;text-align:right">${vmEsc(m.home_team)}</span>
-        <b style="font-family:'Saira',monospace">${m.home_goals} – ${m.away_goals}</b>
-        <span style="flex:1;text-align:left">${vmEsc(m.away_team)}</span></button>`).join('')}</div>`:''}`;
+        <b style="font-family:'Chakra Petch','Saira',monospace;color:#ffe6a0">${m.home_goals} – ${m.away_goals}</b>
+        <span style="flex:1;text-align:left;display:flex;align-items:center;gap:6px">${vmEsc(m.away_team)}</span>
+        <span style="flex:0 0 auto;color:var(--transfer);font-size:1rem;line-height:1">›</span></button>`).join('')}</div>`:''}`;
+  host.querySelectorAll('[data-lgmatch]').forEach(b=>b.onclick=()=>showLeagueMatchSheet(b.dataset.lgmatch));
+}
+
+// Mes rencontres de la ligue (mode manuel) : à jouer (bouton Jouer) / jouées
+// (score + accès feuille). L'un des deux adversaires lance le match.
+async function renderLeagueMyMatches(leagueId, host){
+  if(!host) return;
+  const rows = await api.leagueMyMatches(leagueId);
+  if(rows && rows.__error){ host.innerHTML=`<div class="empty" style="padding:10px">${rows.__error}</div>`; return; }
+  if(!rows.length){ host.innerHTML='<div class="empty" style="padding:10px">Aucune rencontre pour toi dans cette ligue.</div>'; return; }
+  const line = (m)=>{
+    if(!m.played){
+      return `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:7px 10px">
+        <span style="font-size:.84rem">vs <b>${vmEsc(m.opponent_team)}</b> <span style="color:var(--muted);font-size:.74rem">· ${m.i_am_home?'à domicile':'à l\'extérieur'}</span></span>
+        <button data-lgplay="${m.match_id}" class="bid-btn" style="width:auto;margin:0;padding:6px 14px;font-size:.8rem">▶️ Jouer</button>
+      </div>`;
+    }
+    const win = m.outcome==='win', draw = m.outcome==='draw';
+    const col = win?'#4ade80':(draw?'var(--muted)':'#e0574a');
+    const tag = win?'Victoire':(draw?'Nul':'Défaite');
+    return `<button data-lgmatch="${m.match_id}" style="display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:var(--pitch);border:1px solid var(--line);border-radius:8px;padding:7px 10px;cursor:pointer;color:var(--chalk);font-size:.84rem;text-align:left">
+      <span>vs <b>${vmEsc(m.opponent_team)}</b> <span style="color:${col};font-size:.74rem">· ${tag}</span></span>
+      <span style="display:flex;align-items:center;gap:8px"><b style="font-family:'Chakra Petch','Saira',monospace;color:#ffe6a0">${m.my_goals} – ${m.opp_goals}</b><span style="color:var(--transfer)">›</span></span>
+    </button>`;
+  };
+  host.innerHTML = `<div style="display:flex;flex-direction:column;gap:5px">${rows.map(line).join('')}</div>`;
+  // Jouer une rencontre.
+  host.querySelectorAll('[data-lgplay]').forEach(b=>b.onclick=async()=>{
+    b.disabled=true; b.textContent='…';
+    const r = await api.leaguePlayMatch(b.dataset.lgplay);
+    if(r && r.__error){ alert(r.__error); b.disabled=false; b.textContent='▶️ Jouer'; return; }
+    const sc = (r && typeof r.home_goals==='number') ? ` (${r.home_goals}–${r.away_goals})` : '';
+    toast('⚽ Match joué'+sc+' !','ok',3500);
+    // Rafraîchit le bandeau (mes matchs + classement + mon état).
+    renderLeagueBanner();
+  });
+  // Rouvrir la feuille d'un match déjà joué.
   host.querySelectorAll('[data-lgmatch]').forEach(b=>b.onclick=()=>showLeagueMatchSheet(b.dataset.lgmatch));
 }
 
