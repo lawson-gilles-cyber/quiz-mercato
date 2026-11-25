@@ -14103,6 +14103,7 @@ async function init(){
     maybeShowWelcome();
     if($('obLaunch')) $('obLaunch').style.display = 'inline-flex';
     maybeShowOnboarding();
+    try { maybeShowLeagueManualAnnounce(); } catch(e){}
   } else {
     if($('obLaunch')) $('obLaunch').style.display = 'none';
     $('wallet').textContent = '—';
@@ -14437,6 +14438,21 @@ function showSeasonPopup(emoji, title, bodyHTML, ctaText, view){
   if(go) go.onclick=()=>{ close(); const target = view || 'lineup';
     if((target==='rank'||target==='vmatch') && typeof goView==='function') goView(target);
     else { const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); } };
+}
+// Annonce unique : passage de la Ligue en mode MANUEL (une fois par manager).
+// On ne la montre que si une ligue est effectivement en phase de jeu manuel,
+// pour que le message soit pertinent. Clé localStorage = vue une seule fois.
+async function maybeShowLeagueManualAnnounce(){
+  if(!ME) return;
+  if(lsGet('us_seen_league_manual_v1', false)) return;
+  let st = null;
+  try { st = await api.leagueState(); } catch(e){ return; }
+  if(!st || st.__error || !st.exists) return;
+  if(st.status !== 'running') return;   // l'annonce ne vaut que pendant la phase de jeu
+  lsSet('us_seen_league_manual_v1', true);
+  const myPending = st.my_pending|0;
+  const body = `La <b>Ligue de la semaine</b> évolue : les rencontres ne se jouent <b>plus automatiquement</b>. 🎮 <b>Tu joues désormais tes matchs toi-même</b> — pour chaque rencontre, l'un des deux adversaires clique « Jouer ».<br><br>⚠️ Les anciens résultats automatiques ont été <b>remis à zéro</b>. Tu as <b>${myPending>0?myPending+' match'+(myPending>1?'s':''):'des matchs'} à jouer</b> avant <b>dimanche 20h</b> — après, les rencontres non jouées ne comptent pas.`;
+  showSeasonPopup('🏆', 'La Ligue passe en mode manuel', body, '▶️ Jouer mes matchs', 'vmatch');
 }
 function showMatchdayOpenPopup(label, dlTxt){
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
