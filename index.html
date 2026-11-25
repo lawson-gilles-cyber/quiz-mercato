@@ -14418,7 +14418,7 @@ async function checkKoraNews(){
 }
 
 // Pop-up générique de saison (réutilise l'overlay ux + une vue cible au clic).
-function showSeasonPopup(emoji, title, bodyHTML, ctaText, view){
+function showSeasonPopup(emoji, title, bodyHTML, ctaText, view, onGo){
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
   if(!ov||!md) return;
   md.innerHTML = `
@@ -14435,24 +14435,42 @@ function showSeasonPopup(emoji, title, bodyHTML, ctaText, view){
   const close=()=>{ ov.style.display='none'; };
   const later=document.getElementById('seasonPopLater'), go=document.getElementById('seasonPopGo');
   if(later) later.onclick=close;
-  if(go) go.onclick=()=>{ close(); const target = view || 'lineup';
+  if(go) go.onclick=()=>{ close(); try { if(typeof onGo==='function') onGo(); } catch(e){}
+    const target = view || 'lineup';
     if((target==='rank'||target==='vmatch') && typeof goView==='function') goView(target);
     else { const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); } };
 }
-// Annonce unique : passage de la Ligue en mode MANUEL (une fois par manager).
-// On ne la montre que si une ligue est effectivement en phase de jeu manuel,
-// pour que le message soit pertinent. Clé localStorage = vue une seule fois.
+// Annonce : passage de la Ligue en mode MANUEL. Elle doit s'éteindre toute
+// seule — on NE la montre QUE si :
+//   • une ligue est en phase de jeu manuel ('running'), ET
+//   • le manager n'a encore joué AUCUNE de ses rencontres.
+// Dès qu'il a joué au moins un match, l'annonce ne réapparaît plus (flag posé).
+// Un simple « Plus tard » ne pose PAS le flag → elle revient à la prochaine
+// ouverture, tant qu'il n'a pas joué.
 async function maybeShowLeagueManualAnnounce(){
   if(!ME) return;
-  if(lsGet('us_seen_league_manual_v1', false)) return;
+  if(lsGet('us_seen_league_manual_v1', false)) return;   // déjà éteinte définitivement
   let st = null;
   try { st = await api.leagueState(); } catch(e){ return; }
   if(!st || st.__error || !st.exists) return;
   if(st.status !== 'running') return;   // l'annonce ne vaut que pendant la phase de jeu
-  lsSet('us_seen_league_manual_v1', true);
+
+  // A-t-il déjà joué au moins une de ses rencontres ? Si oui → on éteint et on
+  // ne montre plus rien (il a compris le principe en jouant).
+  let mine = [];
+  try { mine = await api.leagueMyMatches(st.id); } catch(e){ mine = []; }
+  if(Array.isArray(mine) && mine.some(m=>m.played)){
+    lsSet('us_seen_league_manual_v1', true);
+    return;
+  }
+
   const myPending = st.my_pending|0;
   const body = `La <b>Ligue de la semaine</b> évolue : les rencontres ne se jouent <b>plus automatiquement</b>. 🎮 <b>Tu joues désormais tes matchs toi-même</b> — pour chaque rencontre, l'un des deux adversaires clique « Jouer ».<br><br>⚠️ Les anciens résultats automatiques ont été <b>remis à zéro</b>. Tu as <b>${myPending>0?myPending+' match'+(myPending>1?'s':''):'des matchs'} à jouer</b> avant <b>dimanche 20h</b> — après, les rencontres non jouées ne comptent pas.`;
-  showSeasonPopup('🏆', 'La Ligue passe en mode manuel', body, '▶️ Jouer mes matchs', 'vmatch');
+  // CTA « Jouer » → on considère le message comme lu définitivement.
+  // « Plus tard » → on ne pose pas le flag, l'annonce reviendra tant qu'il n'a
+  // pas joué. showSeasonPopup pose le flag via le callback onGo ci-dessous.
+  showSeasonPopup('🏆', 'La Ligue passe en mode manuel', body, '▶️ Jouer mes matchs', 'vmatch',
+    ()=> lsSet('us_seen_league_manual_v1', true));
 }
 function showMatchdayOpenPopup(label, dlTxt){
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
