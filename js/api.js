@@ -2425,6 +2425,12 @@ export async function vtournamentList() {
   const { data } = await sb.rpc('qm_vtournament_list');
   return data ?? [];
 }
+// Mes rencontres de coupe où c'est à MOI d'aligner mon onze (pour la relance).
+export async function vtournamentMyPending() {
+  const { data, error } = await sb.rpc('qm_vtournament_my_pending');
+  if (error) return { __error: error.message };
+  return data ?? [];
+}
 export async function vtournamentBracket(id) {
   const { data, error } = await sb.rpc('qm_vtournament_bracket', { p_id: id });
   if (error) return { __error: error.message };

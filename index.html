@@ -14104,6 +14104,7 @@ async function init(){
     if($('obLaunch')) $('obLaunch').style.display = 'inline-flex';
     maybeShowOnboarding();
     try { maybeShowLeagueManualAnnounce(); } catch(e){}
+    try { maybeShowCupMatchReminder(); } catch(e){}
   } else {
     if($('obLaunch')) $('obLaunch').style.display = 'none';
     $('wallet').textContent = '—';
@@ -14437,8 +14438,11 @@ function showSeasonPopup(emoji, title, bodyHTML, ctaText, view, onGo){
   if(later) later.onclick=close;
   if(go) go.onclick=()=>{ close(); try { if(typeof onGo==='function') onGo(); } catch(e){}
     const target = view || 'lineup';
-    if((target==='rank'||target==='vmatch') && typeof goView==='function') goView(target);
-    else { const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); } };
+    // Routage : 'lineup' → onglet compo ; toute vue secondaire connue → goView.
+    if(target!=='lineup' && typeof goView==='function'
+       && (typeof SECONDARY_VIEWS==='undefined' || SECONDARY_VIEWS.includes(target))){
+      goView(target);
+    } else { const b=document.querySelector('[data-v="lineup"]'); if(b) b.click(); } };
 }
 // Annonce : passage de la Ligue en mode MANUEL. Elle doit s'éteindre toute
 // seule — on NE la montre QUE si :
@@ -14471,6 +14475,34 @@ async function maybeShowLeagueManualAnnounce(){
   // pas joué. showSeasonPopup pose le flag via le callback onGo ci-dessous.
   showSeasonPopup('🏆', 'La Ligue passe en mode manuel', body, '▶️ Jouer mes matchs', 'vmatch',
     ()=> lsSet('us_seen_league_manual_v1', true));
+}
+
+// Relance COUPE : si c'est à moi d'aligner mon onze dans une rencontre de coupe,
+// un pop-up m'invite à la livrer. Récurrent mais non envahissant : on ne le
+// remontre pas pour le MÊME ensemble de matchs déjà vus (clé = liste des ids).
+// Un nouveau match (nouveau tour, nouvel adversaire) ré-arme la relance.
+async function maybeShowCupMatchReminder(){
+  if(!ME) return;
+  let pend = [];
+  try { pend = await api.vtournamentMyPending(); } catch(e){ return; }
+  if(pend && pend.__error) return;
+  if(!Array.isArray(pend) || !pend.length) return;
+
+  // Signature des matchs en attente ; si identique à la dernière vue, on se tait.
+  const sig = pend.map(m=>m.match_id).sort().join(',');
+  if(lsGet('us_seen_cup_pending', '') === sig) return;
+  // Ne pas écraser un pop-up déjà affiché (ex. annonce Ligue) : on réessaiera
+  // à la prochaine ouverture (la signature n'est pas encore mémorisée).
+  const ov = document.getElementById('uxOverlay');
+  if(ov && ov.style.display==='flex') return;
+  lsSet('us_seen_cup_pending', sig);
+
+  const n = pend.length;
+  const first = pend[0];
+  const roundTxt = first.tournament_name ? vmEsc(first.tournament_name) : 'la coupe';
+  const list = pend.slice(0,3).map(m=>`vs <b>${vmEsc(m.opponent_name||'ton adversaire')}</b>`).join(', ');
+  const body = `🏆 C'est à toi de jouer en <b>${roundTxt}</b> ! Tu as <b>${n}</b> rencontre${n>1?'s':''} de coupe <b>à livrer</b> : ${list}${n>3?'…':''}.<br><br>Aligne ton onze : le match se joue dès que ton adversaire a posé le sien. Ne traîne pas, un tour non joué peut t'éliminer.`;
+  showSeasonPopup('🏆', `Coupe — ${n} match${n>1?'s':''} à livrer`, body, '⚽ Aligner mon onze →', 'vtournament');
 }
 function showMatchdayOpenPopup(label, dlTxt){
   const ov = document.getElementById('uxOverlay'), md = document.getElementById('uxModal');
